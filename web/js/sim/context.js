@@ -1,6 +1,6 @@
 // Contexte d'exécution partagé (non sauvegardé) : calcul de routes et caches.
 import { Router, pointAlong } from './routing.js';
-import { DISTANCES } from '../data/distances.js';
+import { DISTANCES, DISTANCES_CLOSED } from '../data/distances.js';
 import { SHIP_TYPES } from '../data/ships.js';
 
 // Limites réelles de tirant d'eau des canaux (m).
@@ -25,12 +25,10 @@ export function makeContext() {
       return closed;
     },
     distanceInfo(from, to, closed = []) {
-      if (!closed.length) {
-        const d = DISTANCES[from]?.[to];
-        return d ? { nm: d[0], canals: d[1] } : null;
-      }
-      const r = router.route(from, to, closed);
-      return r ? { nm: r.nm, canals: r.canals } : null;
+      const table = closed.length ? DISTANCES_CLOSED[[...closed].sort().join(',')] : DISTANCES;
+      const d = table?.[from]?.[to];
+      if (d == null) return table ? null : (() => { const r = router.route(from, to, closed); return r ? { nm: r.nm, canals: r.canals } : null; })();
+      return typeof d === 'number' ? { nm: d, canals: [] } : { nm: d[0], canals: d[1] };
     },
     route(from, to, closed = []) {
       const r = router.route(from, to, closed);

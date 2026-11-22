@@ -239,10 +239,19 @@ export function voyageEstimate(state, { typeId, flag, from, to, qty = 0, hold = 
 }
 
 // ---------- Contrats de fret ----------
-export function contractTarget(p) { return Math.round(3 + PORTS[p].size * 1.7); }
+// Densité de contrats : le volume total de fret ne doit pas croître avec le nombre de ports.
+export const CONTRACT_DENSITY = 0.75;
+export function contractTarget(p) { return Math.max(1, Math.round((3 + PORTS[p].size * 1.7) * CONTRACT_DENSITY)); }
 
 // Choisit un type de navire « de référence » capable de faire le transport.
+// (Données fixes : mises en cache par liaison et marchandise.)
+const refCache = new Map();
 function referenceTypes(from, to, good) {
+  const key = from + '>' + to + ':' + good;
+  if (!refCache.has(key)) refCache.set(key, computeReferenceTypes(from, to, good));
+  return refCache.get(key);
+}
+function computeReferenceTypes(from, to, good) {
   const list = [];
   for (const [id, T] of Object.entries(SHIP_TYPES)) {
     if (T.vintage) continue;
@@ -259,13 +268,13 @@ function referenceTypes(from, to, good) {
 
 // Cabotage : petits lots vers les ports proches, le gagne-pain des petits navires.
 export const REGIONAL_NM = 3200, REGIONAL_DWT = 15000;
-export function regionalTarget(p) { return Math.round(1 + PORTS[p].size * 0.7); }
+export function regionalTarget(p) { return Math.round((1 + PORTS[p].size * 0.7) * CONTRACT_DENSITY); }
 // Grands volumes : cargaisons géantes au départ des ports profonds (brut, minerai, conteneurs).
 export const BIG_DWT = 50000;
 export function bigTarget(p) {
   const P = PORTS[p];
   const deep = Math.max(P.draft, ...Object.values(P.deep || {}));
-  return deep >= 14 ? Math.round(P.size * 0.6) : 0;
+  return deep >= 14 ? Math.round(P.size * 0.6 * CONTRACT_DENSITY) : 0;
 }
 
 // forType : impose un type de navire de référence (contrats garantis en début de partie).
@@ -335,10 +344,16 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
 
 export function refreshContracts(state, ctx, rng, fill = false) {
   state.contracts = state.contracts.filter((c) => c.takenBy !== null || c.expires > state.t);
+  // Contrats ouverts par port et par catégorie, comptés en une seule passe.
+  const count = {};
+  for (const c of state.contracts) {
+    if (c.takenBy !== null) continue;
+    const k = c.from + (c.regional ? ':regional' : c.big ? ':big' : ':normal');
+    count[k] = (count[k] || 0) + 1;
+  }
   for (const p of PORT_IDS) {
     for (const kind of ['normal', 'regional', 'big']) {
-      const open = state.contracts.filter((c) => c.from === p && c.takenBy === null
-        && (kind === 'regional' ? c.regional : kind === 'big' ? c.big : !c.regional && !c.big)).length;
+      const open = count[p + ':' + kind] || 0;
       const target = kind === 'regional' ? regionalTarget(p) : kind === 'big' ? bigTarget(p) : contractTarget(p);
       for (let k = 0; k < target - open; k++) {
         if (!fill && k > 0 && !rng.chance(0.6)) break;

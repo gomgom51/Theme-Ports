@@ -185,36 +185,46 @@ export class Router {
     return out;
   }
 
-  // Toutes les routes depuis un port (mises en cache par port et canaux fermés).
-  routesFrom(fromId, closedList = []) {
+  // Arbre des plus courts chemins depuis un port (mis en cache par port et canaux fermés).
+  tree(fromId, closedList = []) {
     const closed = new Set(closedList);
     const key = fromId + '|' + [...closed].sort().join(',');
-    if (this.cache.has(key)) return this.cache.get(key);
-    const start = this.portCell[fromId];
-    const prev = this.dijkstra(start, closed);
-    const routes = {};
-    const from = PORTS[fromId];
-    for (const [toId, to] of Object.entries(PORTS)) {
-      if (toId === fromId) continue;
-      const end = this.portCell[toId];
-      if (end !== start && prev[end] < 0) { routes[toId] = null; continue; }
+    let t = this.cache.get(key);
+    if (!t) {
+      t = { prev: this.dijkstra(this.portCell[fromId], closed), closed, routes: {} };
+      this.cache.set(key, t);
+    }
+    return t;
+  }
+
+  // Une route précise, calculée (et lissée) seulement quand on en a besoin.
+  route(fromId, toId, closedList = []) {
+    const t = this.tree(fromId, closedList);
+    if (toId in t.routes) return t.routes[toId];
+    const start = this.portCell[fromId], end = this.portCell[toId];
+    let r = null;
+    if (end === start || t.prev[end] >= 0) {
       const cells = [];
-      for (let c = end; c >= 0; c = prev[c]) { cells.push(c); if (c === start) break; }
+      for (let c = end; c >= 0; c = t.prev[c]) { cells.push(c); if (c === start) break; }
       cells.reverse();
       const usesCanal = new Set();
       for (const c of cells) if (this.canalOf[c] >= 0) usesCanal.add(this.canalIds[this.canalOf[c]]);
-      let pts = this.smooth(this.unwrap(cells), closed);
+      let pts = this.smooth(this.unwrap(cells), t.closed);
       // Le quai réel aux deux bouts (en gardant les longitudes continues).
+      const from = PORTS[fromId], to = PORTS[toId];
       const fix = (lon, ref) => lon + 360 * Math.round((ref - lon) / 360);
       pts = [[fix(from.lon, pts[0][0]), from.lat], ...pts, [fix(to.lon, pts[pts.length - 1][0]), to.lat]];
-      routes[toId] = makeRoute(pts, [...usesCanal]);
+      r = makeRoute(pts, [...usesCanal]);
     }
-    this.cache.set(key, routes);
-    return routes;
+    t.routes[toId] = r;
+    return r;
   }
 
-  route(fromId, toId, closedList = []) {
-    return this.routesFrom(fromId, closedList)[toId] || null;
+  // Toutes les routes depuis un port (outil de pré-calcul des distances).
+  routesFrom(fromId, closedList = []) {
+    const out = {};
+    for (const toId of Object.keys(PORTS)) if (toId !== fromId) out[toId] = this.route(fromId, toId, closedList);
+    return out;
   }
 }
 

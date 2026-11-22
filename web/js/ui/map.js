@@ -8,8 +8,13 @@ import { flagImage } from './flags.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
 const LABEL_PLACE = {
-  ras_tanura: ['left', -6], ras_laffan: ['left', 7], dubai: ['right', 3],
+  ras_tanura: ['left', -6], ras_laffan: ['left', 7], dubai: ['right', 4], bandar_abbas: ['right', -8], karachi: ['right', -10],
   durban: ['left', 4], richards_bay: ['right', -4],
+  abidjan: ['left', 0], tema: ['right', -8], lagos: ['right', 5],
+  colon: ['left', 0], cartagena: ['right', -8], puerto_la_cruz: ['right', 3],
+  port_klang: ['left', -3], singapour: ['right', 4],
+  marseille: ['left', 2], genes: ['right', -3],
+  hambourg: ['left', -7], rotterdam: ['right', 4],
 };
 
 // Couleurs de la carte (style carte marine).
@@ -358,7 +363,8 @@ export class MapView {
       g.lineWidth = 1.6;
       g.strokeStyle = '#fff';
       g.stroke();
-      if (scale > 3.2 || P.size >= 5 || hl) {
+      // Les grands ports sont nommés dès le départ, les petits quand on zoome.
+      if (hl || P.size >= 5 || scale > (P.size >= 4 ? 3 : 4.2)) {
         const flag = flagImage(P.flag);
         const [side, dy] = LABEL_PLACE[id] || ['right', 0];
         const ly = y + dy * Math.max(0.4, Math.min(1, 6 / scale));

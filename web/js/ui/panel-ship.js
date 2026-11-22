@@ -214,7 +214,7 @@ function tradeTab(app, ship) {
     for (const p of PORT_IDS) {
       if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
       const est = tripEstimate(app, ship, p, T.speed);
-      if (!est.route || est.error) continue;
+      if (est.error || !est.nm) continue;
       const sale = eco.quoteTrade(state, p, ship.cargo.good, ship.cargo.qty, 'sell').total - ship.cargo.qty * eco.HANDLING_COST[ship.cargo.hold];
       outlets.push({ p, net: sale - est.cost - ship.cargo.cost, est, unit: eco.sellPrice(state, p, ship.cargo.good) });
     }
@@ -248,7 +248,7 @@ function tradeTab(app, ship) {
       if (!eco.portHandles(p, hold)) continue;
       const qty = Math.max(100, Math.min(T.dwt, stock));
       const est = tripEstimate(app, ship, p, T.speed, qty, hold);
-      if (!est.route || est.error) continue;
+      if (est.error || !est.nm) continue;
       const buy = act.quoteBuy(state, ship, g, qty).total;
       const sell = eco.quoteTrade(state, p, g, qty, 'sell').total - qty * eco.HANDLING_COST[hold];
       dests.push({ p, net: sell - buy - est.cost, unit: eco.sellPrice(state, p, g), est, qty });

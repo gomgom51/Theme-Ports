@@ -8,12 +8,23 @@ import { Router } from '../web/js/sim/routing.js';
 import { PORT_IDS } from '../web/js/data/ports.js';
 
 const router = new Router();
-const table = {};
-for (const a of PORT_IDS) {
-  const routes = router.routesFrom(a);
-  table[a] = {};
-  for (const b of PORT_IDS) if (b !== a) table[a][b] = routes[b] ? [Math.round(routes[b].nm), routes[b].canals] : null;
+// Une table par combinaison de canaux fermés (événement ou tirant d'eau trop fort) :
+// le jeu n'a plus jamais à recalculer une distance en cours de partie.
+function build(closed) {
+  const table = {};
+  for (const a of PORT_IDS) {
+    const routes = router.routesFrom(a, closed);
+    table[a] = {};
+    for (const b of PORT_IDS) if (b !== a) table[a][b] = routes[b] ? (routes[b].canals.length ? [Math.round(routes[b].nm), routes[b].canals] : Math.round(routes[b].nm)) : null;
+  }
+  return table;
 }
+const open = build([]);
+const closedTables = { suez: build(['suez']), panama: build(['panama']), 'panama,suez': build(['panama', 'suez']) };
 const out = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'js', 'data', 'distances.js');
-writeFileSync(out, `// Généré par tools/build_distances.mjs. [milles nautiques, canaux empruntés], canaux ouverts.\nexport const DISTANCES = ${JSON.stringify(table)};\n`);
+writeFileSync(out, `// Généré par tools/build_distances.mjs. Milles nautiques, ou [milles, canaux empruntés].
+// DISTANCES : canaux ouverts ; DISTANCES_CLOSED : par canaux fermés (« panama », « suez », « panama,suez »).
+export const DISTANCES = ${JSON.stringify(open)};
+export const DISTANCES_CLOSED = ${JSON.stringify(closedTables)};
+`);
 console.log('wrote', out);

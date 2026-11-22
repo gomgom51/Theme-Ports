@@ -96,8 +96,10 @@ export function planVoyage(state, ctx, ship, to, speed) {
     }
   }
   const closed = ctx.closedCanals(state, T.draft);
-  const route = ctx.route(from, to, closed);
-  if (!route) return { error: 'Aucune route maritime praticable.' };
+  // Distance et canaux depuis les tables pré-calculées ; le tracé n'est calculé que si on le demande.
+  const info = ctx.distanceInfo(from, to, closed);
+  if (!info) return { error: 'Aucune route maritime praticable.' };
+  const route = { nm: info.nm, canals: info.canals };
   const seaDays = route.nm / (24 * speed);
   const age = eco.ageYears(state, ship);
   const needFuel = eco.burnPerDay(T, speed, age) * seaDays * 1.08 + T.idleBurn;
@@ -105,7 +107,8 @@ export function planVoyage(state, ctx, ship, to, speed) {
     typeId: ship.type, flag: company.flag, from, to, speed, nm: route.nm, canals: route.canals, age,
   });
   const res = {
-    route, speed, nm: route.nm, seaDays, needFuel, closed, canals: route.canals,
+    get route() { return ctx.route(from, to, closed); },
+    speed, nm: route.nm, seaDays, needFuel, closed, canals: route.canals,
     fuelCost: needFuel * eco.fuelPrice(state, from), fixed: est.fixed, fees: est.fees,
     eta: state.t + Math.ceil(seaDays * HOURS_PER_DAY),
   };
