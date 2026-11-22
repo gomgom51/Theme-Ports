@@ -26,16 +26,18 @@ project owner):
 
 ## Balance
 
-Do **not** fine-tune balance until the game is fully featured: balancing
-something that new features will unbalance is wasted work. Only fix glaring
-problems (runaway growth, a mechanic that always loses) along the way.
+Do **not** balance while features are being built: balancing something that
+new features will unbalance is wasted work, and the features themselves will
+be the tuning tools. During development, only check correctness (no crash, no
+NaN, the simulation runs, saves load). Balance is tested and tuned once, at the
+end, with the tools below.
 Intended strengths to preserve: general cargo ships (small, flexible holds)
 will be the best tools for grey and black trade.
 
 Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 → equipment → piracy (simple: defence vs boarders → result) → full balance pass.
 
-### Balance checklist (for the final pass, and for glaring issues)
+### Balance tools (final pass only — not run in CI)
 
 - `node tests/fleet.test.mjs` — every ship model profitable in a normal market.
 - `node tests/strategies.test.mjs` — no strategy dominates across seeds; each

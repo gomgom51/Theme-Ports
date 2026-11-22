@@ -18,6 +18,8 @@ import * as act from './sim/actions.js';
 import { SHIP_TYPES } from './data/ships.js';
 import { etaOf } from './ui/panel-ship.js';
 import { openPayment } from './ui/payment.js';
+import { computeAlerts } from './ui/alerts.js';
+import { officeTier } from './ui/officeart.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt', 'detention']);
@@ -151,6 +153,14 @@ function updateHud() {
   const badge = $('#badge-fleet');
   badge.textContent = idle || '';
   badge.hidden = !idle;
+  // Notifications importantes : le badge devient rouge s'il y a une urgence.
+  const alerts = computeAlerts(s, ctx, c.id).filter((a) => a.level <= 1);
+  const ab = $('#badge-alerts');
+  ab.textContent = alerts.length || '';
+  ab.hidden = !alerts.length;
+  ab.classList.toggle('urgent', alerts.some((a) => a.level === 0));
+  // La musique suit le standing de la compagnie (le bureau).
+  app.audio.setMusicTier(officeTier(netWorth(s, c.id)));
   const humans = s.companies.filter((x) => x.human);
   $('#hud-company').classList.toggle('switchable', humans.length > 1);
   const news = s.news[0];

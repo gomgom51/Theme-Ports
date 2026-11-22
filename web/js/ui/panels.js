@@ -18,6 +18,7 @@ import { flagEl } from './flags.js';
 import { officeSVG, officeTier, OFFICE_TIERS } from './officeart.js';
 import { pendingList } from './payment.js';
 import { surveyTag, isStrict } from './risk.js';
+import { alertsPanel } from './alerts.js';
 
 const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -516,5 +517,5 @@ export function helpPanel() {
 
 export const PANELS = {
   fleet: fleetPanel, port: portPanel, broker: brokerPanel, office: officePanel,
-  markets: marketsPanel, news: newsPanel, help: helpPanel,
+  markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel,
 };

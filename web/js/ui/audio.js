@@ -5,10 +5,17 @@ import * as S from './sounds.js';
 
 const KEY = 'portdattache.audio';
 // Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
+// Pendant la partie, un thème par standing de la compagnie (niveau1 à niveau5),
+// du vieux chant de marins à la musique de multinationale ; jeu.mp3 en secours.
 const TRACKS = {
   title: { src: 'musique/accueil.mp3', volume: 0.45, loop: true },
   game: { src: 'musique/jeu.mp3', volume: 0.22, loop: true },
   end: { src: 'musique/victoire.mp3', volume: 0.5, loop: false },
+  tier1: { src: 'musique/niveau1.mp3', volume: 0.22, loop: true },
+  tier2: { src: 'musique/niveau2.mp3', volume: 0.22, loop: true },
+  tier3: { src: 'musique/niveau3.mp3', volume: 0.22, loop: true },
+  tier4: { src: 'musique/niveau4.mp3', volume: 0.22, loop: true },
+  tier5: { src: 'musique/niveau5.mp3', volume: 0.22, loop: true },
 };
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
@@ -37,9 +44,8 @@ export class AudioManager {
   unlock() {
     if (!this.unlocked) {
       this.unlocked = true;
-      const scene = this.musicScene ?? this.sceneName;
       this.musicScene = null;
-      this.playMusic(scene);
+      this.playMusic(this.sceneName);
     }
     if (this.ctx) {
       if (this.ctx.state === 'suspended' && !this.paused) this.ctx.resume();
@@ -163,17 +169,37 @@ export class AudioManager {
   }
 
   // ---------- Musique ----------
+  // Standing de la compagnie (0 à 4) : change le thème joué pendant la partie.
+  setMusicTier(tier) {
+    if (this.musicTier === tier) return;
+    this.musicTier = tier;
+    if (this.sceneName === 'game' && this.musicScene) { this.musicScene = null; this.playMusic('game'); }
+  }
+  trackFor(scene) {
+    const ok = (k) => TRACKS[k] && !this.missing?.has(TRACKS[k].src);
+    if (scene === 'game') {
+      const k = `tier${(this.musicTier ?? 0) + 1}`;
+      return ok(k) ? k : ok('game') ? 'game' : null;
+    }
+    return ok(scene) ? scene : null;
+  }
   playMusic(scene) {
     if (!this.unlocked && !window.AndroidBridge) { this.musicScene = null; return; }
-    if (scene === this.musicScene) return;
-    this.musicScene = scene;
+    const key = scene === 'game' ? `game:${this.musicTier ?? 0}` : scene;
+    if (key === this.musicScene) return;
+    this.musicScene = key;
     this.fadeOutMusic();
-    const track = TRACKS[scene];
-    if (!track || !this.settings.music || this.missing?.has(track.src)) return;
+    const name = this.trackFor(scene);
+    const track = TRACKS[name];
+    if (!track || !this.settings.music) return;
     const el = new Audio(track.src);
     el.loop = track.loop;
     el.volume = 0;
-    el.addEventListener('error', () => { (this.missing ||= new Set()).add(track.src); });
+    // Fichier absent : on le note et on se rabat sur le morceau suivant (jeu.mp3).
+    el.addEventListener('error', () => {
+      (this.missing ||= new Set()).add(track.src);
+      if (this.music === el && scene === 'game' && name !== 'game') { this.musicScene = null; this.playMusic('game'); }
+    });
     el.play().then(() => {
       this.fade(el, track.volume, 2500);
       // La musique couvre un peu l'ambiance.

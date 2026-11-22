@@ -487,3 +487,11 @@ select.input { width: auto; max-width: 100%; }
 .risk-box { margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--line, #d9cfb8); border-radius: 8px; background: rgba(255, 255, 255, 0.45); font-size: 13px; line-height: 1.45; }
 .risk-box.compact { margin-top: 8px; padding: 6px 8px; font-size: 12.5px; }
 .risk-line + .risk-line { margin-top: 3px; }
+
+/* Notifications importantes */
+.badge.urgent { background: var(--bad); }
+.card.alert { padding: 8px 10px; }
+.card.alert-0 { border-left: 4px solid var(--bad); }
+.card.alert-1 { border-left: 4px solid var(--warn); }
+.card.alert-2 { border-left: 4px solid var(--teal); }
+.alert-icon { display: inline-block; width: 1.4em; text-align: center; }
