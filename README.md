@@ -1,0 +1,102 @@
+# Port d'Attache ⚓
+
+Jeu de gestion de compagnie maritime pour **Android** et **PC** (navigateur).
+Choisissez votre port d'attache, achetez des navires, transportez et négociez des
+marchandises entre de vrais ports du monde, et faites de votre compagnie la plus
+riche de la planète.
+
+## Le jeu
+
+* **Port d'attache = pavillon.** Le port de départ fixe le pays de la compagnie :
+  impôts, salaires des équipages, aide à la construction, réputation de départ,
+  taux des prêts. Panama ne prélève aucun impôt mais inspire peu confiance ; le
+  Japon prête presque gratuitement mais tout y coûte cher. On peut déménager en
+  cours de partie.
+* **26 ports réels aux capacités différentes** : tirant d'eau maximal, terminaux
+  (vrac sec, vrac liquide, marchandises diverses, conteneurs), chantiers navals,
+  prix du fuel, taxes, marchandises exportées et importées. Ras Tanura n'accueille
+  que des pétroliers, Port Hedland que des vraquiers, Buenos Aires est limité à
+  10 m de tirant d'eau…
+* **Cinq types de navires** pour commencer (caboteur, cargo polyvalent, vraquier,
+  pétrolier, porte-conteneurs), neufs ou d'occasion. Un vieux navire coûte moins
+  cher mais consomme plus, s'use vite et tombe en panne.
+* **Deux façons de gagner de l'argent** :
+  * les **contrats de fret** (revenu garanti, à livrer avant une date limite) ;
+  * le **négoce** : acheter une cargaison dans un port exportateur et la revendre
+    ailleurs. Vos achats et vos ventes font bouger les prix locaux.
+* **Une économie vivante** : cours mondiaux, taux de fret, prix du fuel et des
+  réparations qui fluctuent au gré des événements (chocs pétroliers, récoltes,
+  relance industrielle, récession, grèves, fermeture du canal de Suez, sécheresse
+  à Panama…).
+* **Des routes maritimes réelles** calculées sur la carte du monde, par les
+  canaux et les détroits. Distances réalistes (Rotterdam – Singapour par Suez :
+  8 400 milles ; par le cap de Bonne-Espérance : 11 900).
+* **La météo** : ouragans, typhons, cyclones, tempêtes d'hiver et quarantièmes
+  rugissants, selon la saison. Ils ralentissent les navires, usent les coques et
+  peuvent couler un navire mal entretenu.
+* **La vitesse se choisit** : la consommation varie avec le cube de la vitesse.
+* **Banque et réputation** : emprunts garantis par la flotte, découvert, saisie
+  de navires ; la réputation ouvre les meilleurs contrats.
+* **Jusqu'à 4 compagnies**, jouées par des humains sur le même appareil ou par
+  l'ordinateur (trois niveaux de difficulté).
+* Pas de manœuvre de port à faire soi-même : pilotes et remorqueurs sont automatiques.
+
+## Installer
+
+### Android
+Chaque modification publie un APK dans les *Releases* du dépôt (workflow
+« APK Android »). Sur le téléphone : télécharger `PortDAttache.apk` depuis la
+dernière release, autoriser l'installation d'applications inconnues, installer.
+Les mises à jour s'installent par-dessus la version précédente (les sauvegardes
+sont conservées).
+
+### PC
+Le workflow « Version PC » publie le jeu sur GitHub Pages. Il faut l'activer une
+fois : **Settings → Pages → Source : GitHub Actions**. Le jeu est alors jouable à
+l'adresse `https://<compte>.github.io/<dépôt>/`, et le navigateur propose de
+l'installer comme une application (il fonctionne ensuite hors ligne).
+
+En local : `npm start` puis ouvrir http://localhost:8080.
+
+## Commandes
+
+* Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un
+  navire ou un port pour l'ouvrir.
+* Clavier : `Espace` pause, `1` `2` `3` vitesse du temps, `Échap` fermer.
+
+## Développement
+
+Le jeu est écrit en JavaScript sans dépendance ni étape de compilation.
+
+```
+web/                 le jeu (servi tel quel, empaqueté dans l'APK)
+  js/data/           ports, pavillons, navires, marchandises, carte (générée)
+  js/sim/            simulation : économie, routes, événements, IA, boucle de jeu
+  js/ui/             interface : carte, panneaux, écrans
+android/             application Android (WebView plein écran)
+tools/               génération de la carte et de la table des distances
+tests/               tests des routes et de la simulation
+```
+
+* `npm test` : vérifie les distances maritimes et fait jouer 4 compagnies IA
+  pendant 3 ans.
+* `npm install && npm run build:world` : régénère la carte et la grille de
+  navigation à partir de Natural Earth (après une modification des détroits),
+  puis la table des distances.
+* `npm run build:distances` : à relancer après l'ajout ou le déplacement d'un port.
+
+## Feuille de route
+
+1. ✅ Base jouable : carte, ports, navires, fret et négoce, économie, météo,
+   événements, banque, IA, multijoueur sur un appareil.
+2. Flotte complète (≈ 20 types jusqu'au super tanker) et 60 à 100 ports.
+3. Équipage et équipement.
+4. Piraterie, forces de l'ordre et combats automatiques.
+5. Commerce gris et noir (embargos, cargaisons clandestines), douanes.
+6. Naufrages, pollution, assurance et responsabilité.
+7. Équilibrage, sons et musique, finitions.
+
+## Crédits
+
+Carte : [Natural Earth](https://www.naturalearthdata.com/) (domaine public), via
+le paquet `world-atlas`.

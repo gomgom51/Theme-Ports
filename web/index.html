@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1622">
+  <meta name="description" content="Port d'Attache : jeu de gestion de compagnie maritime.">
+  <title>Port d'Attache</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="map" class="map"></div>
+
+  <header id="hud" class="hud">
+    <button id="hud-company" class="hud-company" type="button" title="Compagnie aux commandes">
+      <span id="hud-company-dot" class="dot"></span>
+      <span class="hud-company-text">
+        <span id="hud-company-name" class="hud-company-name"></span>
+        <span id="hud-cash" class="hud-cash"></span>
+      </span>
+      <span class="hud-switch" aria-hidden="true">⇄</span>
+    </button>
+    <div class="hud-time">
+      <span id="hud-date" class="hud-date"></span>
+      <div class="speed" role="group" aria-label="Vitesse du temps">
+        <button type="button" data-speed="0" title="Pause (Espace)" aria-label="Pause">❚❚</button>
+        <button type="button" data-speed="1" title="Vitesse 1" aria-label="Vitesse 1">▶</button>
+        <button type="button" data-speed="2" title="Vitesse 2" aria-label="Vitesse 2">▶▶</button>
+        <button type="button" data-speed="3" title="Vitesse 3" aria-label="Vitesse 3">▶▶▶</button>
+      </div>
+    </div>
+    <button id="hud-menu" class="icon-btn hud-menu" type="button" title="Menu" aria-label="Menu">☰</button>
+  </header>
+
+  <nav class="rail" aria-label="Actions">
+    <button type="button" data-panel="fleet" title="Ma flotte"><span class="rail-icon">🚢</span><span class="rail-label">Flotte</span><span id="badge-fleet" class="badge" hidden></span></button>
+    <button type="button" data-panel="broker" title="Courtier maritime"><span class="rail-icon">🏗️</span><span class="rail-label">Courtier</span></button>
+    <button type="button" data-panel="office" title="Bureau"><span class="rail-icon">💼</span><span class="rail-label">Bureau</span></button>
+    <button type="button" data-panel="markets" title="Marchés"><span class="rail-icon">📈</span><span class="rail-label">Marchés</span></button>
+    <button type="button" data-panel="news" title="Journal"><span class="rail-icon">📰</span><span class="rail-label">Journal</span></button>
+  </nav>
+
+  <div id="ticker" class="ticker"></div>
+  <aside id="panel" class="panel" hidden></aside>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="screen" class="screen" hidden></div>
+  <div id="dialogs"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

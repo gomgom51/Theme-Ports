@@ -1,0 +1,374 @@
+// Point d'entrée : boucle de jeu, interface principale, notifications, sauvegardes.
+import { makeContext } from './sim/context.js';
+import { newGame, tick } from './sim/game.js';
+import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
+import { shipsOf, isIdle, shipById, netWorth } from './sim/core.js';
+import { PORTS } from './data/ports.js';
+import { MapView } from './ui/map.js';
+import { h, $, money, toast, dialog, confirmBox } from './ui/dom.js';
+import { shipPanel } from './ui/panel-ship.js';
+import { PANELS } from './ui/panels.js';
+import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
+import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
+
+const HOURS_PER_SECOND = [0, 3, 8, 24];
+const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt']);
+
+const ctx = makeContext();
+const app = {
+  state: null, ctx, speed: 0, mode: 'title',
+  ui: { activeCompany: 0, selectedShip: null, panel: null },
+  form: { dest: {}, speed: {}, autoRefuel: {} },
+  canImport: !isAndroid(),
+};
+
+// ---------- Carte ----------
+app.map = new MapView($('#map'), {
+  onShip: (id) => {
+    if (app.mode !== 'game') return;
+    const ship = shipById(app.state, id);
+    if (!ship) return;
+    app.ui.selectedShip = id;
+    app.open('ship', id);
+  },
+  onPort: (id) => { if (app.mode === 'game') app.open('port', id); },
+  onEmpty: () => { if (app.mode === 'game') { app.ui.selectedShip = null; } },
+});
+
+// Partie de démonstration derrière l'écran d'accueil.
+function startDemo() {
+  app.demo = newGame({ seed: 7, duration: 0, companies: ['rotterdam', 'singapour', 'houston', 'shanghai'].map((p, i) => ({ name: 'Démo ' + i, human: false, homePort: p })) }, ctx);
+  tick(app.demo, ctx, 24 * 40);
+  app.previewState = app.demo;
+}
+
+// ---------- Panneaux ----------
+const panelEl = $('#panel');
+let lastInteraction = 0;
+panelEl.addEventListener('pointerdown', () => { lastInteraction = performance.now(); });
+panelEl.addEventListener('input', () => { lastInteraction = performance.now(); });
+const scrollMemory = new Map();
+
+app.open = (type, id = null, tab = null) => {
+  const prev = app.ui.panel;
+  app.ui.panel = { type, id, tab: tab ?? (prev && prev.type === type && prev.id === id ? prev.tab : null) };
+  if (type === 'ship') app.ui.selectedShip = id;
+  if (type !== 'ship') app.setPreview(null);
+  renderPanel();
+};
+app.close = () => {
+  app.ui.panel = null;
+  app.setPreview(null);
+  renderPanel();
+};
+app.openTab = (tab) => { if (app.ui.panel) { app.ui.panel.tab = tab; renderPanel(); } };
+app.refresh = () => { renderPanel(); updateHud(); };
+app.company = () => app.state.companies[app.ui.activeCompany];
+app.toast = (text, opts) => toast(text, opts);
+app.setPreview = (route) => { app.map.preview = route; };
+app.withRng = (fn) => {
+  const rng = new Rng(app.state.rng);
+  const r = fn(rng);
+  app.state.rng = rng.s;
+  return r;
+};
+// Exécute une action et affiche son erreur éventuelle.
+app.act = (fn, opts = {}) => {
+  const r = fn();
+  if (r && r.ok === false) toast(r.msg, { kind: 'bad' });
+  if (opts.close && r?.ok) app.close(); else app.refresh();
+  return r;
+};
+app.focusShip = (id) => {
+  const ship = shipById(app.state, id);
+  if (!ship) return;
+  const pos = ship.status === 'sea' ? ctx.shipPosition(ship) : PORTS[ship.port];
+  if (pos) app.map.centerOn(pos.lon, pos.lat, Math.max(app.map.view.scale, 5));
+};
+
+function renderPanel() {
+  const p = app.ui.panel;
+  if (!p || app.mode !== 'game') { panelEl.hidden = true; panelEl.replaceChildren(); document.body.classList.remove('panel-open'); return; }
+  const fn = p.type === 'ship' ? shipPanel : PANELS[p.type];
+  const def = fn(app, p.id, p.tab);
+  const tabs = def.tabs || null;
+  let tabId = p.tab || def.tab || (tabs ? tabs[0][0] : null);
+  if (tabs && !tabs.some((t) => t[0] === tabId)) tabId = tabs[0][0];
+  const key = `${p.type}:${p.id}:${tabId}`;
+  const oldBody = panelEl.querySelector('.panel-body');
+  if (oldBody && panelEl.dataset.key) scrollMemory.set(panelEl.dataset.key, oldBody.scrollTop);
+
+  const body = h('div.panel-body');
+  if (def.top) body.append(def.top);
+  if (tabs) {
+    const current = tabs.find((t) => t[0] === tabId);
+    body.append(current[2]());
+  } else if (def.body) body.append(def.body);
+
+  panelEl.replaceChildren(...[
+    h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
+      h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', def.subtitle) : null]),
+      h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
+    ]),
+    tabs ? h('div.tabs', { role: 'tablist' }, tabs.map(([id, label]) => h('button.tab', {
+      role: 'tab', class: id === tabId ? 'active' : '', 'aria-selected': id === tabId ? 'true' : 'false',
+      onclick: () => app.openTab(id),
+    }, label))) : null,
+    body,
+  ].filter(Boolean));
+  panelEl.dataset.key = key;
+  panelEl.hidden = false;
+  document.body.classList.add('panel-open');
+  if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
+}
+
+// ---------- Barre du haut et boutons ----------
+function updateHud() {
+  if (app.mode !== 'game') return;
+  const s = app.state, c = app.company();
+  $('#hud-company-dot').style.background = c.color;
+  $('#hud-company-name').textContent = c.name;
+  const cash = $('#hud-cash');
+  cash.textContent = money(c.cash);
+  cash.classList.toggle('neg', c.cash < 0);
+  $('#hud-date').textContent = formatDate(s.t);
+  document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', +b.dataset.speed === app.speed));
+  const idle = shipsOf(s, c.id).filter(isIdle).length;
+  const badge = $('#badge-fleet');
+  badge.textContent = idle || '';
+  badge.hidden = !idle;
+  const humans = s.companies.filter((x) => x.human);
+  $('#hud-company').classList.toggle('switchable', humans.length > 1);
+  const news = s.news[0];
+  $('#ticker').textContent = news ? `${formatDate(news.t, true)} · ${news.text}` : '';
+}
+
+app.setSpeed = (v) => {
+  app.speed = v;
+  if (v > 0 && app.state && shipsOf(app.state, app.ui.activeCompany).length === 0 && app.state.orders.every((o) => o.owner !== app.ui.activeCompany) && app.state.t < 24 * 3) {
+    toast('Astuce : achetez d\'abord un navire chez le courtier 🏗️.', { action: 'Courtier', onAction: () => app.open('broker') });
+  }
+  updateHud();
+};
+
+$('#hud').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-speed]');
+  if (b) app.setSpeed(+b.dataset.speed);
+});
+$('#hud-company').addEventListener('click', () => {
+  const humans = app.state.companies.filter((c) => c.human && !c.bankrupt);
+  if (humans.length > 1) {
+    const i = humans.findIndex((c) => c.id === app.ui.activeCompany);
+    switchCompany(humans[(i + 1) % humans.length].id);
+  } else app.open('office');
+});
+$('#hud-menu').addEventListener('click', () => gameMenu());
+document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => {
+  const type = b.dataset.panel;
+  if (app.ui.panel?.type === type) app.close(); else app.open(type);
+}));
+
+function switchCompany(id) {
+  app.ui.activeCompany = id;
+  app.ui.selectedShip = null;
+  if (app.ui.panel && app.ui.panel.type !== 'port' && app.ui.panel.type !== 'markets' && app.ui.panel.type !== 'news' && app.ui.panel.type !== 'help') app.close();
+  toast(`Aux commandes : ${app.company().name}`, { timeout: 2500 });
+  const home = PORTS[app.company().homePort];
+  app.map.centerOn(home.lon, home.lat, app.map.view.scale);
+  app.refresh();
+}
+
+// ---------- Notifications ----------
+function handleNotes(notes) {
+  let paused = false;
+  for (const n of notes) {
+    if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; return true; }
+    if (n.kind === 'event') { toast(`📰 ${n.text}`, { timeout: 9000 }); continue; }
+    const company = n.company != null ? app.state.companies[n.company] : null;
+    const prefix = company && app.state.companies.filter((c) => c.human).length > 1 ? `${company.name} : ` : '';
+    const kind = n.kind === 'sunk' || n.kind === 'bankrupt' || n.kind === 'bank' ? 'bad' : n.kind === 'storm' || n.kind === 'breakdown' || n.kind === 'fuel' ? 'warn' : 'info';
+    toast(prefix + n.text, {
+      kind,
+      timeout: PAUSE_KINDS.has(n.kind) ? 12000 : 7000,
+      action: n.shipId && shipById(app.state, n.shipId) ? 'Voir' : null,
+      onAction: () => {
+        if (n.company != null && n.company !== app.ui.activeCompany) switchCompany(n.company);
+        app.open('ship', n.shipId);
+        app.focusShip(n.shipId);
+      },
+    });
+    if (PAUSE_KINDS.has(n.kind) && app.state.settings.autoPause) paused = true;
+  }
+  if (paused) app.speed = 0;
+  return paused;
+}
+
+// ---------- Boucle principale ----------
+let last = performance.now(), acc = 0, lastRefresh = 0;
+function loop(now) {
+  const dt = Math.min(0.25, (now - last) / 1000);
+  last = now;
+  if (app.mode === 'title' && app.demo) {
+    acc += dt * 10;
+    const n = Math.floor(acc);
+    if (n > 0) { acc -= n; tick(app.demo, ctx, n); }
+  } else if (app.mode === 'game' && app.speed > 0 && !app.state.over) {
+    acc += dt * HOURS_PER_SECOND[app.speed];
+    let n = Math.floor(acc);
+    acc -= n;
+    let changed = false;
+    while (n-- > 0) {
+      const day = Math.floor(app.state.t / HOURS_PER_DAY);
+      const notes = tick(app.state, ctx, 1);
+      if (notes.length) changed = true;
+      if (Math.floor(app.state.t / HOURS_PER_DAY) !== day && (app.state.t / HOURS_PER_DAY) % 7 === 0) saveGame(app.state, 'auto');
+      if (notes.length && handleNotes(notes)) { acc = 0; break; }
+    }
+    if ((changed || now - lastRefresh > 1200) && now - lastInteraction > 2500 && !document.querySelector('.dialog-wrap')) {
+      lastRefresh = now;
+      renderPanel();
+    }
+  }
+  if (app.mode === 'game' && app.speed === 0) acc = 0;
+  app.map.frame(app.mode === 'game' && app.speed > 0 ? acc : 0);
+  updateHud();
+  requestAnimationFrame(loop);
+}
+
+// ---------- Démarrage d'une partie ----------
+function enterGame(state) {
+  app.state = state;
+  app.mode = 'game';
+  app.speed = 0;
+  app.form = { dest: {}, speed: {}, autoRefuel: {} };
+  app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
+  app.map.setGame(state, ctx, app.ui);
+  document.body.classList.add('in-game');
+  hideScreen();
+  const home = PORTS[app.company().homePort];
+  app.map.centerOn(home.lon, home.lat, Math.max(app.map.minScale, 3));
+  app.refresh();
+}
+
+app.newGame = (opts) => {
+  const state = newGame(opts, ctx);
+  enterGame(state);
+  saveGame(state, 'auto');
+  const humans = state.companies.filter((c) => c.human);
+  dialog({
+    title: 'Bienvenue, armateur !',
+    body: h('div', [
+      h('p', `Vous disposez de ${money(app.company().cash)} pour fonder votre empire maritime${humans.length > 1 ? ' (chaque compagnie joue à son tour quand ses navires attendent des ordres)' : ''}.`),
+      h('ol', [
+        h('li', 'Achetez un premier navire chez le courtier 🏗️ : deux bateaux abordables attendent dans votre port.'),
+        h('li', 'Touchez votre navire puis acceptez un contrat : il chargera et partira tout seul.'),
+        h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres.'),
+      ]),
+    ]),
+    buttons: [{ label: 'Comment jouer', value: 'help', kind: 'ghost' }, { label: 'Ouvrir le courtier', value: 'broker', kind: 'primary' }],
+  }).then((v) => {
+    if (v === 'help') app.open('help'); else if (v) app.open('broker');
+    const home = PORTS[app.company().homePort];
+    app.map.centerOn(home.lon, home.lat, Math.max(app.map.minScale, 3));
+  });
+};
+
+app.loadSlot = (slot) => {
+  const state = loadGame(slot);
+  if (!state) { toast('Impossible de charger cette sauvegarde.', { kind: 'bad' }); return; }
+  enterGame(state);
+  toast(`Partie chargée : ${formatDate(state.t)}.`, { timeout: 3000 });
+};
+
+app.importSave = async () => {
+  try { enterGame(await importFile()); } catch (e) { toast(e.message || 'Fichier invalide.', { kind: 'bad' }); }
+};
+
+app.toTitle = () => {
+  if (app.state && app.mode === 'game') saveGame(app.state, 'auto');
+  app.mode = 'title';
+  app.state = null;
+  app.ui.panel = null;
+  renderPanel();
+  document.body.classList.remove('in-game');
+  app.map.setGame(app.demo, ctx, { activeCompany: -1 });
+  app.map.fitWorld();
+  titleScreen(app);
+};
+
+app.continueEndless = () => {
+  app.state.settings.duration = 0;
+  app.state.over = null;
+  app.mode = 'game';
+  hideScreen();
+  app.refresh();
+};
+
+// ---------- Menu ----------
+async function gameMenu() {
+  const wasSpeed = app.speed;
+  app.speed = 0;
+  const v = await dialog({
+    title: 'Menu',
+    body: h('div.menu-info', [h('p.muted', `${formatDate(app.state.t)} · ${app.company().name} · valeur nette ${money(netWorth(app.state, app.ui.activeCompany))}`)]),
+    buttons: [
+      { label: 'Sauvegarder', value: 'save' },
+      { label: 'Charger', value: 'load' },
+      ...(app.canImport ? [{ label: 'Exporter un fichier', value: 'export' }] : []),
+      { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
+      { label: 'Comment jouer', value: 'help' },
+      { label: 'Menu principal', value: 'title', kind: 'ghost' },
+      { label: 'Reprendre', value: 'resume', kind: 'primary' },
+    ],
+    vertical: true,
+  });
+  if (v === 'save') {
+    const slot = await dialog({ title: 'Sauvegarder', body: 'Choisissez un emplacement.', vertical: true, buttons: ['1', '2', '3'].map((s) => ({ label: SLOT_LABEL[s], value: s })).concat([{ label: 'Annuler', value: null, kind: 'ghost' }]) });
+    if (slot) toast(saveGame(app.state, slot) ? `Partie sauvegardée (${SLOT_LABEL[slot]}).` : 'Échec de la sauvegarde.', { timeout: 3000 });
+  } else if (v === 'load') {
+    const saves = listSaves();
+    const slot = await dialog({ title: 'Charger', body: saves.length ? 'Choisissez une sauvegarde.' : 'Aucune sauvegarde.', vertical: true, buttons: saves.map((s) => ({ label: `${SLOT_LABEL[s.slot]} — ${s.meta.date}`, value: s.slot })).concat([{ label: 'Annuler', value: null, kind: 'ghost' }]) });
+    if (slot && (await confirmBox('Charger cette partie ?', 'La partie en cours non sauvegardée sera perdue.', 'Charger'))) app.loadSlot(slot);
+  } else if (v === 'export') exportFile(app.state);
+  else if (v === 'pause') { app.state.settings.autoPause = !app.state.settings.autoPause; toast(`Pause automatique ${app.state.settings.autoPause ? 'activée' : 'désactivée'}.`, { timeout: 2500 }); }
+  else if (v === 'help') app.open('help');
+  else if (v === 'title') { if (await confirmBox('Retour au menu principal ?', 'La partie est sauvegardée automatiquement.', 'Quitter')) app.toTitle(); }
+  else if (v === 'resume') app.speed = wasSpeed;
+}
+
+// ---------- Clavier, bouton retour Android, mise en veille ----------
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest('input, select, textarea')) return;
+  if (app.mode !== 'game') return;
+  if (e.key === ' ') { e.preventDefault(); app.setSpeed(app.speed ? 0 : 1); }
+  else if (e.key >= '1' && e.key <= '3') app.setSpeed(+e.key);
+  else if (e.key === 'Escape') { if (document.querySelector('.dialog-wrap')) return; app.close(); }
+});
+
+window.handleBack = () => {
+  const d = document.querySelector('.dialog-wrap');
+  if (d) { d.remove(); return true; }
+  if (app.mode === 'game' && app.ui.panel) { app.close(); return true; }
+  if (app.mode === 'game') { gameMenu(); return true; }
+  if (app.mode === 'end') { app.toTitle(); return true; }
+  const scr = document.getElementById('screen');
+  if (scr.classList.contains('setup')) { titleScreen(app); return true; }
+  return false;
+};
+const pauseAndSave = () => { if (app.mode === 'game' && app.state) { app.speed = 0; saveGame(app.state, 'auto'); } };
+window.onAppPause = pauseAndSave;
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAndSave(); });
+window.addEventListener('beforeunload', () => { if (app.mode === 'game' && app.state) saveGame(app.state, 'auto'); });
+
+// Version navigateur : installable comme une application et jouable hors ligne.
+if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ---------- Lancement ----------
+startDemo();
+app.map.setGame(app.demo, ctx, { activeCompany: -1 });
+app.map.fitWorld();
+titleScreen(app);
+requestAnimationFrame(loop);
+window.__app = app; // pratique pour le débogage dans la console

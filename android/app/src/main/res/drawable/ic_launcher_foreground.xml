@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ancre dorée, dans la zone de sécurité de l'icône adaptative (66 dp centrés) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="22" android:translateY="22">
+        <path
+            android:strokeColor="#FFF2B544"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M32,14 m-5,0 a5,5 0,1 1,10 0 a5,5 0,1 1,-10 0 M32,19 L32,51 M22,27 L42,27 M14,38 C16,46 23,51 32,51 C41,51 48,46 50,38 M10,40 L14,37 L18,40 M46,40 L50,37 L54,40" />
+    </group>
+</vector>

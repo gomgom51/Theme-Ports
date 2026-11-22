@@ -1,0 +1,22 @@
+name: Tests
+
+on:
+  push:
+    paths:
+      - 'web/js/**'
+      - 'tests/**'
+      - '.github/workflows/tests.yml'
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Routes maritimes
+        run: node tests/routing.test.mjs
+      - name: Simulation (4 compagnies IA, 3 ans)
+        run: node tests/sim.test.mjs 3 12345
