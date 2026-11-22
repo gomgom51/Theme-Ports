@@ -45,7 +45,29 @@ export const SHIP_ART = {
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#722823', boot: '#30363b', house: '#f6f4ee', trim: null, gear: '#f6f4ee', deck: '#4a7a56' },
     house: { x: 0.03, w: 0.12, decks: 5, style: 'modern' },
-    tanker: { manifold: 0.5, pipeH: 1.1, walkH: 2.4 },
+    tanker: { manifold: 0.5, pipeH: 0.9 },
+    emblem: 'drop',
+    gear: [{ kind: 'mast', x: 0.955, h: 9 }],
+    lifeboats: 'freefall',
+  },
+  // Aperçus de l'étape 2 : méthanier (cuves sphériques) et gazier (cuves cylindriques).
+  methanier: {
+    L: 290, D: 26, T: 11.8, Tb: 9.6, fc: 3, poop: 1.4, sheer: 0,
+    era: 'modern', bow: 'bulb', stern: 'transom',
+    livery: { hull: '#f1efe8', boot: '#24405f', house: '#f7f7f3', trim: '#0f6f76', gear: '#f7f7f3', deck: '#4a7a56' },
+    house: { x: 0.025, w: 0.1, decks: 6, style: 'modern' },
+    spheres: { count: 4, from: 0.16, to: 0.93, r: 18 },
+    emblem: 'snow',
+    gear: [{ kind: 'mast', x: 0.965, h: 10 }],
+    lifeboats: 'freefall',
+  },
+  gazier: {
+    L: 180, D: 17, T: 10.5, Tb: 8.4, fc: 2.6, poop: 1.2, sheer: 0,
+    era: 'modern', bow: 'bulb', stern: 'transom',
+    livery: { hull: '#285a4b', boot: '#9c3328', house: '#f6f4ee', trim: '#f6f4ee', gear: '#f6f4ee', deck: '#4a7a56' },
+    house: { x: 0.03, w: 0.12, decks: 5, style: 'modern' },
+    cylinders: { count: 3, from: 0.19, to: 0.93, r: 6 },
+    emblem: 'flame',
     gear: [{ kind: 'mast', x: 0.955, h: 9 }],
     lifeboats: 'freefall',
   },
@@ -187,7 +209,8 @@ export function shipSVG(typeId, opts = {}) {
   if (wear > 0.2) out.push(`<path d="M${f(X(hx) - 1.5)} ${Y(bowTop - fc * 0.55)} l3 0 l${f(-1 + r())} ${f((fb + fc * 0.3) * v * (0.4 + wear * 0.6))} l-1 0 z" fill="url(#${id}rust)"/>`);
   if (name) {
     const fsz = Math.max(5, Math.min(10, (fb + fc) * v * 0.32));
-    out.push(`<text x="${X(L * 0.925)}" y="${f(Y(fb * 0.55) + fsz * 0.35)}" font-size="${f(fsz)}" text-anchor="end" fill="#fff" fill-opacity=".85" font-family="system-ui, sans-serif" font-weight="700" letter-spacing=".4">${escapeXml(name.toUpperCase())}</text>`);
+    const light = parseInt(C.hull.slice(1, 3), 16) + parseInt(C.hull.slice(3, 5), 16) + parseInt(C.hull.slice(5, 7), 16) > 500;
+    out.push(`<text x="${X(L * 0.925)}" y="${f(Y(fb * 0.55) + fsz * 0.35)}" font-size="${f(fsz)}" text-anchor="end" fill="${light ? INK : '#fff'}" fill-opacity=".85" font-family="system-ui, sans-serif" font-weight="700" letter-spacing=".4">${escapeXml(name.toUpperCase())}</text>`);
   }
 
   // ---------- Pont ----------
@@ -227,16 +250,60 @@ export function shipSVG(typeId, opts = {}) {
     out.push(`<rect x="${X(L * c.from - 1)}" y="${Y(fb + 1.2 + c.tiers * 2.6)}" width="${f(1 * s)}" height="${f(c.tiers * 2.6 * v)}" fill="${C.gear}" opacity=".9"/>`);
   }
   if (A.tanker) {
-    const t = A.tanker, x1 = X(L * (A.house.x + A.house.w)), x2 = X(L * 0.95);
-    out.push(`<rect x="${x1}" y="${f(Y(fb) - 1.2)}" width="${f(x2 - x1)}" height="1.4" fill="${C.deck}"/>`);
-    out.push(`<line x1="${x1}" y1="${Y(fb + t.pipeH)}" x2="${x2}" y2="${Y(fb + t.pipeH)}" stroke="#8d969c" stroke-width="${f(Math.max(1, 0.6 * v))}"/>`);
-    out.push(`<line x1="${x1}" y1="${Y(fb + t.walkH)}" x2="${x2}" y2="${Y(fb + t.walkH)}" stroke="${C.house}" stroke-width="${f(Math.max(0.8, 0.35 * v))}"/>`);
-    for (let xm = L * (A.house.x + A.house.w) + 6; xm < L * 0.94; xm += 7) out.push(`<line x1="${X(xm)}" y1="${Y(fb)}" x2="${X(xm)}" y2="${Y(fb + t.walkH)}" stroke="${C.house}" stroke-width=".6" opacity=".85"/>`);
-    const mx = L * t.manifold;
-    out.push(`<rect x="${X(mx - 4)}" y="${Y(fb + 2.6)}" width="${f(8 * s)}" height="${f(2.6 * v)}" fill="#7f8b90"/>`);
-    out.push(`<line x1="${X(mx)}" y1="${Y(fb + 2.6)}" x2="${X(mx)}" y2="${Y(fb + 9)}" stroke="${C.gear}" stroke-width="${f(Math.max(1, 0.8 * s))}"/><line x1="${X(mx)}" y1="${Y(fb + 8.5)}" x2="${X(mx + 9)}" y2="${Y(fb + 5)}" stroke="${C.gear}" stroke-width="${f(Math.max(0.8, 0.5 * s))}"/>`);
-    for (let k = 0; k < Math.floor(wear * 5); k++) out.push(streak(X(L * (0.3 + r() * 0.6)), Y(fb + t.pipeH), 6 * v * r(), 1));
+    // Pétrolier : rangée de dômes de citernes, gros collecteur à vannes rouges, manches jaunes.
+    const t = A.tanker, start = L * (A.house.x + A.house.w) + 3, end = L * 0.93;
+    out.push(`<rect x="${X(start - 3)}" y="${f(+Y(fb) - 1.4)}" width="${f((end - start + 5) * s)}" height="1.6" fill="${C.deck}"/>`);
+    // Une longue citerne arrondie sur tout le pont, comme un camion-citerne : compartiments et trappes.
+    const th = 3.4, tx1 = start, tx2 = end, mx0 = L * t.manifold;
+    out.push(`<rect x="${X(tx1)}" y="${Y(fb + th)}" width="${f((tx2 - tx1) * s)}" height="${f(th * v)}" rx="${f(Math.min(th * v * 0.5, 9))}" fill="#c3c9cb" stroke="${INK}" stroke-width="1"/>`);
+    out.push(`<rect x="${X(tx1 + 1)}" y="${f(+Y(fb + th) + 1.5)}" width="${f((tx2 - tx1 - 2) * s)}" height="${f(th * v * 0.22)}" rx="2" fill="#fff" opacity=".35"/>`);
+    const n = Math.max(4, Math.round((tx2 - tx1) / 16));
+    for (let k = 1; k < n; k++) {
+      const xx = tx1 + ((tx2 - tx1) * k) / n;
+      out.push(`<line x1="${X(xx)}" y1="${Y(fb + th)}" x2="${X(xx)}" y2="${Y(fb)}" stroke="${INK}" stroke-width=".7" opacity=".55"/>`);
+    }
+    for (let k = 0; k < n; k++) {
+      const cx = tx1 + ((tx2 - tx1) * (k + 0.5)) / n;
+      if (Math.abs(cx - mx0) < 6) continue;
+      out.push(`<rect x="${X(cx - 1.4)}" y="${Y(fb + th + 0.9)}" width="${f(2.8 * s)}" height="${f(0.9 * v)}" rx="1" fill="#8e979c" stroke="${INK}" stroke-width=".6"/>`);
+    }
+    out.push(`<line x1="${X(start - 2)}" y1="${Y(fb + t.pipeH)}" x2="${X(end)}" y2="${Y(fb + t.pipeH)}" stroke="${INK}" stroke-width="${f(Math.max(2.4, 0.7 * v) + 1.2)}"/>`);
+    out.push(`<line x1="${X(start - 2)}" y1="${Y(fb + t.pipeH)}" x2="${X(end)}" y2="${Y(fb + t.pipeH)}" stroke="#8d969c" stroke-width="${f(Math.max(2.4, 0.7 * v))}"/>`);
+    out.push(manifold(mx0, fb + th - 1, 3));
+    for (let k = 0; k < Math.floor(wear * 5); k++) out.push(streak(+X(L * (0.3 + r() * 0.6)), +Y(fb + t.pipeH), 6 * v * r(), 1));
   }
+  if (A.spheres) {
+    // Méthanier : grandes cuves sphériques, la silhouette la plus reconnaissable des mers.
+    const sp = A.spheres, gap = ((sp.to - sp.from) * L) / sp.count;
+    for (let k = 0; k < sp.count; k++) {
+      const cx = L * sp.from + gap * (k + 0.5), R = Math.min(sp.r, gap * 0.46) * s;
+      const cy = +Y(fb) - R * 0.55;
+      out.push(`<rect x="${f(+X(cx) - R * 0.9)}" y="${f(cy)}" width="${f(R * 1.8)}" height="${f(+Y(fb) - cy)}" fill="${C.hull}" stroke="${INK}" stroke-width=".8"/>`);
+      out.push(`<circle cx="${X(cx)}" cy="${f(cy)}" r="${f(R)}" fill="#ecebe4" stroke="${INK}" stroke-width="1"/>`);
+      out.push(`<path d="M${f(+X(cx) - R)} ${f(cy)} h${f(R * 2)}" stroke="${C.trim}" stroke-width="${f(Math.max(1.4, R * 0.08))}"/>`);
+      out.push(`<rect x="${f(+X(cx) - R * 0.18)}" y="${f(cy - R - R * 0.14)}" width="${f(R * 0.36)}" height="${f(R * 0.16)}" rx="1" fill="#9aa3a8" stroke="${INK}" stroke-width=".6"/>`);
+      if (wear > 0.35) out.push(streak(+X(cx) + R * (r() - 0.5), cy - R * 0.6, R * (0.6 + wear * 0.8), 1.4));
+    }
+    out.push(`<line x1="${X(L * sp.from)}" y1="${f(+Y(fb) - Math.min(sp.r, gap * 0.46) * s * 1.6)}" x2="${X(L * sp.to)}" y2="${f(+Y(fb) - Math.min(sp.r, gap * 0.46) * s * 1.6)}" stroke="${INK}" stroke-width=".9" opacity=".7"/>`);
+    out.push(manifold(L * (sp.from + gap / L), fb, 3));
+  }
+  if (A.cylinders) {
+    // Gazier : cuves cylindriques couchées sur le pont, dômes et vannes au-dessus.
+    const cy = A.cylinders, gap = ((cy.to - cy.from) * L) / cy.count, hh = cy.r * 2 * 0.62;
+    for (let k = 0; k < cy.count; k++) {
+      const x1 = L * cy.from + gap * k + 1.5, w = gap - 3;
+      out.push(`<rect x="${X(x1)}" y="${Y(fb + hh + 0.6)}" width="${f(w * s)}" height="${f(hh * v)}" rx="${f(hh * v * 0.5)}" fill="#dfe2dd" stroke="${INK}" stroke-width="1"/>`);
+      out.push(`<rect x="${X(x1 + w * 0.3)}" y="${f(+Y(fb + 0.6))}" width="${f(w * 0.1 * s)}" height="${f(0.6 * v)}" fill="${INK}"/><rect x="${X(x1 + w * 0.6)}" y="${f(+Y(fb + 0.6))}" width="${f(w * 0.1 * s)}" height="${f(0.6 * v)}" fill="${INK}"/>`);
+      const dx = x1 + w * 0.5;
+      out.push(`<rect x="${X(dx - 1.5)}" y="${Y(fb + hh + 1.8)}" width="${f(3 * s)}" height="${f(1.2 * v)}" fill="#9aa3a8" stroke="${INK}" stroke-width=".6"/>`);
+      out.push(valveWheel(dx, fb + hh + 2.6, 1.1));
+      if (wear > 0.35) out.push(streak(+X(x1 + w * r()), +Y(fb + hh + 0.6), hh * v * (0.4 + wear * 0.5), 1.2));
+    }
+    out.push(`<line x1="${X(L * cy.from)}" y1="${Y(fb + hh + 2)}" x2="${X(L * cy.to)}" y2="${Y(fb + hh + 2)}" stroke="#9aa3a8" stroke-width="2"/>`);
+  }
+  // Pictogramme de la cargaison sur la coque et pavillon B (marchandise dangereuse) quand le navire est chargé.
+  if (A.emblem) out.push(emblem(A.emblem, L * 0.62, fb * 0.5));
+  if (laden && (A.tanker || A.spheres || A.cylinders)) out.push(bravoFlag());
   for (const g of A.gear || []) out.push(gear(g));
 
   // ---------- Château ----------
@@ -255,6 +322,49 @@ export function shipSVG(typeId, opts = {}) {
   return out.join('');
 
   // ---------- Fonctions de dessin ----------
+  function valveWheel(xm, hm, rm) {
+    const cx = +X(xm), cyy = +Y(hm), rr = Math.max(2.2, rm * s);
+    return `<circle cx="${f(cx)}" cy="${f(cyy)}" r="${f(rr)}" fill="none" stroke="${INK}" stroke-width="${f(Math.max(1.6, rr * 0.45) + 1)}"/>
+      <circle cx="${f(cx)}" cy="${f(cyy)}" r="${f(rr)}" fill="none" stroke="#c4362c" stroke-width="${f(Math.max(1.6, rr * 0.45))}"/>
+      <path d="M${f(cx - rr)} ${f(cyy)} h${f(rr * 2)} M${f(cx)} ${f(cyy - rr)} v${f(rr * 2)}" stroke="#c4362c" stroke-width="1"/>`;
+  }
+
+  // Collecteur de chargement : colonnes à vannes rouges, manches jaunes, grue de manutention.
+  function manifold(mx, base, hm) {
+    const o = [];
+    for (const dx of [-2.6, 0, 2.6]) {
+      o.push(`<line x1="${X(mx + dx)}" y1="${Y(base)}" x2="${X(mx + dx)}" y2="${Y(base + hm)}" stroke="${INK}" stroke-width="${f(Math.max(2.2, 0.6 * s) + 1.2)}"/>`);
+      o.push(`<line x1="${X(mx + dx)}" y1="${Y(base)}" x2="${X(mx + dx)}" y2="${Y(base + hm)}" stroke="#9aa3a8" stroke-width="${f(Math.max(2.2, 0.6 * s))}"/>`);
+      o.push(valveWheel(mx + dx, base + hm + 0.6, 1.1));
+    }
+    // Manches de chargement qui pendent par-dessus bord.
+    o.push(`<path d="M${X(mx - 2.6)} ${Y(base + hm - 0.6)} q${f(-3 * s)} ${f(2 * v)} ${f(-1.5 * s)} ${f((hm + 1.5) * v)}" stroke="${INK}" stroke-width="${f(Math.max(2.4, 0.7 * s) + 1.2)}" fill="none" stroke-linecap="round"/>`);
+    o.push(`<path d="M${X(mx - 2.6)} ${Y(base + hm - 0.6)} q${f(-3 * s)} ${f(2 * v)} ${f(-1.5 * s)} ${f((hm + 1.5) * v)}" stroke="#e3b23c" stroke-width="${f(Math.max(2.4, 0.7 * s))}" fill="none" stroke-linecap="round"/>`);
+    o.push(`<path d="M${X(mx + 2.6)} ${Y(base + hm - 0.6)} q${f(3 * s)} ${f(2 * v)} ${f(1.5 * s)} ${f((hm + 1.5) * v)}" stroke="${INK}" stroke-width="${f(Math.max(2.4, 0.7 * s) + 1.2)}" fill="none" stroke-linecap="round"/>`);
+    o.push(`<path d="M${X(mx + 2.6)} ${Y(base + hm - 0.6)} q${f(3 * s)} ${f(2 * v)} ${f(1.5 * s)} ${f((hm + 1.5) * v)}" stroke="#e3b23c" stroke-width="${f(Math.max(2.4, 0.7 * s))}" fill="none" stroke-linecap="round"/>`);
+    // Petite grue des manches.
+    o.push(`<line x1="${X(mx + 5)}" y1="${Y(base)}" x2="${X(mx + 5)}" y2="${Y(base + 9)}" stroke="${INK}" stroke-width="${f(Math.max(1.6, 0.6 * s) + 1)}"/><line x1="${X(mx + 5)}" y1="${Y(base)}" x2="${X(mx + 5)}" y2="${Y(base + 9)}" stroke="${C.gear}" stroke-width="${f(Math.max(1.6, 0.6 * s))}"/>`);
+    o.push(`<line x1="${X(mx + 5)}" y1="${Y(base + 8.6)}" x2="${X(mx - 4)}" y2="${Y(base + 6)}" stroke="${INK}" stroke-width="${f(Math.max(1.2, 0.4 * s) + 1)}"/><line x1="${X(mx + 5)}" y1="${Y(base + 8.6)}" x2="${X(mx - 4)}" y2="${Y(base + 6)}" stroke="${C.gear}" stroke-width="${f(Math.max(1.2, 0.4 * s))}"/>`);
+    return o.join('');
+  }
+
+  // Pictogramme peint sur la coque : goutte (hydrocarbures), flamme (gaz), flocon (gaz liquéfié froid).
+  function emblem(kind, xm, hm) {
+    const cx = +X(xm), cyy = +Y(hm), rr = Math.max(4.5, Math.min(9, (fb + 1) * v * 0.32));
+    let icon;
+    if (kind === 'drop') icon = `<path d="M${f(cx)} ${f(cyy - rr * 0.62)} q${f(rr * 0.5)} ${f(rr * 0.55)} ${f(rr * 0.42)} ${f(rr * 0.9)} a${f(rr * 0.42)} ${f(rr * 0.42)} 0 0 1 ${f(-rr * 0.84)} 0 q${f(-rr * 0.08)} ${f(-rr * 0.35)} ${f(rr * 0.42)} ${f(-rr * 0.9)} z" fill="#1c2a33"/>`;
+    else if (kind === 'flame') icon = `<path d="M${f(cx)} ${f(cyy - rr * 0.65)} c${f(rr * 0.5)} ${f(rr * 0.4)} ${f(rr * 0.55)} ${f(rr * 0.8)} ${f(rr * 0.25)} ${f(rr * 1.15)} c${f(-rr * 0.15)} ${f(rr * 0.12)} ${f(-rr * 0.35)} ${f(rr * 0.12)} ${f(-rr * 0.5)} 0 c${f(-rr * 0.3)} ${f(-rr * 0.35)} ${f(-rr * 0.2)} ${f(-rr * 0.75)} ${f(rr * 0.25)} ${f(-rr * 1.15)} z" fill="#d9541e"/>`;
+    else icon = `<g stroke="#1f5f8b" stroke-width="${f(Math.max(1, rr * 0.16))}" stroke-linecap="round">${[0, 60, 120].map((a) => `<line x1="${f(cx)}" y1="${f(cyy - rr * 0.62)}" x2="${f(cx)}" y2="${f(cyy + rr * 0.62)}" transform="rotate(${a} ${f(cx)} ${f(cyy)})"/>`).join('')}</g>`;
+    return `<circle cx="${f(cx)}" cy="${f(cyy)}" r="${f(rr)}" fill="#f7f5ef" stroke="${INK}" stroke-width=".9"/>${icon}`;
+  }
+
+  // Pavillon « B » du code international : rouge, à queue d'aronde, hissé quand on transporte du danger.
+  function bravoFlag() {
+    const m = (A.gear || []).find((g) => g.kind === 'mast');
+    if (!m) return '';
+    const px = +X(L * m.x), top = +Y(deckAt(m.x) + m.h) + 1, w = Math.max(7, 4 * s), hgt = Math.max(5, 2.6 * v);
+    return `<path d="M${f(px)} ${f(top)} h${f(w)} l${f(-w * 0.3)} ${f(hgt / 2)} l${f(w * 0.3)} ${f(hgt / 2)} h${f(-w)} z" fill="#d32f2f" stroke="${INK}" stroke-width=".6"/>`;
+  }
   function deckLine() {
     let d = `M${X(L * 0.15)} ${Y(deckAt(0.15))}`;
     for (let k = 1; k <= 10; k++) { const fr = 0.15 + (0.72 * k) / 10; d += ` L${X(L * fr)} ${Y(deckAt(fr))}`; }
