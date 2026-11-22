@@ -44,6 +44,8 @@ public class MainActivity extends Activity {
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
+        // L'ambiance sonore du port peut démarrer sans attendre un premier toucher.
+        s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setSupportZoom(false);
@@ -130,7 +132,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) webView.onResume();
+        if (webView != null) {
+            webView.onResume();
+            webView.evaluateJavascript("window.onAppResume && window.onAppResume()", null);
+        }
         hideSystemBars();
     }
 

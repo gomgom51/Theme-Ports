@@ -143,7 +143,7 @@ function usedTab(app) {
           h('div.price', money(l.price)),
           h('button.btn.primary.small', { disabled: l.price > company.cash, onclick: async () => {
             if (!(await confirmBox(`Acheter le ${l.name} ?`, `${T.name} de ${num1(l.age)} ans pour ${money(l.price)}. Il vous attend à ${portName(l.port)}.`, 'Acheter'))) return;
-            const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)));
+            const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)), { sound: 'buy' });
             if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id); }
           } }, 'Acheter'),
         ]),

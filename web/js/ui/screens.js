@@ -24,9 +24,25 @@ export function hideScreen() {
 }
 
 // ---------- Accueil ----------
+function soundToggle(app) {
+  const a = app.audio;
+  const on = () => a.settings.ambience || a.settings.sfx;
+  const btn = h('button.sound-toggle', {
+    title: 'Son', 'aria-label': 'Activer ou couper le son',
+    onclick: (e) => {
+      e.stopPropagation();
+      const v = !on();
+      a.setAmbience(v); a.setSfx(v);
+      btn.textContent = v ? '🔊 Son activé' : '🔇 Son coupé';
+    },
+  }, on() ? '🔊 Son activé' : '🔇 Son coupé');
+  return btn;
+}
+
 export function titleScreen(app) {
   const saves = listSaves();
   screen('title', h('div.title-card', [
+    soundToggle(app),
     h('div.logo', [h('span.logo-anchor', '⚓'), h('h1', 'Port d\'Attache'), h('p.tagline', 'Armateur au long cours')]),
     h('div.title-buttons', [
       hasSave('auto') ? h('button.btn.primary.big', { onclick: () => app.loadSlot('auto') }, 'Continuer') : null,

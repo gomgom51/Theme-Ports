@@ -10,6 +10,7 @@ import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
 import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
+import { AudioManager } from './ui/audio.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt']);
@@ -20,6 +21,7 @@ const app = {
   ui: { activeCompany: 0, selectedShip: null, panel: null },
   form: { dest: {}, speed: {}, autoRefuel: {} },
   canImport: !isAndroid(),
+  audio: new AudioManager(),
 };
 
 // ---------- Carte ----------
@@ -76,6 +78,7 @@ app.withRng = (fn) => {
 app.act = (fn, opts = {}) => {
   const r = fn();
   if (r && r.ok === false) toast(r.msg, { kind: 'bad' });
+  if (r?.ok && opts.sound) app.audio.play(typeof opts.sound === 'function' ? opts.sound(r) : opts.sound);
   if (opts.close && r?.ok) app.close(); else app.refresh();
   return r;
 };
@@ -184,6 +187,9 @@ function handleNotes(notes) {
   for (const n of notes) {
     if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; return true; }
     if (n.kind === 'event') { toast(`📰 ${n.text}`, { timeout: 9000 }); continue; }
+    if (n.kind === 'depart') { app.audio.play('depart'); continue; }
+    if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive');
+    if (n.kind === 'sunk') app.audio.play('sunk');
     const company = n.company != null ? app.state.companies[n.company] : null;
     const prefix = company && app.state.companies.filter((c) => c.human).length > 1 ? `${company.name} : ` : '';
     const kind = n.kind === 'sunk' || n.kind === 'bankrupt' || n.kind === 'bank' ? 'bad' : n.kind === 'storm' || n.kind === 'breakdown' || n.kind === 'fuel' ? 'warn' : 'info';
@@ -244,6 +250,7 @@ function enterGame(state) {
   app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
   app.map.setGame(state, ctx, app.ui);
   document.body.classList.add('in-game');
+  app.audio.setScene('game');
   hideScreen();
   const home = PORTS[app.company().homePort];
   app.map.centerOn(home.lon, home.lat, Math.max(app.map.minScale, 3));
@@ -293,6 +300,7 @@ app.toTitle = () => {
   document.body.classList.remove('in-game');
   app.map.setGame(app.demo, ctx, { activeCompany: -1 });
   app.map.fitWorld();
+  app.audio.setScene('title');
   titleScreen(app);
 };
 
@@ -316,6 +324,8 @@ async function gameMenu() {
       { label: 'Charger', value: 'load' },
       ...(app.canImport ? [{ label: 'Exporter un fichier', value: 'export' }] : []),
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
+      { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
+      { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
       { label: 'Comment jouer', value: 'help' },
       { label: 'Menu principal', value: 'title', kind: 'ghost' },
       { label: 'Reprendre', value: 'resume', kind: 'primary' },
@@ -331,6 +341,8 @@ async function gameMenu() {
     if (slot && (await confirmBox('Charger cette partie ?', 'La partie en cours non sauvegardée sera perdue.', 'Charger'))) app.loadSlot(slot);
   } else if (v === 'export') exportFile(app.state);
   else if (v === 'pause') { app.state.settings.autoPause = !app.state.settings.autoPause; toast(`Pause automatique ${app.state.settings.autoPause ? 'activée' : 'désactivée'}.`, { timeout: 2500 }); }
+  else if (v === 'ambience') { app.audio.setAmbience(!app.audio.settings.ambience); app.speed = wasSpeed; }
+  else if (v === 'sfx') { app.audio.setSfx(!app.audio.settings.sfx); app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'title') { if (await confirmBox('Retour au menu principal ?', 'La partie est sauvegardée automatiquement.', 'Quitter')) app.toTitle(); }
   else if (v === 'resume') app.speed = wasSpeed;
@@ -356,8 +368,11 @@ window.handleBack = () => {
   return false;
 };
 const pauseAndSave = () => { if (app.mode === 'game' && app.state) { app.speed = 0; saveGame(app.state, 'auto'); } };
-window.onAppPause = pauseAndSave;
-document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAndSave(); });
+window.onAppPause = () => { pauseAndSave(); app.audio.suspend(); };
+window.onAppResume = () => app.audio.resume();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { pauseAndSave(); app.audio.suspend(); } else app.audio.resume();
+});
 window.addEventListener('beforeunload', () => { if (app.mode === 'game' && app.state) saveGame(app.state, 'auto'); });
 
 // Version navigateur : installable comme une application et jouable hors ligne.
@@ -369,6 +384,7 @@ if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'http
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });
 app.map.fitWorld();
+app.audio.setScene('title');
 titleScreen(app);
 requestAnimationFrame(loop);
 window.__app = app; // pratique pour le débogage dans la console

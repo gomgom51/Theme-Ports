@@ -320,6 +320,12 @@ select.input { width: auto; max-width: 100%; }
 .title-buttons { display: flex; flex-direction: column; gap: 10px; }
 .title-card .list { margin-bottom: 12px; }
 .credits { color: var(--muted); font-size: 11px; margin-top: 16px; }
+.title-card { position: relative; }
+.sound-toggle {
+  position: absolute; z-index: 2; top: 10px; right: 10px; border: 1px solid var(--line); background: var(--panel-2);
+  color: var(--muted); border-radius: 999px; padding: 4px 10px; font-size: 12px;
+}
+.sound-toggle:hover { color: var(--text); border-color: var(--accent); }
 .setup-card {
   width: min(680px, 100%); margin: auto; background: var(--panel); border: 1px solid var(--line);
   border-radius: 16px; padding: 18px 22px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);

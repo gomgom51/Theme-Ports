@@ -150,6 +150,7 @@ function portHour(state, ctx, rng, ship, notes) {
     if (ship.plan) {
       const r = act.runPlan(state, ctx, ship);
       if (!r.ok) note(state, notes, 'idle', ship, `Le ${ship.name} n'a pas pu appareiller : ${r.msg}`);
+      else note(state, notes, 'depart', ship, `Le ${ship.name} appareille.`);
       return;
     }
     const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé' };

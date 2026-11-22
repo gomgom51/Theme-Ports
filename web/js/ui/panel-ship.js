@@ -154,7 +154,7 @@ function contractsTab(app, ship) {
       h('div.card-side', [
         h('div.price', money(c.pay)),
         why ? null : h('button.btn.primary.small', { onclick: () => {
-          const r = app.act(() => act.acceptContract(state, ctx, ship.id, c.id, { speed: T.speed, autoRefuel: true }));
+          const r = app.act(() => act.acceptContract(state, ctx, ship.id, c.id, { speed: T.speed, autoRefuel: true }), { sound: 'crates' });
           if (r?.ok) app.toast(`Chargement en cours. Le ${ship.name} partira automatiquement pour ${portName(c.to)} (plein fait si nécessaire).`);
         } }, 'Accepter'),
       ]),
@@ -186,7 +186,7 @@ function tradeTab(app, ship) {
       ]),
       h('div.card-side', [q.possible ? h('button.btn.primary.small', { onclick: async () => {
         if (q.profit < 0 && !(await confirmBox('Vendre à perte ?', `Vous perdrez ${money(-q.profit)} sur cette cargaison.`, 'Vendre'))) return;
-        app.act(() => act.sellCargo(state, ctx, ship.id));
+        app.act(() => act.sellCargo(state, ctx, ship.id), { sound: 'crates' });
       } }, 'Vendre ici') : null]),
     ]));
     // Meilleurs débouchés.
@@ -244,7 +244,7 @@ function tradeTab(app, ship) {
         choices.length ? h('div.chips', choices.sort((a, b) => a - b).map((q) => h('button.chip', { onclick: async () => {
           const quote = act.quoteBuy(state, ship, g, q);
           if (!(await confirmBox(`Acheter ${tonnes(q)} de ${G.name.toLowerCase()} ?`, `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`, 'Acheter'))) return;
-          const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q));
+          const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q), { sound: 'crates' });
           if (r?.ok && dests[0]) app.form.dest[ship.id] = dests[0].p;
         } }, tonnes(q)))) : h('div.card-why', stock <= 0 ? 'Stock épuisé, revenez plus tard.' : 'Trésorerie insuffisante.'),
       ]),
@@ -378,7 +378,7 @@ function departTab(app, ship) {
         ]),
       ]),
       h('div.card-side', [est.error ? null : h('button.btn.primary', { onclick: () => {
-        const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true));
+        const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true), { sound: (res) => (res.queued ? null : 'depart') });
         if (r?.ok) { delete app.form.dest[ship.id]; app.setPreview(null); }
       } }, 'Appareiller')]),
     ]));
