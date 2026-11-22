@@ -482,3 +482,8 @@ select.input { width: auto; max-width: 100%; }
 .pump-note { color: #8fbf88; font-size: 11px; margin-top: 6px; }
 .pump-note .neg { color: #ff9a8a; }
 .pump-note .pos { color: #b8f5a8; }
+
+/* Risques (avis de l'équipage) */
+.risk-box { margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--line, #d9cfb8); border-radius: 8px; background: rgba(255, 255, 255, 0.45); font-size: 13px; line-height: 1.45; }
+.risk-box.compact { margin-top: 8px; padding: 6px 8px; font-size: 12.5px; }
+.risk-line + .risk-line { margin-top: 3px; }

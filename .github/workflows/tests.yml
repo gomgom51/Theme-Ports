@@ -22,3 +22,5 @@ jobs:
         run: node tests/sim.test.mjs 3 12345
       - name: Rentabilité de chaque modèle de navire
         run: node tests/fleet.test.mjs
+      - name: Équilibre des stratégies (aucune ne domine)
+        run: node tests/strategies.test.mjs

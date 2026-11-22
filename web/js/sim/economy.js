@@ -2,7 +2,7 @@
 // carburant, réparations, valeur des navires, contrats de fret.
 import { GOODS, GOOD_IDS } from '../data/goods.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
-import { SHIP_TYPES, CREW_DAY_COST } from '../data/ships.js';
+import { SHIP_TYPES, CREW_DAY_COST, CREW_LEVELS } from '../data/ships.js';
 import { CLIENTS } from '../data/clients.js';
 import { clamp, HOURS_PER_DAY } from './util.js';
 
@@ -10,7 +10,7 @@ export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffin�
 export const HOLD_TYPES = ['vrac', 'liquide', 'divers', 'conteneurs', 'chimique', 'gpl', 'gnl', 'vehicules', 'frigo', 'lourd'];
 export const CANAL_FEE = { suez: 12, panama: 10 }; // $ par unité de jauge brute
 export const BID_ASK = 0.015;
-export const BALLAST = 1.55;
+export const BALLAST = 1.5;
 export const TUNING = { ballast: BALLAST }; // réglage d'équilibrage (tests)
 // Taux de fret « normal » (indice 100). Les taux suivent un cycle mondial lent
 // (des années d'euphorie, puis des années de vaches maigres) et, autour de lui,
@@ -21,9 +21,10 @@ export const FREIGHT_MIN = 0.6, FREIGHT_MAX = 2.6;
 // Le fret est d'autant plus cher que le navire a peu de chances de trouver un
 // chargement pour le retour : un pétrolier rentre presque toujours à vide, un cargo
 // polyvalent trouve quelque chose à charger dans chaque port.
+// Calibré sur la part du temps passée chargée par chaque type de navire.
 export const BALLAST_HOLD = {
-  divers: 1, conteneurs: 1.05, vrac: 1.12, lourd: 1.15,
-  chimique: 1.3, vehicules: 1.3, liquide: 1.4, gpl: 1.4, gnl: 1.4, frigo: 1.45,
+  divers: 1, vrac: 1.04, conteneurs: 1.15, lourd: 1.15,
+  chimique: 1.42, liquide: 1.45, vehicules: 1.45, gpl: 1.55, gnl: 1.55, frigo: 1.6,
 };
 
 // ---------- Marché ----------
@@ -169,10 +170,10 @@ export function newShipPrice(state, typeId, flag) {
 // Un vieux navire consomme plus (coque encrassée, moteur fatigué) et coûte plus
 // cher à entretenir. `age` en années (0 pour un navire neuf ou une estimation).
 export function burnPerDay(T, speed, age = 0) { return T.burn * Math.pow(speed / T.speed, 3) * (1 + age * 0.006); }
-export function crewDayCost(T, flag) { return T.crew * CREW_DAY_COST * (FLAGS[flag]?.crew ?? 1); }
+export function crewDayCost(T, flag, crewLevel = 0) { return T.crew * CREW_DAY_COST * (FLAGS[flag]?.crew ?? 1) * CREW_LEVELS[crewLevel || 0].wage; }
 export function opexDay(T, age = 0) { return T.opex * (1 + age * 0.015); }
-export function fixedDayCost(T, flag, status, age = 0) {
-  const crew = crewDayCost(T, flag);
+export function fixedDayCost(T, flag, status, age = 0, crewLevel = 0) {
+  const crew = crewDayCost(T, flag, crewLevel);
   if (status === 'laidup') return opexDay(T, age) * 0.3 + crew * 0.2;
   return opexDay(T, age) + crew;
 }

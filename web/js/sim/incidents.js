@@ -1,7 +1,7 @@
 // Incidents en mer : avaries, incendies, abordages, échouements, voies d'eau,
 // cargaisons abîmées par le gros temps… Un navire vieux ou mal entretenu en subit
 // bien plus, mais même un bon navire n'est jamais à l'abri d'un naufrage.
-import { SHIP_TYPES } from '../data/ships.js';
+import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
 import { PORTS } from '../data/ports.js';
 import { HOURS_PER_DAY } from './util.js';
@@ -22,14 +22,14 @@ export function weatherRisk(force) {
   return force >= 8 ? 1 + (force - 7) * 0.9 : 1;
 }
 // Probabilité qu'un incident grave finisse en perte totale.
-export function sinkChance(condition, force) {
-  return 0.024 * RISK.sinking * (1 + Math.pow((100 - condition) / 40, 2)) * (force >= 10 ? 2 : 1);
+export function sinkChance(condition, force, crewLevel = 0) {
+  return 0.024 * RISK.sinking * CREW_LEVELS[crewLevel || 0].safety * (1 + Math.pow((100 - condition) / 40, 2)) * (force >= 10 ? 2 : 1);
 }
 
 // Tire un incident pour cette heure de mer (ou null).
 // nearCoast : moins de 150 milles du départ ou de l'arrivée (abordages, échouements).
 export function rollIncident(rng, ship, { age, force, nearCoast }) {
-  const p = (INCIDENT_BASE / D) * RISK.incidents * wearRisk(ship.condition, age) * weatherRisk(force);
+  const p = (INCIDENT_BASE / D) * RISK.incidents * CREW_LEVELS[ship.crew || 0].safety * wearRisk(ship.condition, age) * weatherRisk(force);
   if (!rng.chance(p)) return null;
   const T = SHIP_TYPES[ship.type];
   const laden = !!ship.cargo;
@@ -106,15 +106,23 @@ export function hullInsurance(state, ship, startCond) {
 export const STRICT_FLAGS = new Set(['NL', 'DE', 'FR', 'GR', 'US', 'CA', 'JP', 'AU', 'KR', 'SG']);
 export const DETENTION_REPAIR = 65;
 
+export const inspectionThreshold = (age) => (age > 20 ? 62 : 55);
+export const isStrict = (port) => STRICT_FLAGS.has(PORTS[port].flag);
+// Probabilités d'inspection et de détention à l'arrivée (affichées au joueur avant le départ).
+export function inspectionOdds(condition, port, age) {
+  const threshold = inspectionThreshold(age);
+  if (condition >= threshold) return { inspect: 0, detain: 0 };
+  const gap = threshold - condition;
+  const inspect = RISK.inspections * (isStrict(port) ? Math.min(0.95, 0.3 + gap / 50) : Math.min(0.5, 0.06 + gap / 150));
+  const detainIfInspected = Math.min(0.95, Math.max(0.08, gap / 35));
+  return { inspect, detain: inspect * detainIfInspected, detainIfInspected };
+}
+
 export function inspection(state, rng, ship, port, age) {
-  const P = PORTS[port];
-  const strict = STRICT_FLAGS.has(P.flag);
-  const threshold = age > 20 ? 62 : 55;
-  if (ship.condition >= threshold) return null;
-  const gap = threshold - ship.condition;
-  const pInspect = RISK.inspections * (strict ? Math.min(0.95, 0.3 + gap / 50) : Math.min(0.5, 0.06 + gap / 150));
-  if (!rng.chance(pInspect)) return null;
-  if (!rng.chance(Math.min(0.95, Math.max(0.08, gap / 35)))) return { kind: 'remarques', strict };
+  const strict = isStrict(port);
+  const odds = inspectionOdds(ship.condition, port, age);
+  if (!odds.inspect || !rng.chance(odds.inspect)) return null;
+  if (!rng.chance(odds.detainIfInspected)) return { kind: 'remarques', strict };
   const T = SHIP_TYPES[ship.type];
   const fine = Math.round((30000 + rng.next() * 90000) * Math.sqrt(T.gt / 5000));
   // Remise en état imposée : au chantier du port s'il y en a un (au prix fort, c'est urgent),
@@ -130,4 +138,27 @@ export function inspection(state, rng, ship, port, age) {
     hours = Math.ceil(points * 0.12 * 1.5 * D) + 48;
   }
   return { kind: 'detention', strict, fine, target, cost: Math.round(cost), hours };
+}
+
+// ---------- Ce que le joueur voit ----------
+// Profil de risque d'un navire, calculé avec les mêmes formules que la simulation.
+const SEA_SHARE = 0.75; // part du temps passé en mer
+export function riskProfile(state, ship, condition = ship.condition) {
+  const age = eco.ageYears(state, ship);
+  const safety = CREW_LEVELS[ship.crew || 0].safety;
+  const perSeaDay = INCIDENT_BASE * RISK.incidents * safety * wearRisk(condition, age);
+  const incidentsPerYear = perSeaDay * 365 * SEA_SHARE;
+  // Part des incidents graves (incendie, abordage, échouement, voie d'eau) parmi tous les incidents.
+  const severeW = 1 + 1.2 + 0.8 + 0.4 + 2.5 * Math.pow((100 - condition) / 100, 2);
+  const severeShare = severeW / (severeW + 4 + age / 8);
+  const sinkPerYear = 1 - Math.exp(-incidentsPerYear * severeShare * sinkChance(condition, 7, ship.crew) * 1.15);
+  const insured = condition >= SEAWORTHY;
+  const level = sinkPerYear < 0.012 ? 0 : sinkPerYear < 0.03 ? 1 : sinkPerYear < 0.08 ? 2 : 3;
+  return { age, incidentsPerYear, sinkPerYear, insured, level, label: ['faible', 'moyen', 'élevé', 'très élevé'][level] };
+}
+// Risque sur un voyage précis (au moins un incident, naufrage), d'après sa durée en mer.
+export function voyageRisk(state, ship, seaDays) {
+  const p = riskProfile(state, ship);
+  const perDay = p.incidentsPerYear / (365 * SEA_SHARE);
+  return { incident: 1 - Math.exp(-perDay * seaDays), sink: 1 - Math.pow(1 - p.sinkPerYear, seaDays / (365 * SEA_SHARE)), insured: p.insured };
 }

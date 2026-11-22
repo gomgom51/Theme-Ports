@@ -43,6 +43,10 @@ riche de la planète.
   retard. Un navire vieux ou mal entretenu en subit bien plus, mais même un bon
   navire peut sombrer. L'assurance ne paie que si le navire était en état de
   naviguer au départ ; une épave coule sans être remboursée.
+* **L'équipage** : de base, confirmé ou chevronné. Un meilleur équipage coûte plus
+  cher, provoque moins d'incidents et évalue mieux les dangers : avis général,
+  fourchettes, puis chiffres précis voyage par voyage. L'assurance et les ports
+  exigeants, eux, sont toujours affichés.
 * **Inspections dans les ports exigeants** (Europe, Amérique du Nord, Japon,
   Corée, Australie, Singapour) : un navire usé peut être retenu, mis à l'amende
   et réparé d'office à vos frais, que vous ayez l'argent ou non.
@@ -126,7 +130,7 @@ tests/               tests des routes et de la simulation
    événements, banque, IA, multijoueur sur un appareil.
 2. ✅ Flotte complète : 22 modèles jusqu'au géant des mers, nouvelles cargaisons.
    À venir : 60 à 100 ports.
-3. Équipage et équipement.
+3. Équipage et équipement (premier pas : niveaux d'équipage).
 4. Piraterie, forces de l'ordre et combats automatiques.
 5. Commerce gris et noir (embargos, cargaisons clandestines), douanes.
 6. Naufrages, pollution, assurance et responsabilité.

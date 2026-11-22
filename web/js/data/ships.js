@@ -15,7 +15,7 @@ export const SHIP_TYPES = {
   caboteur: {
     name: 'Caboteur', category: 'Cargo', dwt: 4500, holds: ['divers', 'vrac'],
     speed: 11, maxSpeed: 12.5, burn: 9, idleBurn: 1.2, draft: 6.5, crew: 9,
-    opex: 2200, price: 9, life: 30, tank: 260, gt: 3000,
+    opex: 2200, price: 8, life: 30, tank: 260, gt: 3000,
     blurb: 'Petit et économique. Entre partout, idéal pour démarrer.',
   },
   cargo_ancien: {
@@ -27,7 +27,7 @@ export const SHIP_TYPES = {
   polyvalent: {
     name: 'Cargo polyvalent', category: 'Cargo', dwt: 12500, holds: ['divers', 'vrac', 'conteneurs'],
     speed: 14, maxSpeed: 15.5, burn: 20, idleBurn: 2.5, draft: 8.6, crew: 14,
-    opex: 3600, price: 22, life: 28, tank: 750, gt: 9000,
+    opex: 4000, price: 26, life: 28, tank: 750, gt: 9000,
     blurb: 'Transporte presque tout, avec ses propres grues.',
   },
   colis_lourds: {
@@ -58,7 +58,7 @@ export const SHIP_TYPES = {
   vraquier_capesize: {
     name: 'Vraquier Capesize', category: 'Vraquier', dwt: 180000, holds: ['vrac'],
     speed: 14, maxSpeed: 14.8, burn: 52, idleBurn: 5, draft: 18.2, crew: 24,
-    opex: 7500, price: 60, life: 27, tank: 3800, gt: 93000,
+    opex: 7500, price: 52, life: 27, tank: 3800, gt: 93000,
     blurb: 'Trop grand pour les canaux, il passe par le cap Horn. Le roi du minerai de fer.',
   },
   // ---------- Pétroliers et chimiquiers ----------
@@ -71,13 +71,13 @@ export const SHIP_TYPES = {
   petrolier_mr: {
     name: 'Pétrolier de produits (MR)', category: 'Pétrolier', dwt: 48000, holds: ['liquide'],
     speed: 14, maxSpeed: 15, burn: 30, idleBurn: 4, draft: 12.2, crew: 22,
-    opex: 5600, price: 42, life: 25, tank: 1600, gt: 29000,
+    opex: 5600, price: 36, life: 25, tank: 1600, gt: 29000,
     blurb: 'Brut et produits raffinés. Rentable, mais exigeant en ports.',
   },
   chimiquier: {
     name: 'Chimiquier', category: 'Pétrolier', dwt: 19000, holds: ['chimique', 'liquide'],
     speed: 14.5, maxSpeed: 15.5, burn: 24, idleBurn: 3, draft: 9.8, crew: 22,
-    opex: 6200, price: 38, life: 25, tank: 1000, gt: 13000,
+    opex: 6200, price: 32, life: 25, tank: 1000, gt: 13000,
     blurb: 'Des dizaines de citernes inox séparées : produits chimiques et petits lots.',
   },
   petrolier_aframax: {
@@ -121,13 +121,13 @@ export const SHIP_TYPES = {
   feeder: {
     name: 'Porte-conteneurs feeder', category: 'Porte-conteneurs', dwt: 22000, holds: ['conteneurs'],
     speed: 18, maxSpeed: 20, burn: 46, idleBurn: 3.5, draft: 10, crew: 17,
-    opex: 4600, price: 30, life: 25, tank: 1700, gt: 18000,
+    opex: 4600, price: 26, life: 25, tank: 1700, gt: 18000,
     blurb: '1 700 conteneurs. Rapide, gourmand en carburant.',
   },
   pc_panamax: {
     name: 'Porte-conteneurs Panamax', category: 'Porte-conteneurs', dwt: 55000, holds: ['conteneurs'],
     speed: 21, maxSpeed: 23, burn: 110, idleBurn: 6, draft: 13.5, crew: 22,
-    opex: 9000, price: 65, life: 25, tank: 4500, gt: 52000,
+    opex: 9000, price: 75, life: 25, tank: 4500, gt: 52000,
     blurb: '4 500 conteneurs à 21 nœuds. Il franchit les nouvelles écluses de Panama.',
   },
   pc_geant: {
@@ -153,6 +153,20 @@ export const SHIP_TYPES = {
 
 // Salaire moyen d'un marin par jour (avant le coefficient du pavillon).
 export const CREW_DAY_COST = 140;
+
+// Qualité de l'équipage : un équipage plus aguerri coûte plus cher, provoque moins
+// d'incidents et sait mieux évaluer les dangers (le joueur voit des risques plus précis).
+//  wage   : coefficient sur les salaires
+//  safety : coefficient sur la fréquence des incidents et le risque de naufrage
+//  info   : 0 avis qualitatif, 1 fourchettes, 2 chiffres précis et risque du voyage
+export const CREW_LEVELS = [
+  { name: 'Équipage de base', short: 'de base', wage: 1, safety: 1, info: 0,
+    blurb: 'Le minimum réglementaire. Le capitaine ne vous donne qu\'un avis général sur les dangers.' },
+  { name: 'Équipage confirmé', short: 'confirmé', wage: 1.35, safety: 0.85, info: 1,
+    blurb: 'Des officiers expérimentés : moins d\'incidents, et une estimation chiffrée des risques.' },
+  { name: 'Équipage chevronné', short: 'chevronné', wage: 1.8, safety: 0.7, info: 2,
+    blurb: 'Le chef mécanicien connaît chaque boulon : beaucoup moins d\'incidents, risques évalués précisément, voyage par voyage.' },
+];
 
 // Noms proposés pour les nouveaux navires.
 export const SHIP_NAMES = [

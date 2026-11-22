@@ -17,6 +17,7 @@ import { LOGO_IDS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
 import { officeSVG, officeTier, OFFICE_TIERS } from './officeart.js';
 import { pendingList } from './payment.js';
+import { surveyTag, isStrict } from './risk.js';
 
 const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -109,7 +110,9 @@ export function portPanel(app, id) {
     stat('Fuel', `${num(eco.fuelPrice(state, id))} $/t`),
     stat('Chantier', REPAIR_LABEL[P.repair]),
     stat('Taxes portuaires', P.fees > 1.05 ? 'élevées' : P.fees < 0.92 ? 'faibles' : 'moyennes'),
+    stat('Inspections', isStrict(id) ? 'sévères' : 'rares'),
   ]));
+  if (isStrict(id)) body.append(h('p.hint', 'Port exigeant : les navires usés (sous 55 %, 62 % après 20 ans) risquent d\'y être retenus, mis à l\'amende et réparés d\'office aux frais de l\'armateur.'));
   body.append(h('p', ['Terminaux : ', ...P.terminals.map((t) => h('span.tag', HOLDS[t]))]));
   if (state.strikes[id] > state.t) body.append(h('p.warn-text', `Grève des dockers jusqu'au ${date(state.strikes[id], true)}.`));
   const goodRow = (g, kind) => h('div.row', [
@@ -158,6 +161,14 @@ function typeSpecs(T) {
   return `${tonnes(T.dwt)} · ${num1(T.speed)} nœuds · ${T.burn} t/j · tirant d'eau ${num1(T.draft)} m · ${T.holds.map((x) => HOLDS[x].toLowerCase()).join(', ')}`;
 }
 
+// Remise en état à 85 % à prévoir après l'achat (au prix d'un chantier courant).
+function repairsToExpect(state, l) {
+  if (l.condition >= 84) return null;
+  const T = SHIP_TYPES[l.type];
+  const cost = (85 - l.condition) * T.price * 1e6 * 0.0011 * (1 + (100 - l.condition) / 120) * eco.repairIndex(state);
+  return h('span.muted', ` réparations à prévoir ≈ ${money(cost)}`);
+}
+
 function usedTab(app) {
   const { state, ctx } = app;
   const company = app.company();
@@ -174,6 +185,7 @@ function usedTab(app) {
           h('div.card-title', [l.name, h('span.tag', T.name)]),
           h('div.card-sub', typeSpecs(T)),
           h('div.card-sub', [`${num1(l.age)} ans · état `, h('b', pct(l.condition)), ` · à ${portName(l.port)}`, l.port === company.homePort ? h('span.tag.good', 'votre port') : null]),
+          h('div.card-sub', [surveyTag(state, look), repairsToExpect(state, l)]),
           bar(l.condition / 100, { good: 0.7, warn: 0.45 }),
         ]),
         h('div.card-side', [
@@ -490,7 +502,10 @@ export function helpPanel() {
       h('h3', 'Les contraintes'),
       p('Chaque port a un tirant d\'eau maximal et des terminaux (vrac, liquide, marchandises diverses, conteneurs). Chaque navire a des cales adaptées à certaines marchandises et une autonomie limitée par ses soutes.'),
       h('h3', 'Les risques'),
-      p('Tempêtes (cercles colorés, force en Beaufort) : elles ralentissent, usent la coque et peuvent couler un navire en mauvais état. Avaries, grèves, fermeture du canal de Suez, sécheresse à Panama, chocs pétroliers… Lisez le Journal 📰.'),
+      p('En mer : avaries de machine, incendies, abordages, échouements, voies d\'eau, cargaisons abîmées par la tempête (cercles colorés, force en Beaufort). Un navire vieux ou usé en subit bien plus ; même un bon navire peut sombrer, mais il est alors assuré.'),
+      p('L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
+      p('Votre équipage évalue les dangers : un équipage de base donne un avis général, un équipage confirmé des fourchettes, un équipage chevronné des chiffres précis voyage par voyage. Les meilleurs équipages coûtent plus cher mais provoquent moins d\'incidents. Choisissez-le à l\'escale.'),
+      p('Le marché du fret suit des cycles : des années fastes, puis des années maigres où désarmer un navire (à l\'escale) coûte moins cher que de le faire travailler à perte. Aussi : grèves, fermeture du canal de Suez, sécheresse à Panama, chocs pétroliers… Lisez le Journal 📰.'),
       h('h3', 'Banque et réputation'),
       p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. La réputation monte avec les livraisons à l\'heure et ouvre les meilleurs contrats.'),
       h('h3', 'Commandes'),

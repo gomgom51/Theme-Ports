@@ -24,7 +24,7 @@ function tripCost(state, ctx, ship, to, extraHours = 0) {
   const days = p.seaDays + extraHours / D;
   const age = eco.ageYears(state, ship);
   const upkeep = eco.upkeepPerSeaDay(state, T, age) * p.seaDays;
-  return { cost: p.fuelCost + p.fees + upkeep + eco.fixedDayCost(T, company.flag, 'active', age) * days, days, plan: p };
+  return { cost: p.fuelCost + p.fees + upkeep + eco.fixedDayCost(T, company.flag, 'active', age, ship.crew) * days, days, plan: p };
 }
 
 export function aiShipIdle(state, ctx, rng, ship) {
@@ -196,7 +196,7 @@ function efficiency(state, company, listing) {
 export function aiDaily(state, ctx, rng, company) {
   if (company.bankrupt) return;
   const ships = shipsOf(state, company.id);
-  const monthlyFixed = ships.reduce((s, sh) => s + eco.fixedDayCost(SHIP_TYPES[sh.type], company.flag, sh.status) * 30, 0);
+  const monthlyFixed = ships.reduce((s, sh) => s + eco.fixedDayCost(SHIP_TYPES[sh.type], company.flag, sh.status, 0, sh.crew) * 30, 0);
 
   // Trésorerie : couvrir un découvert, rembourser quand on est à l'aise.
   if (company.cash < 0) act.borrow(state, company.id, -company.cash + monthlyFixed * 0.5);
@@ -204,6 +204,13 @@ export function aiDaily(state, ctx, rng, company) {
     act.repay(state, company.id, company.cash - (3e6 + monthlyFixed * 2));
   }
 
+  // Équipage : un équipage aguerri se rentabilise sur un navire cher ou vieux.
+  for (const sh of ships) {
+    if (sh.status !== 'port') continue;
+    const T = SHIP_TYPES[sh.type], age = eco.ageYears(state, sh);
+    const want = T.price >= 120 ? 2 : T.price >= 55 && age < 20 ? 1 : 0;
+    if ((sh.crew || 0) !== want && company.cash > 2e6) act.setCrew(state, sh.id, want);
+  }
   // Réarmer les navires désarmés quand le fret repart.
   for (const sh of ships) {
     if (sh.status === 'laidup' && eco.freightLevel(state, sh.type) >= 0.97 && company.cash > 1e6) act.reactivate(state, sh.id);
@@ -227,7 +234,8 @@ export function aiDaily(state, ctx, rng, company) {
   const budget = prudent ? company.cash - monthlyFixed * 3
     : company.cash * 0.85 + Math.max(0, Math.min(creditLimit(state, company) - company.debt, company.cash * 0.6));
   if (budget < 1.5e6) return;
-  const affordable = state.used.filter((l) => l.price <= budget && l.condition > 45);
+  // Une compagnie spécialisée (ai.pool) n'achète que ses types de navires.
+  const affordable = state.used.filter((l) => l.price <= budget && l.condition > 45 && (!company.ai.pool || company.ai.pool.includes(l.type)));
   if (!affordable.length) return;
   // Préférence pour les navires qui servent beaucoup de ports (un ULCC n'a que trois terminaux)
   // et qui coûtent peu à exploiter par rapport à un navire moderne de même taille.

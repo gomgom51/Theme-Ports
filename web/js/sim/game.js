@@ -176,7 +176,7 @@ function portHour(state, ctx, rng, ship, notes) {
     if (what === 'déchargement' && ship.pendingDelivery) deliverContract(state, ship, rng, notes);
     if ((what === 'réparation' || what === 'détention') && ship.repairTo != null) { ship.condition = Math.max(ship.condition, ship.repairTo); ship.repairTo = null; }
     // Navire retenu par les inspecteurs : la remise en état commence après le déchargement.
-    if (ship.detention) { act.startBusy(state, ship, 'détention', ship.detention.hours); ship.detention = null; return; }
+    if (ship.detention) { act.startBusy(state, ship, 'détention', ship.detention.hours); ship.detentionStart = state.t; ship.detention = null; return; }
     if (ship.plan) {
       const r = act.runPlan(state, ctx, ship);
       if (!r.ok) note(state, notes, 'idle', ship, `Le ${ship.name} n'a pas pu appareiller : ${r.msg}`);
@@ -266,7 +266,7 @@ function sailHour(state, ctx, rng, ship, notes) {
     if (inc.rep) changeReputation(company, inc.rep);
     const text = incidentText(inc, ship);
     shipLog(state, ship, text.split('.')[0]);
-    if (inc.severe && rng.chance(sinkChance(ship.condition, wx.force))) {
+    if (inc.severe && rng.chance(sinkChance(ship.condition, wx.force, ship.crew))) {
       sink(state, ctx, ship, notes, pos, wx, inc);
       return;
     }
@@ -331,6 +331,7 @@ function arrive(state, ctx, ship, notes, rng) {
     ship.spent += insp.fine + insp.cost;
     changeReputation(company, -3);
     ship.repairTo = insp.target;
+    ship.detentionCost = insp.cost;
     const days = Math.round((insp.hours / 24) * 10) / 10;
     shipLog(state, ship, `Retenu par les inspecteurs à ${portName(to)}`);
     news(state, `Le ${ship.name} (${company.name}) est retenu à ${portName(to)} : navire jugé dangereux par les inspecteurs.`, { company: company.id, kind: 'disaster' });
@@ -344,6 +345,7 @@ function arrive(state, ctx, ship, notes, rng) {
     if (!ship.detention) note(state, notes, 'arrival', ship, `Le ${ship.name} est arrivé à ${portName(to)} et décharge${strike}.`);
   } else if (ship.detention) {
     act.startBusy(state, ship, 'détention', ship.detention.hours);
+    ship.detentionStart = state.t;
     ship.detention = null;
   } else {
     note(state, notes, 'idle', ship, `Le ${ship.name} est arrivé à ${portName(to)}.`);
@@ -454,7 +456,7 @@ function daily(state, ctx, rng, notes) {
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];
     const company = companyOf(state, ship);
-    const crew = eco.crewDayCost(T, company.flag) * (ship.status === 'laidup' ? 0.2 : 1);
+    const crew = eco.crewDayCost(T, company.flag, ship.crew) * (ship.status === 'laidup' ? 0.2 : 1);
     const opex = eco.opexDay(T, eco.ageYears(state, ship)) * (ship.status === 'laidup' ? 0.3 : 1);
     money(state, company, -crew, 'equipage');
     money(state, company, -opex, 'exploitation');

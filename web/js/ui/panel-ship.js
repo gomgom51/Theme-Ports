@@ -15,6 +15,9 @@ import { flagEl } from './flags.js';
 import { watersLabel } from './waters.js';
 import { clientLine } from './payment.js';
 import { fuelGaugeEl, animateNeedle } from './gauge.js';
+import { riskLines, crewInfo, isStrict } from './risk.js';
+import { CREW_LEVELS } from '../data/ships.js';
+import { inspectionThreshold } from '../sim/incidents.js';
 
 const STATUS_ICON = { sea: '🌊', port: '⚓', laidup: '💤' };
 
@@ -54,7 +57,7 @@ function tripEstimate(app, ship, to, speed, qty = 0, hold = null) {
   const company = state.companies[ship.owner];
   const portH = qty && hold ? eco.handlingHours(ship.port, hold, qty) + eco.handlingHours(to, hold, qty) : 0;
   const totalDays = p.seaDays + portH / 24;
-  const fixed = eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship)) * totalDays;
+  const fixed = eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship), ship.crew) * totalDays;
   return { ...p, totalDays, cost: p.fuelCost + p.fees + fixed, portH };
 }
 
@@ -81,8 +84,10 @@ export function shipPanel(app, id, tab) {
       stat('Capacité', tonnes(T.dwt)),
       stat('Âge', `${num1(age)} ans`),
       stat('Valeur', money(eco.shipValue(state, ship))),
+      stat('Équipage', crewInfo(ship).short),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
+    mine ? h('div.risk-box', riskLines(state, ship)) : null,
   ]);
 
   if (!mine) {
@@ -155,7 +160,7 @@ function contractsTab(app, ship) {
     const daysLeft = (c.deadline - state.t) / 24;
     return h('div.card.contract', { class: why ? 'disabled' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(c.client)]) : null,
         why ? h('div.card-why', why) : h('div.card-sub', [
@@ -332,11 +337,27 @@ function portCallTab(app, ship) {
       return h('button.chip', { onclick: () => app.act(() => act.repair(state, ship.id, lv), { sound: 'pay' }) }, `${lv} % · ${money(rc.cost)} · ${duration(rc.hours)}`);
     })));
   }
-  if (ship.condition < 50) box.append(h('p.warn-text', 'Sous 50 %, le navire ralentit et tombe plus souvent en panne. Sous 25 %, une forte tempête peut le couler.'));
+  box.append(h('p.hint', `Seuils à retenir : sous ${inspectionThreshold(eco.ageYears(state, ship))} %, les ports exigeants peuvent retenir le navire ; sous 40 %, l'assurance ne le couvre plus ; sous 50 %, il ralentit ; sous 25 %, une forte tempête peut le couler.`));
+
+  // Équipage : plus cher, mais moins d'incidents et une meilleure lecture des dangers.
+  box.append(h('h3', 'Équipage'));
+  box.append(h('div.list', CREW_LEVELS.map((L, lv) => {
+    const cur = (ship.crew || 0) === lv;
+    const wage = eco.crewDayCost(T, company.flag, lv);
+    const fee = act.crewChangeFee(state, ship, lv);
+    return h('div.card', { class: cur ? 'highlight' : '' }, [
+      h('div.card-main', [
+        h('div.card-title', [L.name, cur ? h('span.tag.good', 'à bord') : null]),
+        h('div.card-sub', L.blurb),
+        h('div.card-sub.muted', `${money(wage)}/jour · incidents ${lv ? `−${Math.round((1 - L.safety) * 100)} %` : 'normaux'}`),
+      ]),
+      h('div.card-side', cur ? [] : [h('button.btn.small', { onclick: () => app.act(() => act.setCrew(state, ship.id, lv)) }, fee ? `Engager · ${money(fee)}` : 'Engager')]),
+    ]);
+  })));
 
   if (!ship.busyWhat) {
     box.append(h('h3', 'Désarmer ou vendre'));
-    box.append(h('p.hint', `Désarmé, le navire coûte environ ${money(eco.fixedDayCost(T, company.flag, 'laidup', eco.ageYears(state, ship)))}/jour au lieu de ${money(eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship)))}. Utile quand le marché est mauvais.`));
+    box.append(h('p.hint', `Désarmé, le navire coûte environ ${money(eco.fixedDayCost(T, company.flag, 'laidup', eco.ageYears(state, ship), ship.crew))}/jour au lieu de ${money(eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship), ship.crew))}. Utile quand le marché est mauvais.`));
     box.append(h('div.chips', [
       h('button.chip', { disabled: !!ship.cargo, onclick: () => app.act(() => act.layUp(state, ship.id)) }, 'Désarmer'),
       h('button.chip.danger', { disabled: !!ship.cargo, onclick: async () => {
@@ -367,6 +388,15 @@ function busyTab(app, ship) {
   const { state, ctx } = app;
   const left = Math.max(0, ship.busyUntil - state.t);
   const box = h('div', [h('p', `${cap(ship.busyWhat)} : encore ${duration(left)} (fin le ${date(ship.busyUntil, true)}).`)]);
+  if (ship.busyWhat === 'détention') {
+    // Le joueur garde la main : réparer comme l'exigent les inspecteurs, ou vendre le navire en l'état.
+    const refund = ship.detentionCost ? ship.detentionCost * left / Math.max(1, ship.busyUntil - (ship.detentionStart ?? state.t)) : 0;
+    const value = eco.shipValue(state, ship) * 0.95;
+    box.append(h('p.hint', `Les inspecteurs exigent une remise en état avant de laisser repartir le ${ship.name}. Vous pouvez aussi le vendre en l'état : la part des réparations pas encore faite (${money(refund)}) vous est remboursée.`));
+    box.append(h('div.chips', [h('button.chip.danger', { disabled: !!ship.cargo, onclick: async () => {
+      if (await confirmBox(`Vendre le ${ship.name} en l'état ?`, `Le courtier en offre ${money(value)}, plus ${money(refund)} de réparations remboursées.`, 'Vendre')) app.act(() => act.sellShip(state, ctx, ship.id), { close: true });
+    } }, `Vendre en l'état · ${money(value + refund)}`)]));
+  }
   if (state.strikes[ship.port] > state.t) box.append(h('p.warn-text', `Grève en cours à ${portName(ship.port)} jusqu'au ${date(state.strikes[ship.port], true)}.`));
   if (ship.plan) {
     const p = act.planVoyage(state, ctx, ship, ship.plan.to, ship.plan.speed);
@@ -418,6 +448,7 @@ function departTab(app, ship) {
           contract ? h('br') : null,
           contract ? h('span', { class: est.eta > contract.deadline ? 'neg' : 'pos' }, est.eta > contract.deadline ? `Attention : arrivée après le délai du ${date(contract.deadline, true)}` : `Dans les délais (avant le ${date(contract.deadline, true)})`) : null,
         ]),
+        est.error ? null : h('div.risk-box.compact', riskLines(state, ship, { seaDays: est.seaDays, to: dest }).slice(ship.condition >= 40 ? 1 : 0)),
         h('label.check', [
           h('input', { type: 'checkbox', checked: autoRefuel, onchange: (e) => { app.form.autoRefuel[ship.id] = e.target.checked; } }),
           ' Faire le plein automatiquement si nécessaire',
@@ -434,6 +465,7 @@ function departTab(app, ship) {
   }
 
   if (contract) return box;
+  const worn = ship.condition < inspectionThreshold(eco.ageYears(state, ship));
   // Liste des destinations.
   const rows = PORT_IDS.filter((p) => p !== ship.port).map((p) => {
     const info = ctx.distanceInfo(ship.port, p, ctx.closedCanals(state, T.draft));
@@ -457,6 +489,7 @@ function departTab(app, ship) {
     flagEl(PORTS[r.p].flag),
     h('span.grow', portName(r.p)),
     r.why ? h('span.muted.small', r.why) : h('span.muted.small', `${num(r.nm)} milles · ${days(r.seaDays)}`),
+    !r.why && worn && isStrict(r.p) ? h('span.tag.warn', { title: 'Port exigeant : risque de détention pour un navire usé' }, '⚠ contrôles') : null,
     !r.why && r.contracts ? h('span.tag', `${r.contracts} contrat${r.contracts > 1 ? 's' : ''}`) : null,
   ]))));
   return box;

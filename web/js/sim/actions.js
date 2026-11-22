@@ -1,7 +1,7 @@
 // Actions des joueurs (et de l'IA). Chaque action renvoie { ok: true, ... }
 // ou { ok: false, msg } avec un message lisible par le joueur.
 import { PORTS, FLAGS } from '../data/ports.js';
-import { SHIP_TYPES } from '../data/ships.js';
+import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import {
@@ -363,14 +363,43 @@ export function orderNewShip(state, companyId, typeId, yard, name) {
 export function sellShip(state, ctx, shipId) {
   const ship = shipById(state, shipId);
   if (!ship || (ship.status !== 'port' && ship.status !== 'laidup')) return fail('Le navire doit être au port pour être vendu.');
-  if (ship.busyWhat) return fail('Le navire est occupé.');
+  // Un navire retenu par les inspecteurs peut être vendu en l'état : la part des
+  // réparations imposées qui n'a pas encore été faite est remboursée.
+  const detained = ship.busyWhat === 'détention';
+  if (ship.busyWhat && !detained) return fail('Le navire est occupé.');
   if (ship.cargo) return fail('Déchargez d\'abord la cargaison.');
   const company = companyOf(state, ship);
+  let refund = 0;
+  if (detained && ship.detentionCost) {
+    const left = Math.max(0, ship.busyUntil - state.t) / Math.max(1, ship.busyUntil - (ship.detentionStart ?? state.t));
+    refund = Math.round(ship.detentionCost * left);
+    money(state, company, refund, 'reparations');
+  }
   const price = eco.shipValue(state, ship) * 0.95;
   company.cash += price;
   removeShip(state, ctx, ship);
   news(state, `${company.name} vend le ${ship.name} pour ${fmtM(price)}.`, { company: company.id, kind: 'fleet' });
   return { ok: true, price };
+}
+
+// ---------- Équipage ----------
+// Monter en gamme coûte une prime d'embauche (un mois de la différence de salaire).
+export function crewChangeFee(state, ship, level) {
+  const T = SHIP_TYPES[ship.type], company = companyOf(state, ship), cur = ship.crew || 0;
+  return level > cur ? Math.round((eco.crewDayCost(T, company.flag, level) - eco.crewDayCost(T, company.flag, cur)) * 30) : 0;
+}
+export function setCrew(state, shipId, level) {
+  const ship = shipById(state, shipId);
+  if (!ship || (ship.status !== 'port' && ship.status !== 'laidup')) return fail('On ne change d\'équipage qu\'au port.');
+  level = Math.max(0, Math.min(CREW_LEVELS.length - 1, level | 0));
+  if (level === (ship.crew || 0)) return fail('C\'est déjà l\'équipage actuel.');
+  const company = companyOf(state, ship);
+  const fee = crewChangeFee(state, ship, level);
+  if (fee > company.cash) return fail(`Il faut ${fmtM(fee)} de primes d'embauche.`);
+  if (fee) money(state, company, -fee, 'equipage');
+  ship.crew = level;
+  shipLog(state, ship, `Nouvel équipage : ${CREW_LEVELS[level].name.toLowerCase()}`);
+  return { ok: true, fee };
 }
 
 export function renameShip(state, shipId, name) {
