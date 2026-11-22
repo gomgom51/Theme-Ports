@@ -180,7 +180,7 @@ function usedTab(app) {
           h('div.price', money(l.price)),
           h('button.btn.primary.small', { disabled: l.price > company.cash, onclick: async () => {
             if (!(await confirmBox(`Acheter le ${l.name} ?`, `${T.name} de ${num1(l.age)} ans pour ${money(l.price)}. Il vous attend à ${portName(l.port)}.`, 'Acheter'))) return;
-            const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)), { sound: 'buy' });
+            const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)), { sound: 'pay' });
             if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id); }
           } }, 'Acheter'),
         ]),
@@ -213,7 +213,7 @@ function newTab(app) {
         h('div.price', money(price)),
         h('button.btn.small', { disabled: price > company.cash, onclick: async () => {
           if (!(await confirmBox(`Commander un ${T.name.toLowerCase()} ?`, `${money(price)} payés à la commande, livraison à ${portName(yard)} dans ${act.YARDS[yard].days} jours.`, 'Commander'))) return;
-          app.act(() => act.orderNewShip(state, company.id, id, yard));
+          app.act(() => act.orderNewShip(state, company.id, id, yard), { sound: 'pay' });
         } }, 'Commander'),
       ]),
     ]));

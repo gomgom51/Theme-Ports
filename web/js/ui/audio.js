@@ -11,6 +11,9 @@ const TRACKS = {
   end: { src: 'musique/victoire.mp3', volume: 0.5, loop: false },
 };
 
+// Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
+const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3' };
+
 function loadSettings() {
   const defaults = { ambience: true, sfx: true, music: true, volume: 0.8 };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
@@ -62,6 +65,7 @@ export class AudioManager {
     wet.gain.value = 0.55;
     this.reverb.connect(wet).connect(this.master);
     this.timer = setInterval(() => this.tick(), 400);
+    this.loadSamples();
     const scene = this.sceneName;
     this.sceneName = null;
     if (scene) this.setScene(scene);
@@ -87,6 +91,35 @@ export class AudioManager {
     S.scheduleScene(c, this.ambBus, this.reverb, scene, this.state, now, now + 1.5);
   }
 
+  async loadSamples() {
+    this.buffers = {};
+    for (const [name, src] of Object.entries(SAMPLES)) {
+      try {
+        const res = await fetch(src);
+        if (!res.ok) continue;
+        this.buffers[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      } catch { /* on garde la version synthétisée */ }
+    }
+  }
+
+  // Joue un son enregistré : extrait de `duration` secondes avec fondu de sortie.
+  playSample(name, { gain = 0.8, duration = null, fadeOut = 0.3 } = {}) {
+    const buf = this.buffers?.[name];
+    if (!buf) return false;
+    const c = this.ctx, t = c.currentTime + 0.02;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const g = c.createGain();
+    const end = t + (duration ?? buf.duration);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.setValueAtTime(gain, Math.max(t, end - fadeOut));
+    g.gain.linearRampToValueAtTime(0.0001, end);
+    src.connect(g).connect(this.sfxBus);
+    src.start(t);
+    src.stop(end + 0.05);
+    return true;
+  }
+
   // Bruitages ponctuels.
   play(name) {
     const c = this.ctx;
@@ -106,9 +139,9 @@ export class AudioManager {
     } else if (name === 'sunk') {
       S.horn(c, out, t, { dur: 3.5, freq: 82, gain: 0.24, distance: 0.8, reverb: r });
     } else if (name === 'fuel') {
-      S.fuelPump(c, out, t, { dur: 1.5, gain: 0.32 });
-    } else if (name === 'cash') {
-      S.cashRegister(c, out, t, { gain: 0.42 });
+      if (!this.playSample('fuel', { gain: 0.75, duration: 2.3, fadeOut: 0.4 })) S.fuelPump(c, out, t, { dur: 1.5, gain: 0.32 });
+    } else if (name === 'cash' || name === 'pay') {
+      if (!this.playSample('cash', { gain: 0.8 })) S.cashRegister(c, out, t, { gain: 0.42 });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     }

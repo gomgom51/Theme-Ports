@@ -187,7 +187,8 @@ p { margin: 6px 0; }
 .radar-value { fill: var(--ink); font-weight: 800; }
 .radar-compare { fill: none; stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1.5; }
 .with-thumb .thumb { width: 104px; flex: none; line-height: 0; border-radius: 6px; overflow: hidden; }
-.card.with-art { display: grid; grid-template-columns: minmax(120px, 170px) 1fr auto; align-items: center; }
+.card.with-art { display: grid; grid-template-columns: minmax(140px, 38%) 1fr auto; align-items: center; }
+.card-art .ship-art, .ship-hero-art .ship-art { background: linear-gradient(180deg, transparent 0 70%, rgba(195, 183, 156, 0.18) 70% 100%); }
 .card-art { border: 1px solid var(--line); background: none; padding: 0; border-radius: 8px; overflow: hidden; line-height: 0; }
 .card-art:hover { border-color: var(--teal); }
 .inspect-art { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; }

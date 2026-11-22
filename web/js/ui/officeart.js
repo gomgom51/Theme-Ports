@@ -91,7 +91,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
   const W = 480, H = 200, floorY = 158;
   const id = uid + tier;
   let s = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${OFFICE_TIERS[tier].name}">`;
-  const modelSvg = (x, y, w) => model ? shipSVG(model.typeId, { ...model, sky: false, water: false, condition: 100, age: 0, laden: false, attrs: `x="${x}" y="${y}" width="${w}" height="${f(w * 150 / 400)}"` }) : '';
+  const modelSvg = (x, y, w) => model ? shipSVG(model.typeId, { ...model, sky: false, water: false, fit: true, condition: 100, age: 0, laden: false, attrs: `x="${x}" y="${y}" width="${w}" height="${f(w * 110 / 400)}"` }) : '';
 
   if (tier === 0) {
     // Le cagibi : murs défraîchis, petite fenêtre, bureau en métal, ampoule nue.
@@ -131,7 +131,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     s += `<ellipse cx="240" cy="182" rx="170" ry="14" fill="#7d2f2f"/><ellipse cx="240" cy="182" rx="150" ry="10" fill="none" stroke="#c99a5b" stroke-width="2"/>`;
     s += `<rect y="${floorY}" width="${W}" height="${H - floorY}" fill="#5f3f27" opacity=".0"/>`;
     s += `<rect x="120" y="112" width="250" height="12" fill="#5a3a22"/><rect x="128" y="124" width="70" height="34" fill="#4a2f1b"/><rect x="292" y="124" width="70" height="34" fill="#4a2f1b"/>`;
-    s += modelSvg(132, 48, 180);
+    s += modelSvg(140, 74, 140);
     s += `<rect x="300" y="100" width="40" height="12" fill="#f1ede1"/><circle cx="355" cy="104" r="8" fill="#3d6a8c"/><path d="M349 100 q6 2 12 0 M348 106 q7 2 14 0" stroke="#d9c88f" fill="none"/><rect x="353" y="112" width="4" height="2" fill="#2b2b2b"/>`;
     s += `<path d="M215 160 l10 -40 h36 l8 40" fill="#3a1f14"/><rect x="220" y="96" width="44" height="34" rx="8" fill="#5a2a1c"/>`;
     s += plant(30, 146, 1.2);
@@ -143,7 +143,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     s += `<rect x="12" y="8" width="456" height="126" fill="none" stroke="#f6f3ec" stroke-width="7"/>`;
     s += `<rect y="${floorY - 24}" width="${W}" height="24" fill="#d9d2c4"/><rect y="${floorY}" width="${W}" height="${H - floorY}" fill="#b9a585"/>`;
     s += `<rect x="150" y="118" width="230" height="10" rx="2" fill="#3b3330"/><rect x="160" y="128" width="8" height="30" fill="#2c2623"/><rect x="362" y="128" width="8" height="30" fill="#2c2623"/>`;
-    s += modelSvg(236, 57, 170);
+    s += modelSvg(250, 82, 130);
     s += `<rect x="180" y="96" width="46" height="22" rx="2" fill="#1f2a33"/><rect x="183" y="99" width="40" height="16" fill="#3f7d8a"/><polyline points="185,112 192,108 199,110 206,104 213,106 220,101" stroke="#c4f1b0" fill="none" stroke-width="1.2"/>`;
     s += `<path d="M230 160 l8 -38 h40 l8 38" fill="#232020"/><rect x="236" y="92" width="46" height="36" rx="10" fill="#2f2b29"/>`;
     s += logoSign(30, 140, 38, color, logo);
@@ -162,7 +162,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
       s += `<polyline points="${x + 4},${120 - k * 2} ${x + 12},${114} ${x + 20},${117} ${x + 28},${108 - k * 3} ${x + 40},${104}" stroke="${['#7fe0c4', '#f6c26b', '#ff8a7a'][k]}" fill="none" stroke-width="1.3"/>`;
     }
     s += `<rect x="14" y="128" width="130" height="34" fill="#3a3f47"/><rect x="14" y="126" width="130" height="4" fill="#5a636e"/>`;
-    s += modelSvg(16, 84, 124);
+    s += modelSvg(20, 101, 100);
     s += `<path d="M420 160 l-6 -28 M420 160 l8 -28 M420 160 l-1 -30" stroke="#a7a7a7" stroke-width="2"/><rect x="398" y="120" width="44" height="7" rx="3" fill="#c9b27a" transform="rotate(-18 420 124)"/>`;
     s += `<path d="M228 168 l6 -34 h36 l6 34" fill="#e8e3da"/><rect x="232" y="104" width="44" height="36" rx="10" fill="#f2efe8"/>`;
     s += logoSign(440, 156, 30, color, logo, '#e8e3da');

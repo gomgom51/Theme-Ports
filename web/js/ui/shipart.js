@@ -62,6 +62,11 @@ export const SHIP_ART = {
 
 const CONTAINER_COLORS = ['#b23a3a', '#2f5d8a', '#3f7d5a', '#c97b2a', '#7d8a93', '#8a3f6e', '#d0a43a', '#4b6f7d', '#9a4f2c', '#e4e1d6'];
 const RUST = '#7c3a15', RUST_LIGHT = '#a65a2a', PRIMER = '#b4532c', STEEL = '#8b8e8c';
+const INK = '#22313a';
+// Échelle commune : le plus grand navire du jeu (400 m) remplit le cadre. Un petit
+// navire laisse de la place vide, ce qui montre sa taille. L'échelle est un peu
+// tassée (puissance 0,7) pour que les petits restent lisibles, et la hauteur est
+// exagérée : ce sont des illustrations, pas des plans.
 
 function rand(seed) {
   let s = 0;
@@ -103,20 +108,23 @@ function blob(r, cx, cy, rx, ry, n = 9) {
  */
 export function shipSVG(typeId, opts = {}) {
   const A = SHIP_ART[typeId] || SHIP_ART.caboteur;
-  const { condition = 100, age = 0, color = '#3e8ef7', logo = 'ancre', name = '', laden = false, sky = true, water = true, attrs = '' } = opts;
+  const { condition = 100, age = 0, color = '#3e8ef7', logo = 'ancre', name = '', laden = false, sky = true, water = true, attrs = '', fit = false } = opts;
   const r = rand(opts.seed ?? (name || typeId));
   const id = 'sh' + (++uidCounter);
   const wear = wearOf(typeId, condition, age);
   const dmg = (100 - condition) / 100; // dégâts : bosses, tôle nue, trous, vitres cassées
   const C = A.livery;
-  const W = 400, H = 150, WL = 112;
-  const span = Math.min(372, (372 * A.L) / (55 + A.L * 0.75)); // un petit navire paraît plus petit
-  const s = span / A.L, v = s * 1.18;
-  const x0 = (W - span) / 2 - 2;
+  const W = 400, H = 110, KB = 100; // KB : ligne de quille commune à tous les navires
+  // fit : le navire remplit le cadre (maquettes), sinon échelle commune.
+  const span = fit ? 372 : 372 * Math.pow(A.L / 400, 0.7);
+  const s = span / A.L, v = s * 1.75;
+  const UW = 0.42; // la carène (sous la flottaison) est tassée : la livrée reste dominante
+  const x0 = (W - span) / 2;
   const L = A.L;
-  const X = (m) => f(x0 + m * s);
-  const Y = (h) => f(WL - h * v);
   const draft = laden ? A.T : A.Tb;
+  const WL = KB - draft * v * UW;
+  const X = (m) => f(x0 + m * s);
+  const Y = (h) => f(WL - h * v * (h < 0 ? UW : 1));
   const fb = A.D - draft;
   const sheerAt = (fr) => {
     if (!A.sheer) return 0;
@@ -133,14 +141,9 @@ export function shipSVG(typeId, opts = {}) {
     <linearGradient id="${id}rust" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${RUST}" stop-opacity=".95"/><stop offset=".6" stop-color="${RUST_LIGHT}" stop-opacity=".55"/><stop offset="1" stop-color="${RUST_LIGHT}" stop-opacity="0"/></linearGradient>
     <linearGradient id="${id}soot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#111" stop-opacity=".85"/><stop offset="1" stop-color="#111" stop-opacity="0"/></linearGradient>
   </defs>`);
-  if (sky) {
-    out.push(`<rect width="${W}" height="${H}" fill="url(#${id}sky)"/>`);
-    out.push(`<path d="M0 ${WL - 6} q40 -9 80 -5 t90 -3 t70 2 t90 -4 t70 4 V${WL} H0z" fill="#9fb3b0" opacity=".45"/>`);
-    for (let k = 0; k < 3; k++) {
-      const cx = f(30 + r() * 340), cy = f(12 + r() * 24), w = f(30 + r() * 40);
-      out.push(`<ellipse cx="${cx}" cy="${cy}" rx="${w}" ry="${f(w * 0.18)}" fill="#fff" opacity=".7"/>`);
-    }
-  }
+  // Présentation « catalogue » : pas de décor, juste une ombre douce sous la quille.
+  void sky;
+  out.push(`<ellipse cx="${f(x0 + span / 2)}" cy="${KB + 5}" rx="${f(span * 0.52)}" ry="3.5" fill="${INK}" opacity=".13"/>`);
 
   // ---------- Coque ----------
   const fc = A.fc, poop = A.poop;
@@ -162,8 +165,8 @@ export function shipSVG(typeId, opts = {}) {
   }
   out.push(`<clipPath id="${id}hull"><path d="${hp}"/></clipPath>`);
   // Gouvernail et hélice (visibles sous l'eau et sur les maquettes).
-  out.push(`<rect x="${X(-L * 0.004)}" y="${Y(-draft * 0.15)}" width="${f(L * 0.018 * s)}" height="${f(draft * 0.72 * v)}" rx="1" fill="#2b2b2b"/>`);
-  out.push(`<ellipse cx="${X(L * 0.03)}" cy="${Y(-draft * 0.6)}" rx="${f(L * 0.008 * s)}" ry="${f(draft * 0.28 * v)}" fill="#a0814a"/>`);
+  out.push(`<rect x="${X(-L * 0.004)}" y="${Y(-draft * 0.15)}" width="${f(L * 0.018 * s)}" height="${f(Y(-draft * 0.87) - Y(-draft * 0.15))}" rx="1" fill="#2b2b2b"/>`);
+  out.push(`<ellipse cx="${X(L * 0.03)}" cy="${Y(-draft * 0.6)}" rx="${f(L * 0.008 * s)}" ry="${f((Y(-draft * 0.88) - Y(-draft * 0.32)) / 2)}" fill="#a0814a" stroke="${INK}" stroke-width=".5"/>`);
   out.push(`<path d="${hp}" fill="${C.hull}"/>`);
   const lwl = A.T - draft;
   out.push(`<g clip-path="url(#${id}hull)">`);
@@ -177,6 +180,7 @@ export function shipSVG(typeId, opts = {}) {
   if (A.era === 'classic') for (let xm = L * 0.06; xm < L * 0.22; xm += 2.6) out.push(`<circle cx="${X(xm)}" cy="${Y(deckAt(xm / L) - 1)}" r="${f(Math.max(0.6, 0.32 * s))}" fill="#11161a" opacity=".8"/>`);
   out.push(hullWear());
   out.push('</g>');
+  out.push(`<path d="${hp}" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>`);
   // Écubier et ancre.
   const hx = L * (A.bow === 'straight' ? 0.94 : 0.955);
   out.push(`<circle cx="${X(hx)}" cy="${Y(bowTop - fc * 0.55)}" r="${f(Math.max(1.2, 0.7 * s))}" fill="#151515" opacity=".8"/>`);
@@ -190,7 +194,7 @@ export function shipSVG(typeId, opts = {}) {
   if (A.hatches) {
     for (const [a, b] of A.hatches) {
       const x1 = X(L * a), x2 = X(L * b), base = deckAt((a + b) / 2), y1 = Y(base + A.hatchH), y2 = Y(base);
-      out.push(`<rect x="${x1}" y="${y1}" width="${f(x2 - x1)}" height="${f(y2 - y1)}" fill="${C.hatch}" rx="0.6"/>`);
+      out.push(`<rect x="${x1}" y="${y1}" width="${f(x2 - x1)}" height="${f(y2 - y1)}" fill="${C.hatch}" rx="0.6" stroke="${INK}" stroke-width=".7"/>`);
       const ribs = Math.max(2, Math.round((L * (b - a)) / 3.2));
       for (let k = 1; k < ribs; k++) {
         const xx = f(x1 + ((x2 - x1) * k) / ribs);
@@ -209,7 +213,7 @@ export function shipSVG(typeId, opts = {}) {
         for (let tz = 0; tz < tiers; tz++) {
           const col = CONTAINER_COLORS[Math.floor(r() * CONTAINER_COLORS.length)];
           const x = X(xm + 0.2), y = Y(base + (tz + 1) * 2.6), w = f(12.2 * s), hh = f(2.5 * v);
-          out.push(`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${col}"/><rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="none" stroke="#000" stroke-opacity=".28" stroke-width=".5"/>`);
+          out.push(`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${col}" stroke="${INK}" stroke-width=".6"/>`);
           for (let k = 1; k < 4; k++) out.push(`<line x1="${f(x + (w * k) / 4)}" y1="${y}" x2="${f(x + (w * k) / 4)}" y2="${f(y + hh)}" stroke="#000" stroke-opacity=".12" stroke-width=".4"/>`);
           if (wear > 0.5 && r() < wear * 0.4) out.push(`<rect x="${f(x + r() * w * 0.7)}" y="${y}" width="${f(w * 0.25)}" height="${hh}" fill="${RUST}" opacity=".35"/>`);
         }
@@ -238,19 +242,15 @@ export function shipSVG(typeId, opts = {}) {
   // ---------- Château ----------
   out.push(house());
 
-  // ---------- Mer (ou socle de maquette) ----------
+  // ---------- Ligne de flottaison (ou socle de maquette) ----------
   if (!water) {
-    const ky = Y(-draft);
-    out.push(`<rect x="${X(L * 0.25)}" y="${ky}" width="${f(L * 0.08 * s)}" height="${f(H - ky - 14)}" fill="#6b4a2e"/><rect x="${X(L * 0.67)}" y="${ky}" width="${f(L * 0.08 * s)}" height="${f(H - ky - 14)}" fill="#6b4a2e"/>`);
-    out.push(`<rect x="${X(L * 0.1)}" y="${H - 16}" width="${f(L * 0.8 * s)}" height="8" rx="2" fill="#7a5434"/></svg>`);
+    out.push(`<rect x="${X(L * 0.25)}" y="${KB}" width="${f(L * 0.08 * s)}" height="6" fill="#6b4a2e"/><rect x="${X(L * 0.67)}" y="${KB}" width="${f(L * 0.08 * s)}" height="6" fill="#6b4a2e"/>`);
+    out.push(`<rect x="${X(L * 0.1)}" y="${KB + 6}" width="${f(L * 0.8 * s)}" height="5" rx="2" fill="#7a5434"/></svg>`);
     return out.join('');
   }
-  let wave = `M0 ${WL}`;
-  for (let x = 0; x <= W; x += 10) wave += ` Q${x + 5} ${WL - 1.6} ${x + 10} ${WL}`;
-  out.push(`<path d="${wave} V${H} H0 Z" fill="url(#${id}sea)"/>`);
-  out.push(`<path d="${wave}" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".8"/>`);
-  out.push(`<path d="M${X(L * 0.97)} ${WL + 1} q${f(6 * s)} -2 ${f(14 * s)} 1" stroke="#fff" stroke-width="1.4" fill="none" opacity=".8"/>`);
-  out.push(`<path d="M${X(0)} ${WL + 1} q${f(-8 * s)} 2 ${f(-20 * s)} 1" stroke="#fff" stroke-width="1.2" fill="none" opacity=".6"/>`);
+  // Un voile d'eau très transparent : il montre l'enfoncement sans cacher la coque.
+  out.push(`<rect x="${f(x0 - 16)}" y="${WL}" width="${f(span + 32)}" height="${f(KB - WL + 4)}" rx="3" fill="#5b9ab5" opacity=".13"/>`);
+  out.push(`<line x1="${f(x0 - 16)}" y1="${WL}" x2="${f(x0 + span + 16)}" y2="${WL}" stroke="#2f6f8c" stroke-opacity=".5" stroke-width="1" stroke-dasharray="5 3"/>`);
   out.push('</svg>');
   return out.join('');
 
@@ -324,16 +324,17 @@ export function shipSVG(typeId, opts = {}) {
   function gear(g) {
     const px = L * g.x, base = deckAt(g.x);
     if (g.kind === 'mast') {
-      return `<line x1="${X(px)}" y1="${Y(base + (g.x > 0.9 ? fc : 0))}" x2="${X(px)}" y2="${Y(base + g.h)}" stroke="${C.gear}" stroke-width="${f(Math.max(0.8, 0.45 * s))}"/>
+      return `<line x1="${X(px)}" y1="${Y(base + (g.x > 0.9 ? fc : 0))}" x2="${X(px)}" y2="${Y(base + g.h)}" stroke="${INK}" stroke-width="${f(Math.max(1.4, 0.6 * s))}"/>
         <line x1="${f(+X(px) - 2.2)}" y1="${Y(base + g.h - 1.5)}" x2="${f(+X(px) + 2.2)}" y2="${Y(base + g.h - 1.5)}" stroke="${C.gear}" stroke-width=".8"/>`;
     }
     if (g.kind === 'derrick') {
       // Mât de charge à l'ancienne : poteau, corne, mâts de charge relevés et leurs balancines.
       const top = base + g.h, dir = g.aft ? -1 : 1;
       const tipX = px + dir * g.h * 0.75 * g.boom, tipH = base + g.h * 0.55;
-      let o = `<rect x="${f(+X(px) - Math.max(1, 0.7 * s))}" y="${Y(top)}" width="${f(Math.max(2, 1.4 * s))}" height="${f(g.h * v)}" fill="${C.gear}"/>`;
-      o += `<rect x="${f(+X(px) - 3.2 * s)}" y="${Y(top - 0.4)}" width="${f(6.4 * s)}" height="${f(Math.max(1, 0.5 * v))}" fill="${C.gear}"/>`;
+      let o = `<line x1="${X(px)}" y1="${Y(base + 1.6)}" x2="${X(tipX)}" y2="${Y(tipH)}" stroke="${INK}" stroke-width="${f(Math.max(1, 0.7 * s) + 1.4)}" stroke-linecap="round"/>`;
       o += `<line x1="${X(px)}" y1="${Y(base + 1.6)}" x2="${X(tipX)}" y2="${Y(tipH)}" stroke="${C.gear}" stroke-width="${f(Math.max(1, 0.7 * s))}" stroke-linecap="round"/>`;
+      o += `<rect x="${f(+X(px) - Math.max(1, 0.7 * s))}" y="${Y(top)}" width="${f(Math.max(2, 1.4 * s))}" height="${f(g.h * v)}" fill="${C.gear}" stroke="${INK}" stroke-width=".7"/>`;
+      o += `<rect x="${f(+X(px) - 3.2 * s)}" y="${Y(top - 0.4)}" width="${f(6.4 * s)}" height="${f(Math.max(1, 0.5 * v))}" fill="${C.gear}" stroke="${INK}" stroke-width=".6"/>`;
       o += `<line x1="${X(px)}" y1="${Y(top - 0.5)}" x2="${X(tipX)}" y2="${Y(tipH)}" stroke="#2a2a2a" stroke-width=".5" opacity=".7"/>`;
       o += `<line x1="${X(tipX)}" y1="${Y(tipH)}" x2="${X(tipX)}" y2="${Y(base + 2)}" stroke="#2a2a2a" stroke-width=".5" opacity=".6"/>`;
       if (wear > 0.3) o += streak(+X(px) - 0.5, +Y(top - 1), g.h * v * 0.5 * wear, 1);
@@ -342,9 +343,11 @@ export function shipSVG(typeId, opts = {}) {
     // Grue moderne : fût, cabine, flèche relevée.
     const top = base + g.h * 0.42, pw = Math.max(1.2, 1.6 * s);
     const tipX = px + g.h * 0.7, tipH = top + g.h * 0.55;
-    let o = `<rect x="${f(+X(px) - pw / 2)}" y="${Y(top)}" width="${f(pw)}" height="${f((top - base) * v)}" fill="${C.gear}"/>`;
-    o += `<rect x="${f(+X(px) - 2.2 * s)}" y="${Y(top + 2.2)}" width="${f(4 * s)}" height="${f(2.2 * v)}" fill="${C.gear}"/><rect x="${f(+X(px) + 0.6 * s)}" y="${Y(top + 1.7)}" width="${f(1.2 * s)}" height="${f(0.8 * v)}" fill="#24323b"/>`;
-    o += `<line x1="${X(px)}" y1="${Y(top + 1)}" x2="${X(tipX)}" y2="${Y(tipH)}" stroke="${C.gear}" stroke-width="${f(Math.max(1, 0.9 * s))}" stroke-linecap="round"/>`;
+    const bw = Math.max(1.4, 1.1 * s);
+    let o = `<line x1="${X(px)}" y1="${Y(top + 1)}" x2="${X(tipX)}" y2="${Y(tipH)}" stroke="${INK}" stroke-width="${f(bw + 1.4)}" stroke-linecap="round"/>`;
+    o += `<line x1="${X(px)}" y1="${Y(top + 1)}" x2="${X(tipX)}" y2="${Y(tipH)}" stroke="${C.gear}" stroke-width="${f(bw)}" stroke-linecap="round"/>`;
+    o += `<rect x="${f(+X(px) - pw / 2)}" y="${Y(top)}" width="${f(pw)}" height="${f((top - base) * v)}" fill="${C.gear}" stroke="${INK}" stroke-width=".7"/>`;
+    o += `<rect x="${f(+X(px) - 2.2 * s)}" y="${Y(top + 2.2)}" width="${f(4 * s)}" height="${f(2.2 * v)}" fill="${C.gear}" stroke="${INK}" stroke-width=".7"/><rect x="${f(+X(px) + 0.6 * s)}" y="${Y(top + 1.7)}" width="${f(1.2 * s)}" height="${f(0.8 * v)}" fill="#24323b"/>`;
     o += `<line x1="${X(tipX)}" y1="${Y(tipH)}" x2="${X(tipX)}" y2="${Y(base + (A.hatchH || 1) + 0.6)}" stroke="#333" stroke-width=".5" opacity=".6"/>`;
     if (wear > 0.45) o += streak(+X(px) - pw / 3, +Y(top), (top - base) * v * 0.35 * wear, pw * 0.4);
     return o;
@@ -359,7 +362,7 @@ export function shipSVG(typeId, opts = {}) {
       // Ponts en gradins, angles arrondis, hublots ronds.
       for (let d = 0; d < hsp.decks; d++) {
         const x1 = hx1, x2 = hx2 - d * 0.9;
-        o.push(`<rect x="${X(x1)}" y="${Y(base + (d + 1) * dk)}" width="${f((x2 - x1) * s)}" height="${f(dk * v + 0.4)}" rx="${f(Math.min(3, 0.8 * s))}" fill="${C.house}"/>`);
+        o.push(`<rect x="${X(x1)}" y="${Y(base + (d + 1) * dk)}" width="${f((x2 - x1) * s)}" height="${f(dk * v + 0.4)}" rx="${f(Math.min(3, 0.8 * s))}" fill="${C.house}" stroke="${INK}" stroke-width=".8"/>`);
         const last = d === hsp.decks - 1;
         for (let xm = x1 + 1.4; xm < x2 - 1; xm += last ? 1.8 : 2.4) {
           o.push(last
@@ -381,8 +384,8 @@ export function shipSVG(typeId, opts = {}) {
       o.push(`<line x1="${X(hx1 + (hx2 - hx1) * 0.75)}" y1="${Y(topH)}" x2="${X(hx1 + (hx2 - hx1) * 0.78)}" y2="${Y(topH + 5)}" stroke="${C.house}" stroke-width="${f(Math.max(0.7, 0.4 * s))}"/>`);
     } else {
       // Bloc moderne : ponts identiques, fenêtres rectangulaires, ailerons de passerelle.
-      o.push(`<rect x="${X(hx1)}" y="${Y(topH)}" width="${f((hx2 - hx1) * s)}" height="${f((topH - base) * v)}" fill="${C.house}"/>`);
-      o.push(`<rect x="${X(hx1 - 1.6)}" y="${Y(topH + 0.5)}" width="${f((hx2 - hx1 + 3.2) * s)}" height="${f(1.1 * v)}" fill="${C.house}"/>`);
+      o.push(`<rect x="${X(hx1)}" y="${Y(topH)}" width="${f((hx2 - hx1) * s)}" height="${f((topH - base) * v)}" fill="${C.house}" stroke="${INK}" stroke-width=".9"/>`);
+      o.push(`<rect x="${X(hx1 - 1.6)}" y="${Y(topH + 0.5)}" width="${f((hx2 - hx1 + 3.2) * s)}" height="${f(1.1 * v)}" fill="${C.house}" stroke="${INK}" stroke-width=".8"/>`);
       for (let d = 0; d < hsp.decks; d++) {
         const yy = Y(base + d * dk + dk * 0.6), last = d === hsp.decks - 1;
         if (last) o.push(`<rect x="${X(hx1 + 0.6)}" y="${yy}" width="${f((hx2 - hx1 - 1.2) * s)}" height="${f(1 * v)}" fill="#1f2b33"/>`);
@@ -419,7 +422,7 @@ export function shipSVG(typeId, opts = {}) {
   function funnel(fx, fy0, fw, fH, rake) {
     const fy1 = fy0 + fH;
     const o = [];
-    o.push(`<path d="M${X(fx)} ${Y(fy0)} L${X(fx + fw)} ${Y(fy0)} L${X(fx + fw - rake)} ${Y(fy1)} L${X(fx - rake)} ${Y(fy1)} Z" fill="${color}"/>`);
+    o.push(`<path d="M${X(fx)} ${Y(fy0)} L${X(fx + fw)} ${Y(fy0)} L${X(fx + fw - rake)} ${Y(fy1)} L${X(fx - rake)} ${Y(fy1)} Z" fill="${color}" stroke="${INK}" stroke-width=".9" stroke-linejoin="round"/>`);
     o.push(`<path d="M${X(fx - rake * 0.82)} ${Y(fy1 - fH * 0.18)} L${X(fx + fw - rake * 0.82)} ${Y(fy1 - fH * 0.18)} L${X(fx + fw - rake)} ${Y(fy1)} L${X(fx - rake)} ${Y(fy1)} Z" fill="#1b1b1b"/>`);
     const lr = Math.min(fw * s, fH * v * 0.6) * 0.42;
     const lcx = X(fx + fw / 2 - rake * 0.45), lcy = Y(fy0 + fH * 0.42);

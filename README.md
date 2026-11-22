@@ -118,4 +118,6 @@ tests/               tests des routes et de la simulation
 Carte : [Natural Earth](https://www.naturalearthdata.com/) (domaine public), via
 le paquet `world-atlas` ; noms des pays : paquet `i18n-iso-countries`.
 Police des titres : Libre Baskerville (licence SIL OFL, voir `web/fonts/`).
-Dessins, sons et textes : originaux, créés pour le jeu.
+Sons : pompe à carburant d'après « basement water pump » (freesound_community,
+Pixabay) ; caisse enregistreuse fournie par l'auteur ; les autres bruitages sont
+synthétisés par le jeu. Dessins et textes : originaux, créés pour le jeu.

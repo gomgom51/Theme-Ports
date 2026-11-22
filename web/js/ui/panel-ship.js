@@ -200,7 +200,7 @@ function tradeTab(app, ship) {
       ]),
       h('div.card-side', [q.possible ? h('button.btn.primary.small', { onclick: async () => {
         if (q.profit < 0 && !(await confirmBox('Vendre à perte ?', `Vous perdrez ${money(-q.profit)} sur cette cargaison.`, 'Vendre'))) return;
-        app.act(() => act.sellCargo(state, ctx, ship.id), { sound: (r) => (r.profit > 0 ? 'cash' : 'crates') });
+        app.act(() => act.sellCargo(state, ctx, ship.id), { sound: 'cash' });
       } }, 'Vendre ici') : null]),
     ]));
     // Meilleurs débouchés.
@@ -258,7 +258,7 @@ function tradeTab(app, ship) {
         choices.length ? h('div.chips', choices.sort((a, b) => a - b).map((q) => h('button.chip', { onclick: async () => {
           const quote = act.quoteBuy(state, ship, g, q);
           if (!(await confirmBox(`Acheter ${tonnes(q)} de ${G.name.toLowerCase()} ?`, `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`, 'Acheter'))) return;
-          const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q), { sound: 'crates' });
+          const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q), { sound: 'pay' });
           if (r?.ok && dests[0]) app.form.dest[ship.id] = dests[0].p;
         } }, tonnes(q)))) : h('div.card-why', stock <= 0 ? 'Stock épuisé, revenez plus tard.' : 'Trésorerie insuffisante.'),
       ]),
@@ -328,7 +328,7 @@ function portCallTab(app, ship) {
     if (!levels.length) box.append(h('p.muted', 'Le navire est en bon état.'));
     box.append(h('div.chips', levels.map((lv) => {
       const rc = eco.repairCost(state, ship, here, lv);
-      return h('button.chip', { onclick: () => app.act(() => act.repair(state, ship.id, lv)) }, `${lv} % · ${money(rc.cost)} · ${duration(rc.hours)}`);
+      return h('button.chip', { onclick: () => app.act(() => act.repair(state, ship.id, lv), { sound: 'pay' }) }, `${lv} % · ${money(rc.cost)} · ${duration(rc.hours)}`);
     })));
   }
   if (ship.condition < 50) box.append(h('p.warn-text', 'Sous 50 %, le navire ralentit et tombe plus souvent en panne. Sous 25 %, une forte tempête peut le couler.'));

@@ -1,0 +1,9 @@
+Sons enregistrés utilisés par le jeu
+====================================
+
+pompe.mp3   pompe à carburant (extrait de 6 s de « basement water pump »,
+            freesound_community, Pixabay : utilisation libre)
+caisse.mp3  caisse enregistreuse (encaissements et paiements), fourni par l'auteur du jeu
+
+Les autres bruitages (mer, mouettes, caisses, corne…) sont synthétisés par le jeu.
+Si un fichier manque, le jeu utilise sa version synthétisée.

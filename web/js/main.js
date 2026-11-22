@@ -192,7 +192,7 @@ function updateContext() {
         title: rc ? `Réparer jusqu'à ${rc.to} %` : 'Pas de chantier dans ce port',
         onclick: async () => {
           if (await confirmBox(`Réparer le ${ship.name} ?`, `Remise en état de ${Math.round(ship.condition)} % à ${rc.to} % : ${money(rc.cost)}, immobilisé ${Math.round(rc.hours / 24 * 10) / 10} jours.`, 'Réparer')) {
-            app.act(() => act.repair(s, ship.id, rc.to));
+            app.act(() => act.repair(s, ship.id, rc.to), { sound: 'pay' });
           }
         },
       }, [h('span', rc ? (rc.points > 0.5 ? `Réparer → ${rc.to} %` : rc.to < 100 && ship.condition < 99 ? `Chantier limité à ${rc.to} %` : 'En bon état') : 'Pas de chantier'), h('b', `🔧 ${rc && rc.points > 0.5 ? `${money(rc.cost)} · ${Math.max(1, Math.round(rc.hours / 24))} j` : rc ? `${Math.round(ship.condition)} %` : '—'}`)]));
