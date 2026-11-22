@@ -1,5 +1,5 @@
 // Panneaux : flotte, port, courtier, bureau, marchés, journal, aide.
-import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
+import { PORTS, PORT_IDS, FLAGS, draftText } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, GOOD_IDS, HOLDS } from '../data/goods.js';
 import * as eco from '../sim/economy.js';
@@ -105,7 +105,7 @@ export function portPanel(app, id) {
   body.append(h('div.ship-stats', [
     stat('Pays', F.name),
     stat('Taille', SIZE_LABEL[P.size]),
-    stat('Tirant d\'eau max', `${num1(P.draft)} m`),
+    stat('Tirant d\'eau max', draftText(P)),
     stat('Fuel', `${num(eco.fuelPrice(state, id))} $/t`),
     stat('Chantier', REPAIR_LABEL[P.repair]),
     stat('Taxes portuaires', P.fees > 1.05 ? 'élevées' : P.fees < 0.92 ? 'faibles' : 'moyennes'),
@@ -200,6 +200,7 @@ function newTab(app) {
     class: y === yard ? 'active' : '', onclick: () => { app.form.yard = y; app.refresh(); },
   }, `${portName(y)} · ${info.days} j`))));
   for (const [id, T] of Object.entries(SHIP_TYPES)) {
+    if (T.vintage) continue; // plus construit
     const price = act.newBuildPrice(state, company, id, yard);
     const look = { typeId: id, condition: 100, age: 0, name: '', color: company.color, logo: company.logo, laden: true, seed: id };
     box.append(h('div.card.with-art', { class: price > company.cash ? 'disabled' : '' }, [
@@ -411,9 +412,17 @@ function indicesTab(app) {
     box.append(h('h3', 'Fuel marine ($/t)'));
     box.append(lineChart([{ color: '#f2b544', points: hist.map((x) => [x.t, x.fuel]) }], { height: 140, yFormat: (v) => num(v), xFormat: (t) => String(yearOf(t)) }));
     box.append(h('h3', 'Taux de fret'));
-    const colors = { vrac: '#4fc3f7', liquide: '#f2b544', divers: '#a5d6a7', conteneurs: '#ce93d8' };
-    box.append(lineChart(eco.HOLD_TYPES.map((k) => ({ color: colors[k], points: hist.map((x) => [x.t, (x.freight[k] / 1.3) * 100]) })), { height: 140, yFormat: (v) => num(v), xFormat: (t) => String(yearOf(t)) }));
-    box.append(h('div.legend', eco.HOLD_TYPES.map((k) => h('span', [h('span.dot', { style: { background: colors[k] } }), HOLDS[k]]))));
+    const colors = {
+      vrac: '#3a7ca5', liquide: '#c4362c', divers: '#5f8f3e', conteneurs: '#8a5aa8',
+      chimique: '#2f9c95', gpl: '#e08a1e', gnl: '#1c2a33', vehicules: '#b0476d', frigo: '#62a8d6', lourd: '#8a6a3a',
+    };
+    const chart = (keys) => {
+      box.append(lineChart(keys.map((k) => ({ color: colors[k], points: hist.filter((x) => x.freight[k]).map((x) => [x.t, (x.freight[k] / 1.3) * 100]) })), { height: 140, yFormat: (v) => num(v), xFormat: (t) => String(yearOf(t)) }));
+      box.append(h('div.legend', keys.map((k) => h('span', [h('span.dot', { style: { background: colors[k] } }), HOLDS[k]]))));
+    };
+    chart(eco.HOLD_TYPES.slice(0, 4));
+    box.append(h('h3', 'Fret spécialisé'));
+    chart(eco.HOLD_TYPES.slice(4));
   }
   const events = [];
   if (state.canals.suez?.closed) events.push(`Canal de Suez fermé jusqu'au ${date(state.canals.suez.until, true)} environ.`);

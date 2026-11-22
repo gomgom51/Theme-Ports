@@ -84,8 +84,8 @@ export function planVoyage(state, ctx, ship, to, speed) {
   speed = Math.max(6, Math.min(T.maxSpeed, speed || T.speed));
   if (!from) return { error: 'Le navire n\'est pas au port.' };
   if (to === from) return { error: 'Le navire est déjà dans ce port.' };
-  if (T.draft > PORTS[to].draft) {
-    return { error: `Tirant d'eau trop important : ${T.draft} m pour ${PORTS[to].draft} m maximum à ${portName(to)}.` };
+  if (!eco.fitsPort(to, ship.type)) {
+    return { error: `Tirant d'eau trop important : ${T.draft} m pour ${eco.portDraft(to, ship.type)} m maximum à ${portName(to)}.` };
   }
   if (ship.cargo) {
     if (ship.cargo.contractId) {
@@ -202,7 +202,7 @@ export function checkContract(state, ctx, ship, contract) {
   if (!hold) return `Ce navire ne peut pas transporter : ${GOODS[contract.good].name.toLowerCase()}.`;
   if (!eco.portHandles(contract.from, hold) || !eco.portHandles(contract.to, hold)) return 'Un des ports ne peut pas manutentionner ce chargement.';
   if (contract.qty > T.dwt) return `Capacité insuffisante (${T.dwt.toLocaleString('fr-FR')} t).`;
-  if (T.draft > PORTS[contract.to].draft) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
+  if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
   if (company.reputation < contract.minRep) return `Réputation insuffisante (${contract.minRep} exigée).`;
   if (contract.deadline <= state.t) return 'Le délai est déjà dépassé.';
   return null;

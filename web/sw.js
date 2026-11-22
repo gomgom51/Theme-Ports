@@ -1,6 +1,6 @@
 // Service worker de la version navigateur : le jeu reste jouable hors ligne.
 // Réseau d'abord (pour toujours avoir la dernière version), cache en secours.
-const CACHE = 'port-dattache-v1';
+const CACHE = 'port-dattache-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));

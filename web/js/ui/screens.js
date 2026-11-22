@@ -1,5 +1,5 @@
 // Écrans plein écran : accueil, nouvelle partie (choix du port d'attache), fin de partie.
-import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
+import { PORTS, PORT_IDS, FLAGS, draftText } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
 import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
 import { LOGOS, LOGO_IDS, COLORS, logoBadge } from './logos.js';
@@ -155,7 +155,7 @@ function choosePorts(app, cfg, index) {
         ]),
         h('h3', 'Le port'),
         h('div.ship-stats', [
-          kv('Tirant d\'eau max', `${num1(P.draft)} m`),
+          kv('Tirant d\'eau max', draftText(P)),
           kv('Chantier', REPAIR[P.repair], P.repair >= 3 ? 'good' : P.repair === 0 ? 'bad' : ''),
           kv('Fuel', `${Math.round(fuelPrice(app.previewState, sel))} $/t`),
           kv('Terminaux', P.terminals.map((t) => HOLDS[t]).join(', ')),

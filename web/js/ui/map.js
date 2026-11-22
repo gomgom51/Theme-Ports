@@ -6,6 +6,12 @@ import { PORTS, PORT_IDS } from '../data/ports.js';
 import { pointAlong } from '../sim/routing.js';
 import { flagImage } from './flags.js';
 
+// Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
+const LABEL_PLACE = {
+  ras_tanura: ['left', -6], ras_laffan: ['left', 7], dubai: ['right', 3],
+  durban: ['left', 4], richards_bay: ['right', -4],
+};
+
 // Couleurs de la carte (style carte marine).
 const C = {
   seaTop: '#c2d9e4', seaBottom: '#b5cfdc', land: '#efe5c9', coast: '#7c8986', border: '#b29c74',
@@ -354,20 +360,25 @@ export class MapView {
       g.stroke();
       if (scale > 3.2 || P.size >= 5 || hl) {
         const flag = flagImage(P.flag);
-        let tx = x + r + 4;
-        if (flag.complete && flag.naturalWidth) {
+        const [side, dy] = LABEL_PLACE[id] || ['right', 0];
+        const ly = y + dy * Math.max(0.4, Math.min(1, 6 / scale));
+        const hasFlag = flag.complete && flag.naturalWidth;
+        const tw = g.measureText(P.name).width;
+        // À droite du point (par défaut) ou à gauche, pour les ports trop proches d'un voisin.
+        let fx = side === 'left' ? x - r - 4 - 15 : x + r + 4;
+        let tx = side === 'left' ? fx - (hasFlag ? 4 : -15) - tw : fx + (hasFlag ? 19 : 0);
+        if (hasFlag) {
           g.fillStyle = C.halo;
-          g.fillRect(tx - 1, y - 6, 17, 12);
-          g.drawImage(flag, tx, y - 5, 15, 10);
+          g.fillRect(fx - 1, ly - 6, 17, 12);
+          g.drawImage(flag, fx, ly - 5, 15, 10);
           g.strokeStyle = 'rgba(28,42,51,0.35)'; g.lineWidth = 0.6;
-          g.strokeRect(tx, y - 5, 15, 10);
-          tx += 19;
+          g.strokeRect(fx, ly - 5, 15, 10);
         }
         g.lineWidth = 3;
         g.strokeStyle = C.halo;
-        g.strokeText(P.name, tx, y);
+        g.strokeText(P.name, tx, ly);
         g.fillStyle = hl ? C.portHl : C.ink;
-        g.fillText(P.name, tx, y);
+        g.fillText(P.name, tx, ly);
       }
     }
     this.dirty = false;

@@ -16,7 +16,7 @@ import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 
 const D = HOURS_PER_DAY;
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const COMPANY_COLORS = ['#e5484d', '#3e8ef7', '#30a46c', '#f5a623'];
 export const COMPANY_LOGOS = ['ancre', 'phare', 'barre', 'rose'];
 export const DIFFICULTIES = {
@@ -74,6 +74,22 @@ export function newGame(opts, ctx) {
   return state;
 }
 
+// Met à niveau une partie sauvegardée par une version précédente : nouvelles
+// marchandises, nouveaux ports et nouveaux types de fret.
+export function migrateState(state) {
+  const rng = new Rng((state.seed ^ 0x9e3779b9) >>> 0);
+  for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
+  for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
+  for (const p of PORT_IDS) {
+    state.ports[p] ??= {};
+    for (const g of Object.keys(GOODS)) {
+      state.ports[p][g] ??= { ou: 0, imp: 0, stock: eco.stockCap(p, g) * rng.range(0.4, 0.9) };
+    }
+  }
+  state.version = SAVE_VERSION;
+  return state;
+}
+
 // ---------- Marché de l'occasion ----------
 function makeListing(state, rng, port, typeId, ageRange, condRange) {
   const T = SHIP_TYPES[typeId];
@@ -93,16 +109,24 @@ function refreshUsedMarket(state, rng, initial = false) {
     // De quoi démarrer dans chaque port d'attache : un caboteur fatigué et un cargo plus grand.
     for (const c of state.companies) {
       state.used.push(makeListing(state, rng, c.homePort, 'caboteur', [16, 22], [62, 78]));
-      const second = PORTS[c.homePort].terminals.includes('liquide') && rng.chance(0.3) ? 'petrolier_mr' : 'polyvalent';
-      state.used.push(makeListing(state, rng, c.homePort, second, [18, 23], [58, 75]));
+      const r = rng.next();
+      if (r < 0.25) {
+        // Un vieux cargo des années 60 : presque donné, mais assoiffé.
+        state.used.push(makeListing(state, rng, c.homePort, 'cargo_ancien', [32, 38], [52, 68]));
+      } else {
+        const second = PORTS[c.homePort].terminals.includes('liquide') && r < 0.45 ? 'petrolier_mr' : 'polyvalent';
+        state.used.push(makeListing(state, rng, c.homePort, second, [18, 23], [58, 75]));
+      }
     }
   }
-  const types = Object.keys(SHIP_TYPES);
-  while (state.used.length < 12 + state.companies.length) {
-    const typeId = rng.pick(types);
+  // Plus de petits navires que de géants sur le marché ; les modèles anciens sont rares et très âgés.
+  const types = Object.entries(SHIP_TYPES).map(([id, T]) => [id, T.vintage ? 0.7 : Math.pow(T.price, -0.3)]);
+  while (state.used.length < 16 + state.companies.length) {
+    const typeId = rng.weighted(types);
     const T = SHIP_TYPES[typeId];
-    const ports = PORT_IDS.filter((p) => PORTS[p].draft >= T.draft && T.holds.some((h) => PORTS[p].terminals.includes(h)));
-    state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [2, T.life - 4], [45, 96]));
+    const ports = PORT_IDS.filter((p) => eco.servesType(p, typeId));
+    if (T.vintage) state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [26, 42], [35, 72]));
+    else state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [2, T.life - 4], [45, 96]));
   }
 }
 
@@ -211,7 +235,8 @@ function sailHour(state, ctx, rng, ship, notes) {
   }
 
   // Avarie de machine.
-  const pBreak = (0.0012 + Math.max(0, 60 - ship.condition) / 2500) / D;
+  // Les vieilles machines lâchent plus souvent, même bien entretenues.
+  const pBreak = (0.0012 + Math.max(0, 60 - ship.condition) / 2500) * (1 + Math.max(0, age - 20) / 15) / D;
   if (rng.chance(pBreak)) {
     const hours = rng.int(12, 60);
     const cost = Math.round(rng.range(20000, 60000) * Math.sqrt(T.gt / 5000));

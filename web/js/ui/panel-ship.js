@@ -155,7 +155,7 @@ function contractsTab(app, ship) {
     const daysLeft = (c.deadline - state.t) / 24;
     return h('div.card.contract', { class: why ? 'disabled' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(c.client)]) : null,
         why ? h('div.card-why', why) : h('div.card-sub', [
@@ -206,7 +206,7 @@ function tradeTab(app, ship) {
     // Meilleurs débouchés.
     const outlets = [];
     for (const p of PORT_IDS) {
-      if (p === here || !eco.portHandles(p, ship.cargo.hold) || T.draft > PORTS[p].draft) continue;
+      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
       const est = tripEstimate(app, ship, p, T.speed);
       if (!est.route || est.error) continue;
       const sale = eco.quoteTrade(state, p, ship.cargo.good, ship.cargo.qty, 'sell').total - ship.cargo.qty * eco.HANDLING_COST[ship.cargo.hold];
@@ -237,7 +237,7 @@ function tradeTab(app, ship) {
     // Meilleures destinations pour cette marchandise.
     const dests = [];
     for (const p of PORT_IDS) {
-      if (p === here || !(PORTS[p].imp[g] > 0) || T.draft > PORTS[p].draft) continue;
+      if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type)) continue;
       const hold = eco.holdFor(ship.type, g);
       if (!eco.portHandles(p, hold)) continue;
       const qty = Math.max(100, Math.min(T.dwt, stock));
@@ -437,7 +437,7 @@ function departTab(app, ship) {
   const rows = PORT_IDS.filter((p) => p !== ship.port).map((p) => {
     const info = ctx.distanceInfo(ship.port, p, ctx.closedCanals(state, T.draft));
     let why = null;
-    if (T.draft > PORTS[p].draft) why = `tirant d'eau ${num1(PORTS[p].draft)} m`;
+    if (!eco.fitsPort(p, ship.type)) why = `tirant d'eau ${num1(eco.portDraft(p, ship.type))} m`;
     else if (ship.cargo && !eco.portHandles(p, ship.cargo.hold)) why = 'ne peut pas décharger';
     else if (!info) why = 'inaccessible';
     const nm = info?.nm || 0;

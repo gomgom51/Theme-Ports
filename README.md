@@ -12,14 +12,21 @@ riche de la planète.
   taux des prêts. Panama ne prélève aucun impôt mais inspire peu confiance ; le
   Japon prête presque gratuitement mais tout y coûte cher. On peut déménager en
   cours de partie.
-* **26 ports réels aux capacités différentes** : tirant d'eau maximal, terminaux
-  (vrac sec, vrac liquide, marchandises diverses, conteneurs), chantiers navals,
-  prix du fuel, taxes, marchandises exportées et importées. Ras Tanura n'accueille
-  que des pétroliers, Port Hedland que des vraquiers, Buenos Aires est limité à
-  10 m de tirant d'eau…
-* **Cinq types de navires** pour commencer (caboteur, cargo polyvalent, vraquier,
-  pétrolier, porte-conteneurs), neufs ou d'occasion. Un vieux navire coûte moins
-  cher mais consomme plus, s'use vite et tombe en panne.
+* **29 ports réels aux capacités différentes** : tirant d'eau des quais et des
+  terminaux profonds (bouées pétrolières, quais minéraliers), terminaux (vrac,
+  pétrole, chimie, GPL, GNL, conteneurs, rouliers, frigorifique, colis lourds),
+  chantiers navals, prix du fuel, taxes, marchandises exportées et importées.
+  Ras Tanura et Ras Laffan n'accueillent que des navires-citernes, Port Hedland et
+  Tubarão que des vraquiers, Buenos Aires est limité à 10 m de tirant d'eau…
+* **22 modèles de navires**, du caboteur au géant des mers de 440 000 tonnes :
+  cargos, vraquiers (Handysize à Capesize), pétroliers (produits, Aframax,
+  Suezmax, superpétrolier, ULCC), chimiquier, gaziers, porte-conteneurs (feeder
+  à 20 000 boîtes), transporteur de voitures, frigorifique, navire colis lourds,
+  et deux modèles anciens qu'on ne trouve plus que d'occasion. Un vieux navire
+  coûte moins cher mais consomme plus, s'use vite et tombe en panne.
+* **17 marchandises**, chacune avec sa taille de lot : le brut voyage en
+  superpétroliers, les machines en petits lots. Contrats de **cabotage** pour les
+  petits navires, **grands volumes** au départ des ports profonds.
 * **Deux façons de gagner de l'argent** :
   * les **contrats de fret** (revenu garanti, à livrer avant une date limite) ;
   * le **négoce** : acheter une cargaison dans un port exportateur et la revendre
@@ -106,7 +113,8 @@ tests/               tests des routes et de la simulation
 
 1. ✅ Base jouable : carte, ports, navires, fret et négoce, économie, météo,
    événements, banque, IA, multijoueur sur un appareil.
-2. Flotte complète (≈ 20 types jusqu'au super tanker) et 60 à 100 ports.
+2. ✅ Flotte complète : 22 modèles jusqu'au géant des mers, nouvelles cargaisons.
+   À venir : 60 à 100 ports.
 3. Équipage et équipement.
 4. Piraterie, forces de l'ordre et combats automatiques.
 5. Commerce gris et noir (embargos, cargaisons clandestines), douanes.

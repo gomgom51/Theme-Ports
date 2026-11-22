@@ -1,5 +1,5 @@
 // Sauvegardes dans le stockage local du navigateur (ou de la WebView Android).
-import { SAVE_VERSION } from '../sim/game.js';
+import { SAVE_VERSION, migrateState } from '../sim/game.js';
 import { formatDate } from '../sim/util.js';
 
 const KEY = 'portdattache.save.';
@@ -56,7 +56,7 @@ function check(state) {
   const logos = ['ancre', 'phare', 'barre', 'rose'];
   state.companies.forEach((c, i) => { c.logo = c.logo || logos[i % logos.length]; });
   state.marketHistory = state.marketHistory || [];
-  return state;
+  return migrateState(state);
 }
 
 // Export / import d'un fichier (version PC).

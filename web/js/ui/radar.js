@@ -1,6 +1,7 @@
 // Fiche « radar » d'un navire, comme celle d'un footballeur : 7 qualités notées sur 100.
 import { SHIP_TYPES, CREW_DAY_COST } from '../data/ships.js';
-import { PORTS, PORT_IDS } from '../data/ports.js';
+import { PORT_IDS } from '../data/ports.js';
+import { servesType } from '../sim/economy.js';
 
 export const AXES = [
   { id: 'capacite', label: 'Capacité' },
@@ -19,7 +20,7 @@ export function shipStats(typeId, { condition = 100, age = 0 } = {}) {
   // Coût par tonne et par mille à la vitesse de service (carburant à 620 $/t).
   const perTnm = (T.burn * 620 + T.opex + T.crew * CREW_DAY_COST) / (T.dwt * T.speed * 24);
   const range = (T.tank / T.burn) * T.speed * 24;
-  const ports = PORT_IDS.filter((p) => PORTS[p].draft >= T.draft && T.holds.some((h) => PORTS[p].terminals.includes(h))).length;
+  const ports = PORT_IDS.filter((p) => servesType(p, typeId)).length;
   return {
     capacite: clamp(((Math.log10(T.dwt) - 3.5) / (5.7 - 3.5)) * 95 + 5),
     vitesse: clamp(((T.speed - 9) / 16) * 100),

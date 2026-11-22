@@ -51,7 +51,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
     const sale = act.quoteSale(state, ship);
     let best = { port: here, value: sale && sale.possible ? sale.net : -Infinity };
     for (const p of PORT_IDS) {
-      if (p === here || !eco.portHandles(p, ship.cargo.hold) || T.draft > PORTS[p].draft) continue;
+      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
       const trip = tripCost(state, ctx, ship, p);
       if (!trip) continue;
       const net = eco.quoteTrade(state, p, ship.cargo.good, ship.cargo.qty, 'sell').total * 0.97 - trip.cost;
@@ -80,7 +80,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
     const trip = tripCost(state, ctx, ship, c.to, loadH);
     if (!trip || trip.plan.error) continue;
     if (state.t + (trip.days + 1) * D > c.deadline) continue;
-    const profit = noisy(rng, c.pay, skill) - trip.cost;
+    const profit = c.pay - noisy(rng, trip.cost, skill * 2);
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
   }
   // On garde de quoi faire le plein et payer quelques semaines de frais fixes.
@@ -96,14 +96,16 @@ export function aiShipIdle(state, ctx, rng, ship) {
       if (qty < T.dwt * 0.4) continue;
       const buy = act.quoteBuy(state, ship, g, qty);
       for (const p of PORT_IDS) {
-        if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || T.draft > PORTS[p].draft) continue;
+        if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type)) continue;
         const loadH = eco.handlingHours(here, hold, qty) + eco.handlingHours(p, hold, qty);
         const trip = tripCost(state, ctx, ship, p, loadH);
         if (!trip || trip.plan.error) continue;
         const sell = eco.quoteTrade(state, p, g, qty, 'sell').total - qty * eco.HANDLING_COST[hold];
         // Prudence : on retire une marge de risque proportionnelle à la durée et à la volatilité.
         const risk = buy.total * GOODS[g].vol * Math.sqrt(trip.days) * 1.2;
-        const profit = noisy(rng, sell, skill) - buy.total - trip.cost - risk;
+        // Le bruit porte sur le cours de revente (quelques %), pas sur toute la valeur :
+        // sinon l'IA choisit systématiquement les erreurs d'estimation les plus optimistes.
+        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk;
         options.push({ kind: 'trade', good: g, qty, to: p, profit, perDay: profit / Math.max(1, trip.days) });
       }
     }
@@ -131,7 +133,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
   //    le navire sait transporter (même loin s'il n'y a rien à proximité), ou attendre.
   const candidates = [];
   for (const p of PORT_IDS) {
-    if (p === here || T.draft > PORTS[p].draft) continue;
+    if (p === here || !eco.fitsPort(p, ship.type)) continue;
     const d = ctx.distanceInfo(here, p)?.nm;
     if (!d) continue;
     const n = state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good)
@@ -146,6 +148,21 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (r.ok) return;
   }
   ship.aiWait = state.t + rng.int(18, 48);
+}
+
+// Coût par tonne et par mille d'un navire d'occasion, comparé au navire moderne
+// de taille la plus proche (> 1 : plus économique, < 1 : gouffre à carburant).
+function efficiency(state, company, listing) {
+  const fuel = eco.worldFuelPrice(state);
+  const perTnm = (T, age) => (eco.burnPerDay(T, T.speed, age) * fuel + eco.fixedDayCost(T, company.flag, 'active', age)) / (T.dwt * T.speed);
+  const T = SHIP_TYPES[listing.type];
+  let ref = null, best = Infinity;
+  for (const R of Object.values(SHIP_TYPES)) {
+    if (R.vintage || !R.holds.some((h) => T.holds.includes(h))) continue;
+    const d = Math.abs(Math.log(R.dwt / T.dwt));
+    if (d < best) { best = d; ref = R; }
+  }
+  return ref ? Math.min(1.5, perTnm(ref, 0) / perTnm(T, listing.age)) : 1;
 }
 
 // Décisions de flotte et de trésorerie, une fois par jour.
@@ -170,7 +187,11 @@ export function aiDaily(state, ctx, rng, company) {
   if (budget < 1.5e6) return;
   const affordable = state.used.filter((l) => l.price <= budget && l.condition > 45);
   if (!affordable.length) return;
-  const pick = rng.weighted(affordable.map((l) => [l, Math.sqrt(SHIP_TYPES[l.type].dwt) * (l.condition / 100) / Math.sqrt(l.price)]));
+  // Préférence pour les navires qui servent beaucoup de ports (un ULCC n'a que trois terminaux)
+  // et qui coûtent peu à exploiter par rapport à un navire moderne de même taille.
+  const reach = (typeId) => Math.sqrt(PORT_IDS.filter((p) => eco.servesType(p, typeId)).length / 12);
+  const pick = rng.weighted(affordable.map((l) => [l, Math.sqrt(SHIP_TYPES[l.type].dwt) * (l.condition / 100) / Math.sqrt(l.price)
+    * reach(l.type) * Math.pow(efficiency(state, company, l), 3)]));
   if (pick.price > company.cash) act.borrow(state, company.id, pick.price - company.cash + 300000);
   act.buyUsedShip(state, ctx, rng, company.id, pick.id);
 }
