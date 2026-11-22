@@ -5,8 +5,9 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import * as act from './actions.js';
-import { shipsOf, fleetValue, creditLimit, contractById } from './core.js';
+import { shipsOf, fleetValue, creditLimit, contractById, bookTotal } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
+import { INCIDENT_BASE, wearRisk } from './incidents.js';
 
 const D = HOURS_PER_DAY;
 
@@ -21,7 +22,9 @@ function tripCost(state, ctx, ship, to, extraHours = 0) {
   const T = SHIP_TYPES[ship.type];
   const company = state.companies[ship.owner];
   const days = p.seaDays + extraHours / D;
-  return { cost: p.fuelCost + p.fees + eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship)) * days, days, plan: p };
+  const age = eco.ageYears(state, ship);
+  const upkeep = eco.upkeepPerSeaDay(state, T, age) * p.seaDays;
+  return { cost: p.fuelCost + p.fees + upkeep + eco.fixedDayCost(T, company.flag, 'active', age) * days, days, plan: p };
 }
 
 export function aiShipIdle(state, ctx, rng, ship) {
@@ -62,13 +65,28 @@ export function aiShipIdle(state, ctx, rng, ship) {
     return;
   }
 
-  // 2. Entretien.
-  if (ship.condition < 62 && PORTS[here].repair >= 1) {
+  // 2. Entretien : un navire usé coule, se fait retenir par les inspecteurs et
+  //    n'est plus assuré. On répare, quitte à emprunter.
+  if (ship.condition < 66 && PORTS[here].repair >= 1) {
     const rc = eco.repairCost(state, ship, here, 92);
-    if (rc && rc.points > 5 && rc.cost < company.cash * 0.6) {
-      act.repair(state, ship.id, 92);
-      return;
+    // Une vieille coque dont la remise en état coûte plus qu'elle ne vaudrait : à la casse (au courtier).
+    if (rc && rc.cost > eco.shipValue(state, { ...ship, condition: 92 }) * 0.8 && shipsOf(state, company.id).length > 1) {
+      if (act.sellShip(state, ctx, ship.id).ok) return;
     }
+    if (rc && rc.points > 5) {
+      if (rc.cost > company.cash - 100000) act.borrow(state, company.id, rc.cost - company.cash + 200000);
+      if (act.repair(state, ship.id, 92).ok) return;
+    }
+  }
+  // Très usé et pas de chantier ici : aller au chantier le plus proche avant tout.
+  if (ship.condition < 52 && PORTS[here].repair < 2) {
+    let best = null;
+    for (const p of PORT_IDS) {
+      if (p === here || PORTS[p].repair < 2 || !eco.fitsPort(p, ship.type)) continue;
+      const d = ctx.distanceInfo(here, p)?.nm;
+      if (d && (!best || d < best.d)) best = { p, d };
+    }
+    if (best && act.depart(state, ctx, ship.id, best.p, T.speed, true).ok) return;
   }
 
   // 3. Évaluer les contrats et les occasions de négoce.
@@ -113,6 +131,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
   options.sort((a, b) => b.perDay - a.perDay);
   const best = options[0];
   if (best && best.profit > 0) {
+    ship.aiIdleSince = null;
     if (best.kind === 'contract') {
       // S'assurer de pouvoir payer le plein avant de s'engager.
       const p = act.planVoyage(state, ctx, ship, best.c.to, T.speed);
@@ -147,6 +166,12 @@ export function aiShipIdle(state, ctx, rng, ship) {
     const r = act.depart(state, ctx, ship.id, p, T.speed * 0.9, true);
     if (r.ok) return;
   }
+  // 5. Marché déprimé et rien à faire depuis deux semaines : on désarme le navire
+  //    (l'équipage débarque, les frais fixes tombent à un tiers) en attendant la reprise.
+  ship.aiIdleSince ??= state.t;
+  if (state.t - ship.aiIdleSince > 14 * D && eco.freightLevel(state, ship.type) < 0.9 && !ship.cargo) {
+    if (act.layUp(state, ship.id).ok) { ship.aiIdleSince = null; return; }
+  }
   ship.aiWait = state.t + rng.int(18, 48);
 }
 
@@ -154,7 +179,9 @@ export function aiShipIdle(state, ctx, rng, ship) {
 // de taille la plus proche (> 1 : plus économique, < 1 : gouffre à carburant).
 function efficiency(state, company, listing) {
   const fuel = eco.worldFuelPrice(state);
-  const perTnm = (T, age) => (eco.burnPerDay(T, T.speed, age) * fuel + eco.fixedDayCost(T, company.flag, 'active', age)) / (T.dwt * T.speed);
+  // Carburant, frais fixes, entretien et risque d'incident (un incident moyen coûte ~150 k$ × taille).
+  const perTnm = (T, age, cond = 90) => (eco.burnPerDay(T, T.speed, age) * fuel + eco.fixedDayCost(T, company.flag, 'active', age)
+    + eco.upkeepPerSeaDay(state, T, age) * 0.7 + INCIDENT_BASE * wearRisk(cond, age) * 150000 * Math.sqrt(T.gt / 5000)) / (T.dwt * T.speed);
   const T = SHIP_TYPES[listing.type];
   let ref = null, best = Infinity;
   for (const R of Object.values(SHIP_TYPES)) {
@@ -162,7 +189,7 @@ function efficiency(state, company, listing) {
     const d = Math.abs(Math.log(R.dwt / T.dwt));
     if (d < best) { best = d; ref = R; }
   }
-  return ref ? Math.min(1.5, perTnm(ref, 0) / perTnm(T, listing.age)) : 1;
+  return ref ? Math.min(1.5, perTnm(ref, 0) / perTnm(T, listing.age, Math.max(listing.condition, 85))) : 1;
 }
 
 // Décisions de flotte et de trésorerie, une fois par jour.
@@ -177,20 +204,40 @@ export function aiDaily(state, ctx, rng, company) {
     act.repay(state, company.id, company.cash - (3e6 + monthlyFixed * 2));
   }
 
+  // Réarmer les navires désarmés quand le fret repart.
+  for (const sh of ships) {
+    if (sh.status === 'laidup' && eco.freightLevel(state, sh.type) >= 0.97 && company.cash > 1e6) act.reactivate(state, sh.id);
+  }
+  // Au bord de la saisie : vendre soi-même un navire (mieux payé que par la banque).
+  if (company.cash < 0 && company.debt >= creditLimit(state, company) * 0.95) {
+    const sellable = ships.filter((sh) => (sh.status === 'laidup' || (sh.status === 'port' && !sh.busyWhat)) && !sh.cargo)
+      .sort((a, b) => (a.status === 'laidup' ? -1 : 0) - (b.status === 'laidup' ? -1 : 0) || eco.shipValue(state, a) - eco.shipValue(state, b));
+    if (sellable.length) act.sellShip(state, ctx, sellable[0].id);
+  }
+
   // Achat d'un navire environ une fois par mois si les finances le permettent.
   if (state.t < (company.ai.nextFleet || 0)) return;
-  company.ai.nextFleet = state.t + rng.int(20, 40) * D;
+  company.ai.nextFleet = state.t + rng.int(30, 60) * D;
   const value = fleetValue(state, company.id);
   if (company.debt > value * 0.5) return;
-  if (ships.length >= Math.round(10 + 10 * (company.ai.skill || 1))) return;
-  const budget = company.cash * 0.85 + Math.max(0, Math.min(creditLimit(state, company) - company.debt, company.cash * 0.6));
+  if (ships.length >= Math.round(5 + 5 * (company.ai.skill || 1))) return;
+  // En marché déprimé ou après un mois déficitaire : pas d'emprunt, et une réserve de trois mois.
+  const avgFreight = eco.HOLD_TYPES.reduce((x, h) => x + state.market.freight[h], 0) / eco.HOLD_TYPES.length / eco.FREIGHT_NORMAL;
+  const prudent = avgFreight < 0.88 || bookTotal(company.lastMonth) < 0;
+  const budget = prudent ? company.cash - monthlyFixed * 3
+    : company.cash * 0.85 + Math.max(0, Math.min(creditLimit(state, company) - company.debt, company.cash * 0.6));
   if (budget < 1.5e6) return;
   const affordable = state.used.filter((l) => l.price <= budget && l.condition > 45);
   if (!affordable.length) return;
   // Préférence pour les navires qui servent beaucoup de ports (un ULCC n'a que trois terminaux)
   // et qui coûtent peu à exploiter par rapport à un navire moderne de même taille.
   const reach = (typeId) => Math.sqrt(PORT_IDS.filter((p) => eco.servesType(p, typeId)).length / 12);
-  const pick = rng.weighted(affordable.map((l) => [l, Math.sqrt(SHIP_TYPES[l.type].dwt) * (l.condition / 100) / Math.sqrt(l.price)
+  // Prix réel : le prix affiché plus la remise en état à prévoir.
+  const fix = (l) => {
+    const T = SHIP_TYPES[l.type];
+    return Math.max(0, 85 - l.condition) * T.price * 1e6 * 0.0011 * (1 + (100 - l.condition) / 120) * eco.repairIndex(state);
+  };
+  const pick = rng.weighted(affordable.map((l) => [l, Math.sqrt(SHIP_TYPES[l.type].dwt) / Math.sqrt(l.price + fix(l))
     * reach(l.type) * Math.pow(efficiency(state, company, l), 3)]));
   if (pick.price > company.cash) act.borrow(state, company.id, pick.price - company.cash + 300000);
   act.buyUsedShip(state, ctx, rng, company.id, pick.id);

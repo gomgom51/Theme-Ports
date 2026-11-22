@@ -133,7 +133,7 @@ function launch(state, ctx, ship, plan) {
   }
   ship.voyage = {
     from: ship.port, to: plan.to, speed: p.speed, closed: p.closed, progress: 0,
-    departT: state.t, nm: p.nm, eta: p.eta, waitCanal: null, stalledUntil: 0, storms: [],
+    departT: state.t, nm: p.nm, eta: p.eta, waitCanal: null, stalledUntil: 0, storms: [], startCond: ship.condition,
   };
   shipLog(state, ship, `Départ de ${portName(ship.port)} pour ${portName(plan.to)} (${Math.round(p.nm)} milles, ${p.speed} nœuds)`);
   ship.status = 'sea';
@@ -202,6 +202,7 @@ export function checkContract(state, ctx, ship, contract) {
   if (!hold) return `Ce navire ne peut pas transporter : ${GOODS[contract.good].name.toLowerCase()}.`;
   if (!eco.portHandles(contract.from, hold) || !eco.portHandles(contract.to, hold)) return 'Un des ports ne peut pas manutentionner ce chargement.';
   if (contract.qty > T.dwt) return `Capacité insuffisante (${T.dwt.toLocaleString('fr-FR')} t).`;
+  if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
   if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
   if (company.reputation < contract.minRep) return `Réputation insuffisante (${contract.minRep} exigée).`;
   if (contract.deadline <= state.t) return 'Le délai est déjà dépassé.';
@@ -278,7 +279,9 @@ export function buyCargo(state, ctx, shipId, good, qty) {
 
 export function quoteSale(state, ship) {
   if (!ship.cargo || ship.cargo.contractId || !ship.port) return null;
-  const q = eco.quoteTrade(state, ship.port, ship.cargo.good, ship.cargo.qty, 'sell');
+  // Une cargaison avariée se vend moins : la part perdue ou abîmée ne vaut plus rien.
+  const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
+  const q = eco.quoteTrade(state, ship.port, ship.cargo.good, sound, 'sell');
   const handling = ship.cargo.qty * (eco.HANDLING_COST[ship.cargo.hold] || 0);
   const net = q.total - handling;
   return { ...q, handling, net, profit: net - ship.cargo.cost, possible: eco.portHandles(ship.port, ship.cargo.hold) };
@@ -292,7 +295,7 @@ export function sellCargo(state, ctx, shipId) {
   const q = quoteSale(state, ship);
   if (!q.possible) return fail(`${portName(ship.port)} ne peut pas décharger cette cargaison.`);
   const company = companyOf(state, ship);
-  eco.applyTrade(state, ship.port, ship.cargo.good, ship.cargo.qty, 'sell');
+  eco.applyTrade(state, ship.port, ship.cargo.good, ship.cargo.qty * (1 - (ship.cargo.damage || 0)), 'sell');
   money(state, company, q.net, 'negoce');
   ship.earned += q.net;
   shipLog(state, ship, `Vente de ${ship.cargo.qty.toLocaleString('fr-FR')} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${fmtM(Math.abs(q.profit))}`);

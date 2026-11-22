@@ -10,16 +10,29 @@ export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffin�
 export const HOLD_TYPES = ['vrac', 'liquide', 'divers', 'conteneurs', 'chimique', 'gpl', 'gnl', 'vehicules', 'frigo', 'lourd'];
 export const CANAL_FEE = { suez: 12, panama: 10 }; // $ par unité de jauge brute
 export const BID_ASK = 0.015;
-export const BALLAST = 1.42;
+export const BALLAST = 1.55;
+export const TUNING = { ballast: BALLAST }; // réglage d'équilibrage (tests)
+// Taux de fret « normal » (indice 100). Les taux suivent un cycle mondial lent
+// (des années d'euphorie, puis des années de vaches maigres) et, autour de lui,
+// les à-coups propres à chaque type de cargaison.
+export const FREIGHT_NORMAL = 1.3;
+export const FREIGHT_MIN = 0.6, FREIGHT_MAX = 2.6;
 // Trafics à sens unique (pétrole, gaz, fruits...) : le retour se fait presque toujours à vide.
-export const BALLAST_HOLD = { liquide: 1.15, gpl: 1.15, gnl: 1.15, chimique: 1.1, frigo: 1.15, vehicules: 1.1, vrac: 1.05 };
+// Le fret est d'autant plus cher que le navire a peu de chances de trouver un
+// chargement pour le retour : un pétrolier rentre presque toujours à vide, un cargo
+// polyvalent trouve quelque chose à charger dans chaque port.
+export const BALLAST_HOLD = {
+  divers: 1, conteneurs: 1.05, vrac: 1.12, lourd: 1.15,
+  chimique: 1.3, vehicules: 1.3, liquide: 1.4, gpl: 1.4, gnl: 1.4, frigo: 1.45,
+};
 
 // ---------- Marché ----------
 export function initMarket(rng) {
   const world = {};
   for (const g of GOOD_IDS) world[g] = rng.range(0.94, 1.06);
+  const cycle = rng.range(-0.04, 0.12); // la partie commence dans un marché à peu près normal
   const freight = {};
-  for (const h of HOLD_TYPES) freight[h] = rng.range(1.18, 1.42);
+  for (const h of HOLD_TYPES) freight[h] = FREIGHT_NORMAL * Math.exp(cycle + rng.normal() * 0.06);
   const ports = {};
   for (const p of PORT_IDS) {
     ports[p] = {};
@@ -27,7 +40,7 @@ export function initMarket(rng) {
       ports[p][g] = { ou: rng.normal() * GOODS[g].vol * 3, imp: 0, stock: stockCap(p, g) * rng.range(0.4, 0.9) };
     }
   }
-  return { market: { world, freight, fuelPremium: 1, shipIndex: 1, repairLoad: 1 }, ports };
+  return { market: { world, freight, cycle, fuelPremium: 1, shipIndex: Math.exp(cycle * 0.9), repairLoad: 1 }, ports };
 }
 
 export const role = (p, g) => (PORTS[p].imp[g] || 0) - (PORTS[p].exp[g] || 0);
@@ -86,13 +99,16 @@ export function dailyMarketUpdate(state, rng) {
     x += -x / 180 + G.vol * z;
     m.world[g] = clamp(Math.exp(x), 0.45, 2.6);
   }
+  // Cycle mondial : demi-vie d'environ neuf mois, écart type d'environ 15 %.
+  m.cycle = clamp((m.cycle ?? 0) - (m.cycle ?? 0) / 400 + 0.0105 * rng.normal(), -0.45, 0.45);
   for (const h of HOLD_TYPES) {
-    let x = Math.log(m.freight[h] / 1.3);
-    x += -x / 60 + 0.022 * rng.normal();
-    m.freight[h] = clamp(1.3 * Math.exp(x), 0.75, 2.4);
+    let x = Math.log(m.freight[h] / FREIGHT_NORMAL);
+    x += -(x - m.cycle) / 90 + 0.013 * rng.normal();
+    m.freight[h] = clamp(FREIGHT_NORMAL * Math.exp(x), FREIGHT_MIN, FREIGHT_MAX);
   }
+  // Le prix des navires suit les gains qu'ils promettent : cher en haut de cycle.
   const avgFreight = HOLD_TYPES.reduce((s, h) => s + m.freight[h], 0) / HOLD_TYPES.length;
-  m.shipIndex = clamp(m.shipIndex + (0.55 + 0.45 * avgFreight / 1.3 - m.shipIndex) / 90 + 0.004 * rng.normal(), 0.6, 1.6);
+  m.shipIndex = clamp(m.shipIndex + (Math.pow(avgFreight / FREIGHT_NORMAL, 0.9) - m.shipIndex) / 75 + 0.004 * rng.normal(), 0.5, 1.8);
   m.fuelPremium = clamp(m.fuelPremium + (1 - m.fuelPremium) / 40 + 0.004 * rng.normal(), 0.8, 1.4);
   m.repairLoad = clamp(m.repairLoad + (1 - m.repairLoad) / 60 + 0.004 * rng.normal(), 0.8, 1.4);
   const impDecay = Math.exp(-1 / 12);
@@ -137,8 +153,13 @@ export const ageYears = (state, ship) => (state.t - ship.builtT) / (HOURS_PER_DA
 export function shipValue(state, ship) {
   const T = SHIP_TYPES[ship.type];
   const age = ageYears(state, ship);
-  const dep = Math.max(0.07, Math.pow(Math.max(0, 1 - age / T.life), 1.25));
-  return T.price * 1e6 * dep * (0.7 + 0.3 * ship.condition / 100) * state.market.shipIndex;
+  const dep = Math.max(0.06, Math.pow(Math.max(0, 1 - age / T.life), 1.25));
+  const sound = T.price * 1e6 * dep * state.market.shipIndex; // en bon état
+  // L'acheteur déduit les réparations à prévoir : elles dépendent de la taille du
+  // navire, pas de sa valeur, et peuvent dépasser ce que vaut une vieille coque.
+  const repairs = Math.max(0, 90 - ship.condition) * T.price * 1e6 * 0.0011 * (1 + (100 - ship.condition) / 120);
+  const scrap = T.price * 1e6 * 0.04 * state.market.shipIndex; // valeur à la démolition
+  return Math.max(scrap, sound - repairs * 0.8);
 }
 export function newShipPrice(state, typeId, flag) {
   const T = SHIP_TYPES[typeId];
@@ -182,6 +203,10 @@ export function portDraft(p, typeId) {
 }
 export const fitsPort = (p, typeId) => SHIP_TYPES[typeId].draft <= portDraft(p, typeId);
 // Port utilisable par ce type : assez profond et capable de manutentionner une de ses cales.
+// Niveau du fret (1 = normal) pour le meilleur type de cale d'un navire.
+export function freightLevel(state, typeId) {
+  return Math.max(...SHIP_TYPES[typeId].holds.map((h) => state.market.freight[h] || FREIGHT_NORMAL)) / FREIGHT_NORMAL;
+}
 export const servesType = (p, typeId) => fitsPort(p, typeId) && SHIP_TYPES[typeId].holds.some((h) => PORTS[p].terminals.includes(h));
 
 // Cale utilisée par un navire pour une marchandise (null si impossible).
@@ -192,6 +217,13 @@ export function holdFor(typeId, good) {
 export function portHandles(p, hold) { return PORTS[p].terminals.includes(hold); }
 
 // Estimation complète d'un voyage (utilisée par l'interface, l'IA et les contrats).
+// Usure de la coque et des machines en mer (points d'état par heure), plus rapide avec l'âge.
+export const wearPerHour = (age) => 0.0025 * (1 + age / 15);
+// Coût de l'entretien qui compensera cette usure (réparations au prix d'un chantier courant).
+export function upkeepPerSeaDay(state, T, age) {
+  return wearPerHour(age) * HOURS_PER_DAY * T.price * 1e6 * 0.0011 * 1.17 * repairIndex(state);
+}
+
 export function voyageEstimate(state, { typeId, flag, from, to, qty = 0, hold = 'vrac', speed, nm, canals = [], age = 0 }) {
   const T = SHIP_TYPES[typeId];
   const v = speed || T.speed;
@@ -201,7 +233,8 @@ export function voyageEstimate(state, { typeId, flag, from, to, qty = 0, hold = 
   const fuelCost = fuelT * fuelPrice(state, from);
   const fixed = fixedDayCost(T, flag, 'active', age) * (seaDays + portDays);
   const fees = portFee(T, to) + canals.reduce((s, c) => s + canalFee(T, c), 0);
-  return { nm, seaDays, portDays, days: seaDays + portDays, fuelT, fuelCost, fixed, fees, total: fuelCost + fixed + fees };
+  const upkeep = upkeepPerSeaDay(state, T, age) * seaDays;
+  return { nm, seaDays, portDays, days: seaDays + portDays, fuelT, fuelCost, fixed, fees, upkeep, total: fuelCost + fixed + fees + upkeep };
 }
 
 // ---------- Contrats de fret ----------
@@ -260,24 +293,37 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const route = ctx.distanceInfo(from, to, closed);
   if (!route) return null;
   const qty = Math.round((T.dwt * rng.range(0.5, 0.97)) / 100) * 100;
-  // Le marché paie ce que coûte un navire « moyen » de la flotte mondiale (8 ans d'âge).
-  const est = voyageEstimate(state, { typeId, flag: null, from, to, qty, hold, nm: route.nm, canals: route.canals, age: 8 });
-  est.total += portFee(T, from);
+  // Le marché paie ce que coûterait le transporteur le plus efficace capable de
+  // faire ce voyage (navire « moyen » de 8 ans) : aucun modèle ne gagne plus que
+  // le marché en prenant des cargaisons prévues pour des navires plus coûteux.
+  let est = null;
+  for (const [id] of referenceTypes(from, to, good)) {
+    const R = SHIP_TYPES[id];
+    if (R.dwt < qty) continue;
+    const rr = id === typeId ? route : ctx.distanceInfo(from, to, ctx.closedCanals(state, R.draft));
+    if (!rr) continue;
+    const e = voyageEstimate(state, { typeId: id, flag: null, from, to, qty, hold: holdFor(id, good), nm: rr.nm, canals: rr.canals, age: 8 });
+    e.total += portFee(R, from);
+    if (!est || e.total < est.total) est = e;
+  }
   // Le fret couvre le coût du voyage d'un navire de référence, plus le retour à
   // vide et l'attente entre deux contrats (BALLAST), multiplié par l'état du marché.
   // Économies d'échelle : les gros chargements rapportent un peu plus par rapport à leur coût.
   const scale = Math.pow(T.dwt / 12500, 0.05);
-  const margin = state.market.freight[hold] * rng.range(0.88, 1.18) * scale;
+  const margin = (state.market.freight[hold] / FREIGHT_NORMAL) * rng.range(0.9, 1.12) * scale;
   const urgent = rng.chance(0.2);
   // Le chargeur : les clients peu fiables paient un peu mieux pour attirer les armateurs.
   const clients = Object.entries(CLIENTS).filter(([, c]) => c.goods.includes(good));
   const client = clients.length ? rng.pick(clients)[0] : null;
   const riskPremium = client ? 1 + (70 - CLIENTS[client].reliability) / 300 : 1;
-  const pay = Math.round((est.total * BALLAST * (BALLAST_HOLD[hold] || 1) * margin * riskPremium * (urgent ? 1.18 : 1)) / 1000) * 1000;
+  const pay = Math.round((est.total * TUNING.ballast * (BALLAST_HOLD[hold] || 1) * margin * riskPremium * (urgent ? 1.18 : 1)) / 1000) * 1000;
   const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
-  const minRep = clamp(Math.round((margin - 1.25) * 90 + (pay > 1.5e6 ? 15 : 0) + (urgent ? 5 : 0)), 0, 75);
+  // Lignes régulières (conteneurs) et denrées réfrigérées : le chargeur exige un navire
+  // presque aussi rapide que celui de référence. Un cargo lent ne peut pas les prendre.
+  const minSpeed = hold === 'conteneurs' || hold === 'frigo' ? Math.round(T.speed * 9) / 10 : 0;
+  const minRep = clamp(Math.round((margin - 0.96) * 117 + (pay > 1.5e6 ? 15 : 0) + (urgent ? 5 : 0)), 0, 75);
   return {
-    id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep, client, regional, big,
+    id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep, client, regional, big, minSpeed,
     fuelAtStart: Math.round(worldFuelPrice(state)), priceAtStart: state.market.world[good],
     nm: Math.round(route.nm),
     deadline: Math.round(state.t + deadlineDays * HOURS_PER_DAY),

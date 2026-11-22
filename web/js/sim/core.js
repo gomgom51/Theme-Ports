@@ -14,6 +14,7 @@ export const BOOK_LABELS = {
   exploitation: 'Entretien et assurance',
   ports: 'Ports, pilotes et canaux',
   reparations: 'Réparations',
+  sinistres: 'Sinistres, amendes et indemnités',
   interets: 'Intérêts bancaires',
   impots: 'Impôts',
   divers: 'Divers',

@@ -13,11 +13,11 @@ const pct = (v) => `${Math.round(v * 100)} %`;
 const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
 
 // Crée la créance au moment de la livraison.
-export function createPayment(state, ship, contract, penalty) {
+export function createPayment(state, ship, contract, penalty, damage = 0) {
   const p = {
     id: state.nextId++, company: ship.owner, client: contract.client || null,
     good: contract.good, qty: contract.qty, from: contract.from, to: contract.to,
-    pay: contract.pay, penalty, deadline: contract.deadline, deliveredT: state.t,
+    pay: contract.pay, penalty, damage, deadline: contract.deadline, deliveredT: state.t,
     fuelAtStart: contract.fuelAtStart || null, priceAtStart: contract.priceAtStart || null,
     shipName: ship.name, res: null,
   };
@@ -47,6 +47,12 @@ export function resolution(state, rng, p) {
       lines.push({ label: `Livré ${Math.round(early)} jours en avance : prime de ponctualité`, amount: bonus, kind: 'good-event' });
       total += bonus;
     } else lines.push({ label: 'Livré dans les délais', amount: 0, kind: 'base' });
+  }
+  // Marchandise perdue ou avariée en route : le réceptionnaire émet des réserves.
+  if (p.damage > 0.005) {
+    const cut = -p.pay * Math.min(0.85, p.damage * 1.15);
+    lines.push({ label: `Marchandise avariée (${pct(p.damage)}) : le réceptionnaire émet des réserves`, amount: cut, kind: 'bad-event' });
+    total += cut;
   }
   // Surcharge carburant si le fuel a nettement augmenté pendant le contrat.
   if (p.fuelAtStart) {

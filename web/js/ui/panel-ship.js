@@ -77,7 +77,7 @@ export function shipPanel(app, id, tab) {
     h('div.ship-stats', [
       stat('État', pct(ship.condition), bar(ship.condition / 100, { good: 0.7, warn: 0.45 })),
       h('div.stat.stat-gauge', [h('div.stat-label', 'Carburant'), fuelGaugeEl(ship.fuel / T.tank, { size: 92, compact: true }), h('div.stat-value', `${num(ship.fuel)} / ${num(T.tank)} t`)]),
-      stat('Cargaison', ship.cargo ? `${GOODS[ship.cargo.good].icon} ${tonnes(ship.cargo.qty)}` : 'Cales vides'),
+      stat('Cargaison', ship.cargo ? `${GOODS[ship.cargo.good].icon} ${tonnes(ship.cargo.qty)}${ship.cargo.damage > 0.005 ? ` · avariée ${pct(ship.cargo.damage * 100)}` : ''}` : 'Cales vides'),
       stat('Capacité', tonnes(T.dwt)),
       stat('Âge', `${num1(age)} ans`),
       stat('Valeur', money(eco.shipValue(state, ship))),
@@ -155,7 +155,7 @@ function contractsTab(app, ship) {
     const daysLeft = (c.deadline - state.t) / 24;
     return h('div.card.contract', { class: why ? 'disabled' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(c.client)]) : null,
         why ? h('div.card-why', why) : h('div.card-sub', [
@@ -194,6 +194,7 @@ function tradeTab(app, ship) {
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(ship.cargo.qty)} à bord`]),
         h('div.card-sub', `Acheté ${money(ship.cargo.cost)}${ship.cargo.boughtAt ? ' à ' + portName(ship.cargo.boughtAt) : ''} (${money(ship.cargo.cost / ship.cargo.qty)}/t)`),
+        ship.cargo.damage > 0.005 ? h('div.card-why', `${pct(ship.cargo.damage * 100)} de la cargaison est perdue ou avariée : elle se vendra d'autant moins.`) : null,
         q.possible
           ? h('div.card-sub', ['Vente ici : ', h('b', `${money(q.avg)}/t`), ` → ${money(q.net)} net, `, h('b', { class: q.profit >= 0 ? 'pos' : 'neg' }, `${q.profit >= 0 ? 'bénéfice' : 'perte'} ${money(Math.abs(q.profit))}`)])
           : h('div.card-why', `${portName(here)} ne peut pas décharger ce type de cargaison.`),

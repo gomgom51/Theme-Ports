@@ -3,7 +3,7 @@ import { PORTS, PORT_IDS } from '../data/ports.js';
 import { HOURS_PER_DAY, monthOf, clamp } from './util.js';
 import { news, portName } from './core.js';
 import { haversineNm } from './routing.js';
-import { HOLD_TYPES } from './economy.js';
+import { HOLD_TYPES, FREIGHT_MIN, FREIGHT_MAX } from './economy.js';
 
 const D = HOURS_PER_DAY;
 
@@ -85,9 +85,25 @@ const EVENTS = [
     id: 'recession', weight: 1,
     run(state, rng) {
       for (const h of HOLD_TYPES) state.market.freight[h] *= rng.range(0.8, 0.9);
+      state.market.cycle -= rng.range(0.15, 0.25);
       state.market.shipIndex *= 0.9;
       state.market.world.manufactures *= 0.92; state.market.world.machines *= 0.92;
       return { title: 'Récession mondiale', text: 'Le commerce mondial recule : fret en baisse, navires d\'occasion moins chers.' };
+    },
+  },
+  {
+    id: 'surcapacite', weight: 1,
+    run(state, rng) {
+      state.market.cycle -= rng.range(0.15, 0.3);
+      state.market.shipIndex *= 0.93;
+      return { title: 'Trop de navires', text: 'Les chantiers livrent à tour de bras : la flotte mondiale dépasse la demande, les taux de fret vont plonger pour longtemps.' };
+    },
+  },
+  {
+    id: 'reprise', weight: 1,
+    run(state, rng) {
+      state.market.cycle += rng.range(0.15, 0.3);
+      return { title: 'Reprise du commerce mondial', text: 'Les commandes affluent et les navires manquent : les taux de fret repartent à la hausse.' };
     },
   },
   {
@@ -138,7 +154,8 @@ export function dailyEvents(state, rng) {
     const list = EVENTS.filter((e) => !e.possible || e.possible(state));
     const ev = rng.weighted(list.map((e) => [e, e.weight]));
     const r = ev.run(state, rng);
-    for (const h of HOLD_TYPES) state.market.freight[h] = clamp(state.market.freight[h], 0.75, 2.4);
+    for (const h of HOLD_TYPES) state.market.freight[h] = clamp(state.market.freight[h], FREIGHT_MIN, FREIGHT_MAX);
+    state.market.cycle = clamp(state.market.cycle, -0.45, 0.45);
     news(state, `${r.title} — ${r.text}`, { kind: 'event' });
     return r;
   }

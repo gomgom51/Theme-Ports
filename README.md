@@ -34,7 +34,18 @@ riche de la planète.
 * **Une économie vivante** : cours mondiaux, taux de fret, prix du fuel et des
   réparations qui fluctuent au gré des événements (chocs pétroliers, récoltes,
   relance industrielle, récession, grèves, fermeture du canal de Suez, sécheresse
-  à Panama…).
+  à Panama…). Le fret suit un **cycle mondial** : des années fastes, puis des
+  années où les contrats ne couvrent plus les frais et où il faut désarmer. Le
+  prix des navires suit le cycle. Le fret est payé au prix du transporteur le
+  plus efficace, avec une prime pour les trafics qui reviennent à vide.
+* **La mer est dangereuse** : avaries de machine, incendies, abordages,
+  échouements, voies d'eau, cargaisons abîmées par la tempête ou gâtées par le
+  retard. Un navire vieux ou mal entretenu en subit bien plus, mais même un bon
+  navire peut sombrer. L'assurance ne paie que si le navire était en état de
+  naviguer au départ ; une épave coule sans être remboursée.
+* **Inspections dans les ports exigeants** (Europe, Amérique du Nord, Japon,
+  Corée, Australie, Singapour) : un navire usé peut être retenu, mis à l'amende
+  et réparé d'office à vos frais, que vous ayez l'argent ou non.
 * **Des routes maritimes réelles** calculées sur la carte du monde, par les
   canaux et les détroits. Distances réalistes (Rotterdam – Singapour par Suez :
   8 400 milles ; par le cap de Bonne-Espérance : 11 900).

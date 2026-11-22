@@ -11,7 +11,7 @@ import { PORTS, PORT_IDS } from '../web/js/data/ports.js';
 import * as eco from '../web/js/sim/economy.js';
 
 const years = Number(process.argv[2] || 2);
-const seeds = [11, 22, 33];
+const seeds = [11, 22, 33, 44];
 const ctx = makeContext();
 let failures = 0;
 function run(typeId, trade) {
@@ -29,7 +29,8 @@ function run(typeId, trade) {
     const rng = new Rng(seed);
     const ship = createShip(state, rng, 0, typeId, { port: home, age: T.vintage ? 34 : 0 });
     ship.fuel = T.tank * 0.8;
-    for (let m = 0; m < years * 12; m++) tick(state, ctx, 730);
+    // Marché maintenu dans un cycle « normal » : on mesure le navire, pas la chance.
+    for (let m = 0; m < years * 12; m++) { state.market.cycle = 0; tick(state, ctx, 730); }
     const h = ship.hours || {}, tot = Object.values(h).reduce((a, b) => a + b, 0) || 1;
     results.push({ net: (ship.earned - ship.spent) / years, laden: (h.laden || 0) / tot, gone: !state.ships.includes(ship) });
   }
