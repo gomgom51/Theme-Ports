@@ -13,10 +13,12 @@ import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
 import { aiShipIdle, aiDaily } from './ai.js';
 import { pointAlong } from './routing.js';
 import { CANAL_NAMES } from './context.js';
+import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 1;
 export const COMPANY_COLORS = ['#e5484d', '#3e8ef7', '#30a46c', '#f5a623'];
+export const COMPANY_LOGOS = ['ancre', 'phare', 'barre', 'rose'];
 export const DIFFICULTIES = {
   facile: { label: 'Facile', cash: 12e6, aiSkill: 0.7, text: '12 M$ au départ, concurrents prudents' },
   normal: { label: 'Normal', cash: 8e6, aiSkill: 1, text: '8 M$ au départ' },
@@ -39,13 +41,13 @@ export function newGame(opts, ctx) {
     },
     market, ports,
     companies: [], ships: [], contracts: [], used: [], orders: [],
-    storms: [], canals: {}, strikes: {}, news: [], over: null,
+    storms: [], canals: {}, strikes: {}, news: [], over: null, payments: [], receivables: [],
   };
   const diff = DIFFICULTIES[state.settings.difficulty];
   opts.companies.forEach((c, i) => {
     const flag = PORTS[c.homePort].flag;
     state.companies.push({
-      id: i, name: c.name, captain: c.captain || '', color: c.color || COMPANY_COLORS[i], human: !!c.human,
+      id: i, name: c.name, captain: c.captain || '', color: c.color || COMPANY_COLORS[i], logo: c.logo || COMPANY_LOGOS[i], human: !!c.human,
       homePort: c.homePort, flag, cash: diff.cash, debt: 0,
       reputation: Math.round(FLAGS[flag].rating * 0.5 + 25),
       portsServed: [c.homePort], delivered: 0, late: 0, bankrupt: false, lowCashDays: 0,
@@ -145,7 +147,7 @@ function portHour(state, ctx, rng, ship, notes) {
   if (ship.busyWhat && state.t >= ship.busyUntil) {
     const what = ship.busyWhat;
     ship.busyWhat = null;
-    if (what === 'déchargement' && ship.pendingDelivery) deliverContract(state, ship);
+    if (what === 'déchargement' && ship.pendingDelivery) deliverContract(state, ship, rng, notes);
     if (what === 'réparation') { ship.condition = ship.repairTo; ship.repairTo = null; }
     if (ship.plan) {
       const r = act.runPlan(state, ctx, ship);
@@ -273,7 +275,7 @@ function arrive(state, ctx, ship, notes) {
   }
 }
 
-function deliverContract(state, ship) {
+function deliverContract(state, ship, rng, notes) {
   const c = contractById(state, ship.pendingDelivery);
   const company = companyOf(state, ship);
   ship.pendingDelivery = null;
@@ -281,9 +283,18 @@ function deliverContract(state, ship) {
   if (!c) return;
   const penalty = eco.latePenalty(c, state.t);
   const pay = c.pay * (1 - penalty);
-  money(state, company, pay, 'fret');
   ship.earned += pay;
   company.delivered++;
+  // Le paiement passe par l'encaissement (bouton « Encaisser » pour les joueurs).
+  const payment = createPayment(state, ship, c, penalty);
+  if (company.human) {
+    note(state, notes, 'payment', ship, `Le ${ship.name} a livré à ${portName(c.to)}. Paiement à encaisser.`);
+    notes[notes.length - 1].paymentId = payment.id;
+  } else {
+    const res = resolution(state, rng, payment);
+    const contest = res.event?.kind === 'contestation' && res.event.withheld > 150000 && rng.chance(0.5);
+    collect(state, rng, payment.id, contest ? 'contester' : 'accepter');
+  }
   if (penalty > 0) {
     company.late++;
     changeReputation(company, -(2 + penalty * 10));
@@ -329,6 +340,7 @@ function daily(state, ctx, rng, notes) {
   if (ev) notes.push({ kind: 'event', text: `${ev.title} — ${ev.text}` });
   dailyStorms(state, rng);
   eco.refreshContracts(state, ctx, rng);
+  dailyReceivables(state, notes);
 
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];

@@ -6,11 +6,12 @@
   "scripts": {
     "start": "python3 -m http.server 8080 --directory web",
     "test": "node tests/routing.test.mjs && node tests/sim.test.mjs 3 12345",
-    "build:world": "node tools/build_world.mjs && node tools/build_distances.mjs",
+    "build:world": "node tools/build_world.mjs && node tools/build_countries.mjs && node tools/build_distances.mjs",
     "build:distances": "node tools/build_distances.mjs"
   },
   "devDependencies": {
     "topojson-client": "3.1.0",
-    "world-atlas": "2.0.2"
+    "world-atlas": "2.0.2",
+    "i18n-iso-countries": "7.14.0"
   }
 }

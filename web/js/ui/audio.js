@@ -4,10 +4,17 @@
 import * as S from './sounds.js';
 
 const KEY = 'portdattache.audio';
+// Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
+const TRACKS = {
+  title: { src: 'musique/accueil.mp3', volume: 0.45, loop: true },
+  game: { src: 'musique/jeu.mp3', volume: 0.22, loop: true },
+  end: { src: 'musique/victoire.mp3', volume: 0.5, loop: false },
+};
 
 function loadSettings() {
-  try { return { ambience: true, sfx: true, volume: 0.8, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
-  catch { return { ambience: true, sfx: true, volume: 0.8 }; }
+  const defaults = { ambience: true, sfx: true, music: true, volume: 0.8 };
+  try { return { ...defaults, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
+  catch { return defaults; }
 }
 
 export class AudioManager {
@@ -25,6 +32,12 @@ export class AudioManager {
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.settings)); } catch { /* stockage indisponible */ } }
 
   unlock() {
+    if (!this.unlocked) {
+      this.unlocked = true;
+      const scene = this.musicScene ?? this.sceneName;
+      this.musicScene = null;
+      this.playMusic(scene);
+    }
     if (this.ctx) {
       if (this.ctx.state === 'suspended' && !this.paused) this.ctx.resume();
       return;
@@ -57,6 +70,7 @@ export class AudioManager {
   setScene(name) {
     if (name === this.sceneName) return;
     this.sceneName = name;
+    this.playMusic(name);
     if (!this.ctx) return;
     if (this.stopBed) { this.stopBed(this.ctx.currentTime); this.stopBed = null; }
     this.state = {};
@@ -91,6 +105,10 @@ export class AudioManager {
       S.clank(c, out, t + 0.95, { gain: 0.14, pan: 0.3, reverb: r });
     } else if (name === 'sunk') {
       S.horn(c, out, t, { dur: 3.5, freq: 82, gain: 0.24, distance: 0.8, reverb: r });
+    } else if (name === 'fuel') {
+      S.fuelPump(c, out, t, { dur: 1.5, gain: 0.32 });
+    } else if (name === 'cash') {
+      S.cashRegister(c, out, t, { gain: 0.42 });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     }
@@ -105,7 +123,55 @@ export class AudioManager {
     this.setScene(scene);
   }
   setSfx(on) { this.settings.sfx = on; this.save(); }
+  setMusic(on) {
+    this.settings.music = on;
+    this.save();
+    if (on) { this.musicScene = null; this.playMusic(this.sceneName); } else this.fadeOutMusic();
+  }
 
-  suspend() { this.paused = true; if (this.ctx && this.ctx.state === 'running') this.ctx.suspend(); }
-  resume() { this.paused = false; if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+  // ---------- Musique ----------
+  playMusic(scene) {
+    if (!this.unlocked && !window.AndroidBridge) { this.musicScene = null; return; }
+    if (scene === this.musicScene) return;
+    this.musicScene = scene;
+    this.fadeOutMusic();
+    const track = TRACKS[scene];
+    if (!track || !this.settings.music || this.missing?.has(track.src)) return;
+    const el = new Audio(track.src);
+    el.loop = track.loop;
+    el.volume = 0;
+    el.addEventListener('error', () => { (this.missing ||= new Set()).add(track.src); });
+    el.play().then(() => {
+      this.fade(el, track.volume, 2500);
+      // La musique couvre un peu l'ambiance.
+      if (this.ambBus && this.music === el) this.ambBus.gain.setTargetAtTime(0.6, this.ctx.currentTime, 1);
+    }).catch(() => {});
+    this.music = el;
+  }
+  fadeOutMusic() {
+    const el = this.music;
+    this.music = null;
+    if (this.ambBus) this.ambBus.gain.setTargetAtTime(1, this.ctx.currentTime, 1);
+    if (el) this.fade(el, 0, 1200, () => el.pause());
+  }
+  fade(el, to, ms, done) {
+    const from = el.volume, start = performance.now();
+    const step = () => {
+      const k = Math.min(1, (performance.now() - start) / ms);
+      el.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+      if (k < 1) requestAnimationFrame(step); else done?.();
+    };
+    requestAnimationFrame(step);
+  }
+
+  suspend() {
+    this.paused = true;
+    if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
+    this.music?.pause();
+  }
+  resume() {
+    this.paused = false;
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.music && this.settings.music) this.music.play().catch(() => {});
+  }
 }

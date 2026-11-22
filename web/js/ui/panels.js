@@ -10,7 +10,38 @@ import {
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
 import { shipStatusText } from './panel-ship.js';
-import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart } from './dom.js';
+import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog } from './dom.js';
+import { shipSVG, artForShip, SHIP_ART } from './shipart.js';
+import { shipStats, radarSVG } from './radar.js';
+import { LOGO_IDS, logoBadge } from './logos.js';
+import { flagEl } from './flags.js';
+import { officeSVG, officeTier, OFFICE_TIERS } from './officeart.js';
+import { pendingList } from './payment.js';
+
+const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
+
+const LIVERIES = ['#5d6b75', '#7a5c3e', '#3f5e4a', '#6b4f6b', '#4a5f7a', '#8a6d2f'];
+
+// Grande fiche d'un navire : dessin, radar et caractéristiques.
+export function inspectShip({ typeId, condition = 100, age = 0, name = '', color, logo, laden = false, seed, subtitle = '' }) {
+  const T = SHIP_TYPES[typeId];
+  const body = h('div.inspect', [
+    h('div.inspect-art', { html: shipSVG(typeId, { condition, age, color, logo, name, laden, seed: seed ?? name }) }),
+    h('div.inspect-row', [
+      h('div.radar-wrap', { html: radarSVG(shipStats(typeId, { condition, age }), { color, size: 270 }) }),
+      h('div.inspect-specs', [
+        h('p.blurb', T.blurb),
+        h('div.ship-stats', [
+          ['Longueur', `${SHIP_ART[typeId].L} m`], ['Capacité', tonnes(T.dwt)], ['Vitesse', `${num1(T.speed)} nœuds (max ${num1(T.maxSpeed)})`],
+          ['Consommation', `${T.burn} t/jour`], ['Soutes', tonnes(T.tank)], ['Tirant d\'eau', `${num1(T.draft)} m`],
+          ['Équipage', `${T.crew} marins`], ['Cales', T.holds.map((x) => HOLDS[x]).join(', ')],
+          ['Âge', `${num1(age)} ans`], ['État', pct(condition)],
+        ].map(([k, v]) => h('div.stat', [h('div.stat-label', k), h('div.stat-value', v)]))),
+      ]),
+    ]),
+  ]);
+  return dialog({ title: name ? `${name} — ${T.name}` : T.name, body: h('div', [subtitle ? h('p.muted', subtitle) : null, body]), buttons: [{ label: 'Fermer', value: null, kind: 'primary' }], wide: true });
+}
 
 const REPAIR_LABEL = ['Aucun chantier', 'Petit chantier (jusqu\'à 70 %)', 'Chantier naval', 'Grand chantier naval'];
 const SIZE_LABEL = ['', 'Petit port', 'Port moyen', 'Grand port', 'Très grand port', 'Port géant'];
@@ -26,6 +57,8 @@ export function fleetPanel(app) {
   const ships = shipsOf(state, cid);
   const orders = state.orders.filter((o) => o.owner === cid);
   const body = h('div');
+  const pending = pendingList(app);
+  if (pending) body.append(pending);
   if (!ships.length && !orders.length) {
     body.append(h('div.empty', [
       h('p', 'Votre compagnie n\'a encore aucun navire.'),
@@ -44,7 +77,8 @@ export function fleetPanel(app) {
     body.append(h('h3', `${label} (${list.length})`));
     body.append(h('div.list.compact', list.map((s) => {
       const T = SHIP_TYPES[s.type];
-      return h('button.row.selectable', { onclick: () => { app.open('ship', s.id); app.focusShip(s.id); } }, [
+      return h('button.row.selectable.with-thumb', { onclick: () => { app.open('ship', s.id); app.focusShip(s.id); } }, [
+        h('span.thumb', { html: artForShip(state, s, { sky: false }) }),
         h('span.grow', [h('b', s.name), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s))]),
         h('span.mini', [h('span.muted.small', 'état'), bar(s.condition / 100, { good: 0.7, warn: 0.45 })]),
         h('span.mini', [h('span.muted.small', 'fuel'), bar(s.fuel / T.tank, { good: 0.4, warn: 0.15 })]),
@@ -98,12 +132,12 @@ export function portPanel(app, id) {
   if (here.length) {
     body.append(h('h3', 'Navires à quai'));
     body.append(h('div.list.compact', here.map((s) => h('button.row.selectable', { onclick: () => app.open('ship', s.id) }, [
-      h('span.dot', { style: { background: state.companies[s.owner].color } }),
+      badge(state.companies[s.owner], 20),
       h('span.grow', [h('b', s.name), h('span.muted.small', ` ${SHIP_TYPES[s.type].name}`)]),
       h('span.muted.small', state.companies[s.owner].name),
     ]))));
   }
-  return { title: P.name, subtitle: `${F.name} · ${SIZE_LABEL[P.size]}`, body };
+  return { title: P.name, subtitle: `${F.name} · ${SIZE_LABEL[P.size]}`, icon: flagEl(P.flag, F.name), body };
 }
 
 // ---------- Courtier ----------
@@ -132,7 +166,10 @@ function usedTab(app) {
     h('p.hint', `Trésorerie : ${money(company.cash)}. Un navire d'occasion vous attend dans le port où il est à vendre.`),
     h('div.list', list.map((l) => {
       const T = SHIP_TYPES[l.type];
-      return h('div.card', { class: l.price > company.cash ? 'disabled' : '' }, [
+      // Livrée de l'ancien propriétaire.
+      const look = { typeId: l.type, condition: l.condition, age: l.age, name: l.name, color: LIVERIES[l.id % LIVERIES.length], logo: LOGO_IDS[l.id % LOGO_IDS.length], seed: l.id + l.name };
+      return h('div.card.with-art', { class: l.price > company.cash ? 'disabled' : '' }, [
+        h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: () => inspectShip({ ...look, subtitle: `À vendre à ${portName(l.port)} pour ${money(l.price)}` }), html: shipSVG(l.type, look) }),
         h('div.card-main', [
           h('div.card-title', [l.name, h('span.tag', T.name)]),
           h('div.card-sub', typeSpecs(T)),
@@ -164,7 +201,9 @@ function newTab(app) {
   }, `${portName(y)} · ${info.days} j`))));
   for (const [id, T] of Object.entries(SHIP_TYPES)) {
     const price = act.newBuildPrice(state, company, id, yard);
-    box.append(h('div.card', { class: price > company.cash ? 'disabled' : '' }, [
+    const look = { typeId: id, condition: 100, age: 0, name: '', color: company.color, logo: company.logo, laden: true, seed: id };
+    box.append(h('div.card.with-art', { class: price > company.cash ? 'disabled' : '' }, [
+      h('button.card-art', { title: 'Inspecter', 'aria-label': `Inspecter : ${T.name}`, onclick: () => inspectShip({ ...look, subtitle: `Neuf, aux couleurs de ${company.name}` }), html: shipSVG(id, look) }),
       h('div.card-main', [
         h('div.card-title', [T.name, h('span.tag', T.category)]),
         h('div.card-sub', T.blurb),
@@ -206,10 +245,29 @@ function sellTab(app) {
 }
 
 // ---------- Bureau ----------
+// Le bureau s'embellit avec la valeur nette ; la maquette est celle du plus beau navire.
+function officeHero(app) {
+  const { state } = app;
+  const c = app.company();
+  const worth = netWorth(state, c.id);
+  const tier = officeTier(worth);
+  const best = shipsOf(state, c.id).sort((a, b) => eco.shipValue(state, b) - eco.shipValue(state, a))[0];
+  const model = best ? { typeId: best.type, color: c.color, logo: c.logo, name: best.name } : null;
+  const next = OFFICE_TIERS[tier + 1];
+  return h('div', [
+    h('div.office-hero', { html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id }) }),
+    h('div.office-caption', [
+      h('span', [h('b', OFFICE_TIERS[tier].name), ' — ', OFFICE_TIERS[tier].text]),
+      h('span.muted', next ? `Prochain bureau à ${money(next.min)} de valeur nette` : 'Le sommet !'),
+    ]),
+  ]);
+}
+
 export function officePanel(app, _id, tab) {
   const c = app.company();
   return {
-    title: 'Bureau', subtitle: c.name, color: c.color,
+    title: 'Bureau', subtitle: c.name, color: c.color, badge: [c.logo, c.color],
+    top: officeHero(app),
     tabs: [
       ['finances', 'Finances', () => financeTab(app)],
       ['resultats', 'Résultats', () => resultsTab(app)],
@@ -235,6 +293,8 @@ function financeTab(app) {
     stat('Taux d\'intérêt', `${num1(interestRate(c) * 100)} %/an`),
   ]));
   box.append(h('p.hint', 'La banque prête jusqu\'à 60 % de la valeur de votre flotte, plus une part selon votre réputation. Un découvert coûte 20 %/an ; trop profond, la banque saisit un navire.'));
+  const pending = pendingList(app);
+  if (pending) box.append(pending);
   box.append(h('h3', 'Emprunter'));
   const borrowAmounts = [1e6, 5e6, 20e6].filter((a) => a <= room);
   box.append(room >= 10000 ? h('div.chips', [
@@ -303,7 +363,7 @@ function rankingTab(app) {
   const box = h('div');
   box.append(h('div.list.compact', r.map((x, i) => h('div.row', [
     h('span.rank', `${i + 1}`),
-    h('span.dot', { style: { background: x.company.color } }),
+    badge(x.company, 26),
     h('span.grow', [h('b', x.company.name), x.company.human ? '' : h('span.muted.small', ' (ordinateur)'), x.company.bankrupt ? h('span.tag.bad', 'faillite') : null]),
     h('span.muted.small', `${shipsOf(state, x.company.id).length} navires · réputation ${num(x.company.reputation)}`),
     h('b', money(x.worth)),
@@ -395,7 +455,7 @@ export function newsPanel(app) {
     title: 'Journal',
     body: h('div.log', state.news.map((n) => h('div.log-line', { class: n.kind }, [
       h('span.muted', date(n.t, true)), ' ', icon[n.kind] || '•', ' ',
-      n.company != null ? h('span.dot', { style: { background: state.companies[n.company]?.color } }) : null,
+      n.company != null && state.companies[n.company] ? badge(state.companies[n.company], 16) : null, ' ',
       n.text,
     ]))),
   };

@@ -1,8 +1,75 @@
 // Carte du monde : projection équirectangulaire, déplacement et zoom au doigt
 // ou à la souris, monde répété horizontalement (traversée du Pacifique).
 import { LAND_DETAILED, LAND_COARSE } from '../data/world.js';
+import { BORDERS, COUNTRIES, WATERS } from '../data/countries.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { pointAlong } from '../sim/routing.js';
+import { flagImage } from './flags.js';
+
+// Couleurs de la carte (style carte marine).
+const C = {
+  seaTop: '#c2d9e4', seaBottom: '#b5cfdc', land: '#efe5c9', coast: '#7c8986', border: '#b29c74',
+  grid: 'rgba(30,58,85,0.08)', equator: 'rgba(30,58,85,0.18)', ink: '#1c2a33', halo: 'rgba(251,248,241,0.92)',
+  port: '#c4362c', portHl: '#0f6f76', ocean: 'rgba(30,58,85,0.5)', country: 'rgba(110,92,60,0.55)',
+};
+
+// Noms des océans et des mers, en italique comme sur une carte marine.
+const SEAS = [
+  ['Océan Atlantique', -38, 30, 0], ['Océan Atlantique', -18, -24, 0], ['Océan Pacifique', -145, 12, 0],
+  ['Océan Pacifique', -118, -28, 0], ['Océan Pacifique', 168, 28, 0], ['Océan Indien', 78, -22, 0],
+  ['Mer Méditerranée', 17, 34.5, 3], ['Mer de Chine', 114, 13, 3], ['Golfe du Mexique', -90, 25, 3.5],
+  ['Mer des Caraïbes', -75, 14.5, 3.5], ['Mer d\'Arabie', 63, 14, 3.5], ['Golfe de Guinée', 2, 1, 4],
+  ['Mer du Nord', 3, 56, 5], ['Mer Rouge', 38, 20.5, 6], ['Golfe Persique', 51.5, 27.4, 7], ['Mer de Tasman', 160, -38, 4],
+  ['Golfe du Bengale', 88, 14, 4], ['Mer du Japon', 135, 40, 5], ['Mer Baltique', 19, 57, 5], ['Océan Austral', 40, -55, 0],
+];
+
+function buildLines(str) {
+  const path = new Path2D();
+  for (const line of str.split(';')) {
+    const v = line.split(',');
+    let x = 0, y = 0;
+    for (let i = 0; i < v.length; i += 2) {
+      x += +v[i]; y += +v[i + 1];
+      if (i === 0) path.moveTo(x / 100, -y / 100); else path.lineTo(x / 100, -y / 100);
+    }
+  }
+  return path;
+}
+
+// Eaux nationales (≤ 200 milles des côtes) plus claires, limite avec les eaux internationales.
+function buildWatersImage() {
+  const W = 720, H = 360;
+  const owner = new Uint8Array(W * H);
+  const v = WATERS.split(',').map(Number);
+  let i = 0;
+  for (let k = 0; k < v.length; k += 2) { owner.fill(v[k], i, i + v[k + 1]); i += v[k + 1]; }
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext('2d');
+  const img = g.createImageData(W, H);
+  for (let c = 0; c < W * H; c++) {
+    const row = (c / W) | 0, col = c % W;
+    let a = 0, rgb = [255, 255, 255];
+    if (owner[c]) a = 80;
+    else {
+      // Case des eaux internationales qui touche des eaux nationales : trait de limite.
+      for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+        const r = row + dr;
+        if (r >= 0 && r < H && owner[r * W + (col + dc + W) % W]) { a = 60; rgb = [30, 58, 85]; break; }
+      }
+    }
+    img.data.set([rgb[0], rgb[1], rgb[2], a], c * 4);
+  }
+  g.putImageData(img, 0, 0);
+  // Agrandi et adouci pour éviter l'effet d'escalier de la grille.
+  const smooth = document.createElement('canvas');
+  smooth.width = W * 4; smooth.height = H * 4;
+  const sg = smooth.getContext('2d');
+  sg.imageSmoothingEnabled = true;
+  if ('filter' in sg) sg.filter = 'blur(3px)';
+  sg.drawImage(canvas, 0, 0, W * 4, H * 4);
+  return { canvas: smooth, owner };
+}
 
 const LAT_TOP = 78, LAT_BOTTOM = -60;
 
@@ -38,7 +105,13 @@ export class MapView {
     root.append(this.base, this.over);
     this.bctx = this.base.getContext('2d');
     this.octx = this.over.getContext('2d');
-    this.paths = { detailed: buildPath(LAND_DETAILED), coarse: buildPath(LAND_COARSE) };
+    this.paths = { detailed: buildPath(LAND_DETAILED), coarse: buildPath(LAND_COARSE), borders: buildLines(BORDERS) };
+    this.waters = buildWatersImage();
+    // Les drapeaux sont des images : redessiner le fond quand elles sont prêtes.
+    for (const id of PORT_IDS) {
+      const img = flagImage(PORTS[id].flag);
+      if (!img.complete) img.addEventListener('load', () => { this.dirty = true; }, { once: true });
+    }
     this.view = { cx: 20, cy: -22, scale: 3 };
     this.dirty = true;
     this.pointers = new Map();
@@ -186,13 +259,18 @@ export class MapView {
     const g = this.bctx, { cx, cy, scale } = this.view, dpr = this.dpr;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const grad = g.createLinearGradient(0, 0, 0, this.h);
-    grad.addColorStop(0, '#0f3150');
-    grad.addColorStop(1, '#0a2238');
+    grad.addColorStop(0, C.seaTop);
+    grad.addColorStop(1, C.seaBottom);
     g.fillStyle = grad;
     g.fillRect(0, 0, this.w, this.h);
+    // Eaux nationales et eaux internationales.
+    g.imageSmoothingEnabled = true;
+    this.copies((off) => {
+      g.drawImage(this.waters.canvas, this.w / 2 + (off - 180 - cx) * scale, this.h / 2 + (-90 - cy) * scale, 360 * scale, 180 * scale);
+    });
 
     // Graticule tous les 30°.
-    g.strokeStyle = 'rgba(255,255,255,0.05)';
+    g.strokeStyle = C.grid;
     g.lineWidth = 1;
     g.beginPath();
     for (let lon = -540; lon <= 540; lon += 30) {
@@ -205,22 +283,58 @@ export class MapView {
       g.moveTo(0, y); g.lineTo(this.w, y);
     }
     g.stroke();
-    // Équateur un peu plus marqué.
-    g.strokeStyle = 'rgba(255,255,255,0.09)';
+    // Équateur en tirets.
+    g.strokeStyle = C.equator;
+    g.setLineDash([6, 6]);
     g.beginPath();
     const ye = this.h / 2 - cy * scale;
     g.moveTo(0, ye); g.lineTo(this.w, ye); g.stroke();
+    g.setLineDash([]);
+
+    // Noms des mers.
+    g.font = `italic ${scale > 6 ? 14 : 12}px 'Libre Baskerville', Georgia, serif`;
+    g.fillStyle = C.ocean;
+    g.textAlign = 'center';
+    if ('letterSpacing' in g) g.letterSpacing = '2px';
+    for (const [name, lon, lat, minScale] of SEAS) {
+      if (scale < minScale) continue;
+      const [x, y] = this.toScreen(lon, lat);
+      if (x > -100 && x < this.w + 100 && y > -20 && y < this.h + 20) g.fillText(name, x, y);
+    }
+    if ('letterSpacing' in g) g.letterSpacing = '0px';
+    g.textAlign = 'left';
 
     const path = scale >= 4.5 ? this.paths.detailed : this.paths.coarse;
     this.copies((off) => {
       g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * (this.w / 2 + (off - cx) * scale), dpr * (this.h / 2 - cy * scale));
-      g.fillStyle = '#2c3d36';
+      g.fillStyle = C.land;
       g.fill(path);
       g.lineWidth = 1.1 / scale;
-      g.strokeStyle = '#557565';
+      g.strokeStyle = C.coast;
       g.stroke(path);
+      if (scale >= 2.2) {
+        g.setLineDash([3 / scale, 2.5 / scale]);
+        g.lineWidth = 0.9 / scale;
+        g.strokeStyle = C.border;
+        g.stroke(this.paths.borders);
+        g.setLineDash([]);
+      }
     });
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Noms des pays (les grands d'abord visibles, les petits en zoomant).
+    g.font = '700 9.5px system-ui, sans-serif';
+    g.fillStyle = C.country;
+    g.textAlign = 'center';
+    if ('letterSpacing' in g) g.letterSpacing = '1.5px';
+    for (const c of COUNTRIES) {
+      if (Math.sqrt(c.a) * scale < 70) continue;
+      const [x, y] = this.toScreen(c.x, c.y);
+      if (x < -80 || x > this.w + 80 || y < -10 || y > this.h + 10) continue;
+      g.fillText(c.n.toUpperCase(), x, y);
+    }
+    if ('letterSpacing' in g) g.letterSpacing = '0px';
+    g.textAlign = 'left';
 
     // Ports.
     g.font = '600 11px system-ui, sans-serif';
@@ -233,17 +347,27 @@ export class MapView {
       const hl = this.highlightPorts?.has(id);
       g.beginPath();
       g.arc(x, y, r + (hl ? 2 : 0), 0, Math.PI * 2);
-      g.fillStyle = hl ? '#ffd166' : '#e9b949';
+      g.fillStyle = hl ? C.portHl : C.port;
       g.fill();
-      g.lineWidth = 1.5;
-      g.strokeStyle = '#1b1406';
+      g.lineWidth = 1.6;
+      g.strokeStyle = '#fff';
       g.stroke();
       if (scale > 3.2 || P.size >= 5 || hl) {
+        const flag = flagImage(P.flag);
+        let tx = x + r + 4;
+        if (flag.complete && flag.naturalWidth) {
+          g.fillStyle = C.halo;
+          g.fillRect(tx - 1, y - 6, 17, 12);
+          g.drawImage(flag, tx, y - 5, 15, 10);
+          g.strokeStyle = 'rgba(28,42,51,0.35)'; g.lineWidth = 0.6;
+          g.strokeRect(tx, y - 5, 15, 10);
+          tx += 19;
+        }
         g.lineWidth = 3;
-        g.strokeStyle = 'rgba(5,15,25,0.85)';
-        g.strokeText(P.name, x + r + 4, y);
-        g.fillStyle = hl ? '#ffe7a3' : '#e8eef5';
-        g.fillText(P.name, x + r + 4, y);
+        g.strokeStyle = C.halo;
+        g.strokeText(P.name, tx, y);
+        g.fillStyle = hl ? C.portHl : C.ink;
+        g.fillText(P.name, tx, y);
       }
     }
     this.dirty = false;
@@ -263,7 +387,7 @@ export class MapView {
       const [x, y] = this.toScreen(s.lon, s.lat);
       const r = Math.max(10, s.radius * kmToPx);
       if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
-      const hue = s.force >= 11 ? '239,83,80' : s.force >= 9 ? '255,152,0' : '255,213,79';
+      const hue = s.force >= 11 ? '214,58,50' : s.force >= 9 ? '230,126,20' : '214,170,30';
       const rg = g.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, `rgba(${hue},0.42)`);
       rg.addColorStop(0.6, `rgba(${hue},0.18)`);
@@ -285,12 +409,12 @@ export class MapView {
     // Épaves.
     for (const w of state.wrecks || []) {
       const [x, y] = this.toScreen(w.lon, w.lat);
-      g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(70,52,38,0.75)'; g.lineWidth = 1.5;
       g.beginPath(); g.moveTo(x - 4, y - 4); g.lineTo(x + 4, y + 4); g.moveTo(x + 4, y - 4); g.lineTo(x - 4, y + 4); g.stroke();
     }
 
     // Route prévisualisée (onglet « Appareiller »).
-    if (this.preview) this.polyline(g, this.preview.points, 0, 'rgba(242,181,68,0.95)', [7, 5], 2);
+    if (this.preview) this.polyline(g, this.preview.points, 0, 'rgba(15,111,118,0.95)', [7, 5], 2.4);
 
     // Routes des navires du joueur actif.
     const active = ui.activeCompany;
@@ -301,7 +425,7 @@ export class MapView {
       if (!mine && !selected) continue;
       const route = ctx.shipRoute(ship);
       if (!route) continue;
-      this.polyline(g, route.points, ship.voyage.progress, selected ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.22)', selected ? [6, 4] : [3, 5], selected ? 2 : 1.2, route);
+      this.polyline(g, route.points, ship.voyage.progress, selected ? 'rgba(28,42,51,0.85)' : 'rgba(28,42,51,0.3)', selected ? [6, 4] : [3, 5], selected ? 2 : 1.2, route);
     }
 
     // Navires.
@@ -341,7 +465,7 @@ export class MapView {
         g.beginPath(); g.arc(x, y, ship.owner === active ? 4.2 : 3.2, 0, Math.PI * 2);
         g.fillStyle = company.color; g.fill();
         g.lineWidth = ship.id === ui.selectedShip ? 2.5 : 1.2;
-        g.strokeStyle = ship.id === ui.selectedShip ? '#fff' : ship.status === 'laidup' ? '#777' : '#0b1622';
+        g.strokeStyle = ship.id === ui.selectedShip ? C.portHl : ship.status === 'laidup' ? '#9a9a9a' : C.ink;
         g.stroke();
         this.shipScreenPos.push({ id: ship.id, x, y, own: ship.owner === active });
       });
@@ -384,15 +508,15 @@ export class MapView {
     g.translate(x, y);
     if (selected) {
       g.beginPath(); g.arc(0, 0, 13, 0, Math.PI * 2);
-      g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 2; g.stroke();
+      g.strokeStyle = C.portHl; g.lineWidth = 2.2; g.stroke();
     }
     g.rotate(heading);
     const s = own ? 1.15 : 0.9;
     g.scale(s, s);
-    g.fillStyle = laden ? color : 'rgba(11,22,34,0.85)';
+    g.fillStyle = laden ? color : 'rgba(251,248,241,0.95)';
     g.fill(SHIP_SHAPE);
     g.lineWidth = laden ? 1.3 : 2;
-    g.strokeStyle = laden ? '#0b1622' : color;
+    g.strokeStyle = laden ? C.ink : color;
     g.stroke(SHIP_SHAPE);
     g.restore();
   }
@@ -400,7 +524,7 @@ export class MapView {
   badge(g, x, y, text, color, size = 11) {
     g.font = `700 ${size}px system-ui, sans-serif`;
     const w = g.measureText(text).width + 8;
-    g.fillStyle = 'rgba(8,16,26,0.85)';
+    g.fillStyle = 'rgba(251,248,241,0.92)';
     g.strokeStyle = color; g.lineWidth = 1.5;
     roundRect(g, x - w / 2, y - size / 2 - 3, w, size + 6, 4);
     g.fill(); g.stroke();
@@ -412,9 +536,9 @@ export class MapView {
   label(g, x, y, text) {
     g.font = '600 11px system-ui, sans-serif';
     g.textBaseline = 'middle';
-    g.lineWidth = 3; g.strokeStyle = 'rgba(5,15,25,0.9)';
+    g.lineWidth = 3; g.strokeStyle = C.halo;
     g.strokeText(text, x, y);
-    g.fillStyle = '#fff'; g.fillText(text, x, y);
+    g.fillStyle = C.ink; g.fillText(text, x, y);
   }
 
   frame(frac) {

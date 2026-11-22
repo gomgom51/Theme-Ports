@@ -40,6 +40,23 @@ riche de la planète.
 * **Jusqu'à 4 compagnies**, jouées par des humains sur le même appareil ou par
   l'ordinateur (trois niveaux de difficulté).
 * Pas de manœuvre de port à faire soi-même : pilotes et remorqueurs sont automatiques.
+* **Des navires qu'on voit** : chaque modèle a son dessin (cargo, vraquier,
+  pétrolier, porte-conteneurs…), aux couleurs et à l'emblème de la compagnie.
+  On voit l'âge et l'état (rouille, peinture fanée, tôles rapiécées, fumée noire)
+  et l'enfoncement selon la charge. Fiche « radar » de 7 qualités, comme celle
+  d'un footballeur.
+* **Votre compagnie** : nom, emblème (12 au choix) et couleur. Le bureau
+  s'embellit avec la valeur nette, du cagibi du quai à la tour de verre.
+* **Des clients** : chaque contrat vient d'un chargeur plus ou moins fiable. À la
+  livraison, on encaisse… avec des imprévus : prime de ponctualité, surcharge
+  carburant, renégociation selon les cours, contestation (accepter ou aller en
+  arbitrage), paiement différé, voire faillite du client.
+* **La carte marine** : frontières et noms des pays, eaux nationales (moins de
+  200 milles des côtes) et eaux internationales, drapeaux des ports.
+* **Le son** : ambiance du port à l'accueil (mer, mouettes, caisses, conteneurs,
+  corne de brume), bruitages (départ, chargement, arrivée, pompe à carburant,
+  caisse enregistreuse), tous synthétisés par le jeu. Musiques facultatives à
+  générer avec Suno : voir [docs/musique-suno.md](docs/musique-suno.md).
 
 ## Installer
 
@@ -80,9 +97,9 @@ tests/               tests des routes et de la simulation
 
 * `npm test` : vérifie les distances maritimes et fait jouer 4 compagnies IA
   pendant 3 ans.
-* `npm install && npm run build:world` : régénère la carte et la grille de
-  navigation à partir de Natural Earth (après une modification des détroits),
-  puis la table des distances.
+* `npm install && npm run build:world` : régénère la carte, la grille de
+  navigation, les pays et les eaux nationales à partir de Natural Earth (après
+  une modification des détroits), puis la table des distances.
 * `npm run build:distances` : à relancer après l'ajout ou le déplacement d'un port.
 
 ## Feuille de route
@@ -99,4 +116,6 @@ tests/               tests des routes et de la simulation
 ## Crédits
 
 Carte : [Natural Earth](https://www.naturalearthdata.com/) (domaine public), via
-le paquet `world-atlas`.
+le paquet `world-atlas` ; noms des pays : paquet `i18n-iso-countries`.
+Police des titres : Libre Baskerville (licence SIL OFL, voir `web/fonts/`).
+Dessins, sons et textes : originaux, créés pour le jeu.

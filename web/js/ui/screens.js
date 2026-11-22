@@ -1,7 +1,9 @@
 // Écrans plein écran : accueil, nouvelle partie (choix du port d'attache), fin de partie.
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
-import { COMPANY_COLORS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
+import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
+import { LOGOS, LOGO_IDS, COLORS, logoBadge } from './logos.js';
+import { flagEl } from './flags.js';
 import { yearOf } from '../sim/util.js';
 import { fuelPrice } from '../sim/economy.js';
 import { h, money, num1, pct, lineChart } from './dom.js';
@@ -26,13 +28,13 @@ export function hideScreen() {
 // ---------- Accueil ----------
 function soundToggle(app) {
   const a = app.audio;
-  const on = () => a.settings.ambience || a.settings.sfx;
+  const on = () => a.settings.ambience || a.settings.sfx || a.settings.music;
   const btn = h('button.sound-toggle', {
     title: 'Son', 'aria-label': 'Activer ou couper le son',
     onclick: (e) => {
       e.stopPropagation();
       const v = !on();
-      a.setAmbience(v); a.setSfx(v);
+      a.setAmbience(v); a.setSfx(v); a.setMusic(v);
       btn.textContent = v ? '🔊 Son activé' : '🔇 Son coupé';
     },
   }, on() ? '🔊 Son activé' : '🔇 Son coupé');
@@ -43,7 +45,7 @@ export function titleScreen(app) {
   const saves = listSaves();
   screen('title', h('div.title-card', [
     soundToggle(app),
-    h('div.logo', [h('span.logo-anchor', '⚓'), h('h1', 'Port d\'Attache'), h('p.tagline', 'Armateur au long cours')]),
+    h('div.logo', [h('span.logo-anchor', { html: `<svg viewBox="0 0 64 64" aria-hidden="true">${LOGOS.ancre.svg}</svg>` }), h('h1', 'Port d\'Attache'), h('p.tagline', 'Armateur au long cours')]),
     h('div.title-buttons', [
       hasSave('auto') ? h('button.btn.primary.big', { onclick: () => app.loadSlot('auto') }, 'Continuer') : null,
       h('button.btn.big', { class: hasSave('auto') ? '' : 'primary', onclick: () => setupScreen(app) }, 'Nouvelle partie'),
@@ -70,7 +72,7 @@ export function loadScreen(app) {
 export function setupScreen(app) {
   const cfg = app.setupCfg || (app.setupCfg = {
     duration: 5, difficulty: 'normal', autoPause: true,
-    slots: DEFAULT_NAMES.map((name, i) => ({ name, kind: i === 0 ? 'human' : i < 3 ? 'ai' : 'none', color: COMPANY_COLORS[i] })),
+    slots: DEFAULT_NAMES.map((name, i) => ({ name, kind: i === 0 ? 'human' : i < 3 ? 'ai' : 'none', color: COMPANY_COLORS[i], logo: COMPANY_LOGOS[i], open: i === 0 })),
   });
   const render = () => {
     const humans = cfg.slots.filter((s) => s.kind === 'human').length;
@@ -85,15 +87,29 @@ export function setupScreen(app) {
       ]),
       h('div.field', [
         h('div.field-label', 'Compagnies (joueurs sur cet appareil ou ordinateur)'),
-        h('div.slots', cfg.slots.map((s, i) => h('div.slot', { class: s.kind === 'none' ? 'off' : '' }, [
-          h('span.swatch', { style: { background: s.color } }),
-          h('input.input', { value: s.name, maxlength: 28, disabled: s.kind === 'none', 'aria-label': `Nom de la compagnie ${i + 1}`, oninput: (e) => { s.name = e.target.value; } }),
-          h('div.seg', [['human', 'Joueur'], ['ai', 'Ordinateur'], ['none', 'Aucune']].map(([k, label]) => h('button', {
-            class: s.kind === k ? 'active' : '',
-            disabled: (k === 'none' && i === 0),
-            onclick: () => { s.kind = k; render(); },
-          }, label))),
-        ]))),
+        h('div.slots', cfg.slots.map((s, i) => {
+          const taken = new Set(cfg.slots.filter((o, j) => j !== i && o.kind !== 'none').map((o) => o.color));
+          return h('div.slot', { class: s.kind === 'none' ? 'off' : '' }, [
+            h('button.logo-option.active', { title: 'Choisir l\'emblème et la couleur', 'aria-label': 'Emblème et couleur', disabled: s.kind === 'none', onclick: () => { s.open = !s.open; render(); }, html: logoBadge(s.logo, s.color, 38) }),
+            h('input.input', { value: s.name, maxlength: 28, disabled: s.kind === 'none', 'aria-label': `Nom de la compagnie ${i + 1}`, oninput: (e) => { s.name = e.target.value; } }),
+            h('div.seg', [['human', 'Joueur'], ['ai', 'Ordinateur'], ['none', 'Aucune']].map(([k, label]) => h('button', {
+              class: s.kind === k ? 'active' : '',
+              disabled: (k === 'none' && i === 0),
+              onclick: () => { s.kind = k; render(); },
+            }, label))),
+            h('div.slot-identity', { hidden: !s.open || s.kind === 'none' }, [
+              h('div.logo-grid', LOGO_IDS.map((id) => h('button.logo-option', {
+                class: id === s.logo ? 'active' : '', title: LOGOS[id].name, 'aria-label': LOGOS[id].name,
+                onclick: () => { s.logo = id; render(); }, html: logoBadge(id, s.color, 28),
+              }))),
+              h('div.color-grid', COLORS.map((c) => h('button.color-option', {
+                class: c.id === s.color ? 'active' : '', title: c.name, 'aria-label': c.name, disabled: taken.has(c.id),
+                onclick: () => { s.color = c.id; render(); },
+              }, h('span', { style: { background: c.id } })))),
+            ]),
+          ]);
+        })),
+        h('div.small.muted', 'Touchez l\'emblème d\'une compagnie pour changer son logo et sa couleur.'),
         humans === 0 ? h('div.small.warn-text', 'Il faut au moins une compagnie « Joueur ».') : null,
       ]),
       h('label.check', [h('input', { type: 'checkbox', checked: cfg.autoPause, onchange: (e) => { cfg.autoPause = e.target.checked; } }), ' Mettre le jeu en pause quand un navire attend des ordres']),
@@ -119,15 +135,15 @@ function choosePorts(app, cfg, index) {
     const startRep = Math.round(F.rating * 0.5 + 25);
     screen('setup ports', h('div.port-choice', [
       h('div.port-list', [
-        h('h2', [h('span.swatch', { style: { background: slot.color } }), ` ${slot.name || 'Compagnie'} : port d'attache`]),
+        h('h2', [h('span.badge-wrap', { html: logoBadge(slot.logo, slot.color, 30) }), ` ${slot.name || 'Compagnie'} : port d'attache`]),
         h('div.list.compact', PORT_IDS.map((p) => h('button.row.selectable', {
           class: (p === sel ? 'selected ' : '') + (taken.includes(p) ? 'disabled' : ''),
           disabled: taken.includes(p),
           onclick: () => { sel = p; render(); },
-        }, [h('span.grow', PORTS[p].name), h('span.muted.small', FLAGS[PORTS[p].flag].name)]))),
+        }, [flagEl(PORTS[p].flag, FLAGS[PORTS[p].flag].name), h('span.grow', PORTS[p].name)]))),
       ]),
       h('div.port-detail', [
-        h('h2', P.name),
+        h('h2', [flagEl(P.flag, F.name), P.name]),
         h('p.blurb', P.blurb),
         h('h3', `Pavillon : ${F.name}`),
         h('div.ship-stats', [
@@ -175,7 +191,7 @@ function startFromSetup(app, cfg) {
       port = choices[Math.floor(Math.random() * choices.length)] || PORT_IDS.find((p) => !used.has(p));
       used.add(port);
     }
-    companies.push({ name: s.name.trim() || 'Compagnie', human: s.kind === 'human', homePort: port, color: s.color });
+    companies.push({ name: s.name.trim() || 'Compagnie', human: s.kind === 'human', homePort: port, color: s.color, logo: s.logo });
   }
   app.map.highlightPorts = null;
   app.newGame({ duration: cfg.duration, difficulty: cfg.difficulty, autoPause: cfg.autoPause, companies });
@@ -189,10 +205,10 @@ export function endScreen(app) {
   screen('setup', h('div.setup-card', [
     h('h2', 'Fin de la partie'),
     h('p', state.over.reason),
-    h('p.big-result', [h('span.swatch', { style: { background: winner.company.color } }), ` ${winner.company.name} l'emporte avec ${money(winner.worth)} !`]),
+    h('p.big-result', [h('span.badge-wrap', { html: logoBadge(winner.company.logo, winner.company.color, 40) }), ` ${winner.company.name} l'emporte avec ${money(winner.worth)} !`]),
     h('div.list.compact', r.map((x, i) => h('div.row', [
       h('span.rank', `${i + 1}`),
-      h('span.dot', { style: { background: x.company.color } }),
+      h('span.badge-wrap', { html: logoBadge(x.company.logo, x.company.color, 24) }),
       h('span.grow', [h('b', x.company.name), x.company.human ? '' : h('span.muted.small', ' (ordinateur)')]),
       x.company.bankrupt ? h('span.tag.bad', 'faillite') : null,
       h('b', money(x.worth)),

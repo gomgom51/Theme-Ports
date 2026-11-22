@@ -52,9 +52,16 @@ export function cargoValue(state, companyId) {
 export function ordersValue(state, companyId) {
   return state.orders.filter((o) => o.owner === companyId).reduce((s, o) => s + o.paid, 0);
 }
+// Paiements à encaisser et créances à venir.
+export function pendingValue(state, companyId) {
+  let v = 0;
+  for (const p of state.payments || []) if (p.company === companyId) v += p.pay * (1 - p.penalty);
+  for (const r of state.receivables || []) if (r.company === companyId) v += r.amount;
+  return v;
+}
 export function netWorth(state, companyId) {
   const c = state.companies[companyId];
-  return c.cash + fleetValue(state, companyId) + cargoValue(state, companyId) + ordersValue(state, companyId) - c.debt;
+  return c.cash + fleetValue(state, companyId) + cargoValue(state, companyId) + ordersValue(state, companyId) + pendingValue(state, companyId) - c.debt;
 }
 
 export function creditLimit(state, company) {

@@ -24,6 +24,8 @@ export function h(tag, attrs = {}, children = []) {
 }
 
 export const $ = (sel, root = document) => root.querySelector(sel);
+// Retire les notifications portant une étiquette (ex. un paiement déjà encaissé).
+export function dropToasts(tag) { document.querySelectorAll(`#toasts [data-tag="${tag}"]`).forEach((e) => e.remove()); }
 
 const nf0 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
@@ -59,26 +61,27 @@ export function bar(value, { good = 0.6, warn = 0.3, invert = false, label } = {
 
 // ---------- Notifications ----------
 let toastRoot;
-export function toast(text, { action, onAction, kind = 'info', timeout = 6000 } = {}) {
+export function toast(text, { action, onAction, kind = 'info', timeout = 6000, tag = null } = {}) {
   toastRoot = toastRoot || document.getElementById('toasts');
-  const el = h('div.toast', { class: kind }, [
+  const el = h('div.toast', { class: kind, 'data-tag': tag }, [
     h('div.toast-text', text),
     action ? h('button.btn.small', { onclick: (e) => { e.stopPropagation(); el.remove(); onAction?.(); } }, action) : null,
     h('button.toast-close', { 'aria-label': 'Fermer', onclick: (e) => { e.stopPropagation(); el.remove(); } }, '×'),
   ]);
   toastRoot.prepend(el);
-  while (toastRoot.children.length > 4) toastRoot.lastChild.remove();
+  const max = window.innerHeight < 500 ? 3 : 4;
+  while (toastRoot.children.length > max) toastRoot.lastChild.remove();
   if (timeout) setTimeout(() => el.remove(), timeout);
   return el;
 }
 
 // Boîte de dialogue simple (confirmation ou information).
-export function dialog({ title, body, buttons, vertical = false }) {
+export function dialog({ title, body, buttons, vertical = false, wide = false }) {
   return new Promise((resolve) => {
     const root = document.getElementById('dialogs');
     const close = (v) => { wrap.remove(); resolve(v); };
     const wrap = h('div.dialog-wrap', { onclick: (e) => { if (e.target === wrap) close(null); } }, [
-      h('div.dialog', [
+      h('div.dialog', { class: wide ? 'wide' : '' }, [
         title ? h('h2', title) : null,
         typeof body === 'string' ? h('p', body) : body,
         h('div.dialog-buttons', { class: vertical ? 'vertical' : '' }, buttons.map((b) => h('button.btn', { class: b.kind || '', onclick: () => close(b.value) }, b.label))),

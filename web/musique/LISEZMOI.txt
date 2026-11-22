@@ -1,0 +1,12 @@
+Musiques du jeu (facultatives)
+==============================
+
+Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms exacts :
+
+  accueil.mp3   chanson de l'écran d'accueil (jouée en boucle)
+  jeu.mp3       musique instrumentale pendant la partie (en boucle, volume doux)
+  victoire.mp3  courte musique de fin de partie
+
+Sans fichier, le jeu reste simplement sans musique (l'ambiance du port et les
+bruitages continuent). Les idées de styles et les paroles sont dans
+docs/musique-suno.md. La musique se coupe dans le menu (« Musique : oui/non »).

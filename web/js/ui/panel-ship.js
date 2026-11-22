@@ -9,6 +9,12 @@ import { weatherAt } from '../sim/events.js';
 import { pointAlong } from '../sim/routing.js';
 import { CANAL_NAMES } from '../sim/context.js';
 import { h, money, tonnes, num, num1, pct, date, duration, days, bar, confirmBox, promptBox } from './dom.js';
+import { artForShip, SHIP_ART } from './shipart.js';
+import { shipStats, radarEl } from './radar.js';
+import { flagEl } from './flags.js';
+import { watersLabel } from './waters.js';
+import { clientLine } from './payment.js';
+import { fuelGaugeEl, animateNeedle } from './gauge.js';
 
 const STATUS_ICON = { sea: '🌊', port: '⚓', laidup: '💤' };
 
@@ -61,10 +67,16 @@ export function shipPanel(app, id, tab) {
   const mine = ship.owner === app.ui.activeCompany;
   const age = eco.ageYears(state, ship);
 
+  const art = h('div.ship-hero', [
+    h('div.ship-hero-art', { html: artForShip(state, ship), title: `${T.name} — ${SHIP_ART[ship.type].L} m` }),
+    radarEl(shipStats(ship.type, { condition: ship.condition, age }), { color: company.color, size: 190 }),
+  ]);
   const header = h('div.ship-head', [
+    art,
+    h('div.ship-caption', [h('b', T.name), ` · ${SHIP_ART[ship.type].L} m · ${tonnes(T.dwt)} · ${num1(T.speed)} nœuds`]),
     h('div.ship-stats', [
       stat('État', pct(ship.condition), bar(ship.condition / 100, { good: 0.7, warn: 0.45 })),
-      stat('Carburant', `${num(ship.fuel)} / ${num(T.tank)} t`, bar(ship.fuel / T.tank, { good: 0.4, warn: 0.15 })),
+      h('div.stat.stat-gauge', [h('div.stat-label', 'Carburant'), fuelGaugeEl(ship.fuel / T.tank, { size: 92, compact: true }), h('div.stat-value', `${num(ship.fuel)} / ${num(T.tank)} t`)]),
       stat('Cargaison', ship.cargo ? `${GOODS[ship.cargo.good].icon} ${tonnes(ship.cargo.qty)}` : 'Cales vides'),
       stat('Capacité', tonnes(T.dwt)),
       stat('Âge', `${num1(age)} ans`),
@@ -106,6 +118,7 @@ export function shipPanel(app, id, tab) {
     title: ship.name,
     subtitle: `${T.name} — ${company.name}`,
     color: company.color,
+    badge: [company.logo, company.color],
     headerActions: [
       h('button.icon-btn', { title: 'Renommer', 'aria-label': 'Renommer', onclick: async () => {
         const n = await promptBox('Renommer le navire', ship.name);
@@ -144,6 +157,7 @@ function contractsTab(app, ship) {
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
+        c.client ? h('div.card-sub', ['Chargeur : ', clientLine(c.client)]) : null,
         why ? h('div.card-why', why) : h('div.card-sub', [
           `Voyage ≈ ${days(est.totalDays)} · coûts ≈ ${money(est.cost)} · `,
           h('b', { class: profit >= 0 ? 'pos' : 'neg' }, `bénéfice ${money(profit, true)}`),
@@ -186,7 +200,7 @@ function tradeTab(app, ship) {
       ]),
       h('div.card-side', [q.possible ? h('button.btn.primary.small', { onclick: async () => {
         if (q.profit < 0 && !(await confirmBox('Vendre à perte ?', `Vous perdrez ${money(-q.profit)} sur cette cargaison.`, 'Vendre'))) return;
-        app.act(() => act.sellCargo(state, ctx, ship.id), { sound: 'crates' });
+        app.act(() => act.sellCargo(state, ctx, ship.id), { sound: (r) => (r.profit > 0 ? 'cash' : 'crates') });
       } }, 'Vendre ici') : null]),
     ]));
     // Meilleurs débouchés.
@@ -266,13 +280,44 @@ function portCallTab(app, ship) {
 
   box.append(h('h3', 'Carburant'));
   const diff = (price / world - 1) * 100;
-  box.append(h('p', [`Prix ici : `, h('b', `${num(price)} $/t`), ` (moyenne mondiale ${num(world)} $/t, `, h('span', { class: diff > 0 ? 'neg' : 'pos' }, `${diff > 0 ? '+' : ''}${num(diff)} %`), ')']));
-  box.append(bar(ship.fuel / T.tank, { good: 0.4, warn: 0.15 }));
+  // L'écran de la pompe : jauge, prix, quantité et montant qui défilent pendant le plein.
+  const gauge = fuelGaugeEl(ship.fuel / T.tank, { size: 150 });
+  const qtyOut = h('span.lcd-value', '0 t'), costOut = h('span.lcd-value', '0 $');
+  const pump = h('div.pump', [
+    gauge,
+    h('div.pump-screen', [
+      h('div.lcd-row', [h('span.lcd-label', 'Prix / t'), h('span.lcd-value', `${num(price)} $`)]),
+      h('div.lcd-row', [h('span.lcd-label', 'Quantité'), qtyOut]),
+      h('div.lcd-row', [h('span.lcd-label', 'Montant'), costOut]),
+      h('div.pump-note', [`${num(ship.fuel)} / ${num(T.tank)} t à bord · moyenne mondiale ${num(world)} $/t `, h('span', { class: diff > 0 ? 'neg' : 'pos' }, `(${diff > 0 ? '+' : ''}${num(diff)} %)`)]),
+    ]),
+  ]);
+  box.append(pump);
   const fills = [[0.25, '+25 %'], [0.5, '+50 %'], [1, 'Plein']].map(([f, label]) => {
     const want = f === 1 ? T.tank - ship.fuel : Math.min(T.tank - ship.fuel, T.tank * f);
     return { label, want };
   }).filter((x) => x.want >= 1);
-  box.append(fills.length ? h('div.chips', fills.map((x) => h('button.chip', { onclick: () => app.act(() => act.buyFuel(state, ship.id, x.want)) }, `${x.label} · ${num(x.want)} t · ${money(x.want * price)}`))) : h('p.muted', 'Soutes pleines.'));
+  const fill = (want, btns) => {
+    const before = ship.fuel;
+    const r = app.act(() => act.buyFuel(state, ship.id, want), { refresh: false });
+    if (!r?.ok) return;
+    btns.forEach((b) => { b.disabled = true; });
+    app.audio.play('fuel');
+    animateNeedle(gauge, (before + r.qty) / T.tank, 1700);
+    const start = performance.now();
+    const tick = () => {
+      const k = Math.min(1, (performance.now() - start) / 1700);
+      qtyOut.textContent = `${num(r.qty * k)} t`;
+      costOut.textContent = money(r.cost * k);
+      if (k < 1) requestAnimationFrame(tick); else setTimeout(() => app.refresh(), 700);
+    };
+    setTimeout(() => requestAnimationFrame(tick), 350);
+  };
+  if (fills.length) {
+    const btns = fills.map((x) => h('button.chip', {}, `${x.label} · ${num(x.want)} t · ${money(x.want * price)}`));
+    btns.forEach((b, i) => b.addEventListener('click', () => fill(fills[i].want, btns)));
+    box.append(h('div.chips', btns));
+  } else box.append(h('p.muted', 'Soutes pleines.'));
 
   box.append(h('h3', 'Réparations'));
   if (!P.repair) box.append(h('p.muted', `Pas de chantier naval à ${P.name}.`));
@@ -408,6 +453,7 @@ function departTab(app, ship) {
     disabled: !!r.why,
     onclick: () => { app.form.dest[ship.id] = r.p; app.refresh(); },
   }, [
+    flagEl(PORTS[r.p].flag),
     h('span.grow', portName(r.p)),
     r.why ? h('span.muted.small', r.why) : h('span.muted.small', `${num(r.nm)} milles · ${days(r.seaDays)}`),
     !r.why && r.contracts ? h('span.tag', `${r.contracts} contrat${r.contracts > 1 ? 's' : ''}`) : null,
@@ -436,6 +482,7 @@ function voyageTab(app, ship) {
   box.append(h('div.ship-stats', [
     stat('Arrivée prévue', date(eta, true)),
     stat('Météo', weather),
+    stat('Position', pos ? watersLabel(pos.lon, pos.lat) : '—'),
     stat('Vitesse', `${num1(v.speed)} nœuds`),
     stat('Fuel pour finir', `${num(act.fuelToFinish(state, ctx, ship, v.speed))} t`),
   ]));

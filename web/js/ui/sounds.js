@@ -268,6 +268,96 @@ export function chain(ctx, out, t, { gain = 0.18, pan = 0, dur = 0.8 } = {}) {
   }
 }
 
+// ---------- Pompe à carburant ----------
+// Deux bips de mise en route, le moteur de la pompe, le fuel qui coule (glouglous),
+// puis le « clac » du pistolet qui se coupe.
+export function fuelPump(ctx, out, t, { dur = 1.6, gain = 0.3 } = {}) {
+  const dest = out;
+  [0, 0.16].forEach((dt) => {
+    const b = ctx.createOscillator();
+    b.type = 'square'; b.frequency.value = 1320;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
+    b.connect(lp).connect(envelope(ctx, t + dt, { attack: 0.004, hold: 0.06, decay: 0.03, peak: gain * 0.18 })).connect(dest);
+    b.start(t + dt); b.stop(t + dt + 0.12);
+  });
+  const t0 = t + 0.35, t1 = t0 + dur;
+  // Moteur : bourdonnement grave avec un léger tremblement.
+  const motor = ctx.createGain();
+  motor.gain.setValueAtTime(0.0001, t0);
+  motor.gain.exponentialRampToValueAtTime(gain * 0.5, t0 + 0.2);
+  motor.gain.setValueAtTime(gain * 0.5, t1);
+  motor.gain.exponentialRampToValueAtTime(0.0001, t1 + 0.12);
+  const mlp = ctx.createBiquadFilter(); mlp.type = 'lowpass'; mlp.frequency.value = 420; mlp.Q.value = 1.5;
+  [104, 105.3, 52].forEach((fq) => {
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = fq;
+    const og = ctx.createGain(); og.gain.value = 0.35; o.connect(og).connect(mlp);
+    o.start(t0); o.stop(t1 + 0.2);
+  });
+  const trem = ctx.createOscillator(); trem.frequency.value = 9;
+  const tg = ctx.createGain(); tg.gain.value = gain * 0.12;
+  trem.connect(tg).connect(motor.gain);
+  trem.start(t0); trem.stop(t1 + 0.2);
+  mlp.connect(motor).connect(dest);
+  // Le fuel qui coule.
+  const flow = noiseSource(ctx, 'pink', t0, dur + 0.2);
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 650; bp.Q.value = 2.2;
+  const glug = ctx.createOscillator(); glug.frequency.value = 4.5;
+  const gg = ctx.createGain(); gg.gain.value = 260;
+  glug.connect(gg).connect(bp.frequency);
+  glug.start(t0); glug.stop(t1 + 0.2);
+  const fg = ctx.createGain();
+  fg.gain.setValueAtTime(0.0001, t0 + 0.05);
+  fg.gain.exponentialRampToValueAtTime(gain * 0.9, t0 + 0.35);
+  fg.gain.setValueAtTime(gain * 0.9, t1 - 0.1);
+  fg.gain.exponentialRampToValueAtTime(0.0001, t1 + 0.05);
+  flow.connect(bp).connect(fg).connect(dest);
+  // Clac du pistolet.
+  const n = noiseSource(ctx, 'white', t1, 0.05);
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2200;
+  n.connect(hp).connect(envelope(ctx, t1, { attack: 0.001, decay: 0.025, peak: gain * 0.9 })).connect(dest);
+  const k = ctx.createOscillator(); k.type = 'sine';
+  k.frequency.setValueAtTime(420, t1); k.frequency.exponentialRampToValueAtTime(160, t1 + 0.07);
+  k.connect(envelope(ctx, t1, { attack: 0.002, decay: 0.09, peak: gain * 0.7 })).connect(dest);
+  k.start(t1); k.stop(t1 + 0.15);
+  return t1 - t + 0.15;
+}
+
+// ---------- Caisse enregistreuse ----------
+// « Ka-tching » : tiroir qui s'ouvre, deux coups de clochette, pièces qui tintent.
+export function cashRegister(ctx, out, t, { gain = 0.35, pan = 0 } = {}) {
+  const dest = panner(ctx, pan, out);
+  // Le tiroir : frottement puis choc.
+  const n = noiseSource(ctx, 'white', t, 0.12);
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 1.4;
+  n.connect(bp).connect(envelope(ctx, t, { attack: 0.01, hold: 0.03, decay: 0.06, peak: gain * 0.35 })).connect(dest);
+  const thud = ctx.createOscillator();
+  thud.type = 'sine';
+  thud.frequency.setValueAtTime(220, t + 0.08);
+  thud.frequency.exponentialRampToValueAtTime(90, t + 0.16);
+  thud.connect(envelope(ctx, t + 0.08, { attack: 0.002, decay: 0.12, peak: gain * 0.5 })).connect(dest);
+  thud.start(t + 0.08); thud.stop(t + 0.3);
+  // La clochette, deux fois (« ka-tching »).
+  [[t + 0.13, 1650, 1], [t + 0.2, 2210, 0.85]].forEach(([tt, f0, a]) => {
+    [[1, 1, 1.3], [2.0, 0.5, 0.9], [2.76, 0.35, 0.6], [5.4, 0.15, 0.3]].forEach(([r, amp, d]) => {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f0 * r;
+      o.connect(envelope(ctx, tt, { attack: 0.002, decay: d, peak: gain * 0.45 * amp * a })).connect(dest);
+      o.start(tt); o.stop(tt + d + 0.05);
+    });
+  });
+  // Les pièces.
+  for (let k = 0; k < 9; k++) {
+    const tt = t + 0.22 + Math.random() * 0.35;
+    const c = ctx.createOscillator();
+    c.type = 'triangle';
+    c.frequency.value = 3800 + Math.random() * 3200;
+    c.connect(envelope(ctx, tt, { attack: 0.001, decay: 0.05 + Math.random() * 0.08, peak: gain * 0.12 })).connect(dest);
+    c.start(tt); c.stop(tt + 0.2);
+  }
+}
+
 // ---------- Ambiances ----------
 // Programme les événements d'une ambiance entre `from` et `to` (secondes du contexte).
 // `state` garde l'heure du prochain événement de chaque famille d'un appel à l'autre.

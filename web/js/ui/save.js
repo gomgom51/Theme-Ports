@@ -51,6 +51,10 @@ function check(state) {
   if (!state || !state.companies || !state.market) throw new Error('Fichier de sauvegarde invalide.');
   if (state.version > SAVE_VERSION) throw new Error('Sauvegarde créée par une version plus récente du jeu.');
   state.wrecks = state.wrecks || [];
+  state.payments = state.payments || [];
+  state.receivables = state.receivables || [];
+  const logos = ['ancre', 'phare', 'barre', 'rose'];
+  state.companies.forEach((c, i) => { c.logo = c.logo || logos[i % logos.length]; });
   state.marketHistory = state.marketHistory || [];
   return state;
 }

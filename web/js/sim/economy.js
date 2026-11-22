@@ -3,6 +3,7 @@
 import { GOODS, GOOD_IDS } from '../data/goods.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_DAY_COST } from '../data/ships.js';
+import { CLIENTS } from '../data/clients.js';
 import { clamp, HOURS_PER_DAY } from './util.js';
 
 export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffinés est à 1
@@ -225,11 +226,16 @@ export function makeContract(state, ctx, rng, from, forType = null) {
   const scale = Math.pow(T.dwt / 12500, 0.08);
   const margin = state.market.freight[hold] * rng.range(0.88, 1.18) * scale;
   const urgent = rng.chance(0.2);
-  const pay = Math.round((est.total * BALLAST * margin * (urgent ? 1.18 : 1)) / 1000) * 1000;
+  // Le chargeur : les clients peu fiables paient un peu mieux pour attirer les armateurs.
+  const clients = Object.entries(CLIENTS).filter(([, c]) => c.goods.includes(good));
+  const client = clients.length ? rng.pick(clients)[0] : null;
+  const riskPremium = client ? 1 + (70 - CLIENTS[client].reliability) / 300 : 1;
+  const pay = Math.round((est.total * BALLAST * margin * riskPremium * (urgent ? 1.18 : 1)) / 1000) * 1000;
   const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
   const minRep = clamp(Math.round((margin - 1.25) * 90 + (pay > 1.5e6 ? 15 : 0) + (urgent ? 5 : 0)), 0, 75);
   return {
-    id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep,
+    id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep, client,
+    fuelAtStart: Math.round(worldFuelPrice(state)), priceAtStart: state.market.world[good],
     nm: Math.round(route.nm),
     deadline: Math.round(state.t + deadlineDays * HOURS_PER_DAY),
     expires: Math.round(state.t + rng.range(4, 12) * HOURS_PER_DAY),

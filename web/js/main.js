@@ -11,6 +11,13 @@ import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
 import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { AudioManager } from './ui/audio.js';
+import { logoBadge } from './ui/logos.js';
+import { flagSVG } from './ui/flags.js';
+import * as eco from './sim/economy.js';
+import * as act from './sim/actions.js';
+import { SHIP_TYPES } from './data/ships.js';
+import { etaOf } from './ui/panel-ship.js';
+import { openPayment } from './ui/payment.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt']);
@@ -79,7 +86,7 @@ app.act = (fn, opts = {}) => {
   const r = fn();
   if (r && r.ok === false) toast(r.msg, { kind: 'bad' });
   if (r?.ok && opts.sound) app.audio.play(typeof opts.sound === 'function' ? opts.sound(r) : opts.sound);
-  if (opts.close && r?.ok) app.close(); else app.refresh();
+  if (opts.close && r?.ok) app.close(); else if (opts.refresh !== false) app.refresh();
   return r;
 };
 app.focusShip = (id) => {
@@ -110,6 +117,7 @@ function renderPanel() {
 
   panelEl.replaceChildren(...[
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
+      def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 36) }) : null),
       h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', def.subtitle) : null]),
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
     ]),
@@ -129,14 +137,17 @@ function renderPanel() {
 function updateHud() {
   if (app.mode !== 'game') return;
   const s = app.state, c = app.company();
-  $('#hud-company-dot').style.background = c.color;
+  const logoKey = c.logo + c.color;
+  const logoEl = $('#hud-company-logo');
+  if (logoEl.dataset.key !== logoKey) { logoEl.innerHTML = logoBadge(c.logo, c.color, 34); logoEl.dataset.key = logoKey; }
   $('#hud-company-name').textContent = c.name;
+  updateContext();
   const cash = $('#hud-cash');
   cash.textContent = money(c.cash);
   cash.classList.toggle('neg', c.cash < 0);
   $('#hud-date').textContent = formatDate(s.t);
   document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', +b.dataset.speed === app.speed));
-  const idle = shipsOf(s, c.id).filter(isIdle).length;
+  const idle = shipsOf(s, c.id).filter(isIdle).length + s.payments.filter((p) => p.company === c.id).length;
   const badge = $('#badge-fleet');
   badge.textContent = idle || '';
   badge.hidden = !idle;
@@ -144,6 +155,50 @@ function updateHud() {
   $('#hud-company').classList.toggle('switchable', humans.length > 1);
   const news = s.news[0];
   $('#ticker').textContent = news ? `${formatDate(news.t, true)} · ${news.text}` : '';
+}
+
+// Informations du navire sélectionné dans la barre du haut : port, plein, réparations.
+function updateContext() {
+  const el = $('#hud-context');
+  const s = app.state;
+  const ship = app.ui.selectedShip != null ? shipById(s, app.ui.selectedShip) : null;
+  if (!ship) { if (el.dataset.key) { el.replaceChildren(); el.dataset.key = ''; } return; }
+  const T = SHIP_TYPES[ship.type];
+  const mine = ship.owner === app.ui.activeCompany;
+  const company = s.companies[ship.owner];
+  const key = [ship.id, ship.status, ship.port, ship.busyWhat, Math.round(ship.fuel), Math.round(ship.condition), Math.floor(s.t / 6), company.cash > 0, mine].join('|');
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  const kids = [];
+  if (ship.status === 'sea') {
+    const v = ship.voyage, P = PORTS[v.to];
+    kids.push(h('div.ctx-ship', [h('b', ship.name), h('span', { html: `→ ${P.name} <span class="flag" style="width:15px;height:10px">${flagSVG(P.flag)}</span> · arrivée le ${formatDate(etaOf(s, ctx, ship), true)}` })]));
+    const need = act.fuelToFinish(s, ctx, ship, v.speed);
+    kids.push(h('div.ctx-btn', { title: 'Carburant à bord / nécessaire pour finir le voyage' }, [h('span', 'Fuel à bord / à prévoir'), h('b', { class: need > ship.fuel ? 'neg' : '' }, `⛽ ${Math.round(ship.fuel)} t / ${Math.round(need)} t`)]));
+  } else {
+    const P = PORTS[ship.port];
+    kids.push(h('div.ctx-ship', [h('b', ship.name), h('span', { html: `⚓ ${P.name} <span class="flag" style="width:15px;height:10px">${flagSVG(P.flag)}</span>${mine ? '' : ' · ' + company.name}` })]));
+    if (mine) {
+      const want = T.tank - ship.fuel;
+      const price = eco.fuelPrice(s, ship.port);
+      kids.push(h('button.ctx-btn', {
+        disabled: want < 1, title: `Faire le plein (${Math.round(price)} $/t)`,
+        onclick: () => app.act(() => act.buyFuel(s, ship.id, want), { sound: 'fuel' }),
+      }, [h('span', want < 1 ? 'Soutes pleines' : `Plein ${Math.round(want)} t`), h('b', `⛽ ${want < 1 ? `${Math.round(price)} $/t` : money(want * price)}`)]));
+      const rc = eco.repairCost(s, ship, ship.port, 100);
+      const can = rc && rc.points > 0.5 && !ship.busyWhat && ship.status === 'port';
+      kids.push(h('button.ctx-btn', {
+        disabled: !can,
+        title: rc ? `Réparer jusqu'à ${rc.to} %` : 'Pas de chantier dans ce port',
+        onclick: async () => {
+          if (await confirmBox(`Réparer le ${ship.name} ?`, `Remise en état de ${Math.round(ship.condition)} % à ${rc.to} % : ${money(rc.cost)}, immobilisé ${Math.round(rc.hours / 24 * 10) / 10} jours.`, 'Réparer')) {
+            app.act(() => act.repair(s, ship.id, rc.to));
+          }
+        },
+      }, [h('span', rc ? (rc.points > 0.5 ? `Réparer → ${rc.to} %` : 'En bon état') : 'Pas de chantier'), h('b', `🔧 ${rc && rc.points > 0.5 ? `${money(rc.cost)} · ${Math.max(1, Math.round(rc.hours / 24))} j` : rc ? `${Math.round(ship.condition)} %` : '—'}`)]));
+    }
+  }
+  el.replaceChildren(...kids);
 }
 
 app.setSpeed = (v) => {
@@ -171,11 +226,20 @@ document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('cli
   if (app.ui.panel?.type === type) app.close(); else app.open(type);
 }));
 
-function switchCompany(id) {
+function turnBanner(company) {
+  const el = h('div.turn-banner', [h('div.turn-card', [
+    h('span.badge-wrap', { html: logoBadge(company.logo, company.color, 64) }),
+    h('div', [h('h2', company.name), h('p', 'À vous de jouer')]),
+  ])]);
+  document.body.append(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+function switchCompany(id, { banner = true } = {}) {
   app.ui.activeCompany = id;
   app.ui.selectedShip = null;
+  if (banner) turnBanner(app.company());
   if (app.ui.panel && app.ui.panel.type !== 'port' && app.ui.panel.type !== 'markets' && app.ui.panel.type !== 'news' && app.ui.panel.type !== 'help') app.close();
-  toast(`Aux commandes : ${app.company().name}`, { timeout: 2500 });
   const home = PORTS[app.company().homePort];
   app.map.centerOn(home.lon, home.lat, app.map.view.scale);
   app.refresh();
@@ -183,11 +247,26 @@ function switchCompany(id) {
 
 // ---------- Notifications ----------
 function handleNotes(notes) {
-  let paused = false;
+  let paused = false, switched = false;
+  // Un navire qui vient de livrer : le message de paiement suffit.
+  const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
   for (const n of notes) {
-    if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; return true; }
+    if (n.kind === 'idle' && delivered.has(n.shipId)) {
+      if (app.state.settings.autoPause) paused = true;
+      continue;
+    }
+    if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
     if (n.kind === 'event') { toast(`📰 ${n.text}`, { timeout: 9000 }); continue; }
     if (n.kind === 'depart') { app.audio.play('depart'); continue; }
+    if (n.kind === 'paid') { app.audio.play('cash'); toast(n.text, { kind: 'money', timeout: 7000 }); continue; }
+    if (n.kind === 'payment') {
+      const cid = n.company;
+      toast(n.text, {
+        kind: 'money', timeout: 15000, action: 'Encaisser', tag: `pay-${n.paymentId}`,
+        onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); openPayment(app, n.paymentId); },
+      });
+      continue;
+    }
     if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive');
     if (n.kind === 'sunk') app.audio.play('sunk');
     const company = n.company != null ? app.state.companies[n.company] : null;
@@ -203,7 +282,11 @@ function handleNotes(notes) {
         app.focusShip(n.shipId);
       },
     });
-    if (PAUSE_KINDS.has(n.kind) && app.state.settings.autoPause) paused = true;
+    if (PAUSE_KINDS.has(n.kind) && app.state.settings.autoPause) {
+      paused = true;
+      // Partie à plusieurs : c'est au tour de la compagnie dont le navire attend.
+      if (company && company.id !== app.ui.activeCompany && !switched) { switchCompany(company.id); switched = true; }
+    }
   }
   if (paused) app.speed = 0;
   return paused;
@@ -326,6 +409,7 @@ async function gameMenu() {
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
       { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
       { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
+      { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
       { label: 'Comment jouer', value: 'help' },
       { label: 'Menu principal', value: 'title', kind: 'ghost' },
       { label: 'Reprendre', value: 'resume', kind: 'primary' },
@@ -343,6 +427,7 @@ async function gameMenu() {
   else if (v === 'pause') { app.state.settings.autoPause = !app.state.settings.autoPause; toast(`Pause automatique ${app.state.settings.autoPause ? 'activée' : 'désactivée'}.`, { timeout: 2500 }); }
   else if (v === 'ambience') { app.audio.setAmbience(!app.audio.settings.ambience); app.speed = wasSpeed; }
   else if (v === 'sfx') { app.audio.setSfx(!app.audio.settings.sfx); app.speed = wasSpeed; }
+  else if (v === 'music') { app.audio.setMusic(!app.audio.settings.music); app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'title') { if (await confirmBox('Retour au menu principal ?', 'La partie est sauvegardée automatiquement.', 'Quitter')) app.toTitle(); }
   else if (v === 'resume') app.speed = wasSpeed;
