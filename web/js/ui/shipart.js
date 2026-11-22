@@ -119,7 +119,7 @@ export function shipSVG(typeId, opts = {}) {
   const span = fit ? 372 : 372 * Math.pow(A.L / 400, 0.7);
   const s = span / A.L, v = s * 1.75;
   const UW = 0.42; // la carène (sous la flottaison) est tassée : la livrée reste dominante
-  const x0 = (W - span) / 2;
+  const x0 = 16; // tous les navires partent de la gauche : la place libre à droite montre la taille
   const L = A.L;
   const draft = laden ? A.T : A.Tb;
   const WL = KB - draft * v * UW;
@@ -249,8 +249,8 @@ export function shipSVG(typeId, opts = {}) {
     return out.join('');
   }
   // Un voile d'eau très transparent : il montre l'enfoncement sans cacher la coque.
-  out.push(`<rect x="${f(x0 - 16)}" y="${WL}" width="${f(span + 32)}" height="${f(KB - WL + 4)}" rx="3" fill="#5b9ab5" opacity=".13"/>`);
-  out.push(`<line x1="${f(x0 - 16)}" y1="${WL}" x2="${f(x0 + span + 16)}" y2="${WL}" stroke="#2f6f8c" stroke-opacity=".5" stroke-width="1" stroke-dasharray="5 3"/>`);
+  out.push(`<rect x="${f(x0 - 10)}" y="${WL}" width="${f(span + 26)}" height="${f(KB - WL + 4)}" rx="3" fill="#5b9ab5" opacity=".13"/>`);
+  out.push(`<line x1="${f(x0 - 10)}" y1="${WL}" x2="${f(x0 + span + 16)}" y2="${WL}" stroke="#2f6f8c" stroke-opacity=".5" stroke-width="1" stroke-dasharray="5 3"/>`);
   out.push('</svg>');
   return out.join('');
 
