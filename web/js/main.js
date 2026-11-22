@@ -195,7 +195,7 @@ function updateContext() {
             app.act(() => act.repair(s, ship.id, rc.to));
           }
         },
-      }, [h('span', rc ? (rc.points > 0.5 ? `Réparer → ${rc.to} %` : 'En bon état') : 'Pas de chantier'), h('b', `🔧 ${rc && rc.points > 0.5 ? `${money(rc.cost)} · ${Math.max(1, Math.round(rc.hours / 24))} j` : rc ? `${Math.round(ship.condition)} %` : '—'}`)]));
+      }, [h('span', rc ? (rc.points > 0.5 ? `Réparer → ${rc.to} %` : rc.to < 100 && ship.condition < 99 ? `Chantier limité à ${rc.to} %` : 'En bon état') : 'Pas de chantier'), h('b', `🔧 ${rc && rc.points > 0.5 ? `${money(rc.cost)} · ${Math.max(1, Math.round(rc.hours / 24))} j` : rc ? `${Math.round(ship.condition)} %` : '—'}`)]));
     }
   }
   el.replaceChildren(...kids);
