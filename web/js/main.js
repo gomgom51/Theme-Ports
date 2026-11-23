@@ -70,11 +70,13 @@ app.open = (type, id = null, tab = null) => {
   const prev = app.ui.panel;
   app.ui.panel = { type, id, tab: tab ?? (prev && prev.type === type && prev.id === id ? prev.tab : null) };
   if (type === 'ship') app.ui.selectedShip = id;
-  if (type !== 'ship') app.setPreview(null);
+  app.hoverPreview = null;
+  if (type !== 'ship') app.setPreview(null); else app.map.preview = app.basePreview || null;
   renderPanel();
 };
 app.close = () => {
   app.ui.panel = null;
+  app.hoverPreview = null;
   app.setPreview(null);
   renderPanel();
 };
@@ -82,7 +84,15 @@ app.openTab = (tab) => { if (app.ui.panel) { app.ui.panel.tab = tab; renderPanel
 app.refresh = () => { app.alertsAt = 0; renderPanel(); updateHud(); };
 app.company = () => app.state.companies[app.ui.activeCompany];
 app.toast = (text, opts) => toast(text, opts);
-app.setPreview = (route) => { app.map.preview = route; };
+// Route affichée sur la carte : celle du départ en préparation, ou celle survolée à la souris
+// (contrat, débouché), qui la remplace le temps du survol.
+app.setPreview = (route) => { app.basePreview = route; app.map.preview = app.hoverPreview || route; };
+app.hoverRoute = (route) => {
+  app.hoverPreview = route || null;
+  app.map.preview = app.hoverPreview || app.basePreview || null;
+  if (route) app.map.fitRoute(route.points); // la route entière, dans la partie visible de la carte
+};
+panelEl.addEventListener('mouseleave', () => app.hoverRoute(null));
 app.withRng = (fn) => {
   const rng = new Rng(app.state.rng);
   const r = fn(rng);

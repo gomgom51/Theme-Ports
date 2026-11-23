@@ -168,7 +168,9 @@ function contractsBase(app, ship) {
   return h('div.list', rows.map(({ c, why, est, profit, perDay, lateRisk }) => {
     const G = GOODS[c.good];
     const daysLeft = (c.deadline - state.t) / 24;
-    return h('div.card.contract', { class: why ? 'disabled' : '' }, [
+    // Survol : la route du contrat se dessine sur la carte.
+    const routeOf = () => { if (est?.route) return est.route; const p = act.planVoyage(state, ctx, ship, c.to, T.speed); return p.route || null; };
+    return h('div.card.contract', { class: why ? 'disabled' : '', onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
@@ -233,7 +235,7 @@ function tradeTab(app, ship) {
     }
     outlets.sort((a, b) => b.net - a.net);
     box.append(h('h3', 'Meilleurs débouchés (après frais de voyage)'));
-    box.append(h('div.list.compact', outlets.slice(0, 6).map((o) => h('div.row', [
+    box.append(h('div.list.compact', outlets.slice(0, 6).map((o) => h('div.row', { onmouseenter: () => app.hoverRoute(o.est.route || null), onmouseleave: () => app.hoverRoute(null) }, [
       h('span.grow', portName(o.p)),
       h('span.muted', `${money(o.unit)}/t · ${days(o.est.totalDays)}`),
       h('b', { class: o.net >= 0 ? 'pos' : 'neg' }, money(o.net, true)),

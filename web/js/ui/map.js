@@ -163,10 +163,61 @@ export class MapView {
   // Centre un point dans la partie visible de la carte (à gauche du panneau ouvert).
   centerOn(lon, lat, scale) {
     scale = Math.max(this.minScale || 1, Math.min(80, scale || Math.max(this.view.scale, 6)));
-    const panel = document.getElementById('panel');
-    const covered = panel && !panel.hidden ? panel.getBoundingClientRect().width : 0;
+    const covered = this.w - this.visibleRight();
     const offset = covered < this.w * 0.9 ? covered / 2 : 0;
     this.setView(lon + offset / scale, -lat, scale);
+  }
+  // Bord droit de la partie visible de la carte : le panneau ouvert (et les boutons à sa droite) la masquent.
+  visibleRight() {
+    const panel = document.getElementById('panel');
+    return panel && !panel.hidden ? panel.getBoundingClientRect().left : this.w;
+  }
+  // Cadre une route dans la partie visible (sous la barre, à gauche du panneau), en glissant
+  // doucement ; ne bouge pas si elle est déjà entièrement visible, et ne fait que dézoomer.
+  fitRoute(points) {
+    if (!points?.length) return;
+    const right = this.visibleRight();
+    if (right < this.w * 0.35) return; // panneau presque plein écran (téléphone) : rien à cadrer
+    const area = { x0: 16, x1: right - 16, y0: 110, y1: this.h - 60 };
+    const inside = points.every(([lon, lat]) => { const [x, y] = this.toScreen(lon, lat); return x > area.x0 && x < area.x1 && y > area.y0 && y < area.y1; });
+    if (inside) return;
+    const lons = [points[0][0]];
+    for (let i = 1; i < points.length; i++) {
+      let l = points[i][0];
+      while (l - lons[i - 1] > 180) l -= 360;
+      while (l - lons[i - 1] < -180) l += 360;
+      lons.push(l);
+    }
+    const lats = points.map((p) => p[1]);
+    const minLon = Math.min(...lons), maxLon = Math.max(...lons), minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    const w = area.x1 - area.x0, h = area.y1 - area.y0;
+    const fit = Math.min(w / Math.max(1, (maxLon - minLon) * 1.12), h / Math.max(1, (maxLat - minLat) * 1.12));
+    const scale = Math.max(this.minScale, Math.min(this.view.scale, fit));
+    const cLon = (minLon + maxLon) / 2, cLat = (minLat + maxLat) / 2;
+    let cx = cLon + (this.w / 2 - (area.x0 + w / 2)) / scale;
+    let cy = -cLat + (this.h / 2 - (area.y0 + h / 2)) / scale;
+    if (fit < scale) {
+      // Trop longue pour tenir entière : on garde l'arrivée bien visible près du bord, côté où elle se trouve
+      // (le départ, c'est le port où l'on est déjà).
+      const dLon = lons[lons.length - 1], dLat = lats[lats.length - 1];
+      const tx = dLon >= lons[0] ? area.x1 - 70 : area.x0 + 70;
+      cx = dLon + (this.w / 2 - tx) / scale;
+      const ty = this.h / 2 + (-dLat - cy) * scale;
+      if (ty < area.y0 + 30 || ty > area.y1 - 30) cy = -dLat + (this.h / 2 - (area.y0 + h / 2)) / scale;
+    }
+    this.glideTo(cx, cy, scale);
+  }
+  glideTo(cx, cy, scale, ms = 320) {
+    const from = { ...this.view }, t0 = performance.now();
+    let dx = ((cx - from.cx + 540) % 360) - 180; // le plus court chemin autour du globe
+    const id = (this.glideId = (this.glideId || 0) + 1);
+    const step = (now) => {
+      if (id !== this.glideId) return; // un autre glissement a pris le relais
+      const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+      this.setView(from.cx + dx * e, from.cy + (cy - from.cy) * e, from.scale * Math.pow(scale / from.scale, e));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
   fitWorld() { this.setView(15, -18, this.minScale); }
 
@@ -186,6 +237,7 @@ export class MapView {
   attach() {
     const el = this.over;
     el.addEventListener('pointerdown', (e) => {
+      this.glideId = (this.glideId || 0) + 1; // la main reprend : on arrête un glissement en cours
       el.setPointerCapture(e.pointerId);
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() });
       this.pinch = null;
@@ -222,6 +274,7 @@ export class MapView {
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', (e) => this.pointers.delete(e.pointerId));
     el.addEventListener('wheel', (e) => {
+      this.glideId = (this.glideId || 0) + 1; // la main reprend : on arrête un glissement en cours
       e.preventDefault();
       const r = el.getBoundingClientRect();
       this.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
@@ -488,7 +541,17 @@ export class MapView {
     }
 
     // Route prévisualisée (onglet « Appareiller »).
-    if (this.preview) this.polyline(g, this.preview.points, 0, 'rgba(15,111,118,0.95)', [7, 5], 2.4);
+    if (this.preview) {
+      this.polyline(g, this.preview.points, 0, 'rgba(15,111,118,0.95)', [7, 5], 2.4);
+      // Port d'arrivée : un anneau pour le repérer d'un coup d'œil.
+      const end = this.preview.points[this.preview.points.length - 1];
+      if (end) {
+        const [x, y] = this.toScreen(end[0], end[1]);
+        g.beginPath(); g.arc(x, y, 10, 0, Math.PI * 2);
+        g.lineWidth = 4; g.strokeStyle = 'rgba(251,248,241,0.9)'; g.stroke();
+        g.lineWidth = 2.4; g.strokeStyle = 'rgba(15,111,118,0.95)'; g.stroke();
+      }
+    }
 
     // Routes des navires du joueur actif.
     const active = ui.activeCompany;
