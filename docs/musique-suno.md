@@ -86,10 +86,49 @@ instrumental, chant de marins traditionnel du XIXe siècle, concertina, violon, 
 
 ### `niveau2.mp3` — Le bureau sur le port (10 à 30 M$)
 
-La compagnie a pignon sur rue : le folk maritime d'un port breton.
+La compagnie a pignon sur rue. Le brief : « On a une vraie équipe, nos premiers
+clients fidèles, les navires tournent. Ça bosse toute la semaine et ça danse à
+la fête du port. » Ce thème doit être plus entraînant que le niveau 1, pas plus
+calme : on passe de la taverne enfumée au groupe de bal folk breton, plus
+rapide, plus plein, mieux enregistré, qui fait danser tout le quai. Un
+enchaînement de deux airs, comme dans un bal, avec un changement de tonalité.
+
+Mêmes consignes que pour les niveaux 3 et 5 : styles en anglais, mode
+**Custom**, case **Instrumental** décochée, structure dans le champ des paroles
+(non chantée).
+
+**Style of Music** :
 
 ```
-instrumental, folk maritime des années 60, accordéon musette, guitare acoustique, contrebasse, banjo léger, mandoline, valse 6/8 douce, ambiance de port breton au soleil, sans voix, mélodie simple et chantante
+lively breton celtic folk dance band, fast energetic jig in 6/8, 126 BPM, accordion lead melody, fiddle answering, tin whistle, bouzouki, acoustic guitar driving rhythm, upright bass, bodhran, foot stomping and hand claps, harbour festival dance, joyful and spirited, tight warm band recording, instrumental, no vocals
+```
+
+**Exclude Styles** (si le champ existe) :
+
+```
+vocals, singing, waltz, slow, relaxed, lounge, ambient, lo-fi, jingle
+```
+
+**Titre** : Le bal du port
+
+**Paroles** (structure seulement) :
+
+```
+[Intro: fiddle alone, then the whole band kicks in]
+
+[Main Tune: accordion lead, bodhran and foot stomping]
+
+[Second Tune: fiddle and tin whistle, faster]
+
+[Break: hand claps and bodhran only]
+
+[Main Tune: full band, accordion and fiddle together]
+
+[Second Tune: key change, even more lively]
+
+[Outro: full band, last round of the main tune, strong ending]
+
+[End]
 ```
 
 ### `niveau3.mp3` — Le siège de la compagnie (30 à 100 M$)
