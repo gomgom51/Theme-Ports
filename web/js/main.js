@@ -9,6 +9,7 @@ import { h, $, money, toast, dialog, confirmBox } from './ui/dom.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
+import { playIntro } from './ui/intro.js';
 import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { AudioManager } from './ui/audio.js';
 import { logoBadge } from './ui/logos.js';
@@ -509,5 +510,6 @@ app.map.setGame(app.demo, ctx, { activeCompany: -1 });
 app.map.fitWorld();
 app.audio.setScene('title');
 titleScreen(app);
+playIntro(app); // au lancement seulement : le caboteur quitte le port, puis le menu
 requestAnimationFrame(loop);
 window.__app = app; // pratique pour le débogage dans la console
