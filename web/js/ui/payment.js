@@ -4,6 +4,7 @@ import { GOODS } from '../data/goods.js';
 import { portName } from '../sim/core.js';
 import { resolution, collect, paymentBase } from '../sim/payments.js';
 import { h, money, tonnes, date, dialog, dropToasts } from './dom.js';
+import { logoBadge } from './logos.js';
 
 export function starsText(reliability) {
   const n = stars(reliability);
@@ -31,7 +32,13 @@ export async function openPayment(app, paymentId) {
   const total = h('div.pay-total', { style: { animation: 'pay-in .35s ease-out both', animationDelay: `${0.15 + res.lines.length * 0.45}s` } }, [
     h('span', ev?.kind === 'differe' ? 'À recevoir plus tard' : 'À encaisser'), h('span', money(finalAmount)),
   ]);
+  const co = state.companies[p.company];
   const body = h('div', [
+    // Première ligne : à qui revient l'argent (parties à plusieurs sur le même écran).
+    h('div.pay-who', { style: { borderLeftColor: co.color } }, [
+      h('span.badge-wrap', { html: logoBadge(co.logo, co.color, 30) }),
+      h('b', { 'data-no-tr': '' }, co.captain ? `${co.captain} — ${co.name}` : co.name),
+    ]),
     h('p', [h('b', `${GOODS[p.good].icon} ${tonnes(p.qty)} de ${GOODS[p.good].name.toLowerCase()}`), ` livrés à ${portName(p.to)} par le ${p.shipName} le ${date(p.deliveredT, true)}.`]),
     C ? h('p', ['Client : ', clientLine(p.client)]) : null,
     lines, total,

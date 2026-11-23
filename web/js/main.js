@@ -313,28 +313,33 @@ function switchCompany(id, { banner = true } = {}) {
 }
 
 // ---------- Notifications ----------
-// ---------- Scènes d'événements ----------
-// Une petite animation arrête le temps ; quand on ferme la dernière de la file, le temps
-// repart à vitesse 1, sauf si une décision attend (rançon, affaire de douane).
+// ---------- Scènes d'événements et fenêtres qui s'ouvrent seules ----------
+// Une petite animation (ou l'encaissement d'un contrat livré) arrête le temps ; les fenêtres
+// passent l'une après l'autre. Quand la dernière se ferme, le temps repart à vitesse 1, sauf
+// si l'une d'elles demande de rester en pause (décision prise, navire qui attend ses ordres).
 app.sceneQueue = [];
-function playScene(kind, opts, after = null) {
-  app.sceneQueue.push({ kind, opts, after });
+function popup(show, after = null) {
+  app.sceneQueue.push({ show, after });
   app.speed = 0;
   if (app.sceneQueue.length === 1) nextScene();
 }
+const playScene = (kind, opts, after = null) => popup(() => showScene(app, kind, opts), after);
 async function nextScene() {
   const s = app.sceneQueue[0];
   if (!s) return;
   const game = app.state;
   let holds = false;
   try {
-    const v = await showScene(app, s.kind, s.opts);
+    const v = await s.show();
     if (s.after && app.state === game) holds = await s.after(v);
-  } catch (e) { console.error(e); } // une scène ou sa suite en échec ne doit jamais bloquer la file
-  if (app.state !== game) { app.sceneQueue.length = 0; return; } // partie chargée ou quittée entre-temps
+  } catch (e) { console.error(e); } // une fenêtre ou sa suite en échec ne doit jamais bloquer la file
+  if (app.state !== game) { app.sceneQueue.length = 0; app.sceneHold = false; return; } // partie chargée ou quittée entre-temps
+  app.sceneHold = app.sceneHold || !!holds;
   app.sceneQueue.shift();
   if (app.sceneQueue.length) { nextScene(); return; }
-  if (!holds && app.mode === 'game' && !app.state.over) app.speed = 1;
+  const hold = app.sceneHold;
+  app.sceneHold = false;
+  if (!hold && app.mode === 'game' && !app.state.over) app.speed = 1;
 }
 const companyColor = (id) => app.state.companies[id ?? app.ui.activeCompany]?.color || '#c0392b';
 
@@ -392,10 +397,17 @@ function handleNotes(notes) {
     }
     if (n.kind === 'payment') {
       const cid = n.company;
+      // Le bouton reste dans le message si l'on choisit « Plus tard ».
       toast(n.text, {
         kind: 'money', timeout: 15000, action: 'Encaisser', tag: `pay-${n.paymentId}`,
         onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); openPayment(app, n.paymentId); },
       });
+      // L'encaissement s'ouvre de lui-même, au nom de la compagnie (partie à plusieurs : c'est
+      // son tour). Ensuite, avec la pause auto, le temps reste arrêté : le navire attend ses ordres.
+      popup(async () => {
+        if (cid !== app.ui.activeCompany) switchCompany(cid);
+        await openPayment(app, n.paymentId);
+      }, () => app.state.settings.autoPause);
       continue;
     }
     if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive');
