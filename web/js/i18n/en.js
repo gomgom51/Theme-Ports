@@ -1203,4 +1203,7 @@ export default {
   "aucun": "none",
   "{0} j": "{0} d",
   "Nouveau": "New",
+  "🚧 Péage du {0} : {1}, payé au départ": "🚧 {0} toll: {1}, paid on departure",
+  "Frais de port à l'arrivée {0} · frais fixes ≈ {1}": "Port dues on arrival {0} · fixed costs ≈ {1}",
+  "Péage du {0} : {1}": "{0} toll: {1}",
 };

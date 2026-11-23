@@ -139,6 +139,7 @@ function launch(state, ctx, ship, plan) {
     const fee = eco.canalFee(T, c);
     money(state, company, -fee, 'ports');
     ship.spent += fee;
+    shipLog(state, ship, `Péage du ${CANAL_NAMES[c]} : ${fmtM(fee)}`);
   }
   ship.voyage = {
     from: ship.port, to: plan.to, speed: p.speed, closed: p.closed, progress: 0,
