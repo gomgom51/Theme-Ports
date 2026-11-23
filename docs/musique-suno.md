@@ -110,12 +110,60 @@ instrumental, pop orchestrale des années 90, cordes amples, piano, guitare clai
 
 ### `niveau5.mp3` — La tour de verre (plus de 300 M$)
 
-Le port entier à vos pieds : la musique d'une multinationale qui a des
-bureaux sur tous les continents.
+Le port entier à vos pieds. Le brief, comme le donnerait le PDG au compositeur
+de l'hymne du groupe : « Nous avons commencé avec un caboteur rouillé sur un
+quai ; aujourd'hui nos navires portent les marchandises du monde entier. Notre
+thème doit dire que nous sommes solides, présents partout, tournés vers
+l'avenir, et que nous n'avons pas oublié le port d'où nous venons. »
+D'où un seul motif héroïque, facile à retenir, qui revient et grandit, et
+l'accordéon du premier niveau qui ouvre et ferme le morceau.
+
+Les styles sont en anglais : Suno les comprend mieux. Ne pas parler de
+« publicité » ni de « jingle » : Suno fait alors des morceaux de 30 à 60 secondes.
+
+Mode **Custom**, case **Instrumental** décochée : la structure ci-dessous, mise
+dans le champ des paroles, donne un morceau complet de 3 à 4 minutes (les
+indications entre crochets ne sont pas chantées).
+
+**Style of Music** :
 
 ```
-instrumental, musique de multinationale, électronique ambiante moderne, cordes cinématiques, percussions du monde (taiko, tabla, steel-drum, djembé), synthétiseurs brillants, grandiose et confiant, style publicité internationale, sans voix
+corporate brand anthem for a global shipping group, cinematic orchestral pop, 100 BPM, major key, warm strings, bold french horns, grand piano, steady modern pulse, soft electronic textures, deep taut drums, one heroic memorable main motif that returns and grows, lone accordion recalling the old harbour, confident, prestigious, optimistic, timeless, instrumental, no vocals
 ```
+
+**Exclude Styles** (si le champ existe) :
+
+```
+vocals, singing, choir, jingle, advertisement, EDM drop, dubstep, trailer hits, lo-fi
+```
+
+**Titre** : Hymne du groupe
+
+**Paroles** (structure seulement) :
+
+```
+[Intro: solo accordion, harbour at dawn, main motif]
+
+[Verse: piano and warm strings, main motif]
+
+[Build: french horns join, drums enter, rising]
+
+[Chorus: full orchestra, main motif, wide and proud]
+
+[Bridge: calm, piano and strings, the world seen from above]
+
+[Build: pulse returns, horns rising]
+
+[Final Chorus: full orchestra, main motif, triumphant]
+
+[Outro: accordion returns, main motif, gentle ending]
+
+[End]
+```
+
+Si Suno chante malgré tout, cocher **Instrumental** et allonger le meilleur
+essai avec **Extend** depuis la fin (« continue the main motif, full
+orchestra ») jusqu'à 3 minutes environ.
 
 En secours, si un de ces fichiers manque, le jeu joue `jeu.mp3` s'il existe
 (même consignes : instrumental, doux, en boucle).
