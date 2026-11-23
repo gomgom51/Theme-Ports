@@ -1,6 +1,6 @@
 // Point d'entrée : boucle de jeu, interface principale, notifications, sauvegardes.
 import { makeContext } from './sim/context.js';
-import { newGame, tick } from './sim/game.js';
+import { newGame, tick, ranking } from './sim/game.js';
 import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
 import { shipsOf, isIdle, shipById, netWorth } from './sim/core.js';
 import { PORTS } from './data/ports.js';
@@ -26,7 +26,9 @@ import { officeTier } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
-const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt', 'detention', 'pollution', 'sanction']);
+// Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
+// L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
+const PAUSE_KINDS = new Set(['idle', 'sunk', 'bank', 'bankrupt', 'detention', 'pollution', 'sanction']);
 
 const ctx = makeContext();
 const app = {
@@ -140,6 +142,23 @@ function renderPanel() {
 }
 
 // ---------- Barre du haut et boutons ----------
+// Classement toujours visible (en bas à gauche) : médailles, emblème, nom, valeur nette.
+const MEDALS = ['🥇', '🥈', '🥉'];
+function updateStandings(s, me) {
+  const el = $('#standings');
+  const rows = ranking(s);
+  const key = rows.map((r) => `${r.company.id}:${Math.round(r.worth / 1e4)}:${r.company.bankrupt}`).join('|') + `|${me}`;
+  el.hidden = false;
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  el.replaceChildren(...rows.map((r, i) => h('span.standings-row', { class: [r.company.id === me ? 'me' : '', r.company.bankrupt ? 'out' : ''].join(' ') }, [
+    h('span.standings-rank', MEDALS[i] || `${i + 1}.`),
+    h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 16) }),
+    h('span.standings-name', r.company.name),
+    h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
+  ])));
+}
+
 function updateHud() {
   if (app.mode !== 'game') return;
   const s = app.state, c = app.company();
@@ -168,6 +187,7 @@ function updateHud() {
     ab.hidden = !alerts.length;
     ab.classList.toggle('urgent', alerts.some((a) => a.level === 0));
     app.audio.setMusicTier(officeTier(netWorth(s, c.id)));
+    updateStandings(s, c.id);
   }
   const humans = s.companies.filter((x) => x.human);
   $('#hud-company').classList.toggle('switchable', humans.length > 1);
@@ -274,7 +294,7 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
-    if (n.kind === 'event') { toast(`📰 ${n.text}`, { timeout: 9000 }); continue; }
+    if (n.kind === 'event') { toast(`📰 ${n.text}`, { timeout: 9000 }); if (app.state.settings.autoPause) paused = true; continue; }
     if (n.kind === 'depart') { app.audio.play('depart'); continue; }
     if (n.kind === 'hijack') {
       app.speed = 0;
@@ -506,6 +526,8 @@ window.addEventListener('beforeunload', () => { if (app.mode === 'game' && app.s
 if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+
+$('#standings').addEventListener('click', () => app.open('office', null, 'classement'));
 
 // ---------- Lancement ----------
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)

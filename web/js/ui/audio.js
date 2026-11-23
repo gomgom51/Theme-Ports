@@ -19,7 +19,7 @@ const TRACKS = {
 };
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
-const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3' };
+const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3' };
 
 function loadSettings() {
   const defaults = { ambience: true, sfx: true, music: true, volume: 0.8 };
@@ -153,8 +153,11 @@ export class AudioManager {
       S.horn(c, out, t, { dur: 1.6, freq: 104, gain: 0.26, distance: 0.25, reverb: r });
       S.chain(c, out, t + 1.9, { gain: 0.12, dur: 0.7, pan: 0.3 });
     } else if (name === 'arrive') {
-      S.gull(c, out, t, { calls: 3, pan: -0.3, distance: 0.25, gain: 0.2 });
-      S.slap(c, out, t + 0.4, { gain: 0.2 });
+      // Un navire entre au port : la cloche (des mouettes si le son enregistré manque).
+      if (!this.playSample('bell', { gain: 0.5, fadeOut: 0.2 })) {
+        S.gull(c, out, t, { calls: 3, pan: -0.3, distance: 0.25, gain: 0.2 });
+        S.slap(c, out, t + 0.4, { gain: 0.2 });
+      }
     } else if (name === 'crates') {
       S.crate(c, out, t, { gain: 0.38, pan: -0.2, reverb: r });
       S.crate(c, out, t + 0.45, { gain: 0.32, pan: 0.15, size: 1.2, reverb: r });

@@ -76,7 +76,7 @@ export function shipPanel(app, id, tab) {
 
   const art = h('div.ship-hero', [
     h('div.ship-hero-art', { html: artForShip(state, ship), title: `${T.name} — ${SHIP_ART[ship.type].L} m` }),
-    radarEl(shipStats(ship.type, { condition: ship.condition, age }), { color: company.color, size: 190 }),
+    radarEl(shipStats(ship.type, { condition: ship.condition, age }), { color: company.color, size: 280 }),
   ]);
   const header = h('div.ship-head', [
     art,
@@ -208,16 +208,19 @@ function tradeTab(app, ship) {
     box.append(h('div.card.highlight', [
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(ship.cargo.qty)} à bord`]),
-        h('div.card-sub', `Acheté ${money(ship.cargo.cost)}${ship.cargo.boughtAt ? ' à ' + portName(ship.cargo.boughtAt) : ''} (${money(ship.cargo.cost / ship.cargo.qty)}/t)`),
         ship.cargo.damage > 0.005 ? h('div.card-why', `${pct(ship.cargo.damage * 100)} de la cargaison est perdue ou avariée : elle se vendra d'autant moins.`) : null,
-        q.possible
-          ? h('div.card-sub', ['Vente ici : ', h('b', `${money(q.avg)}/t`), ` → ${money(q.net)} net, `, h('b', { class: q.profit >= 0 ? 'pos' : 'neg' }, `${q.profit >= 0 ? 'bénéfice' : 'perte'} ${money(Math.abs(q.profit))}`)])
-          : h('div.card-why', `${portName(here)} ne peut pas décharger ce type de cargaison.`),
+        // Prix d'achat, prix de vente ici et résultat, côte à côte.
+        h('div.ship-stats.sale-compare', [
+          stat('Acheté', `${money(ship.cargo.cost / ship.cargo.qty)}/t`, h('div.stat-sub', `${money(ship.cargo.cost)}${ship.cargo.boughtAt ? ' · ' + portName(ship.cargo.boughtAt) : ''}`)),
+          q.possible ? stat('Vente ici', `${money(q.net / ship.cargo.qty)}/t`, h('div.stat-sub', `${money(q.net)} net, manutention déduite`)) : null,
+          q.possible ? stat('Résultat', h('span', { class: q.profit >= 0 ? 'pos' : 'neg' }, `${money(q.profit, true)}`), h('div.stat-sub', `${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${pct(Math.abs(q.profit) / ship.cargo.cost * 100)}`)) : null,
+        ]),
+        q.possible ? null : h('div.card-why', `${portName(here)} ne peut pas décharger ce type de cargaison.`),
       ]),
-      h('div.card-side', [q.possible ? h('button.btn.primary.small', { onclick: async () => {
+      h('div.card-side', [q.possible ? h(`button.btn.small.${q.profit >= 0 ? 'primary' : 'danger'}`, { onclick: async () => {
         if (q.profit < 0 && !(await confirmBox('Vendre à perte ?', `Vous perdrez ${money(-q.profit)} sur cette cargaison.`, 'Vendre'))) return;
         app.act(() => act.sellCargo(state, ctx, ship.id), { sound: 'cash' });
-      } }, 'Vendre ici') : null]),
+      } }, `Vendre ici · ${money(q.profit, true)}`) : null]),
     ]));
     // Meilleurs débouchés.
     const outlets = [];

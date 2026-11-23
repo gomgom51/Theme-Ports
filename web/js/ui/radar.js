@@ -33,26 +33,32 @@ export function shipStats(typeId, { condition = 100, age = 0 } = {}) {
 }
 
 // values : { capacite: 0..100, ... } ; compare : deuxième série facultative (en pointillés).
-export function radarSVG(values, { color = '#1f6f8b', compare = null, size = 220, labels = true } = {}) {
-  const n = AXES.length, cx = 135, cy = 104, R = 68;
+// labels = false : forme seule, pour comparer d'un coup d'œil (cartes du courtier).
+export function radarSVG(values, { color = '#1f6f8b', compare = null, size = 280, labels = true } = {}) {
+  const n = AXES.length;
+  const VW = labels ? 390 : 200, VH = labels ? 262 : 200;
+  const cx = VW / 2, cy = labels ? 134 : 100, R = labels ? 78 : 92;
   const pt = (i, v) => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
     return [cx + Math.cos(a) * R * (v / 100), cy + Math.sin(a) * R * (v / 100)];
   };
   const poly = (vals) => AXES.map((ax, i) => pt(i, vals[ax.id]).map((x) => x.toFixed(1)).join(',')).join(' ');
-  let s = `<svg class="radar" viewBox="0 0 270 210" width="${size}" height="${Math.round(size * 210 / 270)}" role="img" aria-label="Fiche du navire">`;
+  let s = `<svg class="radar${labels ? '' : ' radar-mini'}" viewBox="0 0 ${VW} ${VH}" width="${size}" height="${Math.round(size * VH / VW)}" role="img" aria-label="Fiche du navire">`;
   for (const ring of [25, 50, 75, 100]) {
     s += `<polygon points="${AXES.map((_, i) => pt(i, ring).map((x) => x.toFixed(1)).join(',')).join(' ')}" class="radar-ring"/>`;
   }
   AXES.forEach((_, i) => { const [x, y] = pt(i, 100); s += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="radar-axis"/>`; });
   if (compare) s += `<polygon points="${poly(compare)}" class="radar-compare"/>`;
   s += `<polygon points="${poly(values)}" fill="${color}" fill-opacity=".28" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
-  AXES.forEach((ax, i) => { const [x, y] = pt(i, values[ax.id]); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="${color}"/>`; });
+  AXES.forEach((ax, i) => { const [x, y] = pt(i, values[ax.id]); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${labels ? 3.2 : 4}" fill="${color}"/>`; });
   if (labels) {
     AXES.forEach((ax, i) => {
-      const [x, y] = pt(i, 122);
+      const [x, y] = pt(i, 118);
       const anchor = Math.abs(x - cx) < 8 ? 'middle' : x > cx ? 'start' : 'end';
-      s += `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="${anchor}" class="radar-label">${ax.label}<tspan class="radar-value" dx="3">${values[ax.id]}</tspan></text>`;
+      // Qualité puis note, au-dessus du sommet en haut, en dessous en bas.
+      const y1 = y < cy - 20 ? y - 15 : y > cy + 20 ? y + 8 : y - 4;
+      s += `<text x="${x.toFixed(1)}" y="${y1.toFixed(1)}" text-anchor="${anchor}" class="radar-label">${ax.label}</text>`;
+      s += `<text x="${x.toFixed(1)}" y="${(y1 + 18).toFixed(1)}" text-anchor="${anchor}" class="radar-value">${values[ax.id]}</text>`;
     });
   }
   return s + '</svg>';

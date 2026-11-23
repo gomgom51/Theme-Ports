@@ -148,6 +148,24 @@ p { margin: 6px 0; }
 }
 .in-game .ticker:not(:empty) { display: block; }
 
+/* ---------- Classement toujours visible ---------- */
+.standings {
+  position: fixed; z-index: 8; left: calc(var(--rail-w) + 14px + var(--safe-l)); bottom: calc(46px + var(--safe-b));
+  display: none; flex-direction: column; gap: 2px; padding: 6px 10px; text-align: left; cursor: pointer;
+  background: rgba(251, 248, 241, 0.95); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+  font-size: 12px; color: var(--ink-2); max-width: min(300px, calc(100vw - var(--rail-w) - 40px));
+}
+.in-game .standings:not([hidden]) { display: flex; }
+.standings:hover { border-color: var(--teal); }
+.standings-row { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.standings-row.me { color: var(--ink); font-weight: 800; }
+.standings-row.out { opacity: 0.5; }
+.standings-rank { width: 20px; text-align: center; }
+.standings-logo { line-height: 0; }
+.standings-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.standings-worth { font-variant-numeric: tabular-nums; margin-left: 8px; }
+@media (max-width: 600px) { .standings-row:not(.me) { display: none; } }
+
 /* ---------- Panneau latéral ---------- */
 .panel {
   position: fixed; z-index: 12; top: calc(var(--hud-h) + var(--safe-t)); right: 0; bottom: 0;
@@ -183,8 +201,9 @@ p { margin: 6px 0; }
 .radar { display: block; }
 .radar-ring { fill: none; stroke: var(--line); stroke-width: 1; }
 .radar-axis { stroke: var(--line); stroke-width: 1; }
-.radar-label { fill: var(--ink-2); font-size: 9.5px; font-weight: 600; }
-.radar-value { fill: var(--ink); font-weight: 800; }
+.radar-label { fill: var(--ink-2); font-size: 16px; font-weight: 600; }
+.radar-value { fill: var(--ink); font-size: 17px; font-weight: 800; }
+.radar-mini .radar-ring, .radar-mini .radar-axis { stroke-width: 2; }
 .radar-compare { fill: none; stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1.5; }
 .with-thumb .thumb { width: 104px; flex: none; line-height: 0; border-radius: 6px; overflow: hidden; }
 .card.with-art { display: grid; grid-template-columns: minmax(140px, 38%) 1fr auto; align-items: center; }
@@ -224,6 +243,10 @@ p { margin: 6px 0; }
 .card-sub { color: var(--ink-2); font-size: 12.5px; margin-top: 3px; }
 .card-why { color: var(--warn); font-size: 12.5px; margin-top: 3px; }
 .card-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.card-radar { line-height: 0; }
+.sale-compare { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 6px; }
+.sale-compare .stat-value { font-size: 15px; }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .price { font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--navy); white-space: nowrap; }
 .price-inline { margin-left: auto; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
 .good-icon { font-size: 16px; }
@@ -471,7 +494,9 @@ select.input { width: auto; max-width: 100%; }
   .stat { padding: 4px 8px; }
   h3 { margin: 12px 0 6px; }
   .port-choice { height: calc(100vh - 24px); }
-  .ship-hero .radar { width: 140px; height: 134px; }
+  .ship-hero { flex-direction: column; align-items: stretch; }
+  .ship-hero .radar-wrap { display: flex; justify-content: center; }
+  .ship-hero .radar { width: min(100%, 330px); height: auto; }
 }
 @media (max-width: 900px) {
   .hud-date { font-size: 12px; }

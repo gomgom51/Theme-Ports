@@ -425,10 +425,12 @@ export class MapView {
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
       g.fillStyle = `rgba(196,54,44,${z.rate * 2.2})`; g.fill();
       g.setLineDash([2, 5]); g.lineWidth = 1.4; g.strokeStyle = 'rgba(170,40,32,0.6)'; g.stroke(); g.setLineDash([]);
+      const bs = scale > 4 ? 1.15 : 0.85;
+      this.pirateBadge(g, x, y, bs);
       if (scale > 4) {
-        g.font = '700 10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`☠ ${tr(z.name)}`, x, y + r * 0.55);
-        g.fillStyle = 'rgba(150,32,26,0.95)'; g.fillText(`☠ ${tr(z.name)}`, x, y + r * 0.55);
+        g.font = '700 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 3.5; g.strokeStyle = 'rgba(244,239,227,0.9)'; g.strokeText(tr(z.name), x, y + 17 * bs + 4);
+        g.fillStyle = 'rgba(150,32,26,0.98)'; g.fillText(tr(z.name), x, y + 17 * bs + 4);
       }
     }
     g.restore();
@@ -523,23 +525,29 @@ export class MapView {
       this.shipScreenPos.push({ id: ship.id, x, y, own });
       if (ship.id === ui.selectedShip || (own && scale > 7)) this.label(g, x + 9, y - 9, ship.name);
     }
-    // Navires à quai : petites pastilles autour du port.
+    // Navires à quai : pictogramme aux couleurs de la compagnie, et pour les vôtres une
+    // pastille qui dit ce qu'ils font (chargement, déchargement, réparation, attente…).
+    const now = performance.now() / 1000;
     for (const [port, ships] of inPort) {
       const P = PORTS[port];
       if (!P) continue;
       const [px, py] = this.toScreen(P.lon, P.lat);
+      if (px < -60 || px > this.w + 60 || py < -60 || py > this.h + 60) continue;
       ships.sort((a, b) => (b.owner === active) - (a.owner === active));
-      ships.forEach((ship, i) => {
-        const ang = -Math.PI / 2 + i * 0.75;
-        const rr = 11 + Math.floor(i / 8) * 7;
+      // En arcs autour du port, en laissant libre la droite, où s'écrit son nom.
+      const A0 = 0.95, SPAN = Math.PI * 2 - 2 * A0;
+      let ring = 0, slot = 0;
+      ships.forEach((ship) => {
+        const rr = 25 + ring * 18, slots = Math.max(4, Math.floor((rr * SPAN) / 30));
+        const ang = A0 + ((slot + 0.5) * SPAN) / slots;
+        if (++slot >= slots) { slot = 0; ring++; }
         const x = px + Math.cos(ang) * rr, y = py + Math.sin(ang) * rr;
-        const company = state.companies[ship.owner];
-        g.beginPath(); g.arc(x, y, ship.owner === active ? 4.2 : 3.2, 0, Math.PI * 2);
-        g.fillStyle = company.color; g.fill();
-        g.lineWidth = ship.id === ui.selectedShip ? 2.5 : 1.2;
-        g.strokeStyle = ship.id === ui.selectedShip ? C.portHl : ship.status === 'laidup' ? '#9a9a9a' : C.ink;
-        g.stroke();
-        this.shipScreenPos.push({ id: ship.id, x, y, own: ship.owner === active });
+        const own = ship.owner === active;
+        const kind = portActivity(ship);
+        this.drawDocked(g, x, y, state.companies[ship.owner].color, own, kind === 'laidup', ship.id === ui.selectedShip);
+        if (own) this.statusBadge(g, x + 9, y - 8, kind, now);
+        this.shipScreenPos.push({ id: ship.id, x, y, own });
+        if (ship.id === ui.selectedShip) this.label(g, x + 17, y + 2, ship.name);
       });
     }
     // Ports en grève.
@@ -593,7 +601,78 @@ export class MapView {
     g.restore();
   }
 
+  // Insigne de piraterie : crâne et tibias blancs sur disque sombre cerclé de rouge.
+  pirateBadge(g, x, y, s = 1) {
+    g.save();
+    g.translate(x, y); g.scale(s, s);
+    g.beginPath(); g.arc(0, 0, 12, 0, Math.PI * 2);
+    g.fillStyle = '#26110f'; g.fill();
+    g.lineWidth = 2.2; g.strokeStyle = '#c4362c'; g.stroke();
+    g.strokeStyle = '#f4efe3'; g.fillStyle = '#f4efe3'; g.lineCap = 'round';
+    g.lineWidth = 2;
+    g.beginPath(); g.moveTo(-6.5, -2); g.lineTo(6.5, 7); g.moveTo(6.5, -2); g.lineTo(-6.5, 7); g.stroke();
+    for (const [bx, by] of [[-6.5, -2], [6.5, 7], [6.5, -2], [-6.5, 7]]) { g.beginPath(); g.arc(bx, by, 1.4, 0, Math.PI * 2); g.fill(); }
+    g.beginPath(); g.arc(0, -3.2, 4.6, 0, Math.PI * 2); g.fill();
+    g.fillRect(-2.7, -0.5, 5.4, 3.4);
+    g.fillStyle = '#26110f';
+    g.beginPath(); g.arc(-1.8, -3.4, 1.35, 0, Math.PI * 2); g.arc(1.8, -3.4, 1.35, 0, Math.PI * 2); g.fill();
+    g.fillRect(-1.5, 1.4, 0.8, 1.5); g.fillRect(0.7, 1.4, 0.8, 1.5);
+    g.restore();
+  }
+
+  // Navire à quai vu de profil (cap à droite) ; désarmé : grisé.
+  drawDocked(g, x, y, color, own, laidup, selected) {
+    g.save();
+    g.translate(x, y);
+    const s = own ? 1.1 : 0.72;
+    if (selected) { g.beginPath(); g.arc(0, 0, 14, 0, Math.PI * 2); g.strokeStyle = C.portHl; g.lineWidth = 2.4; g.stroke(); }
+    g.scale(s, s);
+    g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.lineTo(7, 4.5); g.lineTo(-9, 4.5); g.closePath();
+    g.fillStyle = laidup ? '#a9a59c' : color; g.fill();
+    g.lineWidth = 1.3; g.strokeStyle = C.ink; g.stroke();
+    g.fillStyle = laidup ? '#d8d4ca' : '#fbf8f1';
+    g.fillRect(-7, -4.5, 6, 4.5); g.strokeRect(-7, -4.5, 6, 4.5);
+    g.fillStyle = laidup ? '#a9a59c' : color;
+    g.fillRect(-5.5, -8, 2.6, 3.5); g.strokeRect(-5.5, -8, 2.6, 3.5);
+    g.beginPath(); g.moveTo(3, 0); g.lineTo(3, -6); g.lineTo(7.5, -3); g.stroke(); // mât de charge
+    g.restore();
+  }
+
+  // Pastille d'activité d'un navire à quai.
+  statusBadge(g, x, y, kind, now) {
+    const S = PORT_STATUS[kind];
+    if (!S) return;
+    g.save();
+    g.translate(x, y);
+    if (kind === 'idle') { // en attente d'ordres : une onde qui attire l'œil
+      const k = (now % 1.4) / 1.4;
+      g.beginPath(); g.arc(0, 0, 6.5 + k * 7, 0, Math.PI * 2);
+      g.strokeStyle = `rgba(232,163,58,${0.75 * (1 - k)})`; g.lineWidth = 2; g.stroke();
+    }
+    g.beginPath(); g.arc(0, 0, 6.5, 0, Math.PI * 2);
+    g.fillStyle = S.color; g.fill();
+    g.lineWidth = 1.4; g.strokeStyle = '#fbf8f1'; g.stroke();
+    g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 1.6; g.lineCap = 'round'; g.lineJoin = 'round';
+    const arrow = (dx, dy) => { // flèche dans la direction (dx, dy)
+      g.beginPath(); g.moveTo(-dx * 3, -dy * 3); g.lineTo(dx * 3, dy * 3);
+      g.moveTo(dx * 3 - dx * 2.6 - dy * 2.4, dy * 3 - dy * 2.6 + dx * 2.4); g.lineTo(dx * 3, dy * 3); g.lineTo(dx * 3 - dx * 2.6 + dy * 2.4, dy * 3 - dy * 2.6 - dx * 2.4);
+      g.stroke();
+    };
+    if (S.icon === 'up') arrow(0, -1);
+    else if (S.icon === 'down') arrow(0, 1);
+    else if (S.icon === 'right') arrow(1, 0);
+    else if (S.icon === 'bang') { g.fillRect(-0.95, -3.8, 1.9, 4.4); g.beginPath(); g.arc(0, 2.7, 1.05, 0, Math.PI * 2); g.fill(); }
+    else if (S.icon === 'stop') g.fillRect(-3.4, -1.1, 6.8, 2.2);
+    else if (S.icon === 'wrench') { g.lineWidth = 1.9; g.beginPath(); g.moveTo(-2.8, 2.8); g.lineTo(1, -1); g.stroke(); g.lineWidth = 1.4; g.beginPath(); g.arc(2, -2, 1.9, Math.PI * 0.95, Math.PI * 2.55); g.stroke(); }
+    else if (S.icon === 'gear') { g.lineWidth = 1.3; g.beginPath(); g.arc(0, 0, 2, 0, Math.PI * 2); g.stroke(); for (let a = 0; a < 6; a++) { const c = Math.cos(a * Math.PI / 3), s = Math.sin(a * Math.PI / 3); g.beginPath(); g.moveTo(c * 2.4, s * 2.4); g.lineTo(c * 3.7, s * 3.7); g.stroke(); } }
+    else if (S.icon === 'cycle') { g.beginPath(); g.arc(0, 0, 2.8, Math.PI * 0.2, Math.PI * 1.75); g.stroke(); g.beginPath(); g.moveTo(2.8, -2.6); g.lineTo(2.2, 0.2); g.lineTo(-0.3, -1.2); g.stroke(); }
+    else if (S.icon === 'zzz') { g.font = '800 8px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('z', 0, 0.5); }
+    g.restore();
+  }
+
   badge(g, x, y, text, color, size = 11) {
+    text = tr(text);
     g.font = `700 ${size}px system-ui, sans-serif`;
     const w = g.measureText(text).width + 8;
     g.fillStyle = 'rgba(251,248,241,0.92)';
@@ -617,6 +696,25 @@ export class MapView {
     if (this.dirty) this.drawBase();
     this.drawOverlay(frac);
   }
+}
+
+// Ce que fait un navire à quai, pour sa pastille sur la carte.
+export const PORT_STATUS = {
+  idle: { color: '#e09a2a', icon: 'bang', label: 'En attente d\'ordres' },
+  plan: { color: '#0f6f76', icon: 'right', label: 'Départ programmé' },
+  chargement: { color: '#2e8b57', icon: 'up', label: 'Chargement' },
+  'déchargement': { color: '#2f6fb0', icon: 'down', label: 'Déchargement' },
+  'réparation': { color: '#d9822b', icon: 'wrench', label: 'Réparation' },
+  'réarmement': { color: '#d9822b', icon: 'cycle', label: 'Réarmement' },
+  installation: { color: '#7b5ea7', icon: 'gear', label: 'Installation d\'équipement' },
+  'détention': { color: '#c4362c', icon: 'stop', label: 'Retenu par les inspecteurs' },
+  saisie: { color: '#c4362c', icon: 'stop', label: 'Retenu par la douane' },
+  laidup: { color: '#8a8a8a', icon: 'zzz', label: 'Désarmé' },
+};
+export function portActivity(ship) {
+  if (ship.status === 'laidup') return 'laidup';
+  if (ship.busyWhat) return PORT_STATUS[ship.busyWhat] ? ship.busyWhat : 'plan';
+  return ship.plan ? 'plan' : 'idle';
 }
 
 function roundRect(g, x, y, w, h, r) {

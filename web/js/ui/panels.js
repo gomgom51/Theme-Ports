@@ -12,7 +12,7 @@ import { yearOf } from '../sim/util.js';
 import { shipStatusText } from './panel-ship.js';
 import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog } from './dom.js';
 import { shipSVG, artForShip, SHIP_ART } from './shipart.js';
-import { shipStats, radarSVG } from './radar.js';
+import { shipStats, radarSVG, AXES } from './radar.js';
 import { LOGO_IDS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
 import { officeSVG, officeTier, OFFICE_TIERS } from './officeart.js';
@@ -27,12 +27,12 @@ const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c
 const LIVERIES = ['#5d6b75', '#7a5c3e', '#3f5e4a', '#6b4f6b', '#4a5f7a', '#8a6d2f'];
 
 // Grande fiche d'un navire : dessin, radar et caractéristiques.
-export function inspectShip({ typeId, condition = 100, age = 0, name = '', color, logo, laden = false, seed, subtitle = '' }) {
+export function inspectShip({ typeId, condition = 100, age = 0, name = '', color, logo, laden = false, seed, subtitle = '', buy = null }) {
   const T = SHIP_TYPES[typeId];
   const body = h('div.inspect', [
     h('div.inspect-art', { html: shipSVG(typeId, { condition, age, color, logo, name, laden, seed: seed ?? name }) }),
     h('div.inspect-row', [
-      h('div.radar-wrap', { html: radarSVG(shipStats(typeId, { condition, age }), { color, size: 270 }) }),
+      h('div.radar-wrap', { html: radarSVG(shipStats(typeId, { condition, age }), { color, size: 320 }) }),
       h('div.inspect-specs', [
         h('p.blurb', T.blurb),
         h('div.ship-stats', [
@@ -44,7 +44,9 @@ export function inspectShip({ typeId, condition = 100, age = 0, name = '', color
       ]),
     ]),
   ]);
-  return dialog({ title: name ? `${name} — ${T.name}` : T.name, body: h('div', [subtitle ? h('p.muted', subtitle) : null, body]), buttons: [{ label: 'Fermer', value: null, kind: 'primary' }], wide: true });
+  // buy : { label } → boutons « Annuler » et achat ; la promesse renvoie 'buy' si le joueur achète.
+  const buttons = buy ? [{ label: 'Annuler', value: null, kind: 'ghost' }, { label: buy.label, value: 'buy', kind: 'primary' }] : [{ label: 'Fermer', value: null, kind: 'primary' }];
+  return dialog({ title: name ? `${name} — ${T.name}` : T.name, body: h('div', [subtitle ? h('p.muted', subtitle) : null, body]), buttons, wide: true });
 }
 
 const REPAIR_LABEL = ['Aucun chantier', 'Petit chantier (jusqu\'à 70 %)', 'Chantier naval', 'Grand chantier naval'];
@@ -167,6 +169,11 @@ function typeSpecs(T) {
   return `${tonnes(T.dwt)} · ${num1(T.speed)} nœuds · ${T.burn} t/j · tirant d'eau ${num1(T.draft)} m · ${T.holds.map((x) => HOLDS[x].toLowerCase()).join(', ')}`;
 }
 
+// Diagramme miniature d'une carte du courtier : la forme pour comparer, les notes au survol.
+function miniRadar(stats, color) {
+  return h('div.card-radar', { title: AXES.map((a) => `${a.label} ${stats[a.id]}`).join(' · '), html: radarSVG(stats, { color, size: 78, labels: false }) });
+}
+
 // Remise en état à 85 % à prévoir après l'achat (au prix d'un chantier courant).
 function repairsToExpect(state, l) {
   if (l.condition >= 84) return null;
@@ -185,8 +192,15 @@ function usedTab(app) {
       const T = SHIP_TYPES[l.type];
       // Livrée de l'ancien propriétaire.
       const look = { typeId: l.type, condition: l.condition, age: l.age, name: l.name, color: LIVERIES[l.id % LIVERIES.length], logo: LOGO_IDS[l.id % LOGO_IDS.length], seed: l.id + l.name };
-      return h('div.card.with-art', { class: l.price > company.cash ? 'disabled' : '' }, [
-        h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: () => inspectShip({ ...look, subtitle: `À vendre à ${portName(l.port)} pour ${money(l.price)}` }), html: shipSVG(l.type, look) }),
+      const affordable = l.price <= company.cash;
+      const buy = async () => {
+        const v = await inspectShip({ ...look, subtitle: `À vendre à ${portName(l.port)} pour ${money(l.price)}. Il vous attend dans ce port.`, buy: affordable ? { label: `Acheter · ${money(l.price)}` } : null });
+        if (v !== 'buy') return;
+        const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)), { sound: 'pay' });
+        if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id); }
+      };
+      return h('div.card.with-art', { class: affordable ? '' : 'disabled' }, [
+        h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipSVG(l.type, look) }),
         h('div.card-main', [
           h('div.card-title', [l.name, h('span.tag', T.name)]),
           h('div.card-sub', typeSpecs(T)),
@@ -195,12 +209,9 @@ function usedTab(app) {
           bar(l.condition / 100, { good: 0.7, warn: 0.45 }),
         ]),
         h('div.card-side', [
+          miniRadar(shipStats(l.type, { condition: l.condition, age: l.age }), look.color),
           h('div.price', money(l.price)),
-          h('button.btn.primary.small', { disabled: l.price > company.cash, onclick: async () => {
-            if (!(await confirmBox(`Acheter le ${l.name} ?`, `${T.name} de ${num1(l.age)} ans pour ${money(l.price)}. Il vous attend à ${portName(l.port)}.`, 'Acheter'))) return;
-            const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)), { sound: 'pay' });
-            if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id); }
-          } }, 'Acheter'),
+          h('button.btn.primary.small', { disabled: !affordable, onclick: buy }, 'Acheter'),
         ]),
       ]);
     })),
@@ -221,19 +232,21 @@ function newTab(app) {
     if (T.vintage) continue; // plus construit
     const price = act.newBuildPrice(state, company, id, yard);
     const look = { typeId: id, condition: 100, age: 0, name: '', color: company.color, logo: company.logo, laden: true, seed: id };
+    const order = async () => {
+      const v = await inspectShip({ ...look, subtitle: `Neuf, aux couleurs de ${company.name} : ${money(price)} payés à la commande, livraison à ${portName(yard)} dans ${act.YARDS[yard].days} jours.`, buy: price <= company.cash ? { label: `Commander · ${money(price)}` } : null });
+      if (v === 'buy') app.act(() => act.orderNewShip(state, company.id, id, yard), { sound: 'pay' });
+    };
     box.append(h('div.card.with-art', { class: price > company.cash ? 'disabled' : '' }, [
-      h('button.card-art', { title: 'Inspecter', 'aria-label': `Inspecter : ${T.name}`, onclick: () => inspectShip({ ...look, subtitle: `Neuf, aux couleurs de ${company.name}` }), html: shipSVG(id, look) }),
+      h('button.card-art', { title: 'Inspecter', 'aria-label': `Inspecter : ${T.name}`, onclick: () => order(), html: shipSVG(id, look) }),
       h('div.card-main', [
         h('div.card-title', [T.name, h('span.tag', T.category)]),
         h('div.card-sub', T.blurb),
         h('div.card-sub.muted', typeSpecs(T)),
       ]),
       h('div.card-side', [
+        miniRadar(shipStats(id), company.color),
         h('div.price', money(price)),
-        h('button.btn.small', { disabled: price > company.cash, onclick: async () => {
-          if (!(await confirmBox(`Commander un ${T.name.toLowerCase()} ?`, `${money(price)} payés à la commande, livraison à ${portName(yard)} dans ${act.YARDS[yard].days} jours.`, 'Commander'))) return;
-          app.act(() => act.orderNewShip(state, company.id, id, yard), { sound: 'pay' });
-        } }, 'Commander'),
+        h('button.btn.small', { disabled: price > company.cash, onclick: () => order() }, 'Commander'),
       ]),
     ]));
   }
@@ -522,7 +535,7 @@ export function helpPanel() {
       h('h3', 'Démarrer'),
       p('1. Ouvrez le Courtier 🏗️ et achetez un premier navire d\'occasion : deux bateaux abordables vous attendent dans votre port d\'attache.'),
       p('2. Touchez votre navire (sur la carte ou dans la Flotte 🚢). Dans l\'onglet Contrats, acceptez un transport : le chargement commence et le navire partira tout seul, plein compris.'),
-      p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres.'),
+      p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu\'un événement survient ; une cloche sonne à chaque arrivée au port.'),
       h('h3', 'Gagner de l\'argent'),
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
       p('Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Plus rentable, mais les prix bougent pendant le voyage, et vos achats et ventes font eux-mêmes bouger les prix.'),
