@@ -1193,7 +1193,7 @@ export default {
   "Retenu par les inspecteurs": "Detained by inspectors",
   "Retenu par la douane": "Held by customs",
   "faillite": "bankrupt",
-  "3. Lancez le temps avec ▶. Le jeu se met en pause dès qu'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu'un événement survient ; une cloche sonne à chaque arrivée au port.": "3. Start time with ▶. The game pauses as soon as one of your ships is waiting for orders (arrived empty, finished unloading) or an event occurs; a bell rings at every arrival in port.",
+  "3. Lancez le temps avec ▶. Le jeu se met en pause dès qu'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu'un événement survient : trois coups de cloche annoncent la pause, un tic-tac le retour du temps.": "3. Start time with ▶. The game pauses as soon as one of your ships is waiting for orders (arrived empty, finished unloading) or an event occurs: three bells announce the pause, a ticking clock the return of time.",
   "Acheté": "Bought",
   "Vente ici": "Sale here",
   "{0} net, manutention déduite": "{0} net, after handling",
@@ -1206,4 +1206,9 @@ export default {
   "🚧 Péage du {0} : {1}, payé au départ": "🚧 {0} toll: {1}, paid on departure",
   "Frais de port à l'arrivée {0} · frais fixes ≈ {1}": "Port dues on arrival {0} · fixed costs ≈ {1}",
   "Péage du {0} : {1}": "{0} toll: {1}",
+  "Le plus grand port de la mer Noire, au débouché du Danube : céréales, voitures roumaines et produits de la raffinerie voisine, au-delà des détroits turcs.": "The largest port on the Black Sea, at the mouth of the Danube: grain, Romanian cars and products from the nearby refinery, beyond the Turkish straits.",
+  "🏢 Niveau {0}/{1} · prochain à {2}": "🏢 Level {0}/{1} · next at {2}",
+  "🏢 Niveau {0}/{1} · le sommet !": "🏢 Level {0}/{1} · the top!",
+  "Niveau {0}/{1} · prochain bureau à {2} de valeur nette, vous en êtes à {3}": "Level {0}/{1} · next office at {2} net worth, you are at {3}",
+  "Niveau {0}/{1} : le sommet !": "Level {0}/{1}: the top!",
 };

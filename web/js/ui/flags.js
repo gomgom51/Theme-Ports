@@ -38,6 +38,7 @@ const FLAG_SVG = {
   ES: '<rect width="30" height="20" fill="#aa151b"/><rect y="5" width="30" height="10" fill="#f1bf00"/><rect x="6" y="7.5" width="3.4" height="5" rx=".6" fill="#aa151b" opacity=".85"/>',
   TR: '<rect width="30" height="20" fill="#e30a17"/><circle cx="11" cy="10" r="5" fill="#fff"/><circle cx="12.3" cy="10" r="4" fill="#e30a17"/><g fill="#fff">' + starPts(17.3, 10, 2.2, Math.PI) + '</g>',
   PL: hStripes(['#fff', '#dc143c']),
+  RO: vStripes(['#002b7f', '#fcd116', '#ce1126']),
   IR: hStripes(['#239f40', '#fff', '#da0000']) + '<circle cx="15" cy="10" r="2.2" fill="none" stroke="#da0000" stroke-width="1"/>',
   DJ: hStripes(['#6ab2e7', '#12ad2b']) + '<path d="M0 0 L13 10 L0 20 Z" fill="#fff"/><g fill="#d7141a">' + starPts(4.5, 10, 2) + '</g>',
   KE: '<rect width="30" height="20" fill="#fff"/><rect width="30" height="5.6" fill="#000"/><rect y="7" width="30" height="6" fill="#bb0000"/><rect y="14.4" width="30" height="5.6" fill="#006600"/><ellipse cx="15" cy="10" rx="2.6" ry="5.4" fill="#bb0000" stroke="#000" stroke-width=".8"/><rect x="14.5" y="6" width="1" height="8" fill="#fff"/>',

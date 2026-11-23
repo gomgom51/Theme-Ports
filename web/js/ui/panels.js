@@ -290,7 +290,10 @@ function officeHero(app) {
     h('div.office-hero', { html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id }) }),
     h('div.office-caption', [
       h('span', [h('b', OFFICE_TIERS[tier].name), ' — ', OFFICE_TIERS[tier].text]),
-      h('span.muted', next ? `Prochain bureau à ${money(next.min)} de valeur nette` : 'Le sommet !'),
+      h('span.office-next', [
+        h('span.muted', next ? `Niveau ${tier + 1}/${OFFICE_TIERS.length} · prochain bureau à ${money(next.min)} de valeur nette, vous en êtes à ${money(worth)}` : `Niveau ${OFFICE_TIERS.length}/${OFFICE_TIERS.length} : le sommet !`),
+        next ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min))) * 100)}%` } })]) : null,
+      ]),
     ]),
   ]);
 }
@@ -535,7 +538,7 @@ export function helpPanel() {
       h('h3', 'Démarrer'),
       p('1. Ouvrez le Courtier 🏗️ et achetez un premier navire d\'occasion : deux bateaux abordables vous attendent dans votre port d\'attache.'),
       p('2. Touchez votre navire (sur la carte ou dans la Flotte 🚢). Dans l\'onglet Contrats, acceptez un transport : le chargement commence et le navire partira tout seul, plein compris.'),
-      p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu\'un événement survient ; une cloche sonne à chaque arrivée au port.'),
+      p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu\'un événement survient : trois coups de cloche annoncent la pause, un tic-tac le retour du temps.'),
       h('h3', 'Gagner de l\'argent'),
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
       p('Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Plus rentable, mais les prix bougent pendant le voyage, et vos achats et ventes font eux-mêmes bouger les prix.'),

@@ -22,7 +22,7 @@ import { openPayment } from './ui/payment.js';
 import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
-import { officeTier } from './ui/officeart.js';
+import { officeTier, OFFICE_TIERS } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
@@ -155,7 +155,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 function updateStandings(s, me) {
   const el = $('#standings');
   const rows = ranking(s);
-  const key = rows.map((r) => `${r.company.id}:${Math.round(r.worth / 1e4)}:${r.company.bankrupt}`).join('|') + `|${me}`;
+  const key = rows.map((r) => `${r.company.id}:${Math.round(r.worth / 1e4)}:${r.company.bankrupt}`).join('|') + `|${me}:${getLang()}`;
   el.hidden = false;
   if (el.dataset.key === key) return;
   el.dataset.key = key;
@@ -164,7 +164,16 @@ function updateStandings(s, me) {
     h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 16) }),
     h('span.standings-name', r.company.name),
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
-  ])));
+  ])), levelLine(netWorth(s, me)));
+}
+// Niveau de la compagnie (le bureau) et ce qu'il faut pour le suivant.
+function levelLine(worth) {
+  const tier = officeTier(worth), next = OFFICE_TIERS[tier + 1];
+  const k = next ? Math.max(0, Math.min(1, (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min))) : 1;
+  return h('span.standings-level', { title: OFFICE_TIERS[tier].name }, [
+    h('span', next ? `🏢 Niveau ${tier + 1}/${OFFICE_TIERS.length} · prochain à ${money(next.min)}` : `🏢 Niveau ${tier + 1}/${OFFICE_TIERS.length} · le sommet !`),
+    h('span.level-bar', [h('span', { style: { width: `${Math.round(k * 100)}%` } })]),
+  ]);
 }
 
 function updateHud() {
@@ -360,6 +369,18 @@ function handleNotes(notes) {
   return paused;
 }
 
+// ---------- Sons du temps ----------
+// Trois coups de cloche chaque fois que le temps s'arrête (pause automatique, volontaire,
+// menu…), tic-tac chaque fois qu'il repart ou change de vitesse (plus rapide à chaque vitesse).
+function timeSounds() {
+  if (app.mode !== 'game') { app.lastSpeed = null; return; }
+  const sp = app.speed, was = app.lastSpeed;
+  if (sp === was) return;
+  app.lastSpeed = sp;
+  if (was == null) return; // début de partie
+  app.audio.play(sp === 0 ? 'pause' : 'time', sp);
+}
+
 // ---------- Boucle principale ----------
 let last = performance.now(), acc = 0, lastRefresh = 0;
 function loop(now) {
@@ -387,6 +408,7 @@ function loop(now) {
     }
   }
   if (app.mode === 'game' && app.speed === 0) acc = 0;
+  timeSounds();
   app.map.frame(app.mode === 'game' && app.speed > 0 ? acc : 0);
   updateHud();
   requestAnimationFrame(loop);

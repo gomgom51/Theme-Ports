@@ -4,8 +4,10 @@ Sons enregistrés utilisés par le jeu
 pompe.mp3   pompe à carburant (extrait de 6 s de « basement water pump »,
             freesound_community, Pixabay : utilisation libre)
 caisse.mp3  caisse enregistreuse (encaissements et paiements), fourni par l'auteur du jeu
-cloche.mp3  cloche à l'arrivée d'un navire au port (« opening bell », u_7xr5ffk4oq, Pixabay :
+cloche.mp3  trois coups de cloche quand le temps s'arrête (« opening bell », u_7xr5ffk4oq, Pixabay :
             utilisation libre), fourni par l'auteur du jeu
+tic-tac.mp3 tic-tac quand le temps repart, accéléré selon la vitesse (3 premières secondes de
+            « clock ticking sound effect », Pixabay : utilisation libre), fourni par l'auteur du jeu
 
 Les autres bruitages (mer, mouettes, caisses, corne…) sont synthétisés par le jeu.
 Si un fichier manque, le jeu utilise sa version synthétisée.

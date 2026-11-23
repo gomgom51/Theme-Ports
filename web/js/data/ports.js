@@ -29,6 +29,7 @@ export const FLAGS = {
   ES: { name: 'Espagne',         tax: 0.150, crew: 1.125, subsidy: 0.02, rating: 75, rate: 0.050 },
   TR: { name: 'Turquie',         tax: 0.120, crew: 0.875, subsidy: 0.04, rating: 55, rate: 0.150 },
   PL: { name: 'Pologne',         tax: 0.114, crew: 0.975, subsidy: 0.03, rating: 68, rate: 0.060 },
+  RO: { name: 'Roumanie',        tax: 0.096, crew: 0.950, subsidy: 0.00, rating: 65, rate: 0.070 },
   IR: { name: 'Iran',            tax: 0.150, crew: 0.800, subsidy: 0.06, rating: 20, rate: 0.220 },
   DJ: { name: 'Djibouti',        tax: 0.150, crew: 0.850, subsidy: 0.00, rating: 35, rate: 0.120 },
   KE: { name: 'Kenya',           tax: 0.180, crew: 0.800, subsidy: 0.00, rating: 40, rate: 0.130 },
@@ -295,6 +296,13 @@ export const PORTS = {
     exp: { charbon: 0.6, engrais: 0.3, manufactures: 0.2, acier: 0.2 },
     imp: { brut: 0.5, minerai: 0.3, manufactures: 0.3, gnl: 0.3, fruits: 0.2 },
     blurb: 'Porte de la Baltique et vieux chantier naval, au-delà des détroits danois.',
+  },
+  constanta: {
+    name: 'Constanța', flag: 'RO', lat: 44.16, lon: 28.68, size: 4, draft: 19,
+    terminals: [...STD, 'chimique', 'gpl', 'vehicules', 'lourd'], fuel: 0.97, repair: 2, fees: 0.85,
+    exp: { cereales: 0.9, raffines: 0.4, engrais: 0.3, acier: 0.3, vehicules: 0.3, bois: 0.3 },
+    imp: { minerai: 0.6, brut: 0.5, charbon: 0.4, manufactures: 0.4, machines: 0.3 },
+    blurb: 'Le plus grand port de la mer Noire, au débouché du Danube : céréales, voitures roumaines et produits de la raffinerie voisine, au-delà des détroits turcs.',
   },
   bandar_abbas: {
     name: 'Bandar Abbas', flag: 'IR', lat: 27.1, lon: 56.07, size: 3, draft: 15,

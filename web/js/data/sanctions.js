@@ -8,7 +8,7 @@ export const EMBARGOED = {
   VE: { name: 'Venezuela', why: 'sanctions sur le pétrole' },
 };
 // Pays qui font respecter ces sanctions dans leurs ports (et y punissent les contrevenants).
-export const ENFORCING = new Set(['US', 'CA', 'NL', 'DE', 'FR', 'IT', 'ES', 'PL', 'GR', 'JP', 'KR', 'AU', 'NZ']);
+export const ENFORCING = new Set(['US', 'CA', 'NL', 'DE', 'FR', 'IT', 'ES', 'PL', 'RO', 'GR', 'JP', 'KR', 'AU', 'NZ']);
 
 // Douane d'un port : probabilité de fouille poussée d'un navire suspect (0 à 1).
 export function customsLevel(flag) {

@@ -12,7 +12,7 @@ riche de la planète.
   taux des prêts. Panama ne prélève aucun impôt mais inspire peu confiance ; le
   Japon prête presque gratuitement mais tout y coûte cher. On peut déménager en
   cours de partie.
-* **50 ports réels aux capacités différentes** : tirant d'eau des quais et des
+* **51 ports réels aux capacités différentes** : tirant d'eau des quais et des
   terminaux profonds (bouées pétrolières, quais minéraliers), terminaux (vrac,
   pétrole, chimie, GPL, GNL, conteneurs, rouliers, frigorifique, colis lourds),
   chantiers navals, prix du fuel, taxes, marchandises exportées et importées.
@@ -152,7 +152,7 @@ tests/               tests des routes et de la simulation
 
 1. ✅ Base jouable : carte, ports, navires, fret et négoce, économie, météo,
    événements, banque, IA, multijoueur sur un appareil.
-2. ✅ Flotte complète : 22 modèles jusqu'au géant des mers, nouvelles cargaisons, 50 ports.
+2. ✅ Flotte complète : 22 modèles jusqu'au géant des mers, nouvelles cargaisons, 51 ports.
 3. ✅ Équipage et équipement.
 4. ✅ Piraterie (version simple : défense contre assaillants, puis un résultat).
 5. ✅ Commerce gris et noir (embargos, cargaisons clandestines), douanes.

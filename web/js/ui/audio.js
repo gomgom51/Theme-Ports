@@ -19,7 +19,7 @@ const TRACKS = {
 };
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
-const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3' };
+const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3' };
 
 function loadSettings() {
   const defaults = { ambience: true, sfx: true, music: true, volume: 0.8 };
@@ -126,14 +126,15 @@ export class AudioManager {
   }
 
   // Joue un son enregistré : extrait de `duration` secondes avec fondu de sortie.
-  playSample(name, { gain = 0.8, duration = null, fadeOut = 0.3 } = {}) {
+  playSample(name, { gain = 0.8, duration = null, fadeOut = 0.3, rate = 1 } = {}) {
     const buf = this.buffers?.[name];
     if (!buf) return false;
     const c = this.ctx, t = c.currentTime + 0.02;
     const src = c.createBufferSource();
     src.buffer = buf;
+    src.playbackRate.value = rate;
     const g = c.createGain();
-    const end = t + (duration ?? buf.duration);
+    const end = t + (duration ?? buf.duration / rate);
     g.gain.setValueAtTime(gain, t);
     g.gain.setValueAtTime(gain, Math.max(t, end - fadeOut));
     g.gain.linearRampToValueAtTime(0.0001, end);
@@ -144,7 +145,7 @@ export class AudioManager {
   }
 
   // Bruitages ponctuels.
-  play(name) {
+  play(name, arg) {
     const c = this.ctx;
     if (!c || !this.settings.sfx || c.state !== 'running') return;
     const t = c.currentTime + 0.03;
@@ -153,11 +154,15 @@ export class AudioManager {
       S.horn(c, out, t, { dur: 1.6, freq: 104, gain: 0.26, distance: 0.25, reverb: r });
       S.chain(c, out, t + 1.9, { gain: 0.12, dur: 0.7, pan: 0.3 });
     } else if (name === 'arrive') {
-      // Un navire entre au port : la cloche (des mouettes si le son enregistré manque).
-      if (!this.playSample('bell', { gain: 0.5, fadeOut: 0.2 })) {
-        S.gull(c, out, t, { calls: 3, pan: -0.3, distance: 0.25, gain: 0.2 });
-        S.slap(c, out, t + 0.4, { gain: 0.2 });
-      }
+      S.gull(c, out, t, { calls: 3, pan: -0.3, distance: 0.25, gain: 0.2 });
+      S.slap(c, out, t + 0.4, { gain: 0.2 });
+    } else if (name === 'pause') {
+      // Le temps s'arrête : trois coups de cloche.
+      this.playSample('bell', { gain: 0.5, fadeOut: 0.2 });
+    } else if (name === 'time') {
+      // Le temps repart : un tic-tac, d'autant plus rapide que la vitesse est grande.
+      const rate = [1, 1, 1.4, 1.9][arg] || 1;
+      this.playSample('tick', { gain: 0.85, duration: 1.1, fadeOut: 0.25, rate });
     } else if (name === 'crates') {
       S.crate(c, out, t, { gain: 0.38, pan: -0.2, reverb: r });
       S.crate(c, out, t + 0.45, { gain: 0.32, pan: 0.15, size: 1.2, reverb: r });

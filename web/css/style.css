@@ -120,9 +120,9 @@ p { margin: 6px 0; }
 }
 .icon-btn:hover { border-color: var(--teal); }
 
-/* ---------- Boutons latéraux ---------- */
+/* ---------- Boutons latéraux (à droite, du côté des panneaux qu'ils ouvrent) ---------- */
 .rail {
-  position: fixed; z-index: 9; left: calc(6px + var(--safe-l)); top: calc(var(--hud-h) + var(--safe-t) + 8px);
+  position: fixed; z-index: 13; right: calc(6px + var(--safe-r)); top: calc(var(--hud-h) + var(--safe-t) + 8px);
   display: none; flex-direction: column; gap: 6px;
 }
 .in-game .rail { display: flex; }
@@ -135,13 +135,13 @@ p { margin: 6px 0; }
 .rail-icon { font-size: 19px; line-height: 1.1; }
 .rail-label { font-size: 10.5px; color: var(--ink-2); font-weight: 600; }
 .badge {
-  position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px; border-radius: 10px; padding: 0 5px;
+  position: absolute; top: -5px; left: -5px; min-width: 19px; height: 19px; border-radius: 10px; padding: 0 5px;
   background: var(--red); color: #fff; font-size: 11px; font-weight: 800; line-height: 19px; text-align: center;
 }
 
 /* ---------- Bandeau de nouvelles ---------- */
 .ticker {
-  position: fixed; z-index: 8; left: calc(var(--rail-w) + 14px + var(--safe-l)); bottom: calc(8px + var(--safe-b));
+  position: fixed; z-index: 8; left: calc(12px + var(--safe-l)); bottom: calc(8px + var(--safe-b));
   max-width: min(640px, calc(100vw - var(--rail-w) - 40px)); display: none;
   background: rgba(251, 248, 241, 0.95); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px;
   font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -150,7 +150,7 @@ p { margin: 6px 0; }
 
 /* ---------- Classement toujours visible ---------- */
 .standings {
-  position: fixed; z-index: 8; left: calc(var(--rail-w) + 14px + var(--safe-l)); bottom: calc(46px + var(--safe-b));
+  position: fixed; z-index: 8; left: calc(12px + var(--safe-l)); bottom: calc(46px + var(--safe-b));
   display: none; flex-direction: column; gap: 2px; padding: 6px 10px; text-align: left; cursor: pointer;
   background: rgba(251, 248, 241, 0.95); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
   font-size: 12px; color: var(--ink-2); max-width: min(300px, calc(100vw - var(--rail-w) - 40px));
@@ -164,16 +164,20 @@ p { margin: 6px 0; }
 .standings-logo { line-height: 0; }
 .standings-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
 .standings-worth { font-variant-numeric: tabular-nums; margin-left: 8px; }
+.standings-level { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--ink-2); }
+.level-bar { display: block; height: 5px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
+.level-bar > span { display: block; height: 100%; background: var(--teal); border-radius: 3px; }
+.office-next { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
 @media (max-width: 600px) { .standings-row:not(.me) { display: none; } }
 
 /* ---------- Panneau latéral ---------- */
 .panel {
-  position: fixed; z-index: 12; top: calc(var(--hud-h) + var(--safe-t)); right: 0; bottom: 0;
-  width: min(560px, 64vw); padding-right: var(--safe-r);
+  position: fixed; z-index: 12; top: calc(var(--hud-h) + var(--safe-t)); right: calc(var(--rail-w) + 12px + var(--safe-r)); bottom: 0;
+  width: min(560px, calc(100vw - var(--rail-w) - 24px)); border-right: 1px solid var(--line);
   background: var(--paper); border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgba(28, 42, 51, 0.14);
   display: flex; flex-direction: column; user-select: text; -webkit-user-select: text;
 }
-.panel-open .ticker { max-width: calc(36vw - var(--rail-w) - 30px); }
+.panel-open .ticker { max-width: max(200px, calc(100vw - min(560px, 64vw) - var(--rail-w) - 48px)); }
 .panel-head {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px 8px 16px;
   border-top: 4px solid var(--navy); background: var(--paper);
@@ -339,7 +343,7 @@ select.input { width: auto; max-width: 100%; }
 /* ---------- Bureau ---------- */
 .office-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; margin-bottom: 6px; }
 .office-hero svg { width: 100%; height: auto; display: block; }
-.office-caption { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
+.office-caption { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; }
 .office-caption b { font-family: var(--serif); color: var(--ink); }
 
 /* ---------- Paiement ---------- */
@@ -353,11 +357,11 @@ select.input { width: auto; max-width: 100%; }
 
 /* ---------- Notifications ---------- */
 .toasts {
-  position: fixed; z-index: 30; left: calc(var(--rail-w) + 14px + var(--safe-l)); bottom: calc(44px + var(--safe-b));
+  position: fixed; z-index: 30; left: calc(12px + var(--safe-l)); bottom: calc(44px + var(--safe-b));
   display: flex; flex-direction: column-reverse; gap: 6px; width: min(420px, calc(100vw - var(--rail-w) - 30px));
   pointer-events: none;
 }
-.panel-open .toasts { width: max(240px, min(420px, calc(100vw - min(560px, 64vw) - var(--rail-w) - 28px))); }
+.panel-open .toasts { width: max(240px, min(420px, calc(100vw - min(560px, 64vw) - var(--rail-w) - 48px))); }
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px;
   background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--teal);
@@ -506,7 +510,7 @@ select.input { width: auto; max-width: 100%; }
   .ctx-btn span { display: none; }
 }
 @media (max-width: 700px) {
-  .panel { width: 100vw; }
+  .panel { width: calc(100vw - var(--rail-w) - 12px); }
   .two-cols { grid-template-columns: 1fr; }
   .port-choice { grid-template-columns: 1fr; height: auto; }
   .port-list { max-height: 40vh; }
