@@ -14,6 +14,7 @@ import { aiShipIdle, aiDaily } from './ai.js';
 import { pointAlong } from './routing.js';
 import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
+import { noteDelivery, reportClient, clientsDaily, aiDenounces } from './clients.js';
 import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection } from './incidents.js';
 import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
@@ -435,8 +436,11 @@ function deliverContract(state, ship, rng, notes) {
   } else {
     const res = resolution(state, rng, payment);
     const contest = res.event?.kind === 'contestation' && res.event.withheld > 150000 && rng.chance(0.5);
-    collect(state, rng, payment.id, contest ? 'contester' : 'accepter');
+    const r = collect(state, rng, payment.id, contest ? 'contester' : 'accepter');
+    // Les IA dénoncent parfois, sinon restent discrètes : la réputation des chargeurs vit aussi sans le joueur.
+    if (r.incident) reportClient(state, rng, company, r.incident, aiDenounces(rng, company, r.incident) ? 'denoncer' : 'discret');
   }
+  noteDelivery(state, company, c.client, { late: penalty > 0, damaged: damage > 0.005 });
   if (penalty > 0) {
     company.late++;
     changeReputation(company, -(2 + penalty * 10));
@@ -519,6 +523,7 @@ function daily(state, ctx, rng, notes) {
   eco.refreshContracts(state, ctx, rng);
   refreshOffers(state, ctx, rng);
   dailyReceivables(state, notes);
+  clientsDaily(state, notes);
 
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];

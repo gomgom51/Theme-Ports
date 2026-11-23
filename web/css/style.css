@@ -275,6 +275,9 @@ p { margin: 6px 0; }
 .tag.warn { color: var(--warn); border-color: #e2c08a; }
 .tag.bad { color: var(--bad); border-color: #e6a8a1; }
 .tag.good { color: var(--good); border-color: #a9d1b8; }
+.loyal-dots { color: var(--good); letter-spacing: 1px; font-size: 12px; white-space: nowrap; }
+.pay-risk { font-size: 12.5px; }
+.client-row .client .tag { margin-left: 4px; }
 .stars { color: #b07d16; letter-spacing: 1px; font-size: 12px; }
 .row {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;

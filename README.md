@@ -92,7 +92,11 @@ riche de la planète.
 * **Des clients** : chaque contrat vient d'un chargeur plus ou moins fiable. À la
   livraison, on encaisse… avec des imprévus : prime de ponctualité, surcharge
   carburant, renégociation selon les cours, contestation (accepter ou aller en
-  arbitrage), paiement différé, voire faillite du client.
+  arbitrage), paiement différé, voire faillite du client. Les risques sont
+  chiffrés sur chaque contrat. Un chargeur qui paie mal, on le dénonce (il perd la
+  confiance du marché et vous boude) ou l'on reste discret (certains vous en
+  remercient). Livrer à l'heure rend un chargeur fidèle : moins d'ennuis, et ses
+  contrats proposés en priorité ; les meilleurs payeurs exigent une bonne réputation.
 * **La carte marine** : frontières et noms des pays, eaux nationales (moins de
   200 milles des côtes) et eaux internationales, drapeaux des ports.
 * **Le son** : ambiance du port à l'accueil (mer, mouettes, caisses, conteneurs,

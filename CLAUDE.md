@@ -48,7 +48,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   margins), `CYCLE` (freight cycle amplitude), `AGING` (used-ship depreciation,
   ageing costs), `AI_FLEET` (AI fleet cap) in `web/js/sim/economy.js` (all
   mirrored in `TUNING` for test sweeps); `RISK` and rates in
-  `web/js/sim/incidents.js`; flag `tax` / `crew` in `web/js/data/ports.js`.
+  `web/js/sim/incidents.js`; flag `tax` / `crew` in `web/js/data/ports.js`;
+  shippers (`RESERVE_*`, `DENOUNCE_HIT`, `AI_DENOUNCE`, `GRUDGE_DAYS`, `GRATITUDE`,
+  `clientDemand`) in `web/js/sim/clients.js`.
+- Lesson (shippers): a client's loyal-partner reservations must be extra offers on
+  top of a port's contract pool, never take its slots, or idle fleets pile up.
 
 ### Final balance pass (done) — results to preserve
 

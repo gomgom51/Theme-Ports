@@ -13,6 +13,7 @@ import { CANAL_NAMES } from './context.js';
 import { bannedUntil } from './pollution.js';
 import { taintShip } from './shady.js';
 import { equipMod } from './equipment.js';
+import { clientRefusal } from './clients.js';
 
 const fail = (msg) => ({ ok: false, msg });
 const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
@@ -215,6 +216,10 @@ export function checkContract(state, ctx, ship, contract) {
   if (bannedUntil(companyOf(state, ship), PORTS[contract.to].flag) > state.t) return `${FLAGS[PORTS[contract.to].flag].name} interdit ses ports à votre compagnie (pollution).`;
   if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
   if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
+  const refusal = clientRefusal(state, company, contract);
+  if (refusal?.kind === 'rancune') return `${refusal.name} ne travaille plus avec vous depuis que vous l'avez dénoncé (jusqu'au ${formatDate(refusal.until)}).`;
+  if (refusal?.kind === 'reserve') return `${refusal.name} réserve ce contrat à son partenaire le plus fidèle jusqu'au ${formatDate(refusal.until)}.`;
+  if (refusal?.kind === 'exigence') return `${refusal.name} ne travaille qu'avec des armateurs réputés (${refusal.rep} exigée) ou avec ses partenaires fidèles.`;
   if (company.reputation < contract.minRep) return `Réputation insuffisante (${contract.minRep} exigée).`;
   if (contract.deadline <= state.t) return 'Le délai est déjà dépassé.';
   return null;

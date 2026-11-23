@@ -16,7 +16,9 @@ import { shipStats, radarSVG, AXES } from './radar.js';
 import { LOGO_IDS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
 import { officeSVG, officeTier, OFFICE_TIERS } from './officeart.js';
-import { pendingList } from './payment.js';
+import { pendingList, clientLine, loyaltyDots } from './payment.js';
+import { CLIENTS } from '../data/clients.js';
+import { clientRel, clientDown, relationOf, clientDemand, clientState, LOYAL, RESERVE_LOYALTY } from '../sim/clients.js';
 import { surveyTag, isStrict } from './risk.js';
 import { alertsPanel } from './alerts.js';
 import { portShadyInfo } from './shady.js';
@@ -330,10 +332,38 @@ export function officePanel(app, _id, tab) {
       ['resultats', 'Résultats', () => resultsTab(app)],
       ['compagnie', 'Compagnie', () => companyTab(app)],
       ['assurance', 'Assurance', () => insuranceTab(app)],
+      ['chargeurs', 'Chargeurs', () => clientsTab(app)],
       ['classement', 'Classement', () => rankingTab(app)],
     ],
     tab,
   };
+}
+
+// Les chargeurs : leur note du moment, votre fidélité, leurs exigences, leurs rancunes.
+function clientsTab(app) {
+  const { state } = app;
+  const c = app.company();
+  // D'abord ceux avec qui il s'est passé quelque chose (livraisons, incidents, brouille), puis les autres.
+  const known = (r) => (r.deliveries || r.incidents || r.grudgeUntil > state.t ? 1 : 0);
+  const rows = Object.keys(CLIENTS).map((id) => ({ id, r: relationOf(c, id), rel: clientRel(state, id) }))
+    .sort((a, b) => (known(b.r) - known(a.r)) || (b.r.loyalty - a.r.loyalty) || (b.r.deliveries - a.r.deliveries) || (b.rel - a.rel));
+  return h('div', [
+    h('p.hint', `Les livraisons à l'heure et sans avarie rendent un chargeur fidèle : moins de litiges et de retards de paiement, et à partir de ${RESERVE_LOYALTY}/10 il vous propose en priorité une partie de ses contrats. Les meilleurs payeurs exigent une bonne réputation, sauf de leurs partenaires fidèles (${LOYAL}/10). Un chargeur qui vous paie mal, vous pouvez le dénoncer… ou rester discret.`),
+    h('div.list.compact', rows.map(({ id, r, rel }) => {
+      const C = CLIENTS[id], need = clientDemand(state, id), cs = clientState(state, id);
+      const goods = C.goods.map((g) => GOODS[g].icon).join(' ');
+      const tags = [
+        clientDown(state, id) ? h('span.tag.bad', `en redressement jusqu'au ${date(cs.downUntil, true)}`) : null,
+        r.grudgeUntil > state.t ? h('span.tag.bad', `vous boude jusqu'au ${date(r.grudgeUntil, true)}`) : null,
+        need && c.reputation < need && r.loyalty < LOYAL ? h('span.tag.warn', `exige une réputation de ${need}`) : null,
+        cs.named ? h('span.tag', { title: 'Nombre de fois où une compagnie l\'a dénoncé publiquement.' }, `dénoncé ×${cs.named}`) : null,
+      ];
+      return h('div.row.client-row', [
+        h('span.grow', [clientLine(state, c, id), h('div.small.muted', [`${goods} · `, r.deliveries > 1 ? `${r.deliveries} livraisons pour lui` : r.deliveries === 1 ? '1 livraison pour lui' : 'jamais travaillé ensemble', ...tags.filter(Boolean).flatMap((t) => [' ', t])])]),
+        r.loyalty > 0 || r.deliveries ? loyaltyDots(r.loyalty) : null,
+      ]);
+    })),
+  ]);
 }
 
 // Conditions des prêts, en clair : intérêts seuls, capital sans échéance, et quand il pourrait être remboursé.
@@ -562,6 +592,7 @@ export function helpPanel() {
       h('h3', 'Gagner de l\'argent'),
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
       p('Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Plus rentable, mais les prix bougent pendant le voyage, et vos achats et ventes font eux-mêmes bouger les prix.'),
+      p('Chargeurs : chaque contrat affiche les risques à l\'encaissement (impayé, litige, retard de paiement). Livrer à l\'heure rend un chargeur fidèle : moins d\'ennuis, et ses contrats vous sont proposés en priorité. Un chargeur qui vous paie mal, vous pouvez le dénoncer (il perd la confiance du marché, vous gagnez en réputation, il vous boude quatre mois) ou rester discret (certains vous en remercient). Bureau → Chargeurs.'),
       h('h3', 'Les coûts'),
       p('Carburant (consommation ∝ vitesse³ : ralentir économise beaucoup), équipage (selon votre pavillon), entretien, taxes portuaires et canaux, réparations. Un navire âgé consomme et coûte plus.'),
       h('h3', 'Les contraintes'),

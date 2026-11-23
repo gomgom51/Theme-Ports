@@ -7,6 +7,7 @@ import { GOODS } from '../data/goods.js';
 import { money as book, news, changeReputation, portName } from './core.js';
 import { worldFuelPrice } from './economy.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
+import { clientRel, paymentRisk, clientBankrupt } from './clients.js';
 
 const D = HOURS_PER_DAY;
 const pct = (v) => `${Math.round(v * 100)} %`;
@@ -32,7 +33,7 @@ export function resolution(state, rng, p) {
   if (p.res) return p.res;
   const company = state.companies[p.company];
   const C = CLIENTS[p.client] || { name: 'Le chargeur', reliability: 70, style: 'ponctuel' };
-  const R = C.reliability, rep = company.reputation;
+  const R = clientRel(state, p.client);
   const lines = [{ label: 'Fret convenu', amount: p.pay, kind: 'base' }];
   let total = p.pay;
   if (p.penalty > 0) {
@@ -68,9 +69,9 @@ export function resolution(state, rng, p) {
   // Un seul imprévu de dernière minute au plus.
   let event = null;
   const roll = rng.next();
-  const pBankrupt = Math.max(0, (45 - R) / 350) * (C.style === 'fragile' ? 1.6 : 1);
-  const pDispute = Math.max(0.02, 0.03 + (100 - R) / 450 + (60 - rep) / 700) * (C.style === 'pinailleur' ? 1.8 : 1);
-  const pDefer = (0.04 + (100 - R) / 600) * (C.style === 'lent' ? 2 : 1);
+  // Les mêmes probabilités que celles affichées sur le contrat (fiabilité du moment, réputation,
+  // fidélité de la compagnie envers ce chargeur).
+  const { bankrupt: pBankrupt, dispute: pDispute, defer: pDefer } = paymentRisk(state, company, p.client);
   const priceMove = p.priceAtStart ? state.market.world[p.good] / p.priceAtStart - 1 : 0;
   const pMarket = Math.abs(priceMove) > 0.05 ? 0.25 : 0;
   if (roll < pBankrupt) {
@@ -78,7 +79,7 @@ export function resolution(state, rng, p) {
     const cut = -total * (1 - share);
     lines.push({ label: `${C.name} est en redressement judiciaire : seuls ${pct(share)} seront versés`, amount: cut, kind: 'bad-event' });
     total += cut;
-    event = { kind: 'faillite' };
+    event = { kind: 'faillite', loss: Math.round(-cut) };
   } else if (roll < pBankrupt + pDispute) {
     const share = rng.range(0.05, 0.2);
     event = { kind: 'contestation', withheld: Math.round(total * share), share };
@@ -111,15 +112,17 @@ export function collect(state, rng, paymentId, choice = 'accepter') {
   const company = state.companies[p.company];
   state.payments = state.payments.filter((x) => x !== p);
   const ev = res.event;
+  // Un mauvais procédé d'un chargeur connu : la compagnie choisira de le dénoncer ou non.
+  const incident = (kind, loss) => (CLIENTS[p.client] ? { client: p.client, kind, loss: Math.round(loss), invoice: Math.round(res.total) } : null);
   if (ev?.kind === 'differe') {
     state.receivables.push({ id: state.nextId++, company: p.company, amount: res.total, due: state.t + ev.days * D, label: `${res.client} règle enfin sa facture (${p.shipName})` });
-    return { ok: true, deferred: ev.days, amount: res.total };
+    return { ok: true, deferred: ev.days, amount: res.total, incident: incident('differe', 0) };
   }
   if (ev?.kind === 'contestation') {
     if (choice === 'contester') {
       // Arbitrage : on récupère tout (moins les frais) si la réputation l'emporte.
       const fees = Math.round(res.total * 0.03);
-      const win = rng.chance(0.45 + company.reputation / 250 - (CLIENTS[p.client]?.reliability || 70) / 500);
+      const win = rng.chance(0.45 + company.reputation / 250 - clientRel(state, p.client) / 500);
       const amount = win ? res.total - fees : res.total - ev.withheld - fees;
       state.receivables.push({
         id: state.nextId++, company: p.company, amount, due: state.t + rng.int(20, 40) * D,
@@ -130,10 +133,14 @@ export function collect(state, rng, paymentId, choice = 'accepter') {
     }
     const amount = res.total - ev.withheld;
     book(state, company, amount, 'fret');
-    return { ok: true, amount };
+    return { ok: true, amount, incident: incident('contestation', ev.withheld) };
   }
   book(state, company, res.total, 'fret');
-  if (ev?.kind === 'faillite') news(state, `${res.client} est en redressement judiciaire.`, { kind: 'event' });
+  if (ev?.kind === 'faillite') {
+    news(state, `${res.client} est en redressement judiciaire.`, { kind: 'event' });
+    clientBankrupt(state, rng, p.client);
+    return { ok: true, amount: res.total, incident: incident('faillite', ev.loss || 0) };
+  }
   return { ok: true, amount: res.total };
 }
 

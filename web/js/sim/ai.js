@@ -103,6 +103,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
     const trip = tripCost(state, ctx, ship, c.to, loadH);
     if (!trip || trip.plan.error) continue;
     if (state.t + (trip.days + 1) * D > c.deadline) continue;
+    // (Le risque d'impayé n'est pas déduit : la prime de risque des chargeurs peu fiables le
+    // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)
     const profit = c.pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0);
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
   }

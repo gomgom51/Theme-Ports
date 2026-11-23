@@ -4,6 +4,7 @@ import { GOODS, GOOD_IDS } from '../data/goods.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_DAY_COST, CREW_LEVELS } from '../data/ships.js';
 import { CLIENTS } from '../data/clients.js';
+import { clientRel, clientDown, clientDemand, reserveFor, RESERVE_DAYS, RESERVE_BONUS } from './clients.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { clamp, HOURS_PER_DAY } from './util.js';
 
@@ -338,15 +339,18 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const scale = Math.pow(T.dwt / 12500, 0.05);
   const margin = (state.market.freight[hold] / FREIGHT_NORMAL) * rng.range(0.9, 1.12) * scale;
   const urgent = rng.chance(0.2);
-  // Le chargeur : les clients peu fiables paient un peu mieux pour attirer les armateurs.
-  const clients = Object.entries(CLIENTS).filter(([, c]) => c.goods.includes(good));
+  // Le chargeur (pas ceux en redressement judiciaire) : les clients peu fiables, ou dont la
+  // réputation a pris un coup, paient mieux pour attirer les armateurs.
+  const clients = Object.entries(CLIENTS).filter(([id, c]) => c.goods.includes(good) && !clientDown(state, id));
   const client = clients.length ? rng.pick(clients)[0] : null;
-  const riskPremium = client ? 1 + (70 - CLIENTS[client].reliability) / 300 : 1;
+  const riskPremium = client ? 1 + (70 - clientRel(state, client)) / 300 : 1;
+  // Son partenaire le plus fidèle a la priorité quelques jours, avec un fret un peu meilleur.
+  const reservedFor = reserveFor(state, rng, client, from);
   // Commerce avec un pays sous embargo : peu d'armateurs acceptent, le fret se paie cher.
   const embargo = isEmbargoedPort(from) || isEmbargoedPort(to);
   // La prime de retour à vide s'ajoute au taux de base (elle ne le multiplie pas).
   const ballast = TUNING.ballast + ((BALLAST_HOLD[hold] || 1) - 1) * 1.5;
-  const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1)) / 1000) * 1000;
+  const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1) * (reservedFor != null ? 1 + RESERVE_BONUS : 1)) / 1000) * 1000;
   const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
   // Lignes régulières (conteneurs) et denrées réfrigérées : le chargeur exige un navire
   // presque aussi rapide que celui de référence. Un cargo lent ne peut pas les prendre.
@@ -354,6 +358,8 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const minRep = clamp(Math.round((margin - 0.96) * 117 + (pay > 1.5e6 ? 15 : 0) + (urgent ? 5 : 0)), 0, 75);
   return {
     id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep, client, regional, big, minSpeed, embargo,
+    clientRep: client ? clientDemand(state, client) : 0,
+    reservedFor, reservedUntil: reservedFor != null ? Math.round(state.t + RESERVE_DAYS * HOURS_PER_DAY) : 0,
     fuelAtStart: Math.round(worldFuelPrice(state)), priceAtStart: state.market.world[good],
     nm: Math.round(route.nm),
     deadline: Math.round(state.t + deadlineDays * HOURS_PER_DAY),
@@ -368,6 +374,7 @@ export function refreshContracts(state, ctx, rng, fill = false) {
   const count = {};
   for (const c of state.contracts) {
     if (c.takenBy !== null) continue;
+    if (c.reservedFor != null && c.reservedUntil > state.t) continue; // offre réservée : en plus du lot du port
     const k = c.from + (c.regional ? ':regional' : c.big ? ':big' : ':normal');
     count[k] = (count[k] || 0) + 1;
   }
