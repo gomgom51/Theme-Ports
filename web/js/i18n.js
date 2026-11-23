@@ -23,6 +23,9 @@ const EXACT = new Map();
 const LOWER = new Map();
 const PATTERNS = [];
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Fin de phrase : point suivi d'une majuscule ou d'un pourcentage (« … avariée. 18 % de … »),
+// mais pas d'une année (« 16 janv. 2027 »).
+const SENTENCE_BREAK = /[.!?…]\s+(?:[A-ZÀ-ÖØ-Þ«"]|\d+\s?%)/;
 for (const [fr, en] of Object.entries(EN)) {
   if (/\{\d+\}/.test(fr)) {
     const parts = fr.split(/\{\d+\}/);
@@ -32,7 +35,12 @@ for (const [fr, en] of Object.entries(EN)) {
     // Variables collées l'une à l'autre (« …{3}{4} ») : la coupure se décide après coup.
     const glued = parts.slice(1, -1).map((p, k) => (p === '' ? k : -1)).filter((k) => k >= 0);
     const generic = parts.join('').replace(/[^A-Za-zÀ-ÿ]/g, '').length < 7;
-    PATTERNS.push({ re, order, en, chunk, glued, generic, weight: parts.join('').length });
+    // Le texte français a-t-il lui-même plusieurs phrases ? Sinon, une partie variable ne doit
+    // pas en avaler d'autres (« Avarie … du {0}. » ne couvre pas « … Immobilisé 1.5 j. Coût … »).
+    const multi = SENTENCE_BREAK.test(fr.replace(/\{\d+\}/g, 'X'));
+    // Variables séparées par une simple espace (« Le {0} {1} à {2}. ») : la coupure peut se discuter.
+    const spaced = parts.slice(1, -1).map((p, k) => (p === ' ' ? k : -1)).filter((k) => k >= 0);
+    PATTERNS.push({ re, order, en, chunk, glued, spaced, generic, multi, weight: parts.join('').length });
   } else {
     EXACT.set(fr, en);
     LOWER.set(fr.toLowerCase(), en);
@@ -56,6 +64,13 @@ try {
 
 // ---------- Traduction ----------
 function lookup(t, depth) {
+  const r = lookupCore(t, depth);
+  if (r != null || depth > 3) return r;
+  // Même texte sans le point final (journal de bord) : « Avarie de machine à bord du X ».
+  if (/[A-Za-zÀ-ÿ0-9)]$/.test(t)) { const r2 = lookupCore(t + '.', depth); if (r2 != null) return r2.replace(/\.$/, ''); }
+  return null;
+}
+function lookupCore(t, depth) {
   const ex = EXACT.get(t);
   if (ex !== undefined) return ex;
   const lo = LOWER.get(t.toLowerCase());
@@ -68,22 +83,46 @@ function lookup(t, depth) {
     if (p.chunk && !t.includes(p.chunk)) continue;
     const m = p.re.exec(t);
     if (!m) continue;
-    const got = m.slice(1);
+    let got = m.slice(1);
+    if (!p.multi && got.some((g) => SENTENCE_BREAK.test(g))) continue;
     for (const k of p.glued) [got[k], got[k + 1]] = split(got[k] + got[k + 1], depth + 1);
-    if (p.generic && got.some((g) => /[A-Za-zÀ-ÿ]{2}/.test(g) && lookup(g.trim(), depth + 1) == null)) continue;
+    if (p.generic) {
+      const ok = (gs) => gs.every((g) => !/[A-Za-zÀ-ÿ]{2}/.test(g) || looksLikeName(g) || lookup(g.trim(), depth + 1) != null);
+      if (!ok(got)) {
+        // Nom en plusieurs mots (« Étoile du Nord » | « a terminé son déchargement ») : autres coupures.
+        let fixed = null;
+        for (const k of p.spaced) {
+          const whole = got[k] + ' ' + got[k + 1];
+          for (let i = whole.indexOf(' '); i > 0 && !fixed; i = whole.indexOf(' ', i + 1)) {
+            const alt = got.slice(); alt[k] = whole.slice(0, i); alt[k + 1] = whole.slice(i + 1);
+            if (ok(alt)) fixed = alt;
+          }
+          if (fixed) break;
+        }
+        if (!fixed) continue;
+        got = fixed;
+      }
+    }
     const vals = {};
     p.order.forEach((n, i) => { vals[n] = got[i]; });
     return p.en.replace(/\{(\d+)\}/g, (_, n) => part(vals[n] ?? '', depth + 1));
   }
   return null;
 }
+// Nom propre (navire, compagnie, client) : majuscule initiale, pas deux mots courants à la suite.
+// (au plus six mots, chacun avec une majuscule ou un petit mot de liaison : « Étoile du Nord », « Vent d'Ouest »).
+const LINK = /^(de|du|des|la|le|les|et|of|the|and|van|von|da|do|di|y)$/i;
+const looksLikeName = (g) => {
+  const w = g.trim().split(/\s+/);
+  return w.length <= 6 && /^[A-ZÀ-ÖØ-Þ]/.test(w[0]) && w.every((x) => /^[A-ZÀ-ÖØ-Þ0-9]/.test(x) || LINK.test(x) || /^[dl]['’][A-ZÀ-ÖØ-Þ]/.test(x));
+};
 // Deux variables collées : on cherche la coupure (fin de phrase ou de proposition)
 // où chaque morceau se traduit ; sinon tout va au premier.
 function split(s, depth) {
   const ok = (x) => !x.trim() || !/[A-Za-zÀ-ÿ]{2}/.test(x) || lookup(x.trim(), depth) != null;
   const cuts = [s.length];
   for (const mm of s.matchAll(/[.!?,)]\s*/g)) cuts.push(mm.index + mm[0].length);
-  for (const mm of s.matchAll(/\s[·—]\s/g)) cuts.push(mm.index);
+  for (const mm of s.matchAll(/\s[·—]\s|, /g)) cuts.push(mm.index); // juste avant « · », « — » ou « , »
   cuts.push(0);
   for (const c of cuts) if (ok(s.slice(0, c)) && ok(s.slice(c))) return [s.slice(0, c), s.slice(c)];
   return [s, ''];
@@ -93,11 +132,14 @@ function split(s, depth) {
 function part(v, depth) {
   const core = v.trim();
   if (!core) return v;
-  const r = /[A-Za-zÀ-ÿ]{2}/.test(core) ? lookup(core, depth) ?? loose(core, depth) : null;
+  // Un nom propre absent du dictionnaire (navire, compagnie) reste tel quel : « Île de Batz ».
+  if (looksLikeName(core) && !EXACT.has(core) && !LOWER.has(core.toLowerCase())) return v.replace(core, englishFormats(core));
+  const r = /[A-Za-zÀ-ÿ]/.test(core) ? lookup(core, depth) ?? loose(core, depth) : null;
   return v.replace(core, r == null ? englishFormats(core) : r);
 }
 // Libellés composés, traduits morceau par morceau : listes (« A, B »), « A · B », « ⛽ Nom ».
-const SEPARATORS = /( · | — | → |, | \/ )/;
+const STRONG = /( · | — | → | \/ )/;
+const COMMA = /(, )/;
 function loose(t, depth) {
   if (depth > 4) return null;
   const m = /^([^A-Za-zÀ-ÿ]*)([\s\S]*?[A-Za-zÀ-ÿ.)])([^A-Za-zÀ-ÿ.)]*)$/.exec(t);
@@ -105,19 +147,38 @@ function loose(t, depth) {
     const r = lookup(m[2], depth + 1);
     if (r != null) return englishFormats(m[1]) + r + englishFormats(m[3]);
   }
-  const pieces = t.split(SEPARATORS);
-  if (pieces.length > 1) {
-    let changed = false;
-    const out = pieces.map((p, i) => {
-      if (i % 2 || !/[A-Za-zÀ-ÿ]{2}/.test(p)) return i % 2 ? p : englishFormats(p);
-      const r = lookup(p.trim(), depth + 1) ?? loose(p.trim(), depth + 1);
-      if (r == null) return englishFormats(p);
-      changed = true;
-      return p.replace(p.trim(), r);
-    });
-    return changed ? out.join('') : null;
+  return bySeparator(t, STRONG, depth) ?? bySentence(t, depth) ?? bySeparator(t, COMMA, depth);
+}
+function bySeparator(t, sep, depth) {
+  const pieces = t.split(sep);
+  if (pieces.length < 2) return null;
+  let changed = false;
+  const out = pieces.map((p, i) => {
+    if (i % 2 || !/[A-Za-zÀ-ÿ]{2}/.test(p)) return i % 2 ? p : englishFormats(p);
+    const r = lookup(p.trim(), depth + 1) ?? loose(p.trim(), depth + 1);
+    if (r == null) return englishFormats(p);
+    changed = true;
+    return p.replace(p.trim(), r);
+  });
+  return changed ? out.join('') : null;
+}
+// Plusieurs phrases collées (« Abordage : … Immobilisé 1.5 j. Coût : … ») : chacune à part,
+// en essayant d'abord jusqu'à trois phrases ensemble (« Incendie… ! L'équipage… »).
+function bySentence(t, depth) {
+  const s = t.split(/(?<=[.!?…])\s+(?=\S)/);
+  if (s.length < 2) return null;
+  const out = [];
+  let changed = false;
+  for (let i = 0; i < s.length;) {
+    let done = false;
+    for (let n = Math.min(3, s.length - i); n >= 1 && !done; n--) {
+      const chunk = s.slice(i, i + n).join(' ');
+      const r = lookup(chunk, depth + 1) ?? (n === 1 ? loose(chunk, depth + 1) : null);
+      if (r != null) { out.push(r); i += n; changed = true; done = true; }
+    }
+    if (!done) { out.push(englishFormats(s[i])); i++; }
   }
-  return null;
+  return changed ? out.join(' ') : null;
 }
 
 // Nombres, sommes et dates à l'anglaise : « 1 234,5 M$ » → « $1,234.5M », « 12 mars 2026 » → « 12 March 2026 ».

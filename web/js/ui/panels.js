@@ -336,6 +336,24 @@ export function officePanel(app, _id, tab) {
   };
 }
 
+// Conditions des prêts, en clair : intérêts seuls, capital sans échéance, et quand il pourrait être remboursé.
+function loanTerms(c) {
+  const rate = interestRate(c);
+  if (!c.debt) {
+    return h('p.loan-terms', [h('b', 'Prêts « intérêts seuls » : '), `vous ne payez que les intérêts, soit environ ${money(1e6 * rate / 12)} par mois pour 1 M$ emprunté. Le capital n'a pas d'échéance : vous le remboursez quand vous voulez.`]);
+  }
+  const profit = bookTotal(c.lastMonth);
+  const months = profit > 0 ? Math.ceil(c.debt / profit) : null;
+  const when = months == null ? 'Au rythme du mois dernier, vos bénéfices ne suffisent pas encore à le rembourser.'
+    : months > 120 ? `Au rythme du mois dernier (${money(profit)} de bénéfice), il faudrait plus de dix ans pour le rembourser.`
+      : `Au rythme du mois dernier (${money(profit)} de bénéfice), il serait remboursé en ${months} mois environ.`;
+  return h('p.loan-terms', [
+    h('b', 'Prêt « intérêts seuls » : '),
+    `vous payez seulement les intérêts, environ ${money(c.debt * rate / 12)} par mois. Le capital (${money(c.debt)}) n'a pas d'échéance : remboursez quand vous voulez.`,
+    ' ', when, ' ', 'En fin de partie, la dette restante est déduite de votre valeur nette.',
+  ]);
+}
+
 function financeTab(app) {
   const { state } = app;
   const c = app.company();
@@ -351,6 +369,7 @@ function financeTab(app) {
     stat('Taux d\'intérêt', `${num1(interestRate(c) * 100)} %/an`),
   ]));
   box.append(h('p.hint', 'La banque prête jusqu\'à 60 % de la valeur de votre flotte, plus une part selon votre réputation. Un découvert coûte 20 %/an ; trop profond, la banque saisit un navire.'));
+  box.append(loanTerms(c));
   const pending = pendingList(app);
   if (pending) box.append(pending);
   box.append(h('h3', 'Emprunter'));

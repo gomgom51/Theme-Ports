@@ -1211,4 +1211,12 @@ export default {
   "🏢 Niveau {0}/{1} · le sommet !": "🏢 Level {0}/{1} · the top!",
   "Niveau {0}/{1} · prochain bureau à {2} de valeur nette, vous en êtes à {3}": "Level {0}/{1} · next office at {2} net worth, you are at {3}",
   "Niveau {0}/{1} : le sommet !": "Level {0}/{1}: the top!",
+  "Prêts « intérêts seuls » :": "Interest-only loans:",
+  "Prêt « intérêts seuls » :": "Interest-only loan:",
+  "vous ne payez que les intérêts, soit environ {0} par mois pour 1 M$ emprunté. Le capital n'a pas d'échéance : vous le remboursez quand vous voulez.": "you only pay the interest, about {0} per month for $1M borrowed. The capital has no due date: you repay it whenever you like.",
+  "vous payez seulement les intérêts, environ {0} par mois. Le capital ({1}) n'a pas d'échéance : remboursez quand vous voulez.": "you only pay the interest, about {0} per month. The capital ({1}) has no due date: repay it whenever you like.",
+  "Au rythme du mois dernier, vos bénéfices ne suffisent pas encore à le rembourser.": "At last month's pace, your profits aren't enough to repay it yet.",
+  "Au rythme du mois dernier ({0} de bénéfice), il faudrait plus de dix ans pour le rembourser.": "At last month's pace ({0} profit), it would take more than ten years to repay.",
+  "Au rythme du mois dernier ({0} de bénéfice), il serait remboursé en {1} mois environ.": "At last month's pace ({0} profit), it would be repaid in about {1} months.",
+  "En fin de partie, la dette restante est déduite de votre valeur nette.": "At the end of the game, any remaining debt is deducted from your net worth.",
 };
