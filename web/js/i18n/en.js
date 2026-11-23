@@ -1202,4 +1202,5 @@ export default {
   "Vendre ici · {0}": "Sell here · {0}",
   "aucun": "none",
   "{0} j": "{0} d",
+  "Nouveau": "New",
 };

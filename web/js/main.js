@@ -19,7 +19,7 @@ import * as act from './sim/actions.js';
 import { SHIP_TYPES } from './data/ships.js';
 import { etaOf } from './ui/panel-ship.js';
 import { openPayment } from './ui/payment.js';
-import { computeAlerts } from './ui/alerts.js';
+import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier } from './ui/officeart.js';
@@ -106,7 +106,15 @@ app.focusShip = (id) => {
 
 function renderPanel() {
   const p = app.ui.panel;
-  if (!p || app.mode !== 'game') { panelEl.hidden = true; panelEl.replaceChildren(); document.body.classList.remove('panel-open'); return; }
+  if (!p || app.mode !== 'game') { panelEl.hidden = true; panelEl.replaceChildren(); document.body.classList.remove('panel-open'); app.ui.openedType = null; return; }
+  // Ouvrir un panneau, c'est lire : les alertes, la flotte, un navire, les paiements.
+  const cid = app.ui.activeCompany;
+  if (app.ui.openedType !== p.type) {
+    app.ui.openedType = p.type;
+    app.ui.newAlerts = p.type === 'alerts' ? unreadCounts(app.state, ctx, cid).unreadKeys : null;
+  }
+  const what = { alerts: 'alerts', fleet: 'fleet', office: 'payments' }[p.type] || (p.type === 'ship' && p.id != null ? `s${p.id}` : null);
+  if (what) { markSeen(app.state, ctx, cid, what); app.alertsAt = 0; }
   const fn = p.type === 'ship' ? shipPanel : PANELS[p.type];
   const def = fn(app, p.id, p.tab);
   const tabs = def.tabs || null;
@@ -172,20 +180,20 @@ function updateHud() {
   cash.classList.toggle('neg', c.cash < 0);
   $('#hud-date').textContent = formatDate(s.t);
   document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', +b.dataset.speed === app.speed));
-  const idle = shipsOf(s, c.id).filter(isIdle).length + s.payments.filter((p) => p.company === c.id).length;
-  const badge = $('#badge-fleet');
-  badge.textContent = idle || '';
-  badge.hidden = !idle;
-  // Notifications importantes et standing (musique) : recalculés au plus deux fois par seconde.
+  // Compteurs rouges (comme des courriels non lus), notifications importantes et standing
+  // (musique) : recalculés au plus deux fois par seconde.
   const now = performance.now();
   if (!app.alertsAt || now - app.alertsAt > 500 || app.alertsKey !== c.id) {
     app.alertsAt = now;
     app.alertsKey = c.id;
-    const alerts = computeAlerts(s, ctx, c.id).filter((a) => a.level <= 1);
+    const u = unreadCounts(s, ctx, c.id);
+    const badge = $('#badge-fleet');
+    badge.textContent = u.fleet || '';
+    badge.hidden = !u.fleet;
     const ab = $('#badge-alerts');
-    ab.textContent = alerts.length || '';
-    ab.hidden = !alerts.length;
-    ab.classList.toggle('urgent', alerts.some((a) => a.level === 0));
+    ab.textContent = u.alerts || '';
+    ab.hidden = !u.alerts;
+    ab.classList.toggle('urgent', u.urgent);
     app.audio.setMusicTier(officeTier(netWorth(s, c.id)));
     updateStandings(s, c.id);
   }
