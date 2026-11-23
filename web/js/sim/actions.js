@@ -10,6 +10,7 @@ import {
 } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { CANAL_NAMES } from './context.js';
+import { bannedUntil } from './pollution.js';
 
 const fail = (msg) => ({ ok: false, msg });
 const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
@@ -86,6 +87,9 @@ export function planVoyage(state, ctx, ship, to, speed) {
   if (to === from) return { error: 'Le navire est déjà dans ce port.' };
   if (!eco.fitsPort(to, ship.type)) {
     return { error: `Tirant d'eau trop important : ${T.draft} m pour ${eco.portDraft(to, ship.type)} m maximum à ${portName(to)}.` };
+  }
+  if (bannedUntil(company, PORTS[to].flag) > state.t) {
+    return { error: `${FLAGS[PORTS[to].flag].name} interdit ses ports à votre compagnie jusqu'au ${formatDate(bannedUntil(company, PORTS[to].flag))} (pollution).` };
   }
   if (ship.cargo) {
     if (ship.cargo.contractId) {
@@ -205,6 +209,7 @@ export function checkContract(state, ctx, ship, contract) {
   if (!hold) return `Ce navire ne peut pas transporter : ${GOODS[contract.good].name.toLowerCase()}.`;
   if (!eco.portHandles(contract.from, hold) || !eco.portHandles(contract.to, hold)) return 'Un des ports ne peut pas manutentionner ce chargement.';
   if (contract.qty > T.dwt) return `Capacité insuffisante (${T.dwt.toLocaleString('fr-FR')} t).`;
+  if (bannedUntil(companyOf(state, ship), PORTS[contract.to].flag) > state.t) return `${FLAGS[PORTS[contract.to].flag].name} interdit ses ports à votre compagnie (pollution).`;
   if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
   if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
   if (company.reputation < contract.minRep) return `Réputation insuffisante (${contract.minRep} exigée).`;

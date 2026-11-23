@@ -22,7 +22,7 @@ import { computeAlerts } from './ui/alerts.js';
 import { officeTier } from './ui/officeart.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
-const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt', 'detention']);
+const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt', 'detention', 'pollution']);
 
 const ctx = makeContext();
 const app = {
@@ -281,7 +281,7 @@ function handleNotes(notes) {
     if (n.kind === 'sunk') app.audio.play('sunk');
     const company = n.company != null ? app.state.companies[n.company] : null;
     const prefix = company && app.state.companies.filter((c) => c.human).length > 1 ? `${company.name} : ` : '';
-    const kind = ['sunk', 'bankrupt', 'bank', 'detention'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident'].includes(n.kind) ? 'warn' : 'info';
+    const kind = ['sunk', 'bankrupt', 'bank', 'detention', 'pollution'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident'].includes(n.kind) ? 'warn' : 'info';
     toast(prefix + n.text, {
       kind,
       timeout: PAUSE_KINDS.has(n.kind) ? 12000 : 7000,

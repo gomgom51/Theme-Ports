@@ -5,6 +5,7 @@ import { BORDERS, COUNTRIES, WATERS } from '../data/countries.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { pointAlong } from '../sim/routing.js';
 import { flagImage } from './flags.js';
+import { ZONES } from '../data/zones.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
 const LABEL_PLACE = {
@@ -398,6 +399,44 @@ export class MapView {
     const { scale } = this.view;
     const ui = this.ui || {};
     const kmToPx = scale / 60; // 1 mille nautique ≈ 1/60 de degré
+
+    // Côtes sensibles : zones hachurées (une pollution y coûte bien plus cher).
+    g.save();
+    for (const z of ZONES) {
+      const [x, y] = this.toScreen(z.lon, z.lat);
+      const r = Math.max(6, z.r * kmToPx);
+      if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+      g.fillStyle = `rgba(46,140,110,${0.05 + z.factor * 0.012})`; g.fill();
+      g.setLineDash([4, 4]); g.lineWidth = 1.2; g.strokeStyle = 'rgba(30,110,85,0.55)'; g.stroke(); g.setLineDash([]);
+      if (scale > 7) {
+        g.font = 'italic 600 10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${z.name}`, x, y - r * 0.55);
+        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${z.name}`, x, y - r * 0.55);
+      }
+    }
+    g.restore();
+    // Marées noires (s'estompent en deux ans).
+    for (const sp of state.spills || []) {
+      const age = (state.t - sp.t) / (24 * 365);
+      if (age > 2) continue;
+      const [x, y] = this.toScreen(sp.lon, sp.lat);
+      const r = Math.min(22, 3 + Math.sqrt(sp.tonnes) * 0.008 * scale);
+      g.fillStyle = `rgba(25,25,28,${0.42 * (1 - age / 2)})`;
+      // Tache irrégulière et arrondie, allongée par le courant.
+      const pts = [];
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 9) * Math.PI * 2, rr = r * (0.75 + 0.25 * Math.sin(k * 2.7 + sp.t % 7));
+        pts.push([x + Math.cos(a) * rr * 1.5, y + Math.sin(a) * rr * 0.8]);
+      }
+      g.beginPath();
+      g.moveTo((pts[0][0] + pts[8][0]) / 2, (pts[0][1] + pts[8][1]) / 2);
+      for (let k = 0; k < 9; k++) {
+        const p = pts[k], q = pts[(k + 1) % 9];
+        g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+      }
+      g.fill();
+    }
 
     // Tempêtes.
     for (const s of state.storms) {

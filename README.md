@@ -47,6 +47,10 @@ riche de la planète.
   cher, provoque moins d'incidents et évalue mieux les dangers : avis général,
   fourchettes, puis chiffres précis voyage par voyage. L'assurance et les ports
   exigeants, eux, sont toujours affichés.
+* **Pollution** : une cargaison polluante qui se déverse (naufrage, échouement,
+  abordage) coûte un nettoyage, bien plus cher près des côtes sensibles
+  (Bretagne, mer des Wadden, Grande Barrière…). Assuré si le navire était en
+  état ; sinon tout est à vos frais et le pays touché vous ferme ses ports un an.
 * **Inspections dans les ports exigeants** (Europe, Amérique du Nord, Japon,
   Corée, Australie, Singapour) : un navire usé peut être retenu, mis à l'amende
   et réparé d'office à vos frais, que vous ayez l'argent ou non.
@@ -132,7 +136,7 @@ tests/               tests des routes et de la simulation
 3. Équipage et équipement (premier pas : niveaux d'équipage).
 4. Piraterie, forces de l'ordre et combats automatiques.
 5. Commerce gris et noir (embargos, cargaisons clandestines), douanes.
-6. Naufrages, pollution, assurance et responsabilité.
+6. ✅ Naufrages, pollution, assurance et responsabilité (assurance au choix : plus tard).
 7. Équilibrage, sons et musique, finitions.
 
 ## Crédits

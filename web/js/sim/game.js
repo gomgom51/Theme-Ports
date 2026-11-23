@@ -15,6 +15,7 @@ import { pointAlong } from './routing.js';
 import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection } from './incidents.js';
+import { spill, isPolluting } from './pollution.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 2;
@@ -80,6 +81,8 @@ export function newGame(opts, ctx) {
 export function migrateState(state) {
   const rng = new Rng((state.seed ^ 0x9e3779b9) >>> 0);
   state.market.cycle ??= 0;
+  state.spills ??= [];
+  for (const c of state.companies) c.bans ??= {};
   for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
   for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
   for (const p of PORT_IDS) {
@@ -265,9 +268,15 @@ function sailHour(state, ctx, rng, ship, notes) {
     }
     if (inc.rep) changeReputation(company, inc.rep);
     const text = incidentText(inc, ship);
+    // Échouement, abordage, voie d'eau ou incendie avec une cargaison polluante : une partie se déverse.
+    if (inc.severe && inc.kind !== 'gros_temps' && ship.cargo && isPolluting(ship.cargo.good)) {
+      const share = inc.kind === 'echouement' ? rng.range(0.03, 0.15) : rng.range(0.01, 0.08);
+      spill(state, ship, company, pos, share, { nearCoast, notes, note });
+      ship.cargo.qty = Math.round(ship.cargo.qty * (1 - share));
+    }
     shipLog(state, ship, text.split('.')[0]);
     if (inc.severe && rng.chance(sinkChance(ship.condition, wx.force, ship.crew))) {
-      sink(state, ctx, ship, notes, pos, wx, inc);
+      sink(state, ctx, ship, notes, pos, wx, inc, rng);
       return;
     }
     note(state, notes, inc.kind === 'machine' ? 'breakdown' : 'incident', ship, text);
@@ -275,7 +284,7 @@ function sailHour(state, ctx, rng, ship, notes) {
 
   // Naufrage : coque très usée prise dans une forte tempête.
   if (ship.condition <= 0 || (ship.condition < 22 && wx.force >= 10 && rng.chance(0.004 * (wx.force - 9)))) {
-    sink(state, ctx, ship, notes, pos, wx);
+    sink(state, ctx, ship, notes, pos, wx, null, rng);
     return;
   }
 
@@ -387,10 +396,14 @@ function deliverContract(state, ship, rng, notes) {
   state.contracts = state.contracts.filter((x) => x !== c);
 }
 
-function sink(state, ctx, ship, notes, pos, wx, inc = null) {
+function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
   const company = companyOf(state, ship);
   const T = SHIP_TYPES[ship.type];
   const startCond = ship.voyage?.startCond ?? ship.condition;
+  // La cargaison et le fuel des soutes se répandent : pollution, surtout près des côtes sensibles.
+  const route = ctx.shipRoute(ship);
+  const nearCoast = !!(ship.voyage && route && (ship.voyage.progress < 150 || route.nm - ship.voyage.progress < 150));
+  if (pos) spill(state, ship, company, pos, rng ? rng.range(0.4, 1) : 0.7, { sinking: true, nearCoast, notes, note });
   // L'assureur ne paie que si le navire était en état de naviguer au départ.
   const insurance = hullInsurance(state, ship, startCond);
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });

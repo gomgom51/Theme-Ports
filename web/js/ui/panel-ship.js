@@ -87,7 +87,7 @@ export function shipPanel(app, id, tab) {
       stat('Équipage', crewInfo(ship).short),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
-    mine ? h('div.risk-box', riskLines(state, ship)) : null,
+    mine ? h('div.risk-box', riskLines(state, ship, { route: ship.status === 'sea' ? ctx.shipRoute(ship) : null })) : null,
   ]);
 
   if (!mine) {
@@ -160,7 +160,7 @@ function contractsTab(app, ship) {
     const daysLeft = (c.deadline - state.t) / 24;
     return h('div.card.contract', { class: why ? 'disabled' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(c.client)]) : null,
         why ? h('div.card-why', why) : h('div.card-sub', [
@@ -448,7 +448,7 @@ function departTab(app, ship) {
           contract ? h('br') : null,
           contract ? h('span', { class: est.eta > contract.deadline ? 'neg' : 'pos' }, est.eta > contract.deadline ? `Attention : arrivée après le délai du ${date(contract.deadline, true)}` : `Dans les délais (avant le ${date(contract.deadline, true)})`) : null,
         ]),
-        est.error ? null : h('div.risk-box.compact', riskLines(state, ship, { seaDays: est.seaDays, to: dest }).slice(ship.condition >= 40 ? 1 : 0)),
+        est.error ? null : h('div.risk-box.compact', riskLines(state, ship, { seaDays: est.seaDays, to: dest, route: est.route }).slice(ship.condition >= 40 ? 1 : 0)),
         h('label.check', [
           h('input', { type: 'checkbox', checked: autoRefuel, onchange: (e) => { app.form.autoRefuel[ship.id] = e.target.checked; } }),
           ' Faire le plein automatiquement si nécessaire',

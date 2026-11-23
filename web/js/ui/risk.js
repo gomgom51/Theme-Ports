@@ -6,6 +6,7 @@ import { CREW_LEVELS } from '../data/ships.js';
 import { PORTS } from '../data/ports.js';
 import { riskProfile, voyageRisk, inspectionOdds, inspectionThreshold, isStrict, SEAWORTHY } from '../sim/incidents.js';
 import { ageYears } from '../sim/economy.js';
+import { worstCase, isPolluting } from '../sim/pollution.js';
 import { h } from './dom.js';
 
 const fr = (x, d = 0) => x.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -21,7 +22,7 @@ const LEVEL_CLASS = ['pos', '', 'warn-text', 'neg'];
 export function crewInfo(ship) { return CREW_LEVELS[ship.crew || 0]; }
 
 // Lignes d'information sur les risques. opts : seaDays (voyage prévu), to (port d'arrivée).
-export function riskLines(state, ship, { seaDays = null, to = null } = {}) {
+export function riskLines(state, ship, { seaDays = null, to = null, route = null } = {}) {
   const crew = crewInfo(ship);
   const prof = riskProfile(state, ship);
   const out = [];
@@ -29,6 +30,16 @@ export function riskLines(state, ship, { seaDays = null, to = null } = {}) {
   out.push(prof.insured
     ? h('div.risk-line', [h('span.pos', '✔ Assuré'), ` — le navire et la cargaison sont couverts tant que l'état au départ reste d'au moins ${SEAWORTHY} %.`])
     : h('div.risk-line.neg', `✖ Non assuré — sous ${SEAWORTHY} % d'état au départ, ni le navire ni la cargaison ne sont couverts. Un naufrage ou une réclamation serait entièrement à vos frais.`));
+  // 1 bis. Cargaison polluante : côtes sensibles sur la route et pire cas (fait connu, comme l'assurance).
+  if (route && ship.cargo && isPolluting(ship.cargo.good)) {
+    const w = worstCase(ship, route, ship.status === 'sea' ? (ship.voyage?.startCond ?? ship.condition) : ship.condition);
+    const M = (x) => `${(x / 1e6).toFixed(1).replace('.', ',')} M$`;
+    const along = w.zones.length ? `Votre route longe ${w.zones.map((z) => `${z.name} (×${String(z.factor).replace('.', ',')})`).join(', ')}.` : 'Votre route reste au large des côtes sensibles.';
+    const cost = w.insured
+      ? `En cas de marée noire, nettoyage jusqu'à ${M(w.liability)} : l'assurance paie, il vous resterait ${M(w.due)} de franchise.`
+      : `En cas de marée noire, nettoyage jusqu'à ${M(w.liability)}, à vos frais (jusqu'à ${M(w.due)}) car le navire n'est pas assuré, et le pays touché vous fermerait ses ports un an.`;
+    out.push(h(`div.risk-line${w.insured ? '' : '.neg'}`, [`☣ Cargaison polluante. ${along} ${cost}`]));
+  }
   // 2. L'avis de l'équipage sur les dangers.
   if (crew.info === 0) {
     out.push(h('div.risk-line', ['🧭 Le capitaine juge le risque d\'incident ', h('b', { class: LEVEL_CLASS[prof.level] }, prof.label), '.',

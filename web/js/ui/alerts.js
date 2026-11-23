@@ -9,6 +9,8 @@ import { isStrict, inspectionThreshold, SEAWORTHY } from '../sim/incidents.js';
 import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
 import { h, money, pct, date } from './dom.js';
+import { FLAGS } from '../data/ports.js';
+import { isPolluting } from '../sim/pollution.js';
 import { etaOf } from './panel-ship.js';
 
 const LEVELS = { urgent: 0, watch: 1, info: 2 };
@@ -35,6 +37,9 @@ export function computeAlerts(state, ctx, companyId) {
     add('watch', '💳', `Emprunts à ${pct((company.debt / Math.max(1, credit)) * 100)} de votre plafond de crédit : la banque ne prêtera bientôt plus.`, { panel: 'office' });
   }
 
+  for (const [flag, until] of Object.entries(company.bans || {})) {
+    if (until > state.t) add('watch', '⛔', `${FLAGS[flag].name} interdit ses ports à votre compagnie jusqu'au ${date(until, true)} (pollution).`);
+  }
   const ships = shipsOf(state, companyId);
   for (const ship of ships) {
     const T = SHIP_TYPES[ship.type];
@@ -43,7 +48,8 @@ export function computeAlerts(state, ctx, companyId) {
       add('urgent', '🚨', `Le ${ship.name} est retenu à ${PORTS[ship.port].name} par les inspecteurs : remise en état jusqu'au ${date(ship.busyUntil, true)}, ou vente en l'état.`, go);
     }
     if (ship.status !== 'laidup' && ship.condition < SEAWORTHY) {
-      add('urgent', '✖', `Le ${ship.name} n'est plus assuré (état ${pct(ship.condition)}) : un naufrage ou une réclamation serait entièrement à vos frais.`, go);
+      const pol = ship.cargo && isPolluting(ship.cargo.good) ? ' Avec sa cargaison polluante, une marée noire vous coûterait aussi le nettoyage et une interdiction d\'escale.' : '';
+      add('urgent', '✖', `Le ${ship.name} n'est plus assuré (état ${pct(ship.condition)}) : un naufrage ou une réclamation serait entièrement à vos frais.${pol}`, go);
     } else if (ship.status !== 'laidup' && ship.condition < 50) {
       add('watch', '🔧', `Le ${ship.name} s'use (état ${pct(ship.condition)}) : il ralentit, et l'assurance cesse sous ${SEAWORTHY} %.`, go);
     }
