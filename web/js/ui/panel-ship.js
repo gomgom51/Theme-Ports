@@ -123,7 +123,7 @@ export function shipPanel(app, id, tab) {
     if (ship.cargo?.contractId && !tab) tab = 'depart';
     if (ship.cargo && !ship.cargo.contractId && !tab) tab = 'negoce';
   }
-  tabs.push(['journal', 'Journal', () => logTab(app, ship)]);
+  tabs.push(['journal', 'Journal de bord', () => logTab(app, ship)]);
 
   return {
     title: ship.name,

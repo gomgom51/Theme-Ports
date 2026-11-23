@@ -1,4 +1,5 @@
 // Écrans plein écran : accueil, nouvelle partie (choix du port d'attache), fin de partie.
+import { getLang, setLang } from '../i18n.js';
 import { PORTS, PORT_IDS, FLAGS, draftText } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
 import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
@@ -50,11 +51,22 @@ function soundToggle(app) {
   return btn;
 }
 
+// Bouton de langue : affiche la langue vers laquelle il bascule, dans cette langue.
+function langToggle() {
+  const label = () => (getLang() === 'fr' ? '🌐 English' : '🌐 Français');
+  const btn = h('button.lang-toggle', {
+    'data-no-tr': '', title: 'Language / Langue',
+    onclick: (e) => { e.stopPropagation(); setLang(getLang() === 'fr' ? 'en' : 'fr'); btn.textContent = label(); },
+  }, label());
+  return btn;
+}
+
 export function titleScreen(app) {
   const saves = listSaves();
   const toggle = soundToggle(app);
   app.audio.onUnlock = () => toggle.refresh();
   screen('title', h('div.title-card', [
+    langToggle(),
     toggle,
     h('div.logo', [h('span.logo-anchor', { html: `<svg viewBox="0 0 64 64" aria-hidden="true">${LOGOS.ancre.svg}</svg>` }), h('h1', 'Port d\'Attache'), h('p.tagline', 'Armateur au long cours')]),
     h('div.title-buttons', [

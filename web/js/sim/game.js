@@ -260,7 +260,7 @@ function sailHour(state, ctx, rng, ship, notes) {
       const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
       st.incidents.tempete = (st.incidents.tempete || 0) + 1;
     }
-    note(state, notes, lost ? 'incident' : 'storm', ship, `Le ${ship.name} affronte ${articleStorm(wx.storm.name)} (force ${wx.force}).${lost}`);
+    note(state, notes, lost ? 'incident' : 'storm', ship, `Le ${ship.name} affronte ${articleStorm(wx.storm.name)} (force ${wx.force})${lost}.`);
     shipLog(state, ship, `${wx.storm.name} : vent force ${wx.force}${lost ? ', cargaison avariée' : ''}`);
   }
 

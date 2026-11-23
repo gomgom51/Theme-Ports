@@ -1,5 +1,6 @@
 // Carte du monde : projection équirectangulaire, déplacement et zoom au doigt
 // ou à la souris, monde répété horizontalement (traversée du Pacifique).
+import { tr } from '../i18n.js';
 import { LAND_DETAILED, LAND_COARSE } from '../data/world.js';
 import { BORDERS, COUNTRIES, WATERS } from '../data/countries.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
@@ -312,7 +313,7 @@ export class MapView {
     for (const [name, lon, lat, minScale] of SEAS) {
       if (scale < minScale) continue;
       const [x, y] = this.toScreen(lon, lat);
-      if (x > -100 && x < this.w + 100 && y > -20 && y < this.h + 20) g.fillText(name, x, y);
+      if (x > -100 && x < this.w + 100 && y > -20 && y < this.h + 20) g.fillText(tr(name), x, y);
     }
     if ('letterSpacing' in g) g.letterSpacing = '0px';
     g.textAlign = 'left';
@@ -344,7 +345,7 @@ export class MapView {
       if (Math.sqrt(c.a) * scale < 70) continue;
       const [x, y] = this.toScreen(c.x, c.y);
       if (x < -80 || x > this.w + 80 || y < -10 || y > this.h + 10) continue;
-      g.fillText(c.n.toUpperCase(), x, y);
+      g.fillText(tr(c.n).toUpperCase(), x, y);
     }
     if ('letterSpacing' in g) g.letterSpacing = '0px';
     g.textAlign = 'left';
@@ -384,9 +385,9 @@ export class MapView {
         }
         g.lineWidth = 3;
         g.strokeStyle = C.halo;
-        g.strokeText(P.name, tx, ly);
+        g.strokeText(tr(P.name), tx, ly);
         g.fillStyle = hl ? C.portHl : C.ink;
-        g.fillText(P.name, tx, ly);
+        g.fillText(tr(P.name), tx, ly);
       }
     }
     this.dirty = false;
@@ -412,8 +413,8 @@ export class MapView {
       g.setLineDash([4, 4]); g.lineWidth = 1.2; g.strokeStyle = 'rgba(30,110,85,0.55)'; g.stroke(); g.setLineDash([]);
       if (scale > 7) {
         g.font = 'italic 600 10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${z.name}`, x, y - r * 0.55);
-        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${z.name}`, x, y - r * 0.55);
+        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
+        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
       }
     }
     // Zones de piraterie : cercles rouges en pointillés.
@@ -426,8 +427,8 @@ export class MapView {
       g.setLineDash([2, 5]); g.lineWidth = 1.4; g.strokeStyle = 'rgba(170,40,32,0.6)'; g.stroke(); g.setLineDash([]);
       if (scale > 4) {
         g.font = '700 10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`☠ ${z.name}`, x, y + r * 0.55);
-        g.fillStyle = 'rgba(150,32,26,0.95)'; g.fillText(`☠ ${z.name}`, x, y + r * 0.55);
+        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`☠ ${tr(z.name)}`, x, y + r * 0.55);
+        g.fillStyle = 'rgba(150,32,26,0.95)'; g.fillText(`☠ ${tr(z.name)}`, x, y + r * 0.55);
       }
     }
     g.restore();

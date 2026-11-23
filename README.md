@@ -99,6 +99,8 @@ riche de la planète.
   corne de brume), bruitages (départ, chargement, arrivée, pompe à carburant,
   caisse enregistreuse), tous synthétisés par le jeu. Musiques facultatives à
   générer avec Suno : voir [docs/musique-suno.md](docs/musique-suno.md).
+* **Français ou anglais** : bouton 🌐 sur l'accueil et « Langue » dans le menu ; par
+  défaut, la langue de l'appareil. *English available: 🌐 button on the title screen.*
 
 ## Installer
 

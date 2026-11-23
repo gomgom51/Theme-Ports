@@ -23,6 +23,7 @@ import { computeAlerts } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier } from './ui/officeart.js';
+import { initI18n, setLang, getLang } from './i18n.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 const PAUSE_KINDS = new Set(['idle', 'arrival', 'sunk', 'bank', 'bankrupt', 'detention', 'pollution', 'sanction']);
@@ -449,6 +450,7 @@ async function gameMenu() {
       { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
       { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
       { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
+      { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
       { label: 'Menu principal', value: 'title', kind: 'ghost' },
       { label: 'Reprendre', value: 'resume', kind: 'primary' },
@@ -467,6 +469,7 @@ async function gameMenu() {
   else if (v === 'ambience') { app.audio.setAmbience(!app.audio.settings.ambience); app.speed = wasSpeed; }
   else if (v === 'sfx') { app.audio.setSfx(!app.audio.settings.sfx); app.speed = wasSpeed; }
   else if (v === 'music') { app.audio.setMusic(!app.audio.settings.music); app.speed = wasSpeed; }
+  else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'title') { if (await confirmBox('Retour au menu principal ?', 'La partie est sauvegardée automatiquement.', 'Quitter')) app.toTitle(); }
   else if (v === 'resume') app.speed = wasSpeed;
@@ -505,6 +508,8 @@ if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'http
 }
 
 // ---------- Lancement ----------
+initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
+window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });
 app.map.fitWorld();

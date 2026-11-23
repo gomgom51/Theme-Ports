@@ -65,6 +65,14 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 ## Conventions
 
 - In-game text is French; code comments in French.
+- English option: French stays the source language in the code. `web/js/i18n.js`
+  translates every French text as it reaches the screen (DOM text nodes and
+  title/aria-label attributes via a MutationObserver; map canvas labels via `tr()`),
+  using the dictionary `web/js/i18n/en.js` (French text → English, `{0}` for
+  variable parts, which are translated recursively). Whenever you add or change a
+  French UI/news text, add its English entry, then run `node tools/i18n-extract.mjs`
+  to list texts still missing a translation (proper names need none). Mark an
+  element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
 - Original game only: never reuse the name, art, music or screens of
   *Ports of Call*; keep only the general mechanics.

@@ -402,6 +402,11 @@ select.input { width: auto; max-width: 100%; }
   color: var(--ink-2); border-radius: 999px; padding: 4px 10px; font-size: 12px;
 }
 .sound-toggle:hover { color: var(--ink); border-color: var(--teal); }
+.lang-toggle {
+  position: absolute; z-index: 2; top: 10px; left: 10px; border: 1px solid var(--line); background: var(--paper-2);
+  color: var(--ink-2); border-radius: 999px; padding: 4px 10px; font-size: 12px;
+}
+.lang-toggle:hover { color: var(--ink); border-color: var(--teal); }
 /* Intro au lancement : le caboteur quitte le port au coucher du soleil (ui/intro.js). */
 .intro {
   position: fixed; inset: 0; z-index: 60; overflow: hidden; background: #120b1e; cursor: pointer;
