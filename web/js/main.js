@@ -75,7 +75,7 @@ app.close = () => {
   renderPanel();
 };
 app.openTab = (tab) => { if (app.ui.panel) { app.ui.panel.tab = tab; renderPanel(); } };
-app.refresh = () => { renderPanel(); updateHud(); };
+app.refresh = () => { app.alertsAt = 0; renderPanel(); updateHud(); };
 app.company = () => app.state.companies[app.ui.activeCompany];
 app.toast = (text, opts) => toast(text, opts);
 app.setPreview = (route) => { app.map.preview = route; };
@@ -155,14 +155,18 @@ function updateHud() {
   const badge = $('#badge-fleet');
   badge.textContent = idle || '';
   badge.hidden = !idle;
-  // Notifications importantes : le badge devient rouge s'il y a une urgence.
-  const alerts = computeAlerts(s, ctx, c.id).filter((a) => a.level <= 1);
-  const ab = $('#badge-alerts');
-  ab.textContent = alerts.length || '';
-  ab.hidden = !alerts.length;
-  ab.classList.toggle('urgent', alerts.some((a) => a.level === 0));
-  // La musique suit le standing de la compagnie (le bureau).
-  app.audio.setMusicTier(officeTier(netWorth(s, c.id)));
+  // Notifications importantes et standing (musique) : recalculés au plus deux fois par seconde.
+  const now = performance.now();
+  if (!app.alertsAt || now - app.alertsAt > 500 || app.alertsKey !== c.id) {
+    app.alertsAt = now;
+    app.alertsKey = c.id;
+    const alerts = computeAlerts(s, ctx, c.id).filter((a) => a.level <= 1);
+    const ab = $('#badge-alerts');
+    ab.textContent = alerts.length || '';
+    ab.hidden = !alerts.length;
+    ab.classList.toggle('urgent', alerts.some((a) => a.level === 0));
+    app.audio.setMusicTier(officeTier(netWorth(s, c.id)));
+  }
   const humans = s.companies.filter((x) => x.human);
   $('#hud-company').classList.toggle('switchable', humans.length > 1);
   const news = s.news[0];

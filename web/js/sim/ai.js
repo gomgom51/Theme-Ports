@@ -10,6 +10,8 @@ import { HOURS_PER_DAY } from './util.js';
 import { INCIDENT_BASE, wearRisk } from './incidents.js';
 import { ENFORCING } from '../data/sanctions.js';
 import { hasEquip, installEquipment } from './equipment.js';
+import { acceptOffer, detectionChance } from './shady.js';
+import { patrolRisk } from './patrols.js';
 
 const D = HOURS_PER_DAY;
 
@@ -143,12 +145,23 @@ export function aiShipIdle(state, ctx, rng, ship) {
         ship.aiWait = state.t + 24;
         return;
       }
-      act.acceptContract(state, ctx, ship.id, best.c.id, { speed: T.speed, autoRefuel: true });
+      if (act.acceptContract(state, ctx, ship.id, best.c.id, { speed: T.speed, autoRefuel: true }).ok) takeParcel(state, ctx, company, ship, best.c.to);
     } else {
       const r = act.buyCargo(state, ctx, ship.id, best.good, best.qty);
-      if (r.ok) act.depart(state, ctx, ship.id, best.to, T.speed, true);
+      if (r.ok) { takeParcel(state, ctx, company, ship, best.to); act.depart(state, ctx, ship.id, best.to, T.speed, true); }
     }
     return;
+  }
+
+  // 3 bis. Compagnie audacieuse sans rien de mieux : livrer un colis discret, ce qui la repositionne.
+  if (company.ai?.daring && !ship.contraband && !ship.cargo) {
+    const offers = (state.offers || []).filter((o) => o.from === here && o.pay >= 250000);
+    for (const o of offers.sort((a, b) => b.pay - a.pay)) {
+      const before = (state.offers || []).length;
+      takeParcel(state, ctx, company, ship, o.to);
+      if ((state.offers || []).length < before && act.depart(state, ctx, ship.id, o.to, T.speed, true).ok) return;
+      if (ship.contraband) break;
+    }
   }
 
   // 4. Rien d'intéressant ici : se repositionner vers un port qui exporte ce que
@@ -176,6 +189,18 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (act.layUp(state, ship.id).ok) { ship.aiIdleSince = null; return; }
   }
   ship.aiWait = state.t + rng.int(18, 48);
+}
+
+// Compagnie audacieuse : accepter un colis discret qui va dans la même direction,
+// si le risque de se faire prendre paraît raisonnable.
+function takeParcel(state, ctx, company, ship, to) {
+  if (!company.ai?.daring || ship.contraband) return;
+  const o = (state.offers || []).find((x) => x.from === ship.port && x.to === to);
+  if (!o) return;
+  const route = ctx.route(ship.port, to, ctx.closedCanals(state, SHIP_TYPES[ship.type].draft));
+  const pr = patrolRisk({ ...ship, contraband: o }, route, SHIP_TYPES[ship.type].speed);
+  const caught = 1 - (1 - detectionChance(ship, to)) * (1 - (pr?.caught || 0));
+  if (caught < 0.15) acceptOffer(state, ship.id, o.id);
 }
 
 // Coût par tonne et par mille d'un navire d'occasion, comparé au navire moderne

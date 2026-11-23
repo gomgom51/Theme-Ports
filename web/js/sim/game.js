@@ -59,7 +59,8 @@ export function newGame(opts, ctx) {
       reputation: Math.round(FLAGS[flag].rating * 0.5 + 25),
       portsServed: [c.homePort], delivered: 0, late: 0, bankrupt: false, lowCashDays: 0,
       month: emptyBook(), lastMonth: emptyBook(), total: emptyBook(), history: [],
-      ai: c.human ? null : { skill: diff.aiSkill, nextFleet: rng.int(1, 5) * D },
+      // Certaines compagnies de l'ordinateur sont « audacieuses » : elles prennent des colis discrets.
+      ai: c.human ? null : { skill: diff.aiSkill, nextFleet: rng.int(1, 5) * D, daring: rng.chance(0.5) },
     });
   });
   for (let d = 0; d < 3; d++) eco.dailyMarketUpdate(state, rng);
