@@ -94,10 +94,52 @@ instrumental, folk maritime des années 60, accordéon musette, guitare acoustiq
 
 ### `niveau3.mp3` — Le siège de la compagnie (30 à 100 M$)
 
-Boiseries et tableaux de navires : le jazz feutré d'un armateur établi.
+Le pivot entre la petite affaire du port et le groupe international. Le brief
+du patron : « On a un vrai siège, des contrats avec les grands chargeurs, on
+embauche, on ouvre des lignes. On n'est plus la petite boîte du quai, pas encore
+la multinationale : on a faim, on avance. » La musique doit avoir de l'élan,
+pas de la détente : les instruments du port des niveaux 1 et 2 (accordéon,
+violon, guitare) portés par une vraie rythmique, avec les cordes et les cuivres
+qui annoncent la suite. Couplets en mineur (la tension) qui s'ouvrent en majeur
+au refrain (l'ambition).
+
+Mêmes consignes que pour le niveau 5 : styles en anglais, mode **Custom**, case
+**Instrumental** décochée, structure dans le champ des paroles (non chantée).
+
+**Style of Music** :
 
 ```
-instrumental, jazz de port des années 70, piano électrique, contrebasse, balais sur caisse claire, cuivres feutrés, touche d'accordéon, swing doux, élégant et détendu, sans voix
+cinematic folk rock, driving 4/4 groove, 116 BPM, determined and ambitious, acoustic guitar strumming, accordion lead melody, fiddle, electric bass, live drums with tom rhythm, string section building, brass swells, celtic touch, minor verses lifting to a major chorus, forward momentum, instrumental, no vocals
+```
+
+**Exclude Styles** (si le champ existe) :
+
+```
+vocals, singing, jazz, lounge, smooth, elevator music, bossa nova, lo-fi, jingle
+```
+
+**Titre** : Le siège
+
+**Paroles** (structure seulement) :
+
+```
+[Intro: accordion alone, then acoustic guitar strumming]
+
+[Verse: drums and bass enter, steady drive, accordion melody]
+
+[Pre-Chorus: strings rising, tension]
+
+[Chorus: full band, fiddle and accordion together, brass swells, determined]
+
+[Break: tom drums and bass, the engine room]
+
+[Verse: strings join the melody]
+
+[Final Chorus: full band and strings, bigger]
+
+[Outro: accordion melody over strumming guitar, steady ending]
+
+[End]
 ```
 
 ### `niveau4.mp3` — L'étage de direction (100 à 300 M$)
