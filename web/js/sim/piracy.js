@@ -8,6 +8,7 @@ import { HOURS_PER_DAY } from './util.js';
 import { EQUIPMENT } from '../data/equipment.js';
 import { hasCitadel, hasEquip } from './equipment.js';
 import * as eco from './economy.js';
+import { pirateBoost, PIRATE_BOOST, PIRATE_STRENGTH } from './plots.js';
 
 const D = HOURS_PER_DAY;
 //  rate     : probabilité d'attaque par jour passé dans la zone
@@ -66,25 +67,30 @@ export function repelChance(ship, speed, s) {
   for (const p of phaseValues(ship, speed, s)) fail *= 1 - phaseOdds(p);
   return 1 - fail;
 }
-// Risque d'un voyage : probabilité d'au moins une attaque, et de la repousser.
-export function piracyRisk(ship, route, speed) {
+// Risque d'un voyage : probabilité d'au moins une attaque, et de la repousser. Avec l'état
+// de la partie, compte aussi les pirates payés par un concurrent pour viser ce navire.
+export function piracyRisk(ship, route, speed, state = null) {
   const zones = piracyAlong(route);
   if (!zones.length) return null;
-  let noAttack = 1, worst = null;
+  let noAttack = 1, worst = null, targeted = false, boost = 0;
   for (const { zone, nm } of zones) {
     const days = nm / (24 * speed);
-    noAttack *= Math.exp(-zone.rate * days);
-    if (!worst || zone.strength[1] > worst.strength[1]) worst = zone;
+    const hired = state && pirateBoost(state, ship, zone.id);
+    if (hired) targeted = true;
+    noAttack *= Math.exp(-zone.rate * (hired ? PIRATE_BOOST : 1) * days);
+    if (!worst || zone.strength[1] > worst.strength[1]) { worst = zone; boost = hired ? PIRATE_STRENGTH : 0; }
   }
-  const mid = (worst.strength[0] + worst.strength[1]) / 2;
-  return { zones, attack: 1 - noAttack, repel: repelChance(ship, speed, mid), repelWorst: repelChance(ship, speed, worst.strength[1]), worst };
+  const mid = (worst.strength[0] + worst.strength[1]) / 2 + boost;
+  return { zones, attack: 1 - noAttack, repel: repelChance(ship, speed, mid), repelWorst: repelChance(ship, speed, worst.strength[1] + boost), worst, targeted };
 }
 
 // Une heure de mer : une attaque survient-elle ? Renvoie le rapport de combat.
 export function piracyHour(state, rng, ship, pos) {
   const z = piracyZoneAt(pos.lon, pos.lat);
-  if (!z || !rng.chance(z.rate / D)) return null;
-  const s = Math.round(rng.range(z.strength[0], z.strength[1]) * 10) / 10;
+  if (!z) return null;
+  const hired = pirateBoost(state, ship, z.id); // payés par un concurrent : plus souvent, mieux armés
+  if (!rng.chance((z.rate * (hired ? PIRATE_BOOST : 1)) / D)) return null;
+  const s = Math.round((rng.range(z.strength[0], z.strength[1]) + (hired ? PIRATE_STRENGTH : 0)) * 10) / 10;
   const speed = ship.voyage?.speed || SHIP_TYPES[ship.type].speed;
   const phases = [];
   let repelled = false;
@@ -93,7 +99,7 @@ export function piracyHour(state, rng, ship, pos) {
     phases.push({ label: p.label, def: Math.round(p.def * 10) / 10, att: Math.round(p.att * 10) / 10, ok, text: ok ? p.win : p.lose });
     if (ok) { repelled = true; break; }
   }
-  const report = { zone: z.name, attackers: attackerName(s), strength: s, phases, equipment: (ship.equipment || []).map((id) => EQUIPMENT[id].icon + ' ' + EQUIPMENT[id].name) };
+  const report = { zone: z.name, hired: !!hired, attackers: attackerName(s), strength: s, phases, equipment: (ship.equipment || []).map((id) => EQUIPMENT[id].icon + ' ' + EQUIPMENT[id].name) };
   const company = companyOf(state, ship);
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
   st.piracy = st.piracy || { attacks: 0, repelled: 0, looted: 0, hijacked: 0 };

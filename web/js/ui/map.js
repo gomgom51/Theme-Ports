@@ -772,6 +772,7 @@ export const PORT_STATUS = {
   installation: { color: '#7b5ea7', icon: 'gear', label: 'Installation d\'équipement' },
   'détention': { color: '#c4362c', icon: 'stop', label: 'Retenu par les inspecteurs' },
   saisie: { color: '#c4362c', icon: 'stop', label: 'Retenu par la douane' },
+  retenue: { color: '#c4362c', icon: 'stop', label: 'Retenu sans motif sérieux' },
   laidup: { color: '#8a8a8a', icon: 'zzz', label: 'Désarmé' },
 };
 export function portActivity(ship) {

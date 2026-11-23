@@ -97,6 +97,11 @@ riche de la planète.
   confiance du marché et vous boude) ou l'on reste discret (certains vous en
   remercient). Livrer à l'heure rend un chargeur fidèle : moins d'ennuis, et ses
   contrats proposés en priorité ; les meilleurs payeurs exigent une bonne réputation.
+* **Des coups bas** : dans les ports louches, payer des pirates pour viser les navires
+  d'un concurrent ou acheter les fonctionnaires d'un port pour qu'ils les retiennent ;
+  débaucher un chargeur de son partenaire ; payer un informateur pour savoir qui
+  complote contre vous et qui cache un colis (et le dénoncer à la douane). La victime
+  est toujours avertie par une rumeur, et tout coup bas peut finir en scandale.
 * **La carte marine** : frontières et noms des pays, eaux nationales (moins de
   200 milles des côtes) et eaux internationales, drapeaux des ports.
 * **Le son** : ambiance du port à l'accueil (mer, mouettes, caisses, conteneurs,

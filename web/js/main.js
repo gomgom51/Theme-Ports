@@ -26,11 +26,12 @@ import { officeTier, OFFICE_TIERS } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
 import { showScene, scenesOn, setScenesOn } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
+import { heldDialog } from './ui/plots.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
-const PAUSE_KINDS = new Set(['idle', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction']);
+const PAUSE_KINDS = new Set(['idle', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction', 'threat', 'scandal']);
 
 const ctx = makeContext();
 const app = {
@@ -389,6 +390,13 @@ function handleNotes(notes) {
       else openCase(app, n.caseId);
       continue;
     }
+    if (n.kind === 'held') {
+      // Retenue abusive : attendre ou payer l'avocat (la fenêtre s'ouvre d'elle-même).
+      toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Décider', onAction: () => heldDialog(app, n.shipId) });
+      const cid = n.company;
+      popup(async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); if (scenes) await showScene(app, 'detention', sceneOpts(n, { title: 'Retenu sans motif sérieux' })); await heldDialog(app, n.shipId); }, () => app.state.settings.autoPause);
+      continue;
+    }
     if (n.kind === 'paid') {
       app.audio.play('cash');
       toast(n.text, { kind: 'money', timeout: 7000 });
@@ -422,7 +430,7 @@ function handleNotes(notes) {
     if (scene) playScene(scene, sceneOpts(n, extra));
     const company = n.company != null ? app.state.companies[n.company] : null;
     const prefix = company && app.state.companies.filter((c) => c.human).length > 1 ? `${company.name} : ` : '';
-    const kind = ['sunk', 'bankrupt', 'bank', 'banker', 'detention', 'pollution', 'sanction'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident'].includes(n.kind) ? 'warn' : 'info';
+    const kind = ['sunk', 'bankrupt', 'bank', 'banker', 'detention', 'pollution', 'sanction', 'scandal'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident', 'threat'].includes(n.kind) ? 'warn' : 'info';
     toast(prefix + n.text, {
       kind,
       timeout: PAUSE_KINDS.has(n.kind) ? 12000 : 7000,

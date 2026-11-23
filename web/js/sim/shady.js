@@ -9,6 +9,7 @@ import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORT
 import { money, news, changeReputation, portName, shipLog, shipById, companyOf, costStat } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { equipMod } from './equipment.js';
+import { tipped, tipReward, TIP_DETECT } from './plots.js';
 
 const D = HOURS_PER_DAY;
 export const TAINT_DAYS = 365;
@@ -113,9 +114,11 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
     onNote?.('info', `Le colis du ${ship.name} n'a pas été livré à temps : vos contacts ne paieront pas, il est passé par-dessus bord.`);
     return { late: true };
   }
-  if (rng.chance(detectionChance(ship, port))) {
+  // Un navire dénoncé par un concurrent est fouillé presque à coup sûr.
+  if (rng.chance(tipped(state, ship) ? Math.max(TIP_DETECT, detectionChance(ship, port)) : detectionChance(ship, port))) {
     ship.contraband = null;
     const fine = seizureFine(cb.pay);
+    tipReward(state, ship, fine);
     const days = rng.int(10, 25);
     const corrupt = corruption(PORTS[port].flag);
     if (company.human && corrupt > 0.15) {

@@ -15,6 +15,7 @@ import { pointAlong } from './routing.js';
 import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 import { noteDelivery, reportClient, clientsDaily, aiDenounces } from './clients.js';
+import { heldOnArrival, plotsDaily, aiPlots, hireLawyer } from './plots.js';
 import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection } from './incidents.js';
 import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
@@ -194,13 +195,14 @@ function portHour(state, ctx, rng, ship, notes) {
     if ((what === 'réparation' || what === 'détention') && ship.repairTo != null) { ship.condition = Math.max(ship.condition, ship.repairTo); ship.repairTo = null; }
     // Navire retenu par les inspecteurs : la remise en état commence après le déchargement.
     if (ship.detention) { act.startBusy(state, ship, 'détention', ship.detention.hours); ship.detentionStart = state.t; ship.detention = null; return; }
+    if (ship.heldBogus) { act.startBusy(state, ship, 'retenue', ship.heldBogus.hours); ship.lawyer = ship.heldBogus.lawyer; ship.heldBogus = null; return; }
     if (ship.plan) {
       const r = act.runPlan(state, ctx, ship);
       if (!r.ok) note(state, notes, 'idle', ship, `Le ${ship.name} n'a pas pu appareiller : ${r.msg}`);
       else note(state, notes, 'depart', ship, `Le ${ship.name} appareille.`);
       return;
     }
-    const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs', saisie: 'est libéré par la douane', installation: 'a son nouvel équipement' };
+    const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs', saisie: 'est libéré par la douane', installation: 'a son nouvel équipement', retenue: 'est enfin autorisé à repartir' };
     note(state, notes, 'idle', ship, `Le ${ship.name} ${labels[what] || 'est prêt'} à ${portName(ship.port)}.`);
   }
 }
@@ -398,6 +400,15 @@ function arrive(state, ctx, ship, notes, rng) {
     note(state, notes, 'detention', ship, `Le ${ship.name} est retenu à ${portName(to)} par les inspecteurs : amende de ${Math.round(insp.fine / 1000)} k$ et remise en état obligatoire à ${insp.target} % (${Math.round(insp.cost / 1000).toLocaleString('fr-FR')} k$, ${days} j).`);
     ship.detention = { hours: insp.hours };
   }
+  // Autorités achetées par un concurrent : le navire est retenu sans motif sérieux.
+  const held = rng && !ship.detention && ship.busyWhat !== 'saisie' ? heldOnArrival(state, rng, ship, to) : null;
+  if (held) {
+    ship.heldBogus = held;
+    shipLog(state, ship, `Retenu sans motif sérieux à ${portName(to)}`);
+    if (company.human) {
+      note(state, notes, 'held', ship, `Le ${ship.name} est retenu à ${portName(to)} sur un prétexte : ${held.days} jours d'immobilisation, à moins de payer un avocat (${Math.round(held.lawyer / 1000)} k$).`);
+    } else if (company.cash > held.lawyer * 3) hireLawyer(state, ship.id); // une IA paie l'avocat si elle peut
+  }
   if (ship.cargo?.contractId) {
     ship.pendingDelivery = ship.cargo.contractId;
     // Navire saisi par la douane : le déchargement attendra sa libération.
@@ -408,6 +419,10 @@ function arrive(state, ctx, ship, notes, rng) {
     act.startBusy(state, ship, 'détention', ship.detention.hours);
     ship.detentionStart = state.t;
     ship.detention = null;
+  } else if (ship.heldBogus) {
+    act.startBusy(state, ship, 'retenue', ship.heldBogus.hours);
+    ship.lawyer = ship.heldBogus.lawyer;
+    ship.heldBogus = null;
   } else {
     note(state, notes, 'idle', ship, `Le ${ship.name} est arrivé à ${portName(to)}.`);
   }
@@ -524,6 +539,7 @@ function daily(state, ctx, rng, notes) {
   refreshOffers(state, ctx, rng);
   dailyReceivables(state, notes);
   clientsDaily(state, notes);
+  plotsDaily(state, notes);
 
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];
@@ -544,7 +560,10 @@ function daily(state, ctx, rng, notes) {
     if (company.debt > 0) money(state, company, -(company.debt * interestRate(company)) / 365, 'interets');
     if (company.cash < 0) money(state, company, (company.cash * 0.2) / 365, 'interets'); // découvert à 20 %
     checkBank(state, ctx, company, notes);
-    if (!company.human) aiDaily(state, ctx, rng, company);
+    if (!company.human) {
+      aiDaily(state, ctx, rng, company);
+      if (Math.round(state.t / D) % 30 === 15) aiPlots(state, rng, company, (id) => netWorth(state, id)); // une fois par mois
+    }
   }
 
   const day = state.t / D;

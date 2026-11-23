@@ -12,6 +12,8 @@ import { ENFORCING } from '../data/sanctions.js';
 import { hasEquip, installEquipment } from './equipment.js';
 import { acceptOffer, detectionChance, sanctionFine, taintActive } from './shady.js';
 import { patrolRisk } from './patrols.js';
+import { hostilePort, pirateBoost } from './plots.js';
+import { piracyAlong } from './piracy.js';
 
 const D = HOURS_PER_DAY;
 
@@ -99,9 +101,11 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (c.from !== here || c.takenBy !== null) continue;
     if (c.embargo && avoidsEmbargo(state, company)) continue; // pavillon qui applique les sanctions, ou déjà sanctionnée : on s'abstient
     if (act.checkContract(state, ctx, ship, c)) continue;
+    if (hostilePort(state, company.id, c.to)) continue; // autorités achetées contre nous : on évite
     const loadH = eco.handlingHours(here, c.hold, c.qty) + eco.handlingHours(c.to, c.hold, c.qty);
     const trip = tripCost(state, ctx, ship, c.to, loadH);
     if (!trip || trip.plan.error) continue;
+    if (trip.plan.route && piracyAlong(trip.plan.route).some((x) => pirateBoost(state, ship, x.zone.id))) continue; // pirates payés contre nous
     if (state.t + (trip.days + 1) * D > c.deadline) continue;
     // (Le risque d'impayé n'est pas déduit : la prime de risque des chargeurs peu fiables le
     // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)

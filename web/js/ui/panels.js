@@ -22,6 +22,7 @@ import { clientRel, clientDown, relationOf, clientDemand, clientState, LOYAL, RE
 import { surveyTag, isStrict } from './risk.js';
 import { alertsPanel } from './alerts.js';
 import { portShadyInfo } from './shady.js';
+import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 
 const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
@@ -120,6 +121,9 @@ export function portPanel(app, id) {
     stat('Inspections', isStrict(id) ? 'sévères' : 'rares'),
   ]));
   body.append(...portShadyInfo(id));
+  const intel = informantSection(app, id), under = underworldSection(app, id);
+  if (intel) body.append(intel);
+  if (under) body.append(under);
   const ban = app.company()?.bans?.[P.flag];
   if (ban > state.t) body.append(h('p.warn-text', `⛔ ${F.name} interdit ses ports à votre compagnie jusqu'au ${date(ban, true)} (pollution).`));
   if (isStrict(id)) body.append(h('p.hint', 'Port exigeant : les navires usés (sous 55 %, 62 % après 20 ans) risquent d\'y être retenus, mis à l\'amende et réparés d\'office aux frais de l\'armateur.'));
@@ -359,7 +363,7 @@ function clientsTab(app) {
         cs.named ? h('span.tag', { title: 'Nombre de fois où une compagnie l\'a dénoncé publiquement.' }, `dénoncé ×${cs.named}`) : null,
       ];
       return h('div.row.client-row', [
-        h('span.grow', [clientLine(state, c, id), h('div.small.muted', [`${goods} · `, r.deliveries > 1 ? `${r.deliveries} livraisons pour lui` : r.deliveries === 1 ? '1 livraison pour lui' : 'jamais travaillé ensemble', ...tags.filter(Boolean).flatMap((t) => [' ', t])])]),
+        h('span.grow', [clientLine(state, c, id), partnerInfo(app, id), h('div.small.muted', [`${goods} · `, r.deliveries > 1 ? `${r.deliveries} livraisons pour lui` : r.deliveries === 1 ? '1 livraison pour lui' : 'jamais travaillé ensemble', ...tags.filter(Boolean).flatMap((t) => [' ', t])])]),
         r.loyalty > 0 || r.deliveries ? loyaltyDots(r.loyalty) : null,
       ]);
     })),
@@ -593,6 +597,7 @@ export function helpPanel() {
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
       p('Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Plus rentable, mais les prix bougent pendant le voyage, et vos achats et ventes font eux-mêmes bouger les prix.'),
       p('Chargeurs : chaque contrat affiche les risques à l\'encaissement (impayé, litige, retard de paiement). Livrer à l\'heure rend un chargeur fidèle : moins d\'ennuis, et ses contrats vous sont proposés en priorité. Un chargeur qui vous paie mal, vous pouvez le dénoncer (il perd la confiance du marché, vous gagnez en réputation, il vous boude quatre mois) ou rester discret (certains vous en remercient). Bureau → Chargeurs.'),
+      p('Coups bas : dans un port louche, le milieu vend ses services contre vos concurrents (pirates dans une zone, fonctionnaires d\'un port corrompu). Dans tout port où vous avez un navire, un informateur dit qui complote contre vous et quels navires rivaux cachent un colis. Toute menace contre vous s\'annonce par une rumeur (notifications importantes), et tout coup bas peut s\'ébruiter. Les partenariats des chargeurs sont publics : on peut en débaucher un (Bureau → Chargeurs).'),
       h('h3', 'Les coûts'),
       p('Carburant (consommation ∝ vitesse³ : ralentir économise beaucoup), équipage (selon votre pavillon), entretien, taxes portuaires et canaux, réparations. Un navire âgé consomme et coûte plus.'),
       h('h3', 'Les contraintes'),

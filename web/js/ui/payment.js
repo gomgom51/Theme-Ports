@@ -30,7 +30,7 @@ export function clientLine(state, company, clientId) {
     h('span.muted', ` · ${STYLE_LABEL[C.style]}`),
     r.loyalty >= LOYAL
       ? h('span.tag.good', { title: r.loyalty >= RESERVE_LOYALTY ? `Fidélité ${r.loyalty}/10 : moins de litiges et de retards de paiement, et priorité sur une partie de ses contrats.` : `Fidélité ${r.loyalty}/10 : moins de litiges et de retards de paiement.` }, 'partenaire fidèle')
-      : r.loyalty > 0 ? [' ', loyaltyDots(r.loyalty)] : null,
+      : r.loyalty > 0 ? h('span', [' ', loyaltyDots(r.loyalty)]) : null,
   ]);
 }
 

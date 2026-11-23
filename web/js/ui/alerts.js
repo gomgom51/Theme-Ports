@@ -15,6 +15,7 @@ import { sanctionRisk, detectionChance } from '../sim/shady.js';
 import { etaOf } from './panel-ship.js';
 import { openCase } from './shady.js';
 import { openRansom } from './piracy.js';
+import { plotAlerts, heldDialog, jettisonDialog } from './plots.js';
 
 const LEVELS = { urgent: 0, watch: 1, info: 2 };
 export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
@@ -22,7 +23,7 @@ export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
 // Limite de découvert au-delà de laquelle la banque saisit un navire (même règle que la simulation).
 export const seizureLimit = (state, company) => 300000 + 0.1 * fleetValue(state, company.id);
 
-const alertKey = (level, icon, text, t) => `${level}|${icon}|${t ? (t.ship ?? t.ransom ?? t.customs ?? t.panel ?? '') : ''}|${text.replace(/[\d\s.,%$−+-]+/g, '')}`;
+const alertKey = (level, icon, text, t) => `${level}|${icon}|${t ? (t.ship ?? t.ransom ?? t.customs ?? t.held ?? t.jettison ?? t.panel ?? '') : ''}|${text.replace(/[\d\s.,%$−+-]+/g, '')}`;
 
 // ---------- Lu / non lu, comme des courriels ----------
 // Les compteurs rouges ne comptent que ce que vous n'avez pas encore vu. Une alerte vue
@@ -121,6 +122,7 @@ export function computeAlerts(state, ctx, companyId) {
       add('info', '📈', `Le fret est remonté pour les ${T.category.toLowerCase()}s : réarmer le ${ship.name} ?`, go);
     }
   }
+  plotAlerts(state, companyId, (level, icon, text, target) => add(level, icon, text, target?.plot != null ? null : target));
   const idle = ships.filter(isIdle);
   if (idle.length) add('info', '⚓', idle.length === 1 ? `Le ${idle[0].name} attend vos ordres.` : `${idle.length} navires attendent vos ordres.`, idle.length === 1 ? { ship: idle[0].id } : { panel: 'fleet' });
   const pay = state.payments.filter((p) => p.company === companyId).length;
@@ -139,7 +141,7 @@ export function alertsPanel(app) {
     body.append(h('div.list', list.map((a) => h(`div.card.alert.alert-${lv}`, { class: app.ui.newAlerts?.has(a.key) ? 'unread' : '' }, [
       h('div.card-main', [h('div.card-sub', [app.ui.newAlerts?.has(a.key) ? h('span.unread-dot', { title: 'Nouveau' }) : null, h('span.alert-icon', a.icon), ' ', a.text])]),
       a.target ? h('div.card-side', [h('button.btn.small', {
-        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
+        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.held != null) heldDialog(app, a.target.held); else if (a.target.jettison != null) jettisonDialog(app, a.target.jettison); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
       }, 'Voir')]) : null,
     ]))));
   }

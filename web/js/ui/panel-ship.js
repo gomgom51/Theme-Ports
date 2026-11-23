@@ -18,6 +18,7 @@ import { fuelGaugeEl, animateNeedle } from './gauge.js';
 import { riskLines, crewInfo, isStrict } from './risk.js';
 import { shadyLines, offersSection } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
+import { hostileTag, hostileLine, heldDialog } from './plots.js';
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
 import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence } from '../sim/equipment.js';
 import { CREW_LEVELS } from '../data/ships.js';
@@ -174,7 +175,7 @@ function contractsBase(app, ship) {
     const reserved = c.reservedFor === ship.owner && c.reservedUntil > state.t;
     return h('div.card.contract', { class: why ? 'disabled' : '', onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, hostileTag(state, ship.owner, c.to)]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(state, company, c.client)]) : null,
         c.client ? riskLine(state, company, c.client, c.pay) : null,
@@ -440,6 +441,10 @@ function busyTab(app, ship) {
       if (await confirmBox(`Vendre le ${ship.name} en l'état ?`, `Le courtier en offre ${money(value)}, plus ${money(refund)} de réparations remboursées.`, 'Vendre')) app.act(() => act.sellShip(state, ctx, ship.id), { close: true });
     } }, `Vendre en l'état · ${money(value + refund)}`)]));
   }
+  if (ship.busyWhat === 'retenue') {
+    box.append(h('p.hint', `Les autorités de ${portName(ship.port)} retiennent le ${ship.name} sur un prétexte. Un avocat peut obtenir sa libération sous 24 heures.`));
+    box.append(h('div.chips', [h('button.chip', { onclick: () => heldDialog(app, ship.id) }, 'Voir l\'avocat')]));
+  }
   if (state.strikes[ship.port] > state.t) box.append(h('p.warn-text', `Grève en cours à ${portName(ship.port)} jusqu'au ${date(state.strikes[ship.port], true)}.`));
   if (ship.plan) {
     const p = act.planVoyage(state, ctx, ship, ship.plan.to, ship.plan.speed);
@@ -492,7 +497,7 @@ function departTab(app, ship) {
           contract ? h('br') : null,
           contract ? h('span', { class: est.eta > contract.deadline ? 'neg' : 'pos' }, est.eta > contract.deadline ? `Attention : arrivée après le délai du ${date(contract.deadline, true)}` : `Dans les délais (avant le ${date(contract.deadline, true)})`) : null,
         ]),
-        est.error ? null : h('div.risk-box.compact', [...riskLines(state, ship, { seaDays: est.seaDays, to: dest, route: est.route }).slice(ship.condition >= 40 ? 1 : 0), piracyLine(ship, est.route, speed), patrolLine(ship, est.route, speed), ...shadyLines(state, ship, dest)]),
+        est.error ? null : h('div.risk-box.compact', [...riskLines(state, ship, { seaDays: est.seaDays, to: dest, route: est.route }).slice(ship.condition >= 40 ? 1 : 0), piracyLine(ship, est.route, speed, state), patrolLine(ship, est.route, speed), hostileLine(state, ship, dest), ...shadyLines(state, ship, dest)]),
         h('label.check', [
           h('input', { type: 'checkbox', checked: autoRefuel, onchange: (e) => { app.form.autoRefuel[ship.id] = e.target.checked; } }),
           ' Faire le plein automatiquement si nécessaire',

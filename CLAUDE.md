@@ -50,7 +50,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   mirrored in `TUNING` for test sweeps); `RISK` and rates in
   `web/js/sim/incidents.js`; flag `tax` / `crew` in `web/js/data/ports.js`;
   shippers (`RESERVE_*`, `DENOUNCE_HIT`, `AI_DENOUNCE`, `GRUDGE_DAYS`, `GRATITUDE`,
-  `clientDemand`) in `web/js/sim/clients.js`.
+  `clientDemand`) in `web/js/sim/clients.js`; shady deals (`PIRATE_*`, `HELD_CHANCE`,
+  `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`.
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 
