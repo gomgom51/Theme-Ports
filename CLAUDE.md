@@ -44,8 +44,23 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   one wins in some markets.
 - `node tests/sim.test.mjs 3 12345` and a 10-year run — no NaN, AI neither
   runaway nor wiped out.
-- Tuning knobs: `BALLAST` / `BALLAST_HOLD` / `FREIGHT_*` in
-  `web/js/sim/economy.js`, `RISK` and rates in `web/js/sim/incidents.js`.
+- Tuning knobs: `BALLAST` / `BALLAST_HOLD` / `FREIGHT_*`, `SPREAD` (trade
+  margins), `CYCLE` (freight cycle amplitude), `AGING` (used-ship depreciation,
+  ageing costs), `AI_FLEET` (AI fleet cap) in `web/js/sim/economy.js` (all
+  mirrored in `TUNING` for test sweeps); `RISK` and rates in
+  `web/js/sim/incidents.js`; flag `tax` / `crew` in `web/js/data/ports.js`.
+
+### Final balance pass (done) — results to preserve
+
+- AI population, 5 years, 96 companies: median ×8 net worth, bottom 10 % ≈ ×1,
+  no bankruptcy; every home port viable (Houston/US flag lowest, ×3–8 median).
+- 10 years: all AIs survive, growth turns linear once the fleet cap is reached.
+- Strategies over 16 seeds: bulk 7 wins, tankers 5, liners 3, cargos 1 (cargos'
+  edge is grey/black trade, which the test bots barely use); medians ×13–24.
+- Fleet test: every model profitable.
+- Lessons: used-ship prices must follow earning power (slow `AGING.dep`),
+  otherwise cheap old hulls give runaway returns; the AI must price expected
+  embargo fines (it now does, `embargoCost` in `ai.js`) or it bleeds billions.
 
 ## Conventions
 

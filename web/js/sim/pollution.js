@@ -7,7 +7,7 @@ import { GOODS } from '../data/goods.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS, FLAGS } from '../data/ports.js';
 import { haversineNm } from './routing.js';
-import { money, news, changeReputation } from './core.js';
+import { money, news, changeReputation, costStat } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { coverage } from './insurance.js';
 import { equipMod } from './equipment.js';
@@ -77,6 +77,7 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   const startCond = ship.voyage?.startCond ?? ship.condition;
   const c = spillCost(ship, pollutionT, factor, startCond, company);
   money(state, company, -c.due, 'sinistres');
+  costStat(state, 'pollution', c.due);
   changeReputation(company, -Math.min(20, 2 + c.liability / 10e6));
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
   st.spills = (st.spills || 0) + 1;

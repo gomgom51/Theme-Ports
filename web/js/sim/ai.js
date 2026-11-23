@@ -10,7 +10,7 @@ import { HOURS_PER_DAY } from './util.js';
 import { INCIDENT_BASE, wearRisk } from './incidents.js';
 import { ENFORCING } from '../data/sanctions.js';
 import { hasEquip, installEquipment } from './equipment.js';
-import { acceptOffer, detectionChance } from './shady.js';
+import { acceptOffer, detectionChance, sanctionFine, taintActive } from './shady.js';
 import { patrolRisk } from './patrols.js';
 
 const D = HOURS_PER_DAY;
@@ -74,7 +74,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
   if (ship.condition < 66 && PORTS[here].repair >= 1) {
     const rc = eco.repairCost(state, ship, here, 92);
     // Une vieille coque dont la remise en état coûte plus qu'elle ne vaudrait : à la casse (au courtier).
-    if (rc && rc.cost > eco.shipValue(state, { ...ship, condition: 92 }) * 0.8 && shipsOf(state, company.id).length > 1) {
+    if (rc && rc.cost > eco.shipValue(state, { ...ship, condition: 92 }) * 2 && eco.ageYears(state, ship) > T.life - 3 && shipsOf(state, company.id).length > 1) {
       if (act.sellShip(state, ctx, ship.id).ok) return;
     }
     if (rc && rc.points > 5) {
@@ -97,19 +97,19 @@ export function aiShipIdle(state, ctx, rng, ship) {
   const options = [];
   for (const c of state.contracts) {
     if (c.from !== here || c.takenBy !== null) continue;
-    if (c.embargo && ENFORCING.has(company.flag)) continue; // pavillon qui applique les sanctions : on s'abstient
+    if (c.embargo && avoidsEmbargo(state, company)) continue; // pavillon qui applique les sanctions, ou déjà sanctionnée : on s'abstient
     if (act.checkContract(state, ctx, ship, c)) continue;
     const loadH = eco.handlingHours(here, c.hold, c.qty) + eco.handlingHours(c.to, c.hold, c.qty);
     const trip = tripCost(state, ctx, ship, c.to, loadH);
     if (!trip || trip.plan.error) continue;
     if (state.t + (trip.days + 1) * D > c.deadline) continue;
-    const profit = c.pay - noisy(rng, trip.cost, skill * 2);
+    const profit = c.pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0);
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
   }
   // On garde de quoi faire le plein et payer quelques semaines de frais fixes.
   const reserve = T.tank * eco.fuelPrice(state, here) + eco.fixedDayCost(T, company.flag, 'active') * 30 + 300000;
   const tradeBudget = (company.cash - reserve) * 0.8;
-  if (tradeBudget > 300000 && !company.ai?.noTrade && !(eco.isEmbargoedPort(here) && ENFORCING.has(company.flag))) {
+  if (tradeBudget > 300000 && !company.ai?.noTrade && !(eco.isEmbargoedPort(here) && avoidsEmbargo(state, company))) {
     for (const g of Object.keys(PORTS[here].exp)) {
       const hold = eco.holdFor(ship.type, g);
       if (!hold || !eco.portHandles(here, hold)) continue;
@@ -119,6 +119,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
       if (qty < T.dwt * 0.4) continue;
       const buy = act.quoteBuy(state, ship, g, qty);
       for (const p of PORT_IDS) {
+        if (eco.isEmbargoedPort(p) && avoidsEmbargo(state, company)) continue;
         if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type)) continue;
         const loadH = eco.handlingHours(here, hold, qty) + eco.handlingHours(p, hold, qty);
         const trip = tripCost(state, ctx, ship, p, loadH);
@@ -128,7 +129,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
         const risk = buy.total * GOODS[g].vol * Math.sqrt(trip.days) * 1.2;
         // Le bruit porte sur le cours de revente (quelques %), pas sur toute la valeur :
         // sinon l'IA choisit systématiquement les erreurs d'estimation les plus optimistes.
-        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk;
+        const tainted = (eco.isEmbargoedPort(here) ? buy.total : 0) + (eco.isEmbargoedPort(p) ? sell : 0);
+        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk - (tainted ? embargoCost(state, company, ship, tainted) : 0);
         options.push({ kind: 'trade', good: g, qty, to: p, profit, perDay: profit / Math.max(1, trip.days) });
       }
     }
@@ -191,6 +193,16 @@ export function aiShipIdle(state, ctx, rng, ship) {
   ship.aiWait = state.t + rng.int(18, 48);
 }
 
+// Pas de commerce avec les pays sous embargo : pavillon qui applique les sanctions,
+// ou compagnie mise à l'amende il y a moins d'un an.
+const avoidsEmbargo = (state, company) => ENFORCING.has(company.flag) || (company.ai?.noEmbargoUntil || 0) > state.t;
+// Amende attendue pour un commerce sous embargo (le navire finira presque toujours
+// par faire escale dans un pays qui applique les sanctions dans l'année).
+function embargoCost(state, company, ship, value) {
+  const prev = taintActive(state, ship)?.value || 0;
+  return (sanctionFine(company, { value: prev + value }) - (prev ? sanctionFine(company, { value: prev }) : 0)) * 0.85;
+}
+
 // Compagnie audacieuse : accepter un colis discret qui va dans la même direction,
 // si le risque de se faire prendre paraît raisonnable.
 function takeParcel(state, ctx, company, ship, to) {
@@ -200,7 +212,7 @@ function takeParcel(state, ctx, company, ship, to) {
   const route = ctx.route(ship.port, to, ctx.closedCanals(state, SHIP_TYPES[ship.type].draft));
   const pr = patrolRisk({ ...ship, contraband: o }, route, SHIP_TYPES[ship.type].speed);
   const caught = 1 - (1 - detectionChance(ship, to)) * (1 - (pr?.caught || 0));
-  if (caught < 0.15) acceptOffer(state, ship.id, o.id);
+  if (caught < 0.08) acceptOffer(state, ship.id, o.id);
 }
 
 // Coût par tonne et par mille d'un navire d'occasion, comparé au navire moderne
@@ -242,6 +254,7 @@ export function aiDaily(state, ctx, rng, company) {
   // Un minimum de protection contre les pirates quand on passe au chantier.
   for (const sh of ships) {
     if (sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'barbeles') && company.cash > 3e6) installEquipment(state, sh.id, 'barbeles');
+    else if (sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'citadelle') && company.cash > 8e6) installEquipment(state, sh.id, 'citadelle');
   }
   // Réarmer les navires désarmés quand le fret repart.
   for (const sh of ships) {
@@ -259,16 +272,41 @@ export function aiDaily(state, ctx, rng, company) {
   company.ai.nextFleet = state.t + rng.int(30, 60) * D;
   const value = fleetValue(state, company.id);
   if (company.debt > value * 0.5) return;
-  if (ships.length >= Math.round(5 + 5 * (company.ai.skill || 1))) return;
+  // Taille de flotte en « points » : un petit cargo compte moins qu'un géant.
+  const points = ships.reduce((s, sh) => s + Math.max(0.4, Math.sqrt(SHIP_TYPES[sh.type].dwt / 50000)), 0);
+  const cap = eco.TUNING.aiFleet * (0.5 + 0.5 * (company.ai.skill || 1));
+  if (points >= cap) return;
   // En marché déprimé ou après un mois déficitaire : pas d'emprunt, et une réserve de trois mois.
   const avgFreight = eco.HOLD_TYPES.reduce((x, h) => x + state.market.freight[h], 0) / eco.HOLD_TYPES.length / eco.FREIGHT_NORMAL;
   const prudent = avgFreight < 0.88 || bookTotal(company.lastMonth) < 0;
   const budget = prudent ? company.cash - monthlyFixed * 3
     : company.cash * 0.85 + Math.max(0, Math.min(creditLimit(state, company) - company.debt, company.cash * 0.6));
-  if (budget < 1.5e6) return;
+  // Riche et marché correct : commander un navire neuf au chantier (la flotte ne vieillit pas indéfiniment).
+  const pending = state.orders.filter((o) => o.owner === company.id).length;
+  if (!pending && avgFreight >= 0.95 && company.cash > 15e6) {
+    const yard = 'shanghai';
+    const options = Object.entries(SHIP_TYPES).filter(([id, T]) => !T.vintage && (!company.ai.pool || company.ai.pool.includes(id))
+      && act.newBuildPrice(state, company, id, yard) < company.cash * 0.6)
+      .map(([id, T]) => [id, Math.sqrt(T.dwt) / Math.sqrt(T.price) * Math.sqrt(PORT_IDS.filter((p) => eco.servesType(p, id)).length / 12)]);
+    if (options.length) {
+      const typeId = rng.weighted(options);
+      if (act.orderNewShip(state, company.id, typeId, yard).ok) return;
+    }
+  }
+  // Plusieurs petits navires d'un coup si le budget le permet (comme le ferait un joueur).
+  let left = budget, pts = points;
+  for (let n = 0; n < 3 && left >= 1.5e6 && pts < cap; n++) {
+    const bought = buyOne(state, ctx, rng, company, left);
+    if (!bought) break;
+    left -= bought.price;
+    pts += Math.max(0.4, Math.sqrt(SHIP_TYPES[bought.type].dwt / 50000));
+  }
+}
+
+function buyOne(state, ctx, rng, company, budget) {
   // Une compagnie spécialisée (ai.pool) n'achète que ses types de navires.
   const affordable = state.used.filter((l) => l.price <= budget && l.condition > 45 && (!company.ai.pool || company.ai.pool.includes(l.type)));
-  if (!affordable.length) return;
+  if (!affordable.length) return null;
   // Préférence pour les navires qui servent beaucoup de ports (un ULCC n'a que trois terminaux)
   // et qui coûtent peu à exploiter par rapport à un navire moderne de même taille.
   const reach = (typeId) => Math.sqrt(PORT_IDS.filter((p) => eco.servesType(p, typeId)).length / 12);
@@ -277,10 +315,10 @@ export function aiDaily(state, ctx, rng, company) {
     const T = SHIP_TYPES[l.type];
     return Math.max(0, 85 - l.condition) * T.price * 1e6 * 0.0011 * (1 + (100 - l.condition) / 120) * eco.repairIndex(state);
   };
-  const pick = rng.weighted(affordable.map((l) => [l, Math.sqrt(SHIP_TYPES[l.type].dwt) / Math.sqrt(l.price + fix(l))
+  const pick = rng.weighted(affordable.map((l) => [l, Math.pow(SHIP_TYPES[l.type].dwt, 0.65) / Math.sqrt(l.price + fix(l))
     * reach(l.type) * Math.pow(efficiency(state, company, l), 3)]));
   if (pick.price > company.cash) act.borrow(state, company.id, pick.price - company.cash + 300000);
-  act.buyUsedShip(state, ctx, rng, company.id, pick.id);
+  return act.buyUsedShip(state, ctx, rng, company.id, pick.id).ok ? { price: pick.price, type: pick.type } : null;
 }
 
 export { contractById };

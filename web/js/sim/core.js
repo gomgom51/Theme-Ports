@@ -29,6 +29,12 @@ export function money(state, company, amount, category) {
   company.total[category] = (company.total[category] || 0) + amount;
 }
 
+// Statistiques de sinistres (équilibrage) : cumul par cause.
+export function costStat(state, key, amount) {
+  const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
+  (st.costs ??= {})[key] = (st.costs[key] || 0) + amount;
+}
+
 export function news(state, text, opts = {}) {
   state.news.unshift({ t: state.t, text, company: opts.company ?? null, kind: opts.kind || 'info' });
   if (state.news.length > 160) state.news.length = 160;

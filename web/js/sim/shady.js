@@ -6,7 +6,7 @@
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORTS } from '../data/sanctions.js';
-import { money, news, changeReputation, portName, shipLog, shipById, companyOf } from './core.js';
+import { money, news, changeReputation, portName, shipLog, shipById, companyOf, costStat } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { equipMod } from './equipment.js';
 
@@ -27,8 +27,8 @@ export function taintActive(state, ship) {
   return ship.taint && state.t - ship.taint.t < TAINT_DAYS * D ? ship.taint : null;
 }
 export function sanctionFine(company, taint) {
-  const base = Math.max(250000, taint.value * 0.4);
-  return ENFORCING.has(company.flag) ? base : base * 0.5; // les compagnies sous pavillon « sanctionneur » paient plein tarif
+  const base = Math.min(12e6, Math.max(500000, taint.value * 0.25));
+  return ENFORCING.has(company.flag) ? base : base * 0.7; // les compagnies sous pavillon « sanctionneur » paient plein tarif
 }
 // Risque d'amende à l'arrivée dans un port (affiché avant le départ).
 export function sanctionRisk(state, ship, port) {
@@ -41,6 +41,8 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   if (!risk || !rng.chance(risk.odds)) return null;
   const company = companyOf(state, ship);
   money(state, company, -risk.fine, 'sinistres');
+  costStat(state, 'sanctions', risk.fine);
+  if (company.ai) company.ai.noEmbargoUntil = state.t + 365 * D; // l'ordinateur retient la leçon un an
   changeReputation(company, -8);
   ship.taint = null;
   const from = FLAGS[PORTS[risk.taint.port].flag].name;
@@ -52,9 +54,9 @@ export function checkSanctions(state, rng, ship, port, onNote) {
 // Les ports sous embargo paient cher ce qui leur manque et bradent ce qu'ils exportent.
 export function embargoPriceFactor(port, role) {
   if (!isEmbargoed(port)) return 1;
-  return role > 0 ? 1.18 : role < 0 ? 0.88 : 1;
+  return role > 0 ? 1.08 : role < 0 ? 0.95 : 1;
 }
-export const EMBARGO_PREMIUM = 1.6;
+export const EMBARGO_PREMIUM = 1.25;
 
 // ---------- Colis discrets ----------
 export function crewDiscretion(ship) { return [1, 0.9, 0.8][ship.crew || 0]; }
@@ -140,6 +142,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
 }
 function applySeizure(state, ship, company, port, fine, days, onNote) {
   money(state, company, -fine, 'sinistres');
+  costStat(state, 'douane', fine);
   changeReputation(company, -15);
   ship.busyWhat = 'saisie';
   ship.busyUntil = Math.max(ship.busyUntil || 0, state.t) + days * D;

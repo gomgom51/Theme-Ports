@@ -13,8 +13,8 @@
 export const SHIP_TYPES = {
   // ---------- Marchandises diverses ----------
   caboteur: {
-    name: 'Caboteur', category: 'Cargo', dwt: 4500, holds: ['divers', 'vrac'],
-    speed: 11, maxSpeed: 12.5, burn: 9, idleBurn: 1.2, draft: 6.5, crew: 9,
+    name: 'Caboteur', category: 'Cargo', dwt: 6000, holds: ['divers', 'vrac'],
+    speed: 11.5, maxSpeed: 12.5, burn: 8.5, idleBurn: 1.2, draft: 6.5, crew: 9,
     opex: 2200, price: 8, life: 30, tank: 260, gt: 3000,
     blurb: 'Petit et économique. Entre partout, idéal pour démarrer.',
   },
@@ -100,9 +100,9 @@ export const SHIP_TYPES = {
   },
   petrolier_ulcc: {
     name: 'Géant des mers (ULCC)', category: 'Pétrolier', dwt: 440000, holds: ['liquide'],
-    speed: 15.5, maxSpeed: 16.3, burn: 105, idleBurn: 10, draft: 24, crew: 30,
-    opex: 13500, price: 165, life: 25, tank: 8500, gt: 234000,
-    blurb: 'Le plus grand navire jamais construit. Seuls quatre ports au monde peuvent l\'accueillir.',
+    speed: 15.5, maxSpeed: 16.3, burn: 88, idleBurn: 9, draft: 24, crew: 30,
+    opex: 12000, price: 115, life: 25, tank: 8500, gt: 234000,
+    blurb: 'Le plus grand navire jamais construit. Seule une poignée de terminaux pétroliers peut l\'accueillir.',
   },
   // ---------- Gaz ----------
   gazier: {

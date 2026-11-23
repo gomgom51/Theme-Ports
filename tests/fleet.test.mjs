@@ -37,7 +37,9 @@ function run(typeId, trade) {
   return results;
 }
 
+const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
 for (const [typeId, T] of Object.entries(SHIP_TYPES)) {
+  if (only && !only.includes(typeId)) continue;
   let results = run(typeId, false), mode = 'contrats';
   if (results.reduce((s, r) => s + r.net, 0) <= 0) { results = run(typeId, true); mode = 'négoce'; }
   const net = results.reduce((s, r) => s + r.net, 0) / results.length;

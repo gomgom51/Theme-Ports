@@ -26,9 +26,12 @@ for (const seed of seeds) {
   const rng = new Rng(seed * 7919);
   state.companies.forEach((c, i) => {
     c.ai.pool = STRATEGIES[names[i]];
-    // Premier navire : le moins cher de la spécialité, d'occasion (18 ans, 70 %).
-    const typeId = [...c.ai.pool].sort((a, b) => SHIP_TYPES[a].price - SHIP_TYPES[b].price).find((t) => eco.servesType(home, t)) || c.ai.pool[0];
-    const ship = createShip(state, rng, c.id, typeId, { port: home, age: 18, condition: 70 });
+    // Premier navire : un navire de la spécialité, à 70 %, dont l'âge donne une valeur d'occasion
+    // la plus proche de 4 M$, pour que toutes les stratégies partent à égalité.
+    const value = (t, age) => eco.shipValue(state, { type: t, builtT: state.t - age * 365 * 24, condition: 70 });
+    const ageFor = (t) => { let best = 12; for (let a = 12; a <= SHIP_TYPES[t].life + 6; a += 0.5) if (Math.abs(value(t, a) - 4e6) < Math.abs(value(t, best) - 4e6)) best = a; return best; };
+    const typeId = [...c.ai.pool].filter((t) => eco.servesType(home, t)).sort((a, b) => Math.abs(value(a, ageFor(a)) - 4e6) - Math.abs(value(b, ageFor(b)) - 4e6) || SHIP_TYPES[a].dwt - SHIP_TYPES[b].dwt)[0] || c.ai.pool[0];
+    const ship = createShip(state, rng, c.id, typeId, { port: home, age: ageFor(typeId), condition: 70 });
     ship.fuel = SHIP_TYPES[typeId].tank * 0.8;
     c.cash -= eco.shipValue(state, ship);
   });

@@ -143,6 +143,8 @@ tests/               tests des routes et de la simulation
   navigation, les pays et les eaux nationales à partir de Natural Earth (après
   une modification des détroits), puis la table des distances.
 * `npm run build:distances` : à relancer après l'ajout ou le déplacement d'un port.
+* `npm run balance` : tests d'équilibrage (rentabilité de chaque modèle, aucune
+  stratégie dominante). Longs, ils ne tournent pas en intégration continue.
 
 ## Feuille de route
 
@@ -153,7 +155,10 @@ tests/               tests des routes et de la simulation
 4. ✅ Piraterie (version simple : défense contre assaillants, puis un résultat).
 5. ✅ Commerce gris et noir (embargos, cargaisons clandestines), douanes.
 6. ✅ Naufrages, pollution, assurance au choix et responsabilité.
-7. Équilibrage (passe finale), sons et musique, finitions.
+7. ✅ Équilibrage (passe finale) : aucune flotte ni aucun port d'attache ne domine,
+   l'ordinateur ne s'envole pas et ne fait pas faillite.
+8. Musique (un thème par niveau de la compagnie, voir `docs/musique-suno.md`),
+   signature de l'APK, finitions.
 
 ## Crédits
 

@@ -3,7 +3,7 @@
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
 import { haversineNm } from './routing.js';
-import { money, news, changeReputation, shipLog, companyOf, shipById } from './core.js';
+import { money, news, changeReputation, shipLog, companyOf, shipById, costStat } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { EQUIPMENT } from '../data/equipment.js';
 import { hasCitadel, hasEquip } from './equipment.js';
@@ -13,11 +13,11 @@ const D = HOURS_PER_DAY;
 //  rate     : probabilité d'attaque par jour passé dans la zone
 //  strength : force des assaillants (min, max)
 export const PIRACY_ZONES = [
-  { id: 'aden', name: 'Golfe d\'Aden et bassin somalien', lon: 50, lat: 12.5, r: 620, rate: 0.03, strength: [2, 7], level: 'forte' },
-  { id: 'guinee', name: 'Golfe de Guinée', lon: 3.5, lat: 3.5, r: 420, rate: 0.03, strength: [3, 8], level: 'forte' },
-  { id: 'malacca', name: 'Détroits de Malacca et de Singapour', lon: 102, lat: 2.2, r: 280, rate: 0.012, strength: [1, 4], level: 'moyenne' },
-  { id: 'sulu', name: 'Mers de Sulu et de Célèbes', lon: 121, lat: 6.5, r: 320, rate: 0.012, strength: [2, 5], level: 'moyenne' },
-  { id: 'venezuela', name: 'Côtes du Venezuela', lon: -66, lat: 11.5, r: 260, rate: 0.008, strength: [1, 4], level: 'faible' },
+  { id: 'aden', name: 'Golfe d\'Aden et bassin somalien', lon: 50, lat: 12.5, r: 620, rate: 0.01, strength: [2, 7], level: 'forte' },
+  { id: 'guinee', name: 'Golfe de Guinée', lon: 3.5, lat: 3.5, r: 420, rate: 0.012, strength: [3, 8], level: 'forte' },
+  { id: 'malacca', name: 'Détroits de Malacca et de Singapour', lon: 102, lat: 2.2, r: 280, rate: 0.003, strength: [1, 4], level: 'moyenne' },
+  { id: 'sulu', name: 'Mers de Sulu et de Célèbes', lon: 121, lat: 6.5, r: 320, rate: 0.004, strength: [2, 5], level: 'moyenne' },
+  { id: 'venezuela', name: 'Côtes du Venezuela', lon: -66, lat: 11.5, r: 260, rate: 0.003, strength: [1, 4], level: 'faible' },
 ];
 export const ATTACKERS = [
   { max: 2.5, name: 'des pirates en skiff' },
@@ -126,7 +126,7 @@ export function piracyHour(state, rng, ship, pos) {
   // Navire détourné : rançon à payer (ou à négocier, pour un joueur).
   st.piracy.hijacked++;
   const cargoValue = ship.cargo ? ship.cargo.qty * GOODS[ship.cargo.good].price : 0;
-  const ransom = Math.round(Math.max(800000, Math.min(9e6, eco.shipValue(state, ship) * 0.08 + cargoValue * 0.02)) / 10000) * 10000;
+  const ransom = Math.round(Math.max(150000, Math.min(9e6, eco.shipValue(state, ship) * 0.1 + cargoValue * 0.02)) / 10000) * 10000;
   ship.voyage.stalledUntil = state.t + 365 * D; // retenu jusqu'au paiement
   ship.hijacked = { ransom, t: state.t, zone: z.name };
   changeReputation(company, -3);
@@ -147,6 +147,7 @@ export function resolveHijack(state, rng, shipId, choice) {
   const pay = choice === 'negocier' ? Math.round(h.ransom * 0.55 / 10000) * 10000 : h.ransom;
   const days = choice === 'negocier' ? rng.int(30, 60) : rng.int(3, 7);
   money(state, company, -pay, 'sinistres');
+  costStat(state, 'rancons', pay);
   ship.voyage.stalledUntil = state.t + days * D;
   ship.hijacked = null;
   if (choice === 'negocier') changeReputation(company, -3);

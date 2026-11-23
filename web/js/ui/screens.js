@@ -147,8 +147,8 @@ function choosePorts(app, cfg, index) {
         h('p.blurb', P.blurb),
         h('h3', `Pavillon : ${F.name}`),
         h('div.ship-stats', [
-          kv('Impôt sur les bénéfices', pct(F.tax * 100), F.tax <= 0.05 ? 'good' : F.tax >= 0.25 ? 'bad' : ''),
-          kv('Salaires des équipages', `× ${num1(F.crew)}`, F.crew <= 0.8 ? 'good' : F.crew >= 1.4 ? 'bad' : ''),
+          kv('Impôt sur les bénéfices', pct(F.tax * 100), F.tax <= 0.03 ? 'good' : F.tax >= 0.15 ? 'bad' : ''),
+          kv('Salaires des équipages', `× ${num1(F.crew)}`, F.crew <= 0.9 ? 'good' : F.crew >= 1.2 ? 'bad' : ''),
           kv('Aide aux navires neufs', F.subsidy ? pct(F.subsidy * 100) : 'aucune', F.subsidy ? 'good' : ''),
           kv('Réputation de départ', `${startRep}/100`, startRep >= 65 ? 'good' : startRep < 45 ? 'bad' : ''),
           kv('Taux des prêts', `${num1(F.rate * 100)} %`, F.rate <= 0.045 ? 'good' : F.rate >= 0.1 ? 'bad' : ''),

@@ -7,7 +7,7 @@ import * as eco from './economy.js';
 import * as act from './actions.js';
 import {
   money, news, emptyBook, bookTotal, companyOf, shipsOf, isIdle, fleetValue, netWorth, interestRate,
-  changeReputation, createShip, shipLog, portName, removeShip, contractById, pickShipName,
+  changeReputation, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
 } from './core.js';
 import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
 import { aiShipIdle, aiDaily } from './ai.js';
@@ -121,14 +121,15 @@ function refreshUsedMarket(state, rng, initial = false) {
   if (initial) {
     // De quoi démarrer dans chaque port d'attache : un caboteur fatigué et un cargo plus grand.
     for (const c of state.companies) {
-      state.used.push(makeListing(state, rng, c.homePort, 'caboteur', [16, 22], [62, 78]));
+      // (des coques en fin de carrière : à peu près 2,3 M$ et 4,5 M$, à la portée d'un débutant)
+      state.used.push(makeListing(state, rng, c.homePort, 'caboteur', [22, 26], [62, 78]));
       const r = rng.next();
       if (r < 0.25) {
         // Un vieux cargo des années 60 : presque donné, mais assoiffé.
-        state.used.push(makeListing(state, rng, c.homePort, 'cargo_ancien', [32, 38], [52, 68]));
+        state.used.push(makeListing(state, rng, c.homePort, 'cargo_ancien', [38, 43], [52, 68]));
       } else {
         const second = PORTS[c.homePort].terminals.includes('liquide') && r < 0.45 ? 'petrolier_mr' : 'polyvalent';
-        state.used.push(makeListing(state, rng, c.homePort, second, [18, 23], [58, 75]));
+        state.used.push(makeListing(state, rng, c.homePort, second, second === 'petrolier_mr' ? [22.5, 24] : [23, 26], [58, 75]));
       }
     }
   }
@@ -273,6 +274,7 @@ function sailHour(state, ctx, rng, ship, notes) {
     ship.condition = Math.max(0, ship.condition - inc.cond);
     if (inc.delayH) v.stalledUntil = state.t + inc.delayH;
     money(state, company, -inc.cost, inc.kind === 'machine' ? 'reparations' : 'sinistres');
+    if (inc.kind !== 'machine') costStat(state, 'incidents', inc.cost);
     ship.spent += inc.cost;
     if (inc.damage && ship.cargo) {
       const d = ship.cargo.damage || 0;
@@ -381,6 +383,7 @@ function arrive(state, ctx, ship, notes, rng) {
     note(state, notes, 'info', ship, `Inspection du ${ship.name} à ${portName(to)} : quelques remarques, mais le navire est autorisé à repartir. Pensez à le faire réparer.`);
   } else if (insp?.kind === 'detention') {
     money(state, company, -insp.fine, 'sinistres');
+    costStat(state, 'detentions', insp.fine);
     money(state, company, -insp.cost, 'reparations');
     ship.spent += insp.fine + insp.cost;
     changeReputation(company, -3);
@@ -457,7 +460,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
   st.sinkings++;
   if (!insurance) st.uninsured++;
-  if (insurance) money(state, company, insurance, 'sinistres');
+  if (insurance) { money(state, company, insurance, 'sinistres'); costStat(state, 'indemnites', -insurance); }
   // La cargaison : le chargeur réclame sa marchandise ; un négoce est couvert à 70 % si le navire était sain.
   let cargoLine = '';
   if (ship.cargo?.contractId) {
@@ -467,7 +470,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
     const claim = c ? Math.round(c.qty * GOODS[c.good].price * 0.25) : 0;
     const covered = cov.pi;
     const due = covered ? Math.min(claim, Math.max(50000, Math.min(300000, claim * 0.1))) : claim;
-    if (due) money(state, company, -due, 'sinistres');
+    if (due) { money(state, company, -due, 'sinistres'); costStat(state, 'reclamations', due); }
     changeReputation(company, -10);
     const M = (x) => `${(x / 1e6).toFixed(2).replace('.', ',')} M$`;
     cargoLine = !claim ? '' : covered
@@ -475,7 +478,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
       : ` Le chargeur réclame ${M(claim)}, ${cov.seaworthy ? 'que votre assurance ne couvre pas' : 'que l\'assurance refuse de couvrir'}.`;
   } else if (ship.cargo) {
     const cover = Math.round((ship.cargo.cost || 0) * cov.cargo);
-    if (cover) money(state, company, cover, 'sinistres');
+    if (cover) { money(state, company, cover, 'sinistres'); costStat(state, 'indemnites', -cover); }
     cargoLine = cover ? ` La marchandise est remboursée à ${Math.round(cov.cargo * 100)} % (${(cover / 1e6).toFixed(2).replace('.', ',')} M$).` : ' La marchandise est perdue.';
   }
   changeReputation(company, -5);

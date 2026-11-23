@@ -11,8 +11,14 @@ export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffin�
 export const HOLD_TYPES = ['vrac', 'liquide', 'divers', 'conteneurs', 'chimique', 'gpl', 'gnl', 'vehicules', 'frigo', 'lourd'];
 export const CANAL_FEE = { suez: 12, panama: 10 }; // $ par unité de jauge brute
 export const BID_ASK = 0.015;
-export const BALLAST = 1.5;
-export const TUNING = { ballast: BALLAST }; // réglage d'équilibrage (tests)
+export const BALLAST = 1.8;
+export const SPREAD = 0.85;   // écart de prix entre ports exportateurs et importateurs (× GOODS.spread)
+export const AI_FLEET = 10;   // taille de flotte visée par l'ordinateur, en « points » (habileté 1)
+export const CYCLE = { sd: 0.0075, max: 0.3 }; // cycle mondial du fret : à-coups quotidiens et amplitude maximale (log)
+// Décote des navires d'occasion (exposant de (1 - âge/durée de vie)) et hausse annuelle des frais fixes avec l'âge.
+// Une décote lente garde le prix d'un vieux navire en rapport avec ce qu'il rapporte encore.
+export const AGING = { dep: 0.75, opex: 0.015 };
+export const TUNING = { ballast: BALLAST, spread: SPREAD, aiFleet: AI_FLEET, cycleSd: CYCLE.sd, cycleMax: CYCLE.max, dep: AGING.dep, opexAge: AGING.opex }; // réglages d'équilibrage (tests)
 // Taux de fret « normal » (indice 100). Les taux suivent un cycle mondial lent
 // (des années d'euphorie, puis des années de vaches maigres) et, autour de lui,
 // les à-coups propres à chaque type de cargaison.
@@ -24,8 +30,8 @@ export const FREIGHT_MIN = 0.6, FREIGHT_MAX = 2.6;
 // polyvalent trouve quelque chose à charger dans chaque port.
 // Calibré sur la part du temps passée chargée par chaque type de navire.
 export const BALLAST_HOLD = {
-  divers: 1, vrac: 1.04, conteneurs: 1.15, lourd: 1.15,
-  chimique: 1.42, liquide: 1.45, vehicules: 1.45, gpl: 1.55, gnl: 1.55, frigo: 1.6,
+  divers: 1.08, vrac: 1.1, conteneurs: 1.0, lourd: 1.15,
+  chimique: 1.38, liquide: 1.46, vehicules: 1.45, gpl: 1.5, gnl: 1.45, frigo: 1.42,
 };
 
 // ---------- Marché ----------
@@ -59,7 +65,7 @@ function depth(p, g) {
   const intensity = Math.max(P.exp[g] || 0, P.imp[g] || 0);
   const roleFactor = intensity > 0 ? 0.5 + intensity : 0.35;
   // Pays sous embargo : peu d'acheteurs et de vendeurs, un gros lot fait vite bouger le prix.
-  return GOODS[g].depth * (0.2 + 0.16 * P.size) * roleFactor * (EMBARGOED[P.flag] ? 0.4 : 1);
+  return GOODS[g].depth * (0.2 + 0.16 * P.size) * roleFactor * (EMBARGOED[P.flag] ? 0.15 : 1);
 }
 
 // Prix « milieu » sans l'effet des transactions récentes.
@@ -67,13 +73,13 @@ function depth(p, g) {
 export function embargoFactor(p, g) {
   if (!EMBARGOED[PORTS[p].flag]) return 1;
   const r = role(p, g);
-  return r > 0 ? 1.18 : r < 0 ? 0.88 : 1;
+  return r > 0 ? 1.08 : r < 0 ? 0.95 : 1;
 }
-export const EMBARGO_PREMIUM = 1.6;
+export const EMBARGO_PREMIUM = 1.25;
 export const isEmbargoedPort = (p) => !!EMBARGOED[PORTS[p].flag];
 function basePrice(state, p, g) {
   const G = GOODS[g], e = state.ports[p][g];
-  return G.price * state.market.world[g] * (1 + role(p, g) * G.spread / 2) * (1 + e.ou) * embargoFactor(p, g);
+  return G.price * state.market.world[g] * (1 + role(p, g) * G.spread * TUNING.spread / 2) * (1 + e.ou) * embargoFactor(p, g);
 }
 export function midPrice(state, p, g) { return basePrice(state, p, g) * (1 + state.ports[p][g].imp); }
 export function buyPrice(state, p, g) { return midPrice(state, p, g) * (1 + BID_ASK); }
@@ -110,8 +116,8 @@ export function dailyMarketUpdate(state, rng) {
     x += -x / 180 + G.vol * z;
     m.world[g] = clamp(Math.exp(x), 0.45, 2.6);
   }
-  // Cycle mondial : demi-vie d'environ neuf mois, écart type d'environ 15 %.
-  m.cycle = clamp((m.cycle ?? 0) - (m.cycle ?? 0) / 400 + 0.0105 * rng.normal(), -0.45, 0.45);
+  // Cycle mondial : demi-vie d'environ neuf mois, écart type d'environ 11 %.
+  m.cycle = clamp((m.cycle ?? 0) - (m.cycle ?? 0) / 400 + TUNING.cycleSd * rng.normal(), -TUNING.cycleMax, TUNING.cycleMax);
   for (const h of HOLD_TYPES) {
     let x = Math.log(m.freight[h] / FREIGHT_NORMAL);
     x += -(x - m.cycle) / 90 + 0.013 * rng.normal();
@@ -164,7 +170,7 @@ export const ageYears = (state, ship) => (state.t - ship.builtT) / (HOURS_PER_DA
 export function shipValue(state, ship) {
   const T = SHIP_TYPES[ship.type];
   const age = ageYears(state, ship);
-  const dep = Math.max(0.06, Math.pow(Math.max(0, 1 - age / T.life), 1.25));
+  const dep = Math.max(0.06, Math.pow(Math.max(0, 1 - age / T.life), TUNING.dep));
   const sound = T.price * 1e6 * dep * state.market.shipIndex; // en bon état
   // L'acheteur déduit les réparations à prévoir : elles dépendent de la taille du
   // navire, pas de sa valeur, et peuvent dépasser ce que vaut une vieille coque.
@@ -181,7 +187,7 @@ export function newShipPrice(state, typeId, flag) {
 // cher à entretenir. `age` en années (0 pour un navire neuf ou une estimation).
 export function burnPerDay(T, speed, age = 0) { return T.burn * Math.pow(speed / T.speed, 3) * (1 + age * 0.006); }
 export function crewDayCost(T, flag, crewLevel = 0) { return T.crew * CREW_DAY_COST * (FLAGS[flag]?.crew ?? 1) * CREW_LEVELS[crewLevel || 0].wage; }
-export function opexDay(T, age = 0) { return T.opex * (1 + age * 0.015); }
+export function opexDay(T, age = 0) { return T.opex * (1 + age * TUNING.opexAge); }
 export function fixedDayCost(T, flag, status, age = 0, crewLevel = 0) {
   const crew = crewDayCost(T, flag, crewLevel);
   if (status === 'laidup') return opexDay(T, age) * 0.3 + crew * 0.2;
@@ -304,7 +310,7 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   if (!dests.length) return null;
   const to = rng.weighted(dests);
   let refs = referenceTypes(from, to, good).filter(([id]) => (!forType || id === forType) && sizeOk(id));
-  if (big) refs = refs.map(([id]) => [id, Math.sqrt(SHIP_TYPES[id].dwt)]); // les géants ont leur part
+  if (big) refs = refs.map(([id]) => [id, SHIP_TYPES[id].dwt]); // grands volumes : les plus grands navires sont favoris
   if (!refs.length) return null;
   const typeId = rng.weighted(refs);
   const T = SHIP_TYPES[typeId];
@@ -338,7 +344,9 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const riskPremium = client ? 1 + (70 - CLIENTS[client].reliability) / 300 : 1;
   // Commerce avec un pays sous embargo : peu d'armateurs acceptent, le fret se paie cher.
   const embargo = isEmbargoedPort(from) || isEmbargoedPort(to);
-  const pay = Math.round((est.total * TUNING.ballast * (BALLAST_HOLD[hold] || 1) * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1)) / 1000) * 1000;
+  // La prime de retour à vide s'ajoute au taux de base (elle ne le multiplie pas).
+  const ballast = TUNING.ballast + ((BALLAST_HOLD[hold] || 1) - 1) * 1.5;
+  const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1)) / 1000) * 1000;
   const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
   // Lignes régulières (conteneurs) et denrées réfrigérées : le chargeur exige un navire
   // presque aussi rapide que celui de référence. Un cargo lent ne peut pas les prendre.
