@@ -6,6 +6,7 @@ import { GOODS } from '../data/goods.js';
 import { PORTS } from '../data/ports.js';
 import { HOURS_PER_DAY } from './util.js';
 import * as eco from './economy.js';
+import { equipMod } from './equipment.js';
 
 const D = HOURS_PER_DAY;
 
@@ -28,20 +29,33 @@ export function sinkChance(condition, force, crewLevel = 0) {
 
 // Tire un incident pour cette heure de mer (ou null).
 // nearCoast : moins de 150 milles du départ ou de l'arrivée (abordages, échouements).
-export function rollIncident(rng, ship, { age, force, nearCoast }) {
-  const p = (INCIDENT_BASE / D) * RISK.incidents * CREW_LEVELS[ship.crew || 0].safety * wearRisk(ship.condition, age) * weatherRisk(force);
-  if (!rng.chance(p)) return null;
-  const T = SHIP_TYPES[ship.type];
+// Poids des différents incidents ; l'équipement (radar, anti-incendie…) en réduit certains.
+function incidentKinds(ship, age, force, nearCoast, mods = true) {
+  const m = (k) => (mods ? equipMod(ship, k) : 1);
   const laden = !!ship.cargo;
-  const kinds = [
+  return [
     ['machine', 4 + age / 8],
-    ['incendie', 1],
-    ['abordage', nearCoast ? 2.5 : 0.4],
-    ['echouement', nearCoast ? 2 : 0],
+    ['incendie', 1 * m('fire')],
+    ['abordage', (nearCoast ? 2.5 : 0.4) * m('collision')],
+    ['echouement', (nearCoast ? 2 : 0) * m('grounding')],
     ['voie_eau', 0.4 + 2.5 * Math.pow((100 - ship.condition) / 100, 2)],
     ['gros_temps', laden && force >= 8 ? 5 : 0],
     ['froid', laden && ship.cargo.hold === 'frigo' ? 2 : 0],
   ].filter(([, w]) => w > 0);
+}
+const sumW = (list) => list.reduce((s, [, w]) => s + w, 0);
+// Part des incidents évités par l'équipement.
+export function equipIncidentFactor(ship, age, force = 0, nearCoast = false) {
+  return sumW(incidentKinds(ship, age, force, nearCoast)) / sumW(incidentKinds(ship, age, force, nearCoast, false));
+}
+
+export function rollIncident(rng, ship, { age, force, nearCoast }) {
+  const kinds = incidentKinds(ship, age, force, nearCoast);
+  const p = (INCIDENT_BASE / D) * RISK.incidents * CREW_LEVELS[ship.crew || 0].safety * wearRisk(ship.condition, age) * weatherRisk(force)
+    * (sumW(kinds) / sumW(incidentKinds(ship, age, force, nearCoast, false)));
+  if (!rng.chance(p)) return null;
+  const T = SHIP_TYPES[ship.type];
+  const laden = !!ship.cargo;
   const kind = rng.weighted(kinds);
   const size = Math.sqrt(T.gt / 5000);
   const r = (a, b) => rng.range(a, b);
@@ -146,10 +160,10 @@ const SEA_SHARE = 0.75; // part du temps passé en mer
 export function riskProfile(state, ship, condition = ship.condition) {
   const age = eco.ageYears(state, ship);
   const safety = CREW_LEVELS[ship.crew || 0].safety;
-  const perSeaDay = INCIDENT_BASE * RISK.incidents * safety * wearRisk(condition, age);
+  const perSeaDay = INCIDENT_BASE * RISK.incidents * safety * wearRisk(condition, age) * (0.8 * equipIncidentFactor(ship, age) + 0.2 * equipIncidentFactor(ship, age, 0, true));
   const incidentsPerYear = perSeaDay * 365 * SEA_SHARE;
   // Part des incidents graves (incendie, abordage, échouement, voie d'eau) parmi tous les incidents.
-  const severeW = 1 + 1.2 + 0.8 + 0.4 + 2.5 * Math.pow((100 - condition) / 100, 2);
+  const severeW = equipMod(ship, 'fire') * (1 + 0.5 * equipMod(ship, 'fireSink')) / 1.5 + 1.2 * equipMod(ship, 'collision') + 0.8 * equipMod(ship, 'grounding') + 0.4 + 2.5 * Math.pow((100 - condition) / 100, 2);
   const severeShare = severeW / (severeW + 4 + age / 8);
   const sinkPerYear = 1 - Math.exp(-incidentsPerYear * severeShare * sinkChance(condition, 7, ship.crew) * 1.15);
   const insured = condition >= SEAWORTHY;

@@ -56,6 +56,10 @@ riche de la planète.
   sanctions) ; colis discrets proposés par des intermédiaires, à cacher à bord,
   que la douane peut trouver (saisie, amende, immobilisation, ou arrangement
   dans un port accommodant). Les cargos sont les meilleurs pour ça.
+* **Équipement** (au chantier) : barbelés et lances à eau, gardes armés,
+  citadelle, navigation moderne, anti-incendie, coque renforcée, cachettes,
+  hélice économe, transpondeur « discret »… chacun avec son prix, parfois un coût
+  journalier, et un effet précis sur les risques.
 * **Inspections dans les ports exigeants** (Europe, Amérique du Nord, Japon,
   Corée, Australie, Singapour) : un navire usé peut être retenu, mis à l'amende
   et réparé d'office à vos frais, que vous ayez l'argent ou non.
@@ -138,7 +142,7 @@ tests/               tests des routes et de la simulation
 1. ✅ Base jouable : carte, ports, navires, fret et négoce, économie, météo,
    événements, banque, IA, multijoueur sur un appareil.
 2. ✅ Flotte complète : 22 modèles jusqu'au géant des mers, nouvelles cargaisons, 50 ports.
-3. Équipage et équipement (premier pas : niveaux d'équipage).
+3. ✅ Équipage et équipement.
 4. Piraterie, forces de l'ordre et combats automatiques.
 5. ✅ Commerce gris et noir (embargos, cargaisons clandestines), douanes.
 6. ✅ Naufrages, pollution, assurance et responsabilité (assurance au choix : plus tard).

@@ -12,6 +12,7 @@ import { HOURS_PER_DAY, formatDate } from './util.js';
 import { CANAL_NAMES } from './context.js';
 import { bannedUntil } from './pollution.js';
 import { taintShip } from './shady.js';
+import { equipMod } from './equipment.js';
 
 const fail = (msg) => ({ ok: false, msg });
 const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
@@ -107,7 +108,7 @@ export function planVoyage(state, ctx, ship, to, speed) {
   const route = { nm: info.nm, canals: info.canals };
   const seaDays = route.nm / (24 * speed);
   const age = eco.ageYears(state, ship);
-  const needFuel = eco.burnPerDay(T, speed, age) * seaDays * 1.08 + T.idleBurn;
+  const needFuel = eco.burnPerDay(T, speed, age) * equipMod(ship, 'burn') * seaDays * 1.08 + T.idleBurn;
   const est = eco.voyageEstimate(state, {
     typeId: ship.type, flag: company.flag, from, to, speed, nm: route.nm, canals: route.canals, age,
   });
@@ -190,7 +191,7 @@ export function fuelToFinish(state, ctx, ship, speed) {
   if (!route) return 0;
   const T = SHIP_TYPES[ship.type];
   const left = Math.max(0, route.nm - ship.voyage.progress);
-  return eco.burnPerDay(T, speed, eco.ageYears(state, ship)) * left / (24 * speed);
+  return eco.burnPerDay(T, speed, eco.ageYears(state, ship)) * equipMod(ship, 'burn') * left / (24 * speed);
 }
 
 export function cancelPlan(state, shipId) {

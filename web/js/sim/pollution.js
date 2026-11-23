@@ -10,6 +10,7 @@ import { haversineNm } from './routing.js';
 import { money, news, changeReputation } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { SEAWORTHY } from './incidents.js';
+import { equipMod } from './equipment.js';
 
 export const CLEANUP_RATE = 600;    // $ par tonne de « pollution équivalent brut »
 export const OPEN_SEA_FACTOR = 0.15; // déversement au large, loin des côtes
@@ -60,13 +61,13 @@ export function spillCost(ship, pollutionT, factor, startCond) {
 export function worstCase(ship, route, startCond = ship.condition) {
   const zones = zonesAlong(route);
   const factor = zones.reduce((m, z) => Math.max(m, z.factor), OPEN_SEA_FACTOR);
-  const pollutionT = cargoPollution(ship.cargo) + ship.fuel * FUEL_POLLUTION;
+  const pollutionT = cargoPollution(ship.cargo) * equipMod(ship, 'spill') + ship.fuel * FUEL_POLLUTION;
   return { zones, factor, pollutionT, ...spillCost(ship, pollutionT, factor, startCond) };
 }
 
 // Déversement réel : share = part de la cargaison perdue (1 au naufrage).
 export function spill(state, ship, company, pos, share, { sinking = false, nearCoast = false, notes = null, note = null } = {}) {
-  const cargoT = cargoPollution(ship.cargo) * share;
+  const cargoT = cargoPollution(ship.cargo) * share * equipMod(ship, 'spill'); // coque renforcée : moins de déversement
   const fuelT = sinking ? ship.fuel * 0.8 * FUEL_POLLUTION : 0;
   const pollutionT = cargoT + fuelT;
   if (pollutionT < 50) return null;

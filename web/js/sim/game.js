@@ -17,6 +17,7 @@ import { createPayment, resolution, collect, dailyReceivables } from './payments
 import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection } from './incidents.js';
 import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
+import { equipMod, equipUpkeep } from './equipment.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 2;
@@ -193,7 +194,7 @@ function portHour(state, ctx, rng, ship, notes) {
       else note(state, notes, 'depart', ship, `Le ${ship.name} appareille.`);
       return;
     }
-    const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs', saisie: 'est libéré par la douane' };
+    const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs', saisie: 'est libéré par la douane', installation: 'a son nouvel équipement' };
     note(state, notes, 'idle', ship, `Le ${ship.name} ${labels[what] || 'est prêt'} à ${portName(ship.port)}.`);
   }
 }
@@ -235,7 +236,7 @@ function sailHour(state, ctx, rng, ship, notes) {
 
   const age = eco.ageYears(state, ship);
   v.progress += step;
-  ship.fuel -= (eco.burnPerDay(T, v.speed, age) / D) * (1 + Math.max(0, wx.force - 6) * 0.06);
+  ship.fuel -= (eco.burnPerDay(T, v.speed, age) * equipMod(ship, 'burn') / D) * (1 + Math.max(0, wx.force - 6) * 0.06);
 
   // Usure : plus rapide pour un vieux navire et par gros temps.
   let wear = eco.wearPerHour(age);
@@ -282,7 +283,7 @@ function sailHour(state, ctx, rng, ship, notes) {
       ship.cargo.qty = Math.round(ship.cargo.qty * (1 - share));
     }
     shipLog(state, ship, text.split('.')[0]);
-    if (inc.severe && rng.chance(sinkChance(ship.condition, wx.force, ship.crew))) {
+    if (inc.severe && rng.chance(sinkChance(ship.condition, wx.force, ship.crew) * (inc.kind === 'incendie' ? equipMod(ship, 'fireSink') : 1))) {
       sink(state, ctx, ship, notes, pos, wx, inc, rng);
       return;
     }
@@ -485,7 +486,8 @@ function daily(state, ctx, rng, notes) {
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];
     const company = companyOf(state, ship);
-    const crew = eco.crewDayCost(T, company.flag, ship.crew) * (ship.status === 'laidup' ? 0.2 : 1);
+    // Salaires, plus les gardes armés éventuels (débarqués quand le navire est désarmé).
+    const crew = (eco.crewDayCost(T, company.flag, ship.crew) + equipUpkeep(ship)) * (ship.status === 'laidup' ? 0.2 : 1);
     const opex = eco.opexDay(T, eco.ageYears(state, ship)) * (ship.status === 'laidup' ? 0.3 : 1);
     money(state, company, -crew, 'equipage');
     money(state, company, -opex, 'exploitation');

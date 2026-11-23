@@ -8,6 +8,7 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORTS } from '../data/sanctions.js';
 import { money, news, changeReputation, portName, shipLog, shipById, companyOf } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
+import { equipMod } from './equipment.js';
 
 const D = HOURS_PER_DAY;
 export const TAINT_DAYS = 365;
@@ -33,7 +34,7 @@ export function sanctionFine(company, taint) {
 export function sanctionRisk(state, ship, port) {
   const t = taintActive(state, ship);
   if (!t || !enforces(port)) return null;
-  return { odds: SANCTION_ODDS, fine: sanctionFine(companyOf(state, ship), t), taint: t };
+  return { odds: SANCTION_ODDS * equipMod(ship, 'sanction'), fine: sanctionFine(companyOf(state, ship), t), taint: t };
 }
 export function checkSanctions(state, rng, ship, port, onNote) {
   const risk = sanctionRisk(state, ship, port);
@@ -59,7 +60,7 @@ export const EMBARGO_PREMIUM = 1.6;
 export function crewDiscretion(ship) { return [1, 0.9, 0.8][ship.crew || 0]; }
 // Probabilité que la douane d'un port trouve le colis lors d'une escale.
 export function detectionChance(ship, port) {
-  return customsLevel(PORTS[port].flag) * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship);
+  return customsLevel(PORTS[port].flag) * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal');
 }
 export const seizureFine = (pay) => Math.max(500000, pay * 3);
 

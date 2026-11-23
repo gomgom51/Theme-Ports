@@ -17,6 +17,8 @@ import { clientLine } from './payment.js';
 import { fuelGaugeEl, animateNeedle } from './gauge.js';
 import { riskLines, crewInfo, isStrict } from './risk.js';
 import { shadyLines, offersSection } from './shady.js';
+import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
+import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence } from '../sim/equipment.js';
 import { CREW_LEVELS } from '../data/ships.js';
 import { inspectionThreshold } from '../sim/incidents.js';
 
@@ -86,6 +88,7 @@ export function shipPanel(app, id, tab) {
       stat('Âge', `${num1(age)} ans`),
       stat('Valeur', money(eco.shipValue(state, ship))),
       stat('Équipage', crewInfo(ship).short),
+      stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).map((id) => EQUIPMENT[id].icon).join(' ') : 'aucun'),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
     mine ? h('div.risk-box', [...riskLines(state, ship, { route: ship.status === 'sea' ? ctx.shipRoute(ship) : null }), ...shadyLines(state, ship, ship.status === 'sea' ? ship.voyage.to : null),
@@ -358,6 +361,23 @@ function portCallTab(app, ship) {
         h('div.card-sub.muted', `${money(wage)}/jour · incidents ${lv ? `−${Math.round((1 - L.safety) * 100)} %` : 'normaux'}`),
       ]),
       h('div.card-side', cur ? [] : [h('button.btn.small', { onclick: () => app.act(() => act.setCrew(state, ship.id, lv)) }, fee ? `Engager · ${money(fee)}` : 'Engager')]),
+    ]);
+  })));
+
+  // Équipement : installé au chantier, il réduit certains risques ou défend le navire.
+  box.append(h('h3', 'Équipement'));
+  box.append(h('p.hint', `Défense contre un abordage : ${num1(defence(ship))} point${defence(ship) >= 2 ? 's' : ''}.${P.repair ? '' : ` Pas de chantier à ${P.name} : installation impossible ici.`}`));
+  box.append(h('div.list', EQUIPMENT_IDS.filter((id) => canEquip(ship, id)).map((id) => {
+    const E = EQUIPMENT[id], on = hasEquip(ship, id), price = equipPrice(ship, id);
+    return h('div.card', { class: on ? 'highlight' : '' }, [
+      h('div.card-main', [
+        h('div.card-title', [`${E.icon} ${E.name}`, on ? h('span.tag.good', 'installé') : null]),
+        h('div.card-sub', E.blurb),
+        h('div.card-sub.muted', [E.defence ? `défense +${E.defence}` : null, E.upkeep ? `${money(E.upkeep)}/jour` : null, `${Math.max(1, Math.round(E.hours / 24))} j d'installation`].filter(Boolean).join(' · ')),
+      ]),
+      h('div.card-side', on
+        ? [h('button.btn.small.ghost', { onclick: () => app.act(() => removeEquipment(state, ship.id, id)) }, 'Retirer')]
+        : [h('div.price', money(price)), h('button.btn.small', { disabled: !P.repair || !!ship.busyWhat || price > company.cash, onclick: () => app.act(() => installEquipment(state, ship.id, id), { sound: 'pay' }) }, 'Installer')]),
     ]);
   })));
 
