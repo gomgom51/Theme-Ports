@@ -114,7 +114,7 @@ const EVENTS = [
       state.canals.suez = { closed: true, until: state.t + days * D };
       state.market.freight.liquide *= 1.12; state.market.freight.conteneurs *= 1.1;
       const cause = rng.pick(['un porte-conteneurs échoué en travers du chenal', 'des tensions militaires en mer Rouge', 'un accident dans le chenal']);
-      return { title: 'Canal de Suez fermé', text: `Le canal de Suez est fermé pour environ ${days} jours (${cause}). Les navires qui l'atteignent devront attendre, les autres passeront par le cap de Bonne-Espérance.` };
+      return { title: 'Canal de Suez fermé', text: `Le canal de Suez est fermé pour environ ${days} jours (${cause}). Les navires qui l'atteignent devront attendre, les autres passeront par le cap de Bonne-Espérance.`, variant: /militaires/.test(cause) ? 'tension' : null };
     },
   },
   {
@@ -157,7 +157,7 @@ export function dailyEvents(state, rng) {
     for (const h of HOLD_TYPES) state.market.freight[h] = clamp(state.market.freight[h], FREIGHT_MIN, FREIGHT_MAX);
     state.market.cycle = clamp(state.market.cycle, -0.45, 0.45);
     news(state, `${r.title} — ${r.text}`, { kind: 'event' });
-    return r;
+    return { ...r, id: ev.id }; // l'identifiant choisit l'illustration de l'événement
   }
   return null;
 }

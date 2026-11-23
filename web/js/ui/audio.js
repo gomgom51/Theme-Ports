@@ -20,6 +20,9 @@ const TRACKS = {
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
 const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3' };
+// Sons des scènes d'événements fournis (sons/scene-<nom>.mp3, liste dans sons/LISEZMOI.txt) :
+// chargés à la première scène qui les joue. Une scène sans son reste silencieuse.
+const SCENE_SOUNDS = new Set([]);
 
 function loadSettings() {
   const defaults = { ambience: true, sfx: true, music: true, volume: 0.8 };
@@ -123,6 +126,21 @@ export class AudioManager {
         this.buffers[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
       } catch { /* on garde la version synthétisée */ }
     }
+  }
+
+  // Son d'une scène d'événement, chargé à la demande.
+  async playScene(kind) {
+    const c = this.ctx, name = `scene-${kind}`;
+    if (!c || !this.settings.sfx || c.state !== 'running' || !SCENE_SOUNDS.has(kind)) return;
+    this.buffers = this.buffers || {};
+    if (!this.buffers[name]) {
+      try {
+        const res = await fetch(`sons/${name}.mp3`);
+        if (!res.ok) return;
+        this.buffers[name] = await c.decodeAudioData(await res.arrayBuffer());
+      } catch { return; }
+    }
+    this.playSample(name, { gain: 0.8, fadeOut: 0.6 });
   }
 
   // Joue un son enregistré : extrait de `duration` secondes avec fondu de sortie.

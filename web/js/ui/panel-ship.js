@@ -254,14 +254,21 @@ function tradeTab(app, ship) {
     const G = GOODS[g];
     const unit = eco.buyPrice(state, here, g);
     const stock = eco.availableStock(state, here, g);
-    const maxQty = Math.floor(Math.min(T.dwt, stock, company.cash / (unit * 1.05)) / 100) * 100;
+    const cashCap = company.cash / (unit * 1.05);
+    const maxQty = Math.floor(Math.min(T.dwt, stock, cashCap) / 100) * 100;
+    // L'estimation porte sur ce que vous pouvez réellement acheter (cale, stock du port et
+    // trésorerie), pas sur une cale pleine hors de portée : les frais du voyage, eux, ne
+    // dépendent guère de la quantité.
+    const planQty = maxQty > 0 ? maxQty : Math.max(100, Math.floor(Math.min(T.dwt, stock) / 100) * 100);
+    const full = Math.floor(T.dwt / 100) * 100;
+    const limit = maxQty > 0 && maxQty < full ? (cashCap < stock ? 'cash' : 'stock') : null;
     // Meilleures destinations pour cette marchandise.
     const dests = [];
     for (const p of PORT_IDS) {
       if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type)) continue;
       const hold = eco.holdFor(ship.type, g);
       if (!eco.portHandles(p, hold)) continue;
-      const qty = Math.max(100, Math.min(T.dwt, stock));
+      const qty = planQty;
       const est = tripEstimate(app, ship, p, T.speed, qty, hold);
       if (est.error || !est.nm) continue;
       const buy = act.quoteBuy(state, ship, g, qty).total;
@@ -275,7 +282,8 @@ function tradeTab(app, ship) {
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), G.name, h('span.price-inline', `${money(unit)}/t`)]),
         h('div.card-sub', `Stock disponible : ${tonnes(stock)} · cours mondial ${money(G.price * state.market.world[g])}/t`),
-        dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
+        limit ? h('div.card-why', limit === 'cash' ? `Votre trésorerie limite l'achat à ${tonnes(maxQty)} (cale : ${tonnes(full)}).` : `Le stock du port limite l'achat à ${tonnes(maxQty)} (cale : ${tonnes(full)}).`) : null,
+        dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, maxQty > 0 ? `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}` : `${money(dests[0].net, true)} pour une cale pleine (${tonnes(dests[0].qty)})`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
         choices.length ? h('div.chips', choices.sort((a, b) => a - b).map((q) => h('button.chip', { onclick: async () => {
           const quote = act.quoteBuy(state, ship, g, q);
           if (!(await confirmBox(`Acheter ${tonnes(q)} de ${G.name.toLowerCase()} ?`, `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`, 'Acheter'))) return;

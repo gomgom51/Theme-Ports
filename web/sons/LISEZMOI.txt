@@ -11,3 +11,36 @@ tic-tac.mp3 tic-tac quand le temps repart, accéléré selon la vitesse (3 premi
 
 Les autres bruitages (mer, mouettes, caisses, corne…) sont synthétisés par le jeu.
 Si un fichier manque, le jeu utilise sa version synthétisée.
+
+Sons des scènes d'événements (facultatifs)
+-------------------------------------------
+Chaque scène illustrée peut jouer un son : déposer le fichier sous le nom indiqué, puis
+ajouter le nom de la scène à SCENE_SOUNDS dans web/js/ui/audio.js. Sans fichier, silence.
+
+Incidents
+  scene-sunk.mp3       naufrage (tempête, hélicoptère)
+  scene-hijack.mp3     navire détourné par des pirates
+  scene-repelled.mp3   attaque de pirates repoussée
+  scene-looted.mp3     navire pillé, équipage dans la citadelle
+  scene-customs.mp3    la douane trouve le colis
+  scene-patrol.mp3     colis saisi par les garde-côtes
+  scene-paid.mp3       colis livré, échange contre la mallette
+  scene-detention.mp3  navire retenu par les inspecteurs
+  scene-pollution.mp3  marée noire
+
+Événements mondiaux
+  scene-oilUp.mp3         le pétrole s'envole
+  scene-oilDown.mp3       surproduction pétrolière
+  scene-refinery.mp3      panne de raffineries
+  scene-harvest.mp3       récolte record
+  scene-drought.mp3       sécheresse
+  scene-steelBoom.mp3     plan de relance (aciérie à plein)
+  scene-steelDown.mp3     ralentissement industriel
+  scene-steelPrice.mp3    flambée de l'acier (cale sèche)
+  scene-containers.mp3    ruée sur les conteneurs
+  scene-recession.mp3     récession mondiale
+  scene-overcapacity.mp3  trop de navires (lancement)
+  scene-recovery.mp3      reprise du commerce mondial
+  scene-suez.mp3          canal de Suez fermé
+  scene-panama.mp3        sécheresse à Panama
+  scene-strike.mp3        grève sur les quais

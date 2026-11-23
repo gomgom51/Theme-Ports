@@ -260,7 +260,9 @@ function sailHour(state, ctx, rng, ship, notes) {
       const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
       st.incidents.tempete = (st.incidents.tempete || 0) + 1;
     }
+    const n0 = notes.length;
     note(state, notes, lost ? 'incident' : 'storm', ship, `Le ${ship.name} affronte ${articleStorm(wx.storm.name)} (force ${wx.force})${lost}.`);
+    if (notes.length > n0) Object.assign(notes[n0], { storm: wx.storm.name, force: wx.force, lost: lost ? (ship.cargo.hold === 'conteneurs' ? 'boxes' : 'cargo') : null });
     shipLog(state, ship, `${wx.storm.name} : vent force ${wx.force}${lost ? ', cargaison avariée' : ''}`);
   }
 
@@ -512,7 +514,7 @@ function deliverOrder(state, rng, order, notes) {
 function daily(state, ctx, rng, notes) {
   eco.dailyMarketUpdate(state, rng);
   const ev = dailyEvents(state, rng);
-  if (ev) notes.push({ kind: 'event', text: `${ev.title} — ${ev.text}` });
+  if (ev) notes.push({ kind: 'event', id: ev.id, variant: ev.variant || null, title: ev.title, body: ev.text, text: `${ev.title} — ${ev.text}` });
   dailyStorms(state, rng);
   eco.refreshContracts(state, ctx, rng);
   refreshOffers(state, ctx, rng);
@@ -563,6 +565,11 @@ function monthly(state) {
 // La banque saisit un navire quand le découvert dépasse ce qu'elle tolère.
 function checkBank(state, ctx, company, notes) {
   const limit = 300000 + 0.1 * fleetValue(state, company.id);
+  // Le banquier prévient dès 300 k$ de découvert, avant toute saisie, et dit où est la limite.
+  if (company.cash < -300000 && company.cash >= -limit && !company.bankerWarned) { // déjà au-delà : la saisie suit, son message suffit
+    company.bankerWarned = true;
+    if (company.human) notes.push({ kind: 'banker', company: company.id, text: `Votre banquier s'impatiente : découvert de ${Math.round(-company.cash / 1000).toLocaleString('fr-FR')} k$, à 20 % d'intérêts. Au-delà de ${Math.round(limit / 1000).toLocaleString('fr-FR')} k$, la banque saisira et vendra votre navire le moins cher.` });
+  } else if (company.cash > -150000) company.bankerWarned = false;
   if (company.cash >= -limit) { company.lowCashDays = 0; return; }
   const ships = shipsOf(state, company.id).sort((a, b) => eco.shipValue(state, a) - eco.shipValue(state, b));
   if (ships.length) {

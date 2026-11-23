@@ -135,7 +135,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
     money(state, company, cb.pay, 'discret');
     ship.earned += cb.pay;
     shipLog(state, ship, `Colis discret livré à ${portName(port)}`);
-    onNote?.('paid', `Le colis caché à bord du ${ship.name} a été remis à ${portName(port)} : ${Math.round(cb.pay / 1000).toLocaleString('fr-FR')} k$ en liquide.`, { amount: cb.pay });
+    onNote?.('paid', `Le colis caché à bord du ${ship.name} a été remis à ${portName(port)} : ${Math.round(cb.pay / 1000).toLocaleString('fr-FR')} k$ en liquide.`, { amount: cb.pay, parcel: true });
     return { delivered: true };
   }
   return null;
@@ -148,7 +148,7 @@ function applySeizure(state, ship, company, port, fine, days, onNote) {
   ship.busyUntil = Math.max(ship.busyUntil || 0, state.t) + days * D;
   const text = `La douane de ${portName(port)} saisit un colis de contrebande à bord du ${ship.name} (${company.name}) : amende de ${(fine / 1e6).toFixed(2).replace('.', ',')} M$, navire immobilisé ${days} jours.`;
   news(state, text, { company: company.id, kind: 'disaster' });
-  onNote?.('detention', text);
+  onNote?.('detention', text, { seizure: true });
 }
 // Décision du joueur après une saisie : 'payer' ou 'soudoyer'.
 export function resolveCase(state, rng, caseId, choice) {

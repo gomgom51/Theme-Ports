@@ -24,11 +24,13 @@ import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
+import { showScene, scenesOn, setScenesOn } from './ui/scenes.js';
+import { EVENT_SCENES } from './ui/scenes-world.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
-const PAUSE_KINDS = new Set(['idle', 'sunk', 'bank', 'bankrupt', 'detention', 'pollution', 'sanction']);
+const PAUSE_KINDS = new Set(['idle', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction']);
 
 const ctx = makeContext();
 const app = {
@@ -311,8 +313,36 @@ function switchCompany(id, { banner = true } = {}) {
 }
 
 // ---------- Notifications ----------
+// ---------- Scènes d'événements ----------
+// Une petite animation arrête le temps ; quand on ferme la dernière de la file, le temps
+// repart à vitesse 1, sauf si une décision attend (rançon, affaire de douane).
+app.sceneQueue = [];
+function playScene(kind, opts, after = null) {
+  app.sceneQueue.push({ kind, opts, after });
+  app.speed = 0;
+  if (app.sceneQueue.length === 1) nextScene();
+}
+async function nextScene() {
+  const s = app.sceneQueue[0];
+  if (!s) return;
+  const game = app.state;
+  let holds = false;
+  try {
+    const v = await showScene(app, s.kind, s.opts);
+    if (s.after && app.state === game) holds = await s.after(v);
+  } catch (e) { console.error(e); } // une scène ou sa suite en échec ne doit jamais bloquer la file
+  if (app.state !== game) { app.sceneQueue.length = 0; return; } // partie chargée ou quittée entre-temps
+  app.sceneQueue.shift();
+  if (app.sceneQueue.length) { nextScene(); return; }
+  if (!holds && app.mode === 'game' && !app.state.over) app.speed = 1;
+}
+const companyColor = (id) => app.state.companies[id ?? app.ui.activeCompany]?.color || '#c0392b';
+
 function handleNotes(notes) {
   let paused = false, switched = false;
+  const scenes = scenesOn();
+  const prefixOf = (n) => (n.company != null && app.state.companies.filter((c) => c.human).length > 1 ? `${app.state.companies[n.company].name} : ` : '');
+  const sceneOpts = (n, extra = {}) => ({ text: prefixOf(n) + n.text, color: companyColor(n.company), ...extra });
   // Un navire qui vient de livrer : le message de paiement suffit.
   const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
   for (const n of notes) {
@@ -321,31 +351,45 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
-    if (n.kind === 'event') { toast(`📰 ${n.text}`, { timeout: 9000 }); if (app.state.settings.autoPause) paused = true; continue; }
+    if (n.kind === 'event') {
+      toast(`📰 ${n.text}`, { timeout: 9000 });
+      if (scenes && EVENT_SCENES[n.id]) playScene(EVENT_SCENES[n.id], { title: n.title, text: n.body, variant: n.variant, color: companyColor() });
+      else if (app.state.settings.autoPause) paused = true;
+      continue;
+    }
     if (n.kind === 'depart') { app.audio.play('depart'); continue; }
     if (n.kind === 'hijack') {
       app.speed = 0;
       app.audio.play('sunk');
       toast(n.text, { kind: 'bad', timeout: 20000, action: 'Décider', onAction: () => openRansom(app, n.shipId, n.report) });
-      openRansom(app, n.shipId, n.report);
+      if (scenes) playScene('hijack', sceneOpts(n, { buttons: [{ label: 'Décider', value: 'ok', kind: 'primary' }] }), async () => { await openRansom(app, n.shipId, n.report); return true; });
+      else openRansom(app, n.shipId, n.report);
       continue;
     }
     if (n.kind === 'patrol') {
       if (n.report?.outcome === 'seized') { app.speed = 0; app.audio.play('sunk'); }
       toast(n.text, { kind: n.report?.outcome === 'seized' ? 'bad' : 'info', timeout: 12000, action: 'Le contrôle', onAction: () => showPatrol(app, n) });
+      if (scenes && n.report?.outcome === 'seized') playScene('patrol', sceneOpts(n, { buttons: [{ label: 'Le contrôle', value: 'more', kind: 'ghost' }] }), async (v) => { if (v === 'more') await showPatrol(app, n); return false; });
       continue;
     }
     if (n.kind === 'pirates') {
       toast(n.text, { kind: n.report?.outcome === 'repelled' ? 'info' : 'warn', timeout: 12000, action: 'Le combat', onAction: () => showBattle(app, n) });
+      if (scenes && n.report) playScene(n.report.outcome === 'repelled' ? 'repelled' : 'looted', sceneOpts(n, { buttons: [{ label: 'Le combat', value: 'more', kind: 'ghost' }] }), async (v) => { if (v === 'more') await showBattle(app, n); return false; });
       continue;
     }
     if (n.kind === 'customs') {
       app.speed = 0;
       toast(n.text, { kind: 'bad', timeout: 20000, action: 'Décider', onAction: () => openCase(app, n.caseId) });
-      openCase(app, n.caseId);
+      if (scenes) playScene('customs', sceneOpts(n, { buttons: [{ label: 'Décider', value: 'ok', kind: 'primary' }] }), async () => { await openCase(app, n.caseId); return true; });
+      else openCase(app, n.caseId);
       continue;
     }
-    if (n.kind === 'paid') { app.audio.play('cash'); toast(n.text, { kind: 'money', timeout: 7000 }); continue; }
+    if (n.kind === 'paid') {
+      app.audio.play('cash');
+      toast(n.text, { kind: 'money', timeout: 7000 });
+      if (scenes && n.parcel) playScene('paid', sceneOpts(n));
+      continue;
+    }
     if (n.kind === 'payment') {
       const cid = n.company;
       toast(n.text, {
@@ -356,9 +400,17 @@ function handleNotes(notes) {
     }
     if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive');
     if (n.kind === 'sunk') app.audio.play('sunk');
+    // Scène illustrée : naufrage, marée noire, détention ou saisie, ouragan (cyclones tropicaux et
+    // force 11 et plus seulement : un simple coup de vent ne mérite pas d'arrêter le jeu), banquier.
+    const bigStorm = n.storm && (/^(Ouragan|Typhon|Cyclone)/.test(n.storm) || n.force >= 11);
+    const [scene, extra] = !scenes ? [null] : n.kind === 'sunk' ? ['sunk'] : n.kind === 'pollution' ? ['pollution']
+      : n.kind === 'detention' ? [n.seizure ? 'customs' : 'detention']
+      : bigStorm ? ['storm', { variant: n.lost === 'boxes' ? 'boxes' : null }]
+      : n.kind === 'banker' ? ['banker'] : n.kind === 'bank' ? ['banker', { variant: 'seize', title: 'La banque saisit un navire' }] : [null];
+    if (scene) playScene(scene, sceneOpts(n, extra));
     const company = n.company != null ? app.state.companies[n.company] : null;
     const prefix = company && app.state.companies.filter((c) => c.human).length > 1 ? `${company.name} : ` : '';
-    const kind = ['sunk', 'bankrupt', 'bank', 'detention', 'pollution', 'sanction'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident'].includes(n.kind) ? 'warn' : 'info';
+    const kind = ['sunk', 'bankrupt', 'bank', 'banker', 'detention', 'pollution', 'sanction'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident'].includes(n.kind) ? 'warn' : 'info';
     toast(prefix + n.text, {
       kind,
       timeout: PAUSE_KINDS.has(n.kind) ? 12000 : 7000,
@@ -375,6 +427,7 @@ function handleNotes(notes) {
       if (company && company.id !== app.ui.activeCompany && !switched) { switchCompany(company.id); switched = true; }
     }
   }
+  if (app.sceneQueue.length) paused = true; // une scène est ouverte : on n'avance plus
   if (paused) app.speed = 0;
   return paused;
 }
@@ -426,6 +479,7 @@ function loop(now) {
 
 // ---------- Démarrage d'une partie ----------
 function enterGame(state) {
+  document.querySelectorAll('.scene-wrap').forEach((w) => w.remove()); // scènes de la partie précédente
   app.state = state;
   app.mode = 'game';
   app.speed = 0;
@@ -476,6 +530,7 @@ app.importSave = async () => {
 
 app.toTitle = () => {
   if (app.state && app.mode === 'game') saveGame(app.state, 'auto');
+  document.querySelectorAll('.scene-wrap').forEach((w) => w.remove());
   app.mode = 'title';
   app.state = null;
   app.ui.panel = null;
@@ -510,6 +565,7 @@ async function gameMenu() {
       { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
       { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
       { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
+      { label: scenesOn() ? 'Illustrations des événements : oui' : 'Illustrations des événements : non', value: 'scenes' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
       { label: 'Menu principal', value: 'title', kind: 'ghost' },
@@ -530,6 +586,7 @@ async function gameMenu() {
   else if (v === 'sfx') { app.audio.setSfx(!app.audio.settings.sfx); app.speed = wasSpeed; }
   else if (v === 'music') { app.audio.setMusic(!app.audio.settings.music); app.speed = wasSpeed; }
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
+  else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'title') { if (await confirmBox('Retour au menu principal ?', 'La partie est sauvegardée automatiquement.', 'Quitter')) app.toTitle(); }
   else if (v === 'resume') app.speed = wasSpeed;
@@ -580,3 +637,4 @@ titleScreen(app);
 playIntro(app); // au lancement seulement : le caboteur quitte le port, puis le menu
 requestAnimationFrame(loop);
 window.__app = app; // pratique pour le débogage dans la console
+app.handleNotes = handleNotes; // idem : rejouer une notification (scènes, tests)

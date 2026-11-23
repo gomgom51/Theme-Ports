@@ -410,6 +410,23 @@ select.input { width: auto; max-width: 100%; }
 .dialog-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 .dialog-buttons.vertical { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .dialog-buttons.vertical .btn { width: 100%; }
+/* Scènes d'événements : image en pixels nets, croix de fermeture comme une fenêtre. */
+.scene-dialog { position: relative; }
+.scene-dialog.bad { border-top-color: var(--bad); }
+.scene-dialog.good { border-top-color: var(--good); }
+.scene-dialog.info { border-top-color: var(--warn); }
+.scene-dialog h2 { padding-right: 44px; }
+.dialog-close {
+  position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--paper-2); color: var(--ink-2);
+  font-size: 17px; line-height: 1; cursor: var(--cursor-click);
+}
+.dialog-close:hover, .dialog-close:focus-visible { background: var(--red); border-color: var(--red); color: #fff; }
+.scene-canvas {
+  display: block; width: 100%; aspect-ratio: 200 / 112; background: #0b1017; border-radius: 6px;
+  image-rendering: pixelated; image-rendering: crisp-edges; cursor: var(--cursor-click);
+}
+.scene-text { margin-top: 10px; font-size: 15px; color: var(--ink-2); }
 
 /* ---------- Bannière « à vous de jouer » ---------- */
 .turn-banner {

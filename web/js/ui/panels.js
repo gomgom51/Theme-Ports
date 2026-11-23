@@ -558,6 +558,7 @@ export function helpPanel() {
       p('1. Ouvrez le Courtier 🏗️ et achetez un premier navire d\'occasion : deux bateaux abordables vous attendent dans votre port d\'attache.'),
       p('2. Touchez votre navire (sur la carte ou dans la Flotte 🚢). Dans l\'onglet Contrats, acceptez un transport : le chargement commence et le navire partira tout seul, plein compris.'),
       p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu\'un événement survient : trois coups de cloche annoncent la pause, un tic-tac le retour du temps.'),
+      p('Les grands événements (naufrage, pirates, douane, ouragan, banquier, crises mondiales…) s\'affichent en petite scène animée qui arrête le temps : fermez-la (✕) et le temps repart à vitesse 1. Menu : « Illustrations des événements » pour les couper.'),
       h('h3', 'Gagner de l\'argent'),
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
       p('Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Plus rentable, mais les prix bougent pendant le voyage, et vos achats et ventes font eux-mêmes bouger les prix.'),
