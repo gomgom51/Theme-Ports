@@ -5,10 +5,10 @@ Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms 
 
   accueil.mp3   chanson de l'écran d'accueil (jouée en boucle)
   niveau1.mp3   partie, standing 1 : le cagibi du quai (vieux chant de marins)
-  niveau2.mp3   partie, standing 2 : le bureau sur le port (folk maritime)
-  niveau3.mp3   partie, standing 3 : le siège de la compagnie (jazz de port)
+  niveau2.mp3   partie, standing 2 : le bureau sur le port (bal folk breton)
+  niveau3.mp3   partie, standing 3 : le siège de la compagnie (folk-rock cinématique)
   niveau4.mp3   partie, standing 4 : l'étage de direction (pop orchestrale)
-  niveau5.mp3   partie, standing 5 : la tour de verre (multinationale)
+  niveau5.mp3   partie, standing 5 : la tour de verre (hymne de multinationale)
   jeu.mp3       en secours, si un thème de niveau manque
   victoire.mp3  courte musique de fin de partie
 
