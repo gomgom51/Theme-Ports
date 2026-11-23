@@ -16,6 +16,7 @@ import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection } from './incidents.js';
 import { spill, isPolluting } from './pollution.js';
+import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 2;
@@ -82,6 +83,8 @@ export function migrateState(state) {
   const rng = new Rng((state.seed ^ 0x9e3779b9) >>> 0);
   state.market.cycle ??= 0;
   state.spills ??= [];
+  state.offers ??= [];
+  state.cases ??= [];
   for (const c of state.companies) c.bans ??= {};
   for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
   for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
@@ -176,6 +179,10 @@ function portHour(state, ctx, rng, ship, notes) {
   if (ship.busyWhat && state.t >= ship.busyUntil) {
     const what = ship.busyWhat;
     ship.busyWhat = null;
+    if (what === 'saisie' && ship.pendingDelivery && ship.cargo) {
+      act.startBusy(state, ship, 'déchargement', eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty));
+      return;
+    }
     if (what === 'déchargement' && ship.pendingDelivery) deliverContract(state, ship, rng, notes);
     if ((what === 'réparation' || what === 'détention') && ship.repairTo != null) { ship.condition = Math.max(ship.condition, ship.repairTo); ship.repairTo = null; }
     // Navire retenu par les inspecteurs : la remise en état commence après le déchargement.
@@ -186,7 +193,7 @@ function portHour(state, ctx, rng, ship, notes) {
       else note(state, notes, 'depart', ship, `Le ${ship.name} appareille.`);
       return;
     }
-    const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs' };
+    const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs', saisie: 'est libéré par la douane' };
     note(state, notes, 'idle', ship, `Le ${ship.name} ${labels[what] || 'est prêt'} à ${portName(ship.port)}.`);
   }
 }
@@ -325,8 +332,14 @@ function arrive(state, ctx, ship, notes, rng) {
   ship.spent += fee;
   if (!company.portsServed.includes(to)) { company.portsServed.push(to); changeReputation(company, 0.5); }
   shipLog(state, ship, `Arrivée à ${portName(to)}`);
+  // Sanctions (navire passé par un pays sous embargo) et douane (colis caché à bord).
+  if (rng) {
+    const onNote = (kind, text, extra = {}) => { const n0 = notes.length; note(state, notes, kind, ship, text); if (notes.length > n0) Object.assign(notes[notes.length - 1], extra); };
+    checkSanctions(state, rng, ship, to, onNote);
+    contrabandOnArrival(state, rng, ship, to, onNote);
+  }
   // Inspection par l'État du port.
-  const insp = rng ? inspection(state, rng, ship, to, eco.ageYears(state, ship)) : null;
+  const insp = rng && ship.busyWhat !== 'saisie' ? inspection(state, rng, ship, to, eco.ageYears(state, ship)) : null;
   if (insp) {
     const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
     st.inspections++;
@@ -349,7 +362,8 @@ function arrive(state, ctx, ship, notes, rng) {
   }
   if (ship.cargo?.contractId) {
     ship.pendingDelivery = ship.cargo.contractId;
-    act.startBusy(state, ship, 'déchargement', eco.handlingHours(to, ship.cargo.hold, ship.cargo.qty));
+    // Navire saisi par la douane : le déchargement attendra sa libération.
+    if (ship.busyWhat !== 'saisie') act.startBusy(state, ship, 'déchargement', eco.handlingHours(to, ship.cargo.hold, ship.cargo.qty));
     const strike = state.strikes[to] > state.t ? ' (grève en cours : déchargement retardé)' : '';
     if (!ship.detention) note(state, notes, 'arrival', ship, `Le ${ship.name} est arrivé à ${portName(to)} et décharge${strike}.`);
   } else if (ship.detention) {
@@ -377,6 +391,7 @@ function deliverContract(state, ship, rng, notes) {
   if (damage > 0.005) changeReputation(company, -damage * 8);
   // Le paiement passe par l'encaissement (bouton « Encaisser » pour les joueurs).
   const payment = createPayment(state, ship, c, penalty, damage);
+  taintShip(state, ship, c.to, c.pay);
   if (company.human) {
     note(state, notes, 'payment', ship, `Le ${ship.name} a livré à ${portName(c.to)}. Paiement à encaisser.`);
     notes[notes.length - 1].paymentId = payment.id;
@@ -464,6 +479,7 @@ function daily(state, ctx, rng, notes) {
   if (ev) notes.push({ kind: 'event', text: `${ev.title} — ${ev.text}` });
   dailyStorms(state, rng);
   eco.refreshContracts(state, ctx, rng);
+  refreshOffers(state, ctx, rng);
   dailyReceivables(state, notes);
 
   for (const ship of state.ships) {

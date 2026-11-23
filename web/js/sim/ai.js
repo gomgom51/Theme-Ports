@@ -8,6 +8,7 @@ import * as act from './actions.js';
 import { shipsOf, fleetValue, creditLimit, contractById, bookTotal } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { INCIDENT_BASE, wearRisk } from './incidents.js';
+import { ENFORCING } from '../data/sanctions.js';
 
 const D = HOURS_PER_DAY;
 
@@ -93,6 +94,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
   const options = [];
   for (const c of state.contracts) {
     if (c.from !== here || c.takenBy !== null) continue;
+    if (c.embargo && ENFORCING.has(company.flag)) continue; // pavillon qui applique les sanctions : on s'abstient
     if (act.checkContract(state, ctx, ship, c)) continue;
     const loadH = eco.handlingHours(here, c.hold, c.qty) + eco.handlingHours(c.to, c.hold, c.qty);
     const trip = tripCost(state, ctx, ship, c.to, loadH);
@@ -104,7 +106,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
   // On garde de quoi faire le plein et payer quelques semaines de frais fixes.
   const reserve = T.tank * eco.fuelPrice(state, here) + eco.fixedDayCost(T, company.flag, 'active') * 30 + 300000;
   const tradeBudget = (company.cash - reserve) * 0.8;
-  if (tradeBudget > 300000 && !company.ai?.noTrade) {
+  if (tradeBudget > 300000 && !company.ai?.noTrade && !(eco.isEmbargoedPort(here) && ENFORCING.has(company.flag))) {
     for (const g of Object.keys(PORTS[here].exp)) {
       const hold = eco.holdFor(ship.type, g);
       if (!hold || !eco.portHandles(here, hold)) continue;

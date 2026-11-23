@@ -1,0 +1,92 @@
+// Interface du commerce gris et noir : propositions discrètes, risques affichés
+// avant de s'engager (douane, sanctions), décision après une saisie.
+import { PORTS, FLAGS } from '../data/ports.js';
+import { EMBARGOED, ENFORCING, SHADY_PORTS, customsLevel, corruption } from '../data/sanctions.js';
+import { portName } from '../sim/core.js';
+import { detectionChance, seizureFine, sanctionRisk, isEmbargoed, acceptOffer, resolveCase, TAINT_DAYS } from '../sim/shady.js';
+import { h, money, date, dialog, toast } from './dom.js';
+import { flagEl } from './flags.js';
+
+const fr = (x, d = 0) => x.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
+// Le risque, dit par l'équipage : avis général, arrondi, ou précis selon son expérience.
+export function riskWords(p, crewLevel) {
+  if (crewLevel >= 2) return `${fr(p * 100, p < 0.1 ? 1 : 0)} %`;
+  if (crewLevel === 1) return `≈ ${fr(Math.max(5, Math.round(p * 20) * 5))} %`;
+  return p < 0.1 ? 'faible' : p < 0.2 ? 'réel' : 'élevé';
+}
+const levelClass = (p) => (p >= 0.2 ? 'neg' : p >= 0.1 ? 'warn-text' : '');
+export const customsWord = (flag) => { const c = customsLevel(flag); return c >= 0.3 ? 'stricte' : c >= 0.2 ? 'sérieuse' : c >= 0.12 ? 'moyenne' : 'laxiste'; };
+
+// Lignes de risque (colis caché à bord, navire marqué par un embargo) pour un départ vers `to`.
+export function shadyLines(state, ship, to) {
+  const out = [];
+  if (ship.contraband && to) {
+    const p = detectionChance(ship, to);
+    const dest = ship.contraband.to === to;
+    out.push(h(`div.risk-line.${levelClass(p) || 'x'}`, `📦 Colis caché à bord${dest ? ' (livraison ici)' : ` (pour ${portName(ship.contraband.to)})`} : risque de fouille à ${portName(to)} ${riskWords(p, ship.crew || 0)}. Si la douane le trouve : amende de ${money(seizureFine(ship.contraband.pay))} et 10 à 25 jours d'immobilisation${corruption(PORTS[to].flag) > 0.15 ? ' (un arrangement sera peut-être possible)' : ''}.`));
+  }
+  if (to) {
+    const r = sanctionRisk(state, ship, to);
+    if (r) out.push(h('div.risk-line.warn-text', `⚖ Le ${ship.name} a commercé avec un pays sous embargo (${FLAGS[PORTS[r.taint.port].flag].name}, le ${date(r.taint.t, true)}) : ${FLAGS[PORTS[to].flag].name} applique les sanctions. Risque d'amende ${riskWords(r.odds, 2)} (${money(r.fine)}).`));
+    if (isEmbargoed(to)) out.push(h('div.risk-line.warn-text', `⚖ ${FLAGS[PORTS[to].flag].name} est sous embargo : y commercer marquera le navire pendant ${Math.round(TAINT_DAYS / 30)} mois. Pendant ce temps, chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie peut coûter une amende.`));
+  }
+  return out;
+}
+
+// Propositions discrètes du port (onglet Contrats).
+export function offersSection(app, ship) {
+  const { state } = app;
+  const here = ship.port;
+  if (!SHADY_PORTS.includes(here)) return null;
+  const offers = (state.offers || []).filter((o) => o.from === here);
+  const box = h('div');
+  box.append(h('h3', '🤫 Propositions discrètes'));
+  box.append(h('p.hint', 'Un intermédiaire cherche un navire pour un petit colis, à cacher à bord en plus de votre cargaison. Payé en liquide à la livraison. Les cargos le cachent bien mieux que les pétroliers ; un équipage aguerri est plus discret.'));
+  if (ship.contraband) { box.append(h('p.muted', `Un colis est déjà caché à bord (pour ${portName(ship.contraband.to)}).`)); return box; }
+  if (!offers.length) { box.append(h('p.muted', 'Personne ne vous a approché aujourd\'hui.')); return box; }
+  for (const o of offers) {
+    const p = detectionChance(ship, o.to);
+    box.append(h('div.card', [
+      h('div.card-main', [
+        h('div.card-title', ['📦 Colis pour ', flagEl(PORTS[o.to].flag), ` ${portName(o.to)}`, h('span.tag', `douane ${customsWord(PORTS[o.to].flag)}`)]),
+        h('div.card-sub', `À livrer avant le ${date(o.deadline, true)}. Risque de fouille à l'arrivée : `),
+        h('div.card-sub', [h('b', { class: levelClass(p) }, riskWords(p, ship.crew || 0)), ` (et à chaque escale en route). Si la douane le trouve : amende de ${money(seizureFine(o.pay))}, navire immobilisé 10 à 25 jours, réputation entachée.`]),
+      ]),
+      h('div.card-side', [h('div.price', money(o.pay)), h('button.btn.small', { onclick: () => app.act(() => acceptOffer(state, ship.id, o.id)) }, 'Accepter')]),
+    ]));
+  }
+  return box;
+}
+
+// Fiche du port : douane, corruption, embargo.
+export function portShadyInfo(id) {
+  const P = PORTS[id], F = FLAGS[P.flag];
+  const lines = [];
+  if (EMBARGOED[P.flag]) lines.push(h('p.warn-text', `⚖ Pays sous embargo (${EMBARGOED[P.flag].why}) : ses importations se paient cher, son brut est bradé et le fret y est mieux payé, mais un navire qui y commerce risque des amendes pendant un an dans les pays qui appliquent les sanctions.`));
+  if (ENFORCING.has(P.flag)) lines.push(h('p.hint', `${F.name} applique les sanctions : un navire passé par un pays sous embargo dans l'année peut y être mis à l'amende.`));
+  lines.push(h('p.hint', `Douane ${customsWord(P.flag)}${corruption(P.flag) > 0.15 ? ', fonctionnaires réputés accommodants' : ''}.${SHADY_PORTS.includes(id) ? ' Des intermédiaires y proposent des colis discrets.' : ''}`));
+  return lines;
+}
+
+// Décision après une saisie : payer l'amende ou tenter un arrangement.
+export async function openCase(app, caseId) {
+  const { state } = app;
+  const c = (state.cases || []).find((x) => x.id === caseId);
+  if (!c) return;
+  const ship = state.ships.find((s) => s.id === c.shipId);
+  const choice = await dialog({
+    title: 'La douane a trouvé le colis',
+    body: h('div', [
+      h('p', `À ${portName(c.port)}, les douaniers ont découvert le colis caché à bord du ${ship?.name || 'navire'}.`),
+      h('p', `Amende : ${money(c.fine)}, et ${c.days} jours d'immobilisation.`),
+      h('p', `Un douanier laisse entendre qu'un arrangement est possible pour ${money(c.bribe)}. Chance que ça marche : ${Math.round(c.chance * 100)} %. En cas d'échec : amende et immobilisation majorées de moitié, en plus de la somme versée.`),
+    ]),
+    buttons: [
+      { label: `Payer l'amende (${money(c.fine)})`, value: 'payer', kind: 'ghost' },
+      { label: `Tenter l'arrangement (${money(c.bribe)})`, value: 'soudoyer', kind: 'primary' },
+    ],
+  });
+  if (!choice) return;
+  const r = app.act(() => app.withRng((rng) => resolveCase(state, rng, caseId, choice)), { sound: 'pay' });
+  if (r?.ok && choice === 'soudoyer') toast(r.bribed ? 'L\'arrangement a fonctionné : le navire repart.' : 'Le douanier a refusé : amende et immobilisation majorées.');
+}

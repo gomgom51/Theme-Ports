@@ -4,6 +4,7 @@ import { GOODS, GOOD_IDS } from '../data/goods.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_DAY_COST, CREW_LEVELS } from '../data/ships.js';
 import { CLIENTS } from '../data/clients.js';
+import { EMBARGOED } from '../data/sanctions.js';
 import { clamp, HOURS_PER_DAY } from './util.js';
 
 export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffinés est à 1
@@ -61,9 +62,17 @@ function depth(p, g) {
 }
 
 // Prix « milieu » sans l'effet des transactions récentes.
+// Pays sous embargo : ce qui lui manque se paie cher, ce qu'il exporte est bradé.
+export function embargoFactor(p, g) {
+  if (!EMBARGOED[PORTS[p].flag]) return 1;
+  const r = role(p, g);
+  return r > 0 ? 1.25 : r < 0 ? 0.8 : 1;
+}
+export const EMBARGO_PREMIUM = 1.6;
+export const isEmbargoedPort = (p) => !!EMBARGOED[PORTS[p].flag];
 function basePrice(state, p, g) {
   const G = GOODS[g], e = state.ports[p][g];
-  return G.price * state.market.world[g] * (1 + role(p, g) * G.spread / 2) * (1 + e.ou);
+  return G.price * state.market.world[g] * (1 + role(p, g) * G.spread / 2) * (1 + e.ou) * embargoFactor(p, g);
 }
 export function midPrice(state, p, g) { return basePrice(state, p, g) * (1 + state.ports[p][g].imp); }
 export function buyPrice(state, p, g) { return midPrice(state, p, g) * (1 + BID_ASK); }
@@ -326,14 +335,16 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const clients = Object.entries(CLIENTS).filter(([, c]) => c.goods.includes(good));
   const client = clients.length ? rng.pick(clients)[0] : null;
   const riskPremium = client ? 1 + (70 - CLIENTS[client].reliability) / 300 : 1;
-  const pay = Math.round((est.total * TUNING.ballast * (BALLAST_HOLD[hold] || 1) * margin * riskPremium * (urgent ? 1.18 : 1)) / 1000) * 1000;
+  // Commerce avec un pays sous embargo : peu d'armateurs acceptent, le fret se paie cher.
+  const embargo = isEmbargoedPort(from) || isEmbargoedPort(to);
+  const pay = Math.round((est.total * TUNING.ballast * (BALLAST_HOLD[hold] || 1) * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1)) / 1000) * 1000;
   const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
   // Lignes régulières (conteneurs) et denrées réfrigérées : le chargeur exige un navire
   // presque aussi rapide que celui de référence. Un cargo lent ne peut pas les prendre.
   const minSpeed = hold === 'conteneurs' || hold === 'frigo' ? Math.round(T.speed * 9) / 10 : 0;
   const minRep = clamp(Math.round((margin - 0.96) * 117 + (pay > 1.5e6 ? 15 : 0) + (urgent ? 5 : 0)), 0, 75);
   return {
-    id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep, client, regional, big, minSpeed,
+    id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep, client, regional, big, minSpeed, embargo,
     fuelAtStart: Math.round(worldFuelPrice(state)), priceAtStart: state.market.world[good],
     nm: Math.round(route.nm),
     deadline: Math.round(state.t + deadlineDays * HOURS_PER_DAY),

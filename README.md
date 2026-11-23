@@ -51,6 +51,11 @@ riche de la planète.
   abordage) coûte un nettoyage, bien plus cher près des côtes sensibles
   (Bretagne, mer des Wadden, Grande Barrière…). Assuré si le navire était en
   état ; sinon tout est à vos frais et le pays touché vous ferme ses ports un an.
+* **Commerce gris et noir** : pays sous embargo (Iran, Venezuela) qui paient cher
+  et marquent vos navires pour un an (amendes dans les pays qui appliquent les
+  sanctions) ; colis discrets proposés par des intermédiaires, à cacher à bord,
+  que la douane peut trouver (saisie, amende, immobilisation, ou arrangement
+  dans un port accommodant). Les cargos sont les meilleurs pour ça.
 * **Inspections dans les ports exigeants** (Europe, Amérique du Nord, Japon,
   Corée, Australie, Singapour) : un navire usé peut être retenu, mis à l'amende
   et réparé d'office à vos frais, que vous ayez l'argent ou non.
@@ -135,7 +140,7 @@ tests/               tests des routes et de la simulation
 2. ✅ Flotte complète : 22 modèles jusqu'au géant des mers, nouvelles cargaisons, 50 ports.
 3. Équipage et équipement (premier pas : niveaux d'équipage).
 4. Piraterie, forces de l'ordre et combats automatiques.
-5. Commerce gris et noir (embargos, cargaisons clandestines), douanes.
+5. ✅ Commerce gris et noir (embargos, cargaisons clandestines), douanes.
 6. ✅ Naufrages, pollution, assurance et responsabilité (assurance au choix : plus tard).
 7. Équilibrage, sons et musique, finitions.
 

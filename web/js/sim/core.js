@@ -15,6 +15,7 @@ export const BOOK_LABELS = {
   ports: 'Ports, pilotes et canaux',
   reparations: 'Réparations',
   sinistres: 'Sinistres, amendes et indemnités',
+  discret: 'Affaires discrètes',
   interets: 'Intérêts bancaires',
   impots: 'Impôts',
   divers: 'Divers',

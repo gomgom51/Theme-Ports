@@ -11,6 +11,7 @@ import {
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { CANAL_NAMES } from './context.js';
 import { bannedUntil } from './pollution.js';
+import { taintShip } from './shady.js';
 
 const fail = (msg) => ({ ok: false, msg });
 const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
@@ -230,6 +231,7 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   const hold = eco.holdFor(ship.type, c.good);
   c.takenBy = ship.id;
   ship.cargo = { good: c.good, qty: c.qty, hold, contractId: c.id };
+  taintShip(state, ship, c.from, c.pay);
   startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, c.qty));
   ship.plan = { to: c.to, speed: p.speed, autoRefuel: opts.autoRefuel ?? true };
   shipLog(state, ship, `Contrat : ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} avant le ${formatDate(c.deadline)}`);
@@ -280,6 +282,7 @@ export function buyCargo(state, ctx, shipId, good, qty) {
   money(state, company, -q.total, 'achats');
   ship.spent += q.total;
   ship.cargo = { good, qty: onboard + qty, hold, cost: (ship.cargo?.cost || 0) + q.total, boughtAt: ship.port };
+  taintShip(state, ship, ship.port, q.total);
   startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty));
   shipLog(state, ship, `Achat de ${qty.toLocaleString('fr-FR')} t de ${GOODS[good].name.toLowerCase()} à ${portName(ship.port)} (${fmtM(q.total)})`);
   return { ok: true, qty, total: q.total };
@@ -306,6 +309,7 @@ export function sellCargo(state, ctx, shipId) {
   eco.applyTrade(state, ship.port, ship.cargo.good, ship.cargo.qty * (1 - (ship.cargo.damage || 0)), 'sell');
   money(state, company, q.net, 'negoce');
   ship.earned += q.net;
+  taintShip(state, ship, ship.port, q.net);
   shipLog(state, ship, `Vente de ${ship.cargo.qty.toLocaleString('fr-FR')} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${fmtM(Math.abs(q.profit))}`);
   const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty);
   ship.cargo = null;

@@ -19,6 +19,7 @@ import { officeSVG, officeTier, OFFICE_TIERS } from './officeart.js';
 import { pendingList } from './payment.js';
 import { surveyTag, isStrict } from './risk.js';
 import { alertsPanel } from './alerts.js';
+import { portShadyInfo } from './shady.js';
 
 const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -113,6 +114,7 @@ export function portPanel(app, id) {
     stat('Taxes portuaires', P.fees > 1.05 ? 'élevées' : P.fees < 0.92 ? 'faibles' : 'moyennes'),
     stat('Inspections', isStrict(id) ? 'sévères' : 'rares'),
   ]));
+  body.append(...portShadyInfo(id));
   const ban = app.company()?.bans?.[P.flag];
   if (ban > state.t) body.append(h('p.warn-text', `⛔ ${F.name} interdit ses ports à votre compagnie jusqu'au ${date(ban, true)} (pollution).`));
   if (isStrict(id)) body.append(h('p.hint', 'Port exigeant : les navires usés (sous 55 %, 62 % après 20 ans) risquent d\'y être retenus, mis à l\'amende et réparés d\'office aux frais de l\'armateur.'));
@@ -508,6 +510,8 @@ export function helpPanel() {
       p('En mer : avaries de machine, incendies, abordages, échouements, voies d\'eau, cargaisons abîmées par la tempête (cercles colorés, force en Beaufort). Un navire vieux ou usé en subit bien plus ; même un bon navire peut sombrer, mais il est alors assuré.'),
       p('L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
       p('Pollution : une cargaison polluante (pétrole, produits, chimie) qui se déverse lors d\'un naufrage, d\'un échouement ou d\'un abordage coûte un nettoyage, bien plus cher près des côtes sensibles (zones hachurées sur la carte). L\'assurance paie si le navire était en état ; sinon tout est à vos frais et le pays touché vous ferme ses ports un an. Le départ indique les côtes longées et le pire cas.'),
+      p('Commerce gris : l\'Iran et le Venezuela sont sous embargo. Leurs ports paient cher ce qui leur manque et le fret y est mieux payé, mais un navire qui y commerce est marqué un an : en Europe, en Amérique du Nord, au Japon, en Corée et en Océanie, il risque une amende (plein tarif si votre pavillon applique les sanctions).'),
+      p('Commerce noir : dans certains ports, des intermédiaires proposent des colis discrets, payés en liquide à la livraison. La douane de chaque escale peut les trouver : saisie, amende, immobilisation, sauf arrangement dans un port accommodant. Les cargos les cachent mieux que les pétroliers.'),
       p('Votre équipage évalue les dangers : un équipage de base donne un avis général, un équipage confirmé des fourchettes, un équipage chevronné des chiffres précis voyage par voyage. Les meilleurs équipages coûtent plus cher mais provoquent moins d\'incidents. Choisissez-le à l\'escale.'),
       p('Le marché du fret suit des cycles : des années fastes, puis des années maigres où désarmer un navire (à l\'escale) coûte moins cher que de le faire travailler à perte. Aussi : grèves, fermeture du canal de Suez, sécheresse à Panama, chocs pétroliers… Lisez le Journal 📰.'),
       h('h3', 'Banque et réputation'),
