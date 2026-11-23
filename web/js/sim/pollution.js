@@ -9,7 +9,7 @@ import { PORTS, FLAGS } from '../data/ports.js';
 import { haversineNm } from './routing.js';
 import { money, news, changeReputation } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
-import { SEAWORTHY } from './incidents.js';
+import { coverage } from './insurance.js';
 import { equipMod } from './equipment.js';
 
 export const CLEANUP_RATE = 600;    // $ par tonne de « pollution équivalent brut »
@@ -47,22 +47,23 @@ export function cargoPollution(cargo) {
 export const isPolluting = (good) => (GOODS[good]?.pollution || 0) >= 0.2;
 
 // Ce que coûterait un déversement, et qui le paierait.
-export function spillCost(ship, pollutionT, factor, startCond) {
+export function spillCost(ship, pollutionT, factor, startCond, company) {
   const liability = pollutionT * CLEANUP_RATE * factor;
-  const insured = startCond >= SEAWORTHY;
+  const cov = coverage(company, startCond);
+  const insured = cov.pi;
   const T = SHIP_TYPES[ship.type];
   // Navire en état : l'assurance paie, il reste une franchise. Sinon, l'armateur paie
   // jusqu'à la limite de responsabilité (liée à la jauge du navire).
   const due = insured ? Math.min(liability, Math.max(100000, Math.min(5e6, liability * 0.05))) : Math.min(liability, 1500 * T.gt * Math.max(1, factor));
-  return { liability, insured, due };
+  return { liability, insured, seaworthy: cov.seaworthy, due };
 }
 
 // Pire cas d'un voyage (affiché avant le départ) : naufrage dans la zone la plus sensible de la route.
-export function worstCase(ship, route, startCond = ship.condition) {
+export function worstCase(ship, route, startCond = ship.condition, company = null) {
   const zones = zonesAlong(route);
   const factor = zones.reduce((m, z) => Math.max(m, z.factor), OPEN_SEA_FACTOR);
   const pollutionT = cargoPollution(ship.cargo) * equipMod(ship, 'spill') + ship.fuel * FUEL_POLLUTION;
-  return { zones, factor, pollutionT, ...spillCost(ship, pollutionT, factor, startCond) };
+  return { zones, factor, pollutionT, ...spillCost(ship, pollutionT, factor, startCond, company) };
 }
 
 // Déversement réel : share = part de la cargaison perdue (1 au naufrage).
@@ -74,7 +75,7 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   const zone = zoneAt(pos.lon, pos.lat);
   const factor = zone ? zone.factor : nearCoast ? 0.6 : OPEN_SEA_FACTOR;
   const startCond = ship.voyage?.startCond ?? ship.condition;
-  const c = spillCost(ship, pollutionT, factor, startCond);
+  const c = spillCost(ship, pollutionT, factor, startCond, company);
   money(state, company, -c.due, 'sinistres');
   changeReputation(company, -Math.min(20, 2 + c.liability / 10e6));
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
@@ -85,11 +86,11 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   const M = (x) => `${(x / 1e6).toFixed(1).replace('.', ',')} M$`;
   let ban = '';
   // Négligence (navire inapte) dans une zone sensible : le pays ferme ses ports au pollueur.
-  if (!c.insured && zone && zone.factor >= 2 && Object.values(PORTS).some((P) => P.flag === zone.flag)) {
+  if (!c.seaworthy && zone && zone.factor >= 2 && Object.values(PORTS).some((P) => P.flag === zone.flag)) {
     (company.bans ??= {})[zone.flag] = state.t + BAN_DAYS * HOURS_PER_DAY;
     ban = ` ${FLAGS[zone.flag].name} interdit ses ports à ${company.name} pendant un an.`;
   }
-  const text = `Marée noire ${where} : ${Math.round(pollutionT).toLocaleString('fr-FR')} t de polluants échappés du ${ship.name}. Nettoyage : ${M(c.liability)}, ${c.insured ? `l'assurance paie, franchise de ${M(c.due)}` : `entièrement à la charge de ${company.name} (${M(c.due)}), le navire n'étant pas en état de naviguer`}.${ban}`;
+  const text = `Marée noire ${where} : ${Math.round(pollutionT).toLocaleString('fr-FR')} t de polluants échappés du ${ship.name}. Nettoyage : ${M(c.liability)}, ${c.insured ? `l'assurance paie, franchise de ${M(c.due)}` : `entièrement à la charge de ${company.name} (${M(c.due)}), ${c.seaworthy ? 'son assurance ne couvrant pas la pollution' : 'le navire n\'étant pas en état de naviguer'}`}.${ban}`;
   news(state, text, { company: company.id, kind: 'disaster' });
   if (note) note(state, notes, 'pollution', ship, text);
   return { ...c, pollutionT, zone };

@@ -19,6 +19,7 @@ import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 import { equipMod, equipUpkeep } from './equipment.js';
 import { piracyHour } from './piracy.js';
+import { coverage, premiumPerDay } from './insurance.js';
 import { patrolHour } from './patrols.js';
 
 const D = HOURS_PER_DAY;
@@ -88,7 +89,7 @@ export function migrateState(state) {
   state.spills ??= [];
   state.offers ??= [];
   state.cases ??= [];
-  for (const c of state.companies) c.bans ??= {};
+  for (const c of state.companies) { c.bans ??= {}; c.insurance ??= 'complete'; }
   for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
   for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
   for (const p of PORT_IDS) {
@@ -450,7 +451,8 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
   const nearCoast = !!(ship.voyage && route && (ship.voyage.progress < 150 || route.nm - ship.voyage.progress < 150));
   if (pos) spill(state, ship, company, pos, rng ? rng.range(0.4, 1) : 0.7, { sinking: true, nearCoast, notes, note });
   // L'assureur ne paie que si le navire était en état de naviguer au départ.
-  const insurance = hullInsurance(state, ship, startCond);
+  const insurance = hullInsurance(state, ship, startCond, company);
+  const cov = coverage(company, startCond);
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
   st.sinkings++;
   if (!insurance) st.uninsured++;
@@ -462,18 +464,18 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
     // pour un navire en état de naviguer : l'armateur ne règle que la franchise.
     const c = contractById(state, ship.cargo.contractId);
     const claim = c ? Math.round(c.qty * GOODS[c.good].price * 0.25) : 0;
-    const covered = startCond >= SEAWORTHY;
+    const covered = cov.pi;
     const due = covered ? Math.min(claim, Math.max(50000, Math.min(300000, claim * 0.1))) : claim;
     if (due) money(state, company, -due, 'sinistres');
     changeReputation(company, -10);
     const M = (x) => `${(x / 1e6).toFixed(2).replace('.', ',')} M$`;
     cargoLine = !claim ? '' : covered
       ? ` Le chargeur réclame ${M(claim)} : l'assurance P&I paie, il vous reste la franchise (${M(due)}).`
-      : ` Le chargeur réclame ${M(claim)}, que l'assurance refuse de couvrir.`;
+      : ` Le chargeur réclame ${M(claim)}, ${cov.seaworthy ? 'que votre assurance ne couvre pas' : 'que l\'assurance refuse de couvrir'}.`;
   } else if (ship.cargo) {
-    const cover = startCond >= SEAWORTHY ? Math.round((ship.cargo.cost || 0) * 0.7) : 0;
+    const cover = Math.round((ship.cargo.cost || 0) * cov.cargo);
     if (cover) money(state, company, cover, 'sinistres');
-    cargoLine = cover ? ` La marchandise est remboursée à 70 % (${(cover / 1e6).toFixed(2).replace('.', ',')} M$).` : ' La marchandise est perdue.';
+    cargoLine = cover ? ` La marchandise est remboursée à ${Math.round(cov.cargo * 100)} % (${(cover / 1e6).toFixed(2).replace('.', ',')} M$).` : ' La marchandise est perdue.';
   }
   changeReputation(company, -5);
   const causes = {
@@ -483,7 +485,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
   const cause = inc && causes[inc.kind] ? causes[inc.kind] : wx.storm ? `a sombré dans ${articleStorm(wx.storm.name)}` : 'a sombré : sa coque, à bout de souffle, a cédé';
   const ins = insurance
     ? `L'assurance verse ${(insurance / 1e6).toFixed(2).replace('.', ',')} M$.`
-    : 'L\'assureur refuse de payer : le navire n\'était pas en état de naviguer.';
+    : cov.seaworthy ? 'Le navire n\'était pas assuré.' : 'L\'assureur refuse de payer : le navire n\'était pas en état de naviguer.';
   news(state, `Naufrage ! Le ${ship.name} (${company.name}) ${cause}. L'équipage a été hélitreuillé. ${ins}${cargoLine}`, { company: company.id, kind: 'disaster' });
   note(state, notes, 'sunk', ship, `Le ${ship.name} ${cause}. L'équipage est sauf. ${ins}${cargoLine}`);
   removeShip(state, ctx, ship);
@@ -515,6 +517,9 @@ function daily(state, ctx, rng, notes) {
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];
     const company = companyOf(state, ship);
+    // Prime d'assurance selon la formule choisie par la compagnie.
+    const prem = premiumPerDay(state, ship, company);
+    if (prem) { money(state, company, -prem, 'exploitation'); ship.spent += prem; }
     // Salaires, plus les gardes armés éventuels (débarqués quand le navire est désarmé).
     const crew = (eco.crewDayCost(T, company.flag, ship.crew) + equipUpkeep(ship)) * (ship.status === 'laidup' ? 0.2 : 1);
     const opex = eco.opexDay(T, eco.ageYears(state, ship)) * (ship.status === 'laidup' ? 0.3 : 1);

@@ -7,6 +7,8 @@ import { PORTS } from '../data/ports.js';
 import { HOURS_PER_DAY } from './util.js';
 import * as eco from './economy.js';
 import { equipMod } from './equipment.js';
+import { SEAWORTHY, coverage } from './insurance.js';
+export { SEAWORTHY };
 
 const D = HOURS_PER_DAY;
 
@@ -106,12 +108,11 @@ export function incidentText(inc, ship) {
   return T + dmg + days + cost;
 }
 
-// Assurance corps et machines : elle ne paie que si le navire était en état de
-// naviguer au départ (clause de navigabilité).
-export const SEAWORTHY = 40;
-export function hullInsurance(state, ship, startCond) {
-  if (startCond < SEAWORTHY) return 0;
-  return eco.shipValue(state, { ...ship, condition: Math.max(ship.condition, 50) }) * 0.8;
+// Assurance corps et machines : selon la formule choisie, et seulement si le navire
+// était en état de naviguer au départ (clause de navigabilité).
+export function hullInsurance(state, ship, startCond, company) {
+  const cov = coverage(company, startCond);
+  return cov.hull ? eco.shipValue(state, { ...ship, condition: Math.max(ship.condition, 50) }) * cov.hull : 0;
 }
 
 // ---------- Contrôle par l'État du port ----------

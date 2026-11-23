@@ -58,7 +58,7 @@ export function computeAlerts(state, ctx, companyId) {
     if (ship.busyWhat === 'détention') {
       add('urgent', '🚨', `Le ${ship.name} est retenu à ${PORTS[ship.port].name} par les inspecteurs : remise en état jusqu'au ${date(ship.busyUntil, true)}, ou vente en l'état.`, go);
     }
-    if (ship.status !== 'laidup' && ship.condition < SEAWORTHY) {
+    if (ship.status !== 'laidup' && ship.condition < SEAWORTHY && company.insurance !== 'aucune') {
       const pol = ship.cargo && isPolluting(ship.cargo.good) ? ' Avec sa cargaison polluante, une marée noire vous coûterait aussi le nettoyage et une interdiction d\'escale.' : '';
       add('urgent', '✖', `Le ${ship.name} n'est plus assuré (état ${pct(ship.condition)}) : un naufrage ou une réclamation serait entièrement à vos frais.${pol}`, go);
     } else if (ship.status !== 'laidup' && ship.condition < 50) {

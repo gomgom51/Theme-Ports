@@ -20,6 +20,7 @@ import { pendingList } from './payment.js';
 import { surveyTag, isStrict } from './risk.js';
 import { alertsPanel } from './alerts.js';
 import { portShadyInfo } from './shady.js';
+import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 
 const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -281,6 +282,28 @@ function officeHero(app) {
   ]);
 }
 
+// Formule d'assurance de la compagnie : une vraie décision, prime contre protection.
+function insuranceTab(app) {
+  const { state } = app;
+  const c = app.company();
+  const ships = shipsOf(state, c.id);
+  const box = h('div');
+  box.append(h('p.hint', `Quelle que soit la formule, l'assureur ne paie rien pour un navire parti avec moins de 40 % d'état. Les primes sont prélevées chaque jour.`));
+  for (const id of PLAN_IDS) {
+    const P = PLANS[id], cur = (c.insurance || 'complete') === id;
+    const prem = fleetPremium(state, c, ships, id);
+    box.append(h('div.card', { class: cur ? 'highlight' : '' }, [
+      h('div.card-main', [
+        h('div.card-title', [P.name, cur ? h('span.tag.good', 'votre formule') : null]),
+        h('div.card-sub', P.blurb),
+        h('div.card-sub.muted', P.rate ? `${String(P.rate * 100).replace('.', ',')} % de la valeur des navires par an : ${money(prem)} par an pour votre flotte actuelle.` : 'Aucune prime.'),
+      ]),
+      h('div.card-side', cur ? [] : [h('button.btn.small', { onclick: () => { c.insurance = id; app.refresh(); } }, 'Choisir')]),
+    ]));
+  }
+  return box;
+}
+
 export function officePanel(app, _id, tab) {
   const c = app.company();
   return {
@@ -290,6 +313,7 @@ export function officePanel(app, _id, tab) {
       ['finances', 'Finances', () => financeTab(app)],
       ['resultats', 'Résultats', () => resultsTab(app)],
       ['compagnie', 'Compagnie', () => companyTab(app)],
+      ['assurance', 'Assurance', () => insuranceTab(app)],
       ['classement', 'Classement', () => rankingTab(app)],
     ],
     tab,
@@ -508,7 +532,7 @@ export function helpPanel() {
       p('Chaque port a un tirant d\'eau maximal et des terminaux (vrac, liquide, marchandises diverses, conteneurs). Chaque navire a des cales adaptées à certaines marchandises et une autonomie limitée par ses soutes.'),
       h('h3', 'Les risques'),
       p('En mer : avaries de machine, incendies, abordages, échouements, voies d\'eau, cargaisons abîmées par la tempête (cercles colorés, force en Beaufort). Un navire vieux ou usé en subit bien plus ; même un bon navire peut sombrer, mais il est alors assuré.'),
-      p('L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
+      p('Assurance (Bureau → Assurance) : formule complète, coque seule ou rien ; moins de prime, moins de protection. L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
       p('Pollution : une cargaison polluante (pétrole, produits, chimie) qui se déverse lors d\'un naufrage, d\'un échouement ou d\'un abordage coûte un nettoyage, bien plus cher près des côtes sensibles (zones hachurées sur la carte). L\'assurance paie si le navire était en état ; sinon tout est à vos frais et le pays touché vous ferme ses ports un an. Le départ indique les côtes longées et le pire cas.'),
       p('Commerce gris : l\'Iran et le Venezuela sont sous embargo. Leurs ports paient cher ce qui leur manque, bradent leur brut, et le fret y est mieux payé, mais un navire qui y commerce est marqué un an : en Europe, en Amérique du Nord, au Japon, en Corée et en Océanie, il risque une amende (plein tarif si votre pavillon applique les sanctions).'),
       p('Commerce noir : dans certains ports, des intermédiaires proposent des colis discrets, payés en liquide à la livraison. La douane de chaque escale peut les trouver : saisie, amende, immobilisation, sauf arrangement dans un port accommodant. Les cargos les cachent mieux que les pétroliers.'),

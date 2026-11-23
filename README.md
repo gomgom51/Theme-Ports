@@ -47,6 +47,8 @@ riche de la planète.
   cher, provoque moins d'incidents et évalue mieux les dangers : avis général,
   fourchettes, puis chiffres précis voyage par voyage. L'assurance et les ports
   exigeants, eux, sont toujours affichés.
+* **Assurance au choix** : formule complète (coque, responsabilité, marchandises),
+  coque seule, ou rien du tout ; la prime contre la protection.
 * **Pollution** : une cargaison polluante qui se déverse (naufrage, échouement,
   abordage) coûte un nettoyage, bien plus cher près des côtes sensibles
   (Bretagne, mer des Wadden, Grande Barrière…). Assuré si le navire était en
@@ -150,7 +152,7 @@ tests/               tests des routes et de la simulation
 3. ✅ Équipage et équipement.
 4. ✅ Piraterie (version simple : défense contre assaillants, puis un résultat).
 5. ✅ Commerce gris et noir (embargos, cargaisons clandestines), douanes.
-6. ✅ Naufrages, pollution, assurance et responsabilité (assurance au choix : plus tard).
+6. ✅ Naufrages, pollution, assurance au choix et responsabilité.
 7. Équilibrage (passe finale), sons et musique, finitions.
 
 ## Crédits
