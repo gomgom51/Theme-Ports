@@ -58,7 +58,8 @@ function depth(p, g) {
   const P = PORTS[p];
   const intensity = Math.max(P.exp[g] || 0, P.imp[g] || 0);
   const roleFactor = intensity > 0 ? 0.5 + intensity : 0.35;
-  return GOODS[g].depth * (0.2 + 0.16 * P.size) * roleFactor;
+  // Pays sous embargo : peu d'acheteurs et de vendeurs, un gros lot fait vite bouger le prix.
+  return GOODS[g].depth * (0.2 + 0.16 * P.size) * roleFactor * (EMBARGOED[P.flag] ? 0.4 : 1);
 }
 
 // Prix « milieu » sans l'effet des transactions récentes.
@@ -66,7 +67,7 @@ function depth(p, g) {
 export function embargoFactor(p, g) {
   if (!EMBARGOED[PORTS[p].flag]) return 1;
   const r = role(p, g);
-  return r > 0 ? 1.25 : r < 0 ? 0.8 : 1;
+  return r > 0 ? 1.18 : r < 0 ? 0.88 : 1;
 }
 export const EMBARGO_PREMIUM = 1.6;
 export const isEmbargoedPort = (p) => !!EMBARGOED[PORTS[p].flag];

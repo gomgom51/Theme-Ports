@@ -14,6 +14,7 @@ import { isPolluting } from '../sim/pollution.js';
 import { sanctionRisk, detectionChance } from '../sim/shady.js';
 import { etaOf } from './panel-ship.js';
 import { openCase } from './shady.js';
+import { openRansom } from './piracy.js';
 
 const LEVELS = { urgent: 0, watch: 1, info: 2 };
 export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
@@ -39,6 +40,9 @@ export function computeAlerts(state, ctx, companyId) {
     add('watch', '💳', `Emprunts à ${pct((company.debt / Math.max(1, credit)) * 100)} de votre plafond de crédit : la banque ne prêtera bientôt plus.`, { panel: 'office' });
   }
 
+  for (const s of shipsOf(state, companyId)) {
+    if (s.hijacked) add('urgent', '☠', `Le ${s.name} est aux mains de pirates (${s.hijacked.zone}) : ils réclament ${money(s.hijacked.ransom)}.`, { ransom: s.id });
+  }
   for (const c of state.cases || []) {
     if (c.company !== companyId) continue;
     const s = state.ships.find((x) => x.id === c.shipId);
@@ -102,7 +106,7 @@ export function alertsPanel(app) {
     body.append(h('div.list', list.map((a) => h(`div.card.alert.alert-${lv}`, [
       h('div.card-main', [h('div.card-sub', [h('span.alert-icon', a.icon), ' ', a.text])]),
       a.target ? h('div.card-side', [h('button.btn.small', {
-        onclick: () => { if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
+        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
       }, 'Voir')]) : null,
     ]))));
   }

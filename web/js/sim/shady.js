@@ -52,7 +52,7 @@ export function checkSanctions(state, rng, ship, port, onNote) {
 // Les ports sous embargo paient cher ce qui leur manque et bradent ce qu'ils exportent.
 export function embargoPriceFactor(port, role) {
   if (!isEmbargoed(port)) return 1;
-  return role > 0 ? 1.25 : role < 0 ? 0.8 : 1;
+  return role > 0 ? 1.18 : role < 0 ? 0.88 : 1;
 }
 export const EMBARGO_PREMIUM = 1.6;
 

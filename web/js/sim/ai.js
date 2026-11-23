@@ -9,6 +9,7 @@ import { shipsOf, fleetValue, creditLimit, contractById, bookTotal } from './cor
 import { HOURS_PER_DAY } from './util.js';
 import { INCIDENT_BASE, wearRisk } from './incidents.js';
 import { ENFORCING } from '../data/sanctions.js';
+import { hasEquip, installEquipment } from './equipment.js';
 
 const D = HOURS_PER_DAY;
 
@@ -212,6 +213,10 @@ export function aiDaily(state, ctx, rng, company) {
     const T = SHIP_TYPES[sh.type], age = eco.ageYears(state, sh);
     const want = T.price >= 120 ? 2 : T.price >= 55 && age < 20 ? 1 : 0;
     if ((sh.crew || 0) !== want && company.cash > 2e6) act.setCrew(state, sh.id, want);
+  }
+  // Un minimum de protection contre les pirates quand on passe au chantier.
+  for (const sh of ships) {
+    if (sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'barbeles') && company.cash > 3e6) installEquipment(state, sh.id, 'barbeles');
   }
   // Réarmer les navires désarmés quand le fret repart.
   for (const sh of ships) {

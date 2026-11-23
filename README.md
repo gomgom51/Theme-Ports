@@ -60,6 +60,11 @@ riche de la planète.
   citadelle, navigation moderne, anti-incendie, coque renforcée, cachettes,
   hélice économe, transpondeur « discret »… chacun avec son prix, parfois un coût
   journalier, et un effet précis sur les risques.
+* **Pirates** : dans les zones à risque (golfe d'Aden, golfe de Guinée, Malacca,
+  mer de Sulu, côtes du Venezuela), une attaque se joue en trois phases
+  (approche, abordage, combat à bord) selon votre vitesse, votre équipement et
+  votre équipage. Repoussée, pillée (citadelle) ou navire détourné : rançon à
+  payer ou à négocier. Le départ indique le risque et vos chances.
 * **Inspections dans les ports exigeants** (Europe, Amérique du Nord, Japon,
   Corée, Australie, Singapour) : un navire usé peut être retenu, mis à l'amende
   et réparé d'office à vos frais, que vous ayez l'argent ou non.
@@ -143,10 +148,10 @@ tests/               tests des routes et de la simulation
    événements, banque, IA, multijoueur sur un appareil.
 2. ✅ Flotte complète : 22 modèles jusqu'au géant des mers, nouvelles cargaisons, 50 ports.
 3. ✅ Équipage et équipement.
-4. Piraterie, forces de l'ordre et combats automatiques.
+4. ✅ Piraterie (version simple : défense contre assaillants, puis un résultat).
 5. ✅ Commerce gris et noir (embargos, cargaisons clandestines), douanes.
 6. ✅ Naufrages, pollution, assurance et responsabilité (assurance au choix : plus tard).
-7. Équilibrage, sons et musique, finitions.
+7. Équilibrage (passe finale), sons et musique, finitions.
 
 ## Crédits
 

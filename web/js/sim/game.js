@@ -18,6 +18,7 @@ import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspe
 import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 import { equipMod, equipUpkeep } from './equipment.js';
+import { piracyHour } from './piracy.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 2;
@@ -288,6 +289,20 @@ function sailHour(state, ctx, rng, ship, notes) {
       return;
     }
     note(state, notes, inc.kind === 'machine' ? 'breakdown' : 'incident', ship, text);
+  }
+
+  // Pirates : dans les zones à risque, une attaque peut survenir.
+  const pir = piracyHour(state, rng, ship, pos);
+  if (pir) {
+    const n0 = notes.length;
+    const texts = {
+      repelled: `Attaque de pirates repoussée ! Le ${ship.name} a tenu bon (${pir.zone}).`,
+      looted: `Des pirates ont pillé le ${ship.name} (${pir.zone}) ; l'équipage, réfugié dans la citadelle, est sain et sauf.`,
+      hijacked: `Le ${ship.name} a été détourné par des pirates (${pir.zone}) ! Ils réclament ${(pir.ransom / 1e6).toFixed(1).replace('.', ',')} M$.`,
+    };
+    note(state, notes, pir.outcome === 'hijacked' ? 'hijack' : 'pirates', ship, texts[pir.outcome]);
+    if (notes.length > n0) notes[notes.length - 1].report = pir;
+    if (pir.outcome === 'hijacked') return;
   }
 
   // Naufrage : coque très usée prise dans une forte tempête.

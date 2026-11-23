@@ -6,6 +6,7 @@ import { PORTS, PORT_IDS } from '../data/ports.js';
 import { pointAlong } from '../sim/routing.js';
 import { flagImage } from './flags.js';
 import { ZONES } from '../data/zones.js';
+import { PIRACY_ZONES } from '../sim/piracy.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
 const LABEL_PLACE = {
@@ -413,6 +414,20 @@ export class MapView {
         g.font = 'italic 600 10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${z.name}`, x, y - r * 0.55);
         g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${z.name}`, x, y - r * 0.55);
+      }
+    }
+    // Zones de piraterie : cercles rouges en pointillés.
+    for (const z of PIRACY_ZONES) {
+      const [x, y] = this.toScreen(z.lon, z.lat);
+      const r = Math.max(6, z.r * kmToPx);
+      if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+      g.fillStyle = `rgba(196,54,44,${z.rate * 2.2})`; g.fill();
+      g.setLineDash([2, 5]); g.lineWidth = 1.4; g.strokeStyle = 'rgba(170,40,32,0.6)'; g.stroke(); g.setLineDash([]);
+      if (scale > 4) {
+        g.font = '700 10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`☠ ${z.name}`, x, y + r * 0.55);
+        g.fillStyle = 'rgba(150,32,26,0.95)'; g.fillText(`☠ ${z.name}`, x, y + r * 0.55);
       }
     }
     g.restore();
