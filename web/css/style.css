@@ -402,6 +402,17 @@ select.input { width: auto; max-width: 100%; }
   color: var(--ink-2); border-radius: 999px; padding: 4px 10px; font-size: 12px;
 }
 .sound-toggle:hover { color: var(--ink); border-color: var(--teal); }
+/* Voile « Embarquer » de l'accueil : le premier clic lance la musique. */
+.boarding-veil {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: color-mix(in srgb, var(--paper, #f6f1e6) 55%, transparent);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  cursor: pointer; animation: veil-in .35s .25s both;
+}
+.boarding-veil .btn { pointer-events: none; width: auto; max-width: calc(100% - 32px); font-size: 1.25rem; padding: 14px 34px; border-radius: 999px; box-shadow: 0 6px 24px rgba(28, 42, 51, .25); }
+.boarding-hint { margin: 0; padding: 0 16px; text-align: center; color: var(--ink-2); font-size: .9rem; }
+@keyframes veil-in { from { opacity: 0; } to { opacity: 1; } }
 .setup-card {
   width: min(720px, 100%); margin: auto; background: var(--paper); border: 1px solid var(--line); border-top: 5px solid var(--navy);
   border-radius: 16px; padding: 18px 22px; box-shadow: var(--shadow);

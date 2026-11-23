@@ -26,25 +26,55 @@ export function hideScreen() {
 }
 
 // ---------- Accueil ----------
+// Le navigateur n'autorise le son qu'après un premier clic : tant qu'il n'a pas
+// démarré, le bouton invite à l'activer, et ce premier clic ne le coupe pas.
 function soundToggle(app) {
   const a = app.audio;
   const on = () => a.settings.ambience || a.settings.sfx || a.settings.music;
+  const label = () => (!on() ? '🔇 Son coupé' : a.unlocked ? '🔊 Son activé' : '🔈 Activer le son');
   const btn = h('button.sound-toggle', {
     title: 'Son', 'aria-label': 'Activer ou couper le son',
     onclick: (e) => {
       e.stopPropagation();
-      const v = !on();
-      a.setAmbience(v); a.setSfx(v); a.setMusic(v);
-      btn.textContent = v ? '🔊 Son activé' : '🔇 Son coupé';
+      // Ce clic vient de débloquer le son : il l'active, il ne doit pas aussi le couper.
+      const unlockingClick = !!a.unlockTarget && btn.contains(a.unlockTarget);
+      a.unlockTarget = null;
+      if (!(unlockingClick && on())) {
+        const v = !on();
+        a.setAmbience(v); a.setSfx(v); a.setMusic(v);
+      }
+      btn.textContent = label();
     },
-  }, on() ? '🔊 Son activé' : '🔇 Son coupé');
+  }, label());
+  btn.refresh = () => { btn.textContent = label(); };
   return btn;
+}
+
+// Voile « Embarquer » : le premier clic sert à lancer le son, pour que la chanson
+// se fasse entendre dès l'accueil. Inutile quand le son est déjà permis ou coupé.
+function boardingVeil(app) {
+  const a = app.audio;
+  const on = a.settings.ambience || a.settings.sfx || a.settings.music;
+  if (a.unlocked || !on) return null;
+  // Retiré après le clic (pas pendant), pour que ce clic ne tombe pas sur un bouton de l'accueil.
+  const veil = h('div.boarding-veil', { onclick: () => veil.remove() }, [
+    h('button.btn.primary.big', { type: 'button' }, '⚓ Embarquer'),
+    h('p.boarding-hint', 'Le navigateur attend un premier clic pour lancer la musique.'),
+  ]);
+  return veil;
 }
 
 export function titleScreen(app) {
   const saves = listSaves();
+  const toggle = soundToggle(app);
+  const veil = boardingVeil(app);
+  app.audio.onUnlock = (gesture) => {
+    toggle.refresh();
+    // Son permis sans clic (ou débloqué au clavier) : le voile n'a plus lieu d'être.
+    if (gesture !== 'pointerdown') veil?.remove();
+  };
   screen('title', h('div.title-card', [
-    soundToggle(app),
+    toggle,
     h('div.logo', [h('span.logo-anchor', { html: `<svg viewBox="0 0 64 64" aria-hidden="true">${LOGOS.ancre.svg}</svg>` }), h('h1', 'Port d\'Attache'), h('p.tagline', 'Armateur au long cours')]),
     h('div.title-buttons', [
       hasSave('auto') ? h('button.btn.primary.big', { onclick: () => app.loadSlot('auto') }, 'Continuer') : null,
@@ -54,6 +84,7 @@ export function titleScreen(app) {
     ]),
     h('p.credits', 'Carte : Natural Earth (domaine public).'),
   ]));
+  if (veil) document.getElementById('screen').append(veil);
 }
 
 export function loadScreen(app) {

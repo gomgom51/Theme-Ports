@@ -34,23 +34,40 @@ export class AudioManager {
     this.sceneName = null;
     this.stopBed = null;
     this.state = {};
-    const unlock = () => this.unlock();
+    this.onUnlock = null; // rappel de l'interface (accueil : bouton « Son », voile « Embarquer »)
+    const unlock = (e) => this.unlock(e);
     document.addEventListener('pointerdown', unlock, true);
     document.addEventListener('keydown', unlock, true);
+    this.probe();
+  }
+
+  // Les navigateurs interdisent le son avant un premier clic ou une touche, sauf
+  // exceptions (application Android, site installé, son autorisé pour ce site) :
+  // dans ces cas-là, tout démarre tout de suite, sans attendre.
+  probe() {
+    if (window.AndroidBridge || navigator.getAutoplayPolicy?.('audiocontext') === 'allowed') { this.unlock(); return; }
+    this.setupContext();
+    const c = this.ctx;
+    if (!c) return;
+    if (c.state === 'running') { this.unlock(); return; }
+    c.addEventListener('statechange', () => { if (c.state === 'running' && !this.unlocked) this.unlock(); });
   }
 
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.settings)); } catch { /* stockage indisponible */ } }
 
-  unlock() {
-    if (!this.unlocked) {
-      this.unlocked = true;
-      this.musicScene = null;
-      this.playMusic(this.sceneName);
-    }
-    if (this.ctx) {
-      if (this.ctx.state === 'suspended' && !this.paused) this.ctx.resume();
-      return;
-    }
+  // Premier geste (e) ou démarrage autorisé (sans e) : le son peut jouer.
+  unlock(e) {
+    if (!this.ctx) this.setupContext();
+    else if (this.ctx.state === 'suspended' && !this.paused) this.ctx.resume();
+    if (this.unlocked) { this.unlockTarget = null; return; } // un nouveau geste : ce n'est plus celui qui a débloqué le son
+    this.unlocked = true;
+    this.unlockTarget = e?.target || null; // pour reconnaître le clic qui a débloqué le son
+    this.musicScene = null;
+    this.playMusic(this.sceneName);
+    this.onUnlock?.(e?.type || null);
+  }
+
+  setupContext() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try { this.ctx = new AC(); } catch { return; }
