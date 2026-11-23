@@ -55,7 +55,7 @@ riche de la planète.
   et marquent vos navires pour un an (amendes dans les pays qui appliquent les
   sanctions) ; colis discrets proposés par des intermédiaires, à cacher à bord,
   que la douane peut trouver (saisie, amende, immobilisation, ou arrangement
-  dans un port accommodant). Les cargos sont les meilleurs pour ça.
+  dans un port accommodant), tout comme les garde-côtes en mer. Les cargos sont les meilleurs pour ça.
 * **Équipement** (au chantier) : barbelés et lances à eau, gardes armés,
   citadelle, navigation moderne, anti-incendie, coque renforcée, cachettes,
   hélice économe, transpondeur « discret »… chacun avec son prix, parfois un coût

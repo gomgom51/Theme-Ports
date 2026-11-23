@@ -20,7 +20,7 @@ import { etaOf } from './ui/panel-ship.js';
 import { openPayment } from './ui/payment.js';
 import { computeAlerts } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
-import { showBattle, openRansom } from './ui/piracy.js';
+import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier } from './ui/officeart.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
@@ -275,6 +275,11 @@ function handleNotes(notes) {
       app.audio.play('sunk');
       toast(n.text, { kind: 'bad', timeout: 20000, action: 'Décider', onAction: () => openRansom(app, n.shipId, n.report) });
       openRansom(app, n.shipId, n.report);
+      continue;
+    }
+    if (n.kind === 'patrol') {
+      if (n.report?.outcome === 'seized') { app.speed = 0; app.audio.play('sunk'); }
+      toast(n.text, { kind: n.report?.outcome === 'seized' ? 'bad' : 'info', timeout: 12000, action: 'Le contrôle', onAction: () => showPatrol(app, n) });
       continue;
     }
     if (n.kind === 'pirates') {

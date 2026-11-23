@@ -19,6 +19,7 @@ import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 import { equipMod, equipUpkeep } from './equipment.js';
 import { piracyHour } from './piracy.js';
+import { patrolHour } from './patrols.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 2;
@@ -303,6 +304,19 @@ function sailHour(state, ctx, rng, ship, notes) {
     note(state, notes, pir.outcome === 'hijacked' ? 'hijack' : 'pirates', ship, texts[pir.outcome]);
     if (notes.length > n0) notes[notes.length - 1].report = pir;
     if (pir.outcome === 'hijacked') return;
+  }
+
+  // Garde-côtes : un navire qui cache un colis peut être intercepté.
+  const pat = patrolHour(state, rng, ship, pos);
+  if (pat) {
+    const n0 = notes.length;
+    const texts = {
+      evaded: `Le ${ship.name} a échappé à un contrôle des ${pat.zone}.`,
+      searched: `Le ${ship.name} a été fouillé par les ${pat.zone} : ils n'ont rien trouvé.`,
+      seized: `Les ${pat.zone} ont trouvé le colis du ${ship.name} : amende de ${((pat.fine || 0) / 1e6).toFixed(2).replace('.', ',')} M$, navire retenu ${pat.days} jours.`,
+    };
+    note(state, notes, 'patrol', ship, texts[pat.outcome]);
+    if (notes.length > n0) notes[notes.length - 1].report = pat;
   }
 
   // Naufrage : coque très usée prise dans une forte tempête.

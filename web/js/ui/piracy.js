@@ -1,6 +1,7 @@
 // Interface de la piraterie : risque affiché avant le départ, rapport de combat
 // (votre défense, les assaillants, les trois phases), décision sur la rançon.
 import { piracyRisk, resolveHijack } from '../sim/piracy.js';
+import { patrolRisk } from '../sim/patrols.js';
 import { defence } from '../sim/equipment.js';
 import { EQUIPMENT } from '../data/equipment.js';
 import { h, money, dialog, toast } from './dom.js';
@@ -59,4 +60,24 @@ export async function openRansom(app, shipId, report = null) {
   if (!choice) return;
   const res = app.act(() => app.withRng((rng) => resolveHijack(app.state, rng, shipId, choice)), { sound: 'pay' });
   if (res?.ok) toast(`Rançon versée : ${money(res.pay)}. Le ${ship.name} sera libéré dans ${res.days} jours.`);
+}
+
+// Garde-côtes : risque affiché avant le départ quand un colis est caché à bord.
+export function patrolLine(ship, route, speed) {
+  const r = patrolRisk(ship, route, speed);
+  if (!r) return null;
+  const names = [...new Set(r.zones.map((x) => x.zone.name))].slice(0, 3).join(', ');
+  return h(`div.risk-line${r.caught > 0.1 ? '.neg' : r.caught > 0.04 ? '.warn-text' : ''}`, `🚔 Eaux surveillées sur la route (${names}) : risque d'être contrôlé ≈ ${pctTxt(r.intercept)}. Chance de filer ${pctTxt(r.evade)}, que la fouille ne trouve rien ${pctTxt(r.hidden)} : au total, colis saisi ≈ ${pctTxt(r.caught)}. Les garde-côtes ne se laissent pas acheter.`);
+}
+export async function showPatrol(app, note) {
+  const r = note.report;
+  const res = { evaded: ['✔ Contrôle évité', 'pos'], searched: ['✔ Fouille sans résultat', 'pos'], seized: [`✖ Colis saisi : amende ${money(r.fine || 0)}, navire retenu ${r.days} jours`, 'neg'] }[r.outcome];
+  await dialog({
+    title: `Contrôle en mer — ${r.zone}`,
+    body: h('div.battle', [
+      h('ol.battle-phases', r.phases.map((p) => h('li', { class: p.ok ? 'pos' : 'neg' }, [h('b', `${p.label} : `), p.text]))),
+      h(`p.battle-result.${res[1]}`, res[0]),
+    ]),
+    buttons: [{ label: 'Fermer', value: 'ok', kind: 'primary' }],
+  });
 }
