@@ -363,8 +363,9 @@ export function cashRegister(ctx, out, t, { gain = 0.35, pan = 0 } = {}) {
 // `state` garde l'heure du prochain événement de chaque famille d'un appel à l'autre.
 export const SCENES = {
   // L'ambiance d'ouverture : le port en pleine activité.
+  // bed : la houle continue en fond (0 = coupée ; trop présente, elle fatiguait l'oreille).
   title: {
-    bed: 0.42,
+    bed: 0,
     events: {
       wave: { first: [0.2, 1], every: [3.2, 6], play: (c, o, t, r) => wave(c, o, t, { gain: 0.22 + Math.random() * 0.12, dur: 4.5 + Math.random() * 2.5, pan: Math.random() * 1.2 - 0.6 }) },
       slap: { first: [1, 3], every: [1.8, 4.5], play: (c, o, t) => slap(c, o, t, { gain: 0.12 + Math.random() * 0.1, pan: Math.random() * 1.4 - 0.7 }) },
@@ -385,7 +386,7 @@ export const SCENES = {
   },
   // En jeu : la mer et quelques mouettes au loin, discrètement.
   game: {
-    bed: 0.28,
+    bed: 0,
     events: {
       wave: { first: [0.5, 2], every: [4.5, 8.5], play: (c, o, t) => wave(c, o, t, { gain: 0.13 + Math.random() * 0.07, dur: 5 + Math.random() * 2.5, pan: Math.random() * 1.2 - 0.6 }) },
       gull: { first: [6, 15], every: [22, 50], play: (c, o, t) => gull(c, o, t, { calls: 2 + Math.floor(Math.random() * 3), pan: Math.random() * 1.6 - 0.8, distance: 0.55 + Math.random() * 0.4, gain: 0.16 }) },

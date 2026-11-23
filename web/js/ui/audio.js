@@ -85,7 +85,7 @@ export class AudioManager {
     if (this.stopBed) { this.stopBed(this.ctx.currentTime); this.stopBed = null; }
     this.state = {};
     const scene = S.SCENES[name];
-    if (scene && this.settings.ambience) this.stopBed = S.seaBed(this.ctx, this.ambBus, this.ctx.currentTime + 0.05, { gain: scene.bed });
+    if (scene?.bed && this.settings.ambience) this.stopBed = S.seaBed(this.ctx, this.ambBus, this.ctx.currentTime + 0.05, { gain: scene.bed });
   }
 
   tick() {
