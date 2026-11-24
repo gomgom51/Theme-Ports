@@ -17,7 +17,8 @@ Cornes de départ
 Un son par famille de navires, fourni par l'auteur du jeu (raccourci au premier coup de corne,
 volumes égalisés). Le jeu le joue plus grave pour un gros navire et plus aigu pour un petit
 (selon son port en lourd, par rapport au navire de référence de la famille), et chaque navire
-garde une petite nuance à lui. Pour remplacer un son, garder le même nom de fichier (2 à 5 s).
+garde une petite nuance à lui. Pour remplacer un son, garder le même nom de fichier (2 à 3 s :
+le jeu coupe en fondu au-delà de 3 s, la corne dramatique exceptée).
 La liste des fichiers attendus est HORN_FILES dans web/js/ui/audio.js ; sans fichier, le jeu
 synthétise la corne.
 

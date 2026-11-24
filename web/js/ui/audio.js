@@ -37,6 +37,7 @@ const HORN_FILES = new Set(['cargo', 'vapeur', 'vraquier', 'petrolier', 'gazier'
 // Clin d'œil : le plus gros navire du jeu a sa propre corne, jouée telle quelle (sans changer
 // sa hauteur). Tant que le fichier n'est pas chargé, il garde la corne de sa famille.
 const HORN_SPECIAL = { petrolier_ulcc: 'dramatique' };
+const HORN_MAX = 3; // secondes : durée maximale d'une corne de famille (la corne spéciale reste entière)
 export const HORN_FAMILIES = {
   cargo: { ref: 12500, types: ['caboteur', 'polyvalent', 'colis_lourds', 'frigorifique'] },
   vapeur: { ref: 9000, types: ['cargo_ancien', 'petrolier_ancien'] },
@@ -205,7 +206,12 @@ export class AudioManager {
     const sp = special && `corne-${special}`;
     if (sp && this.buffers[sp]) { this.playSample(sp, { gain: 0.8, fadeOut: 0.2 }); return this.buffers[sp].duration; }
     if (sp && HORN_FILES.has(special)) this.loadHorn(sp);
-    if (this.buffers[name]) { this.playSample(name, { gain: 0.8, rate: pitch, fadeOut: 0.5 }); return this.buffers[name].duration / pitch; }
+    if (this.buffers[name]) {
+      // Joué plus lentement pour un gros navire : jamais plus de HORN_MAX secondes (fondu à la fin).
+      const len = Math.min(HORN_MAX, this.buffers[name].duration / pitch);
+      this.playSample(name, { gain: 0.8, rate: pitch, duration: len, fadeOut: 0.5 });
+      return len;
+    }
     if (HORN_FILES.has(fam)) this.loadHorn(name);
     const B = HORN_SYNTH[fam] || HORN_SYNTH.cargo, r = this.reverb, out = this.sfxBus;
     const H = { ...B, dur: B.dur / Math.sqrt(pitch) }; // un gros navire sonne plus grave et plus longtemps
