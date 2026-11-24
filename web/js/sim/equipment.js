@@ -41,8 +41,7 @@ export function installEquipment(state, shipId, id) {
   const company = companyOf(state, ship);
   const price = equipPrice(ship, id);
   if (price > company.cash) return fail(`Il faut ${(price / 1e6).toFixed(2).replace('.', ',')} M$.`);
-  money(state, company, -price, 'reparations');
-  ship.spent += price;
+  money(state, company, -price, 'reparations', ship);
   (ship.equipment ??= []).push(id);
   ship.busyWhat = 'installation';
   ship.busyUntil = state.t + E.hours;

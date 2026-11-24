@@ -76,7 +76,7 @@ export function patrolHour(state, rng, ship, pos) {
   const fine = seizureFine(ship.contraband.pay);
   const days = rng.int(10, 25);
   ship.contraband = null;
-  money(state, company, -fine, 'sinistres');
+  money(state, company, -fine, 'sinistres', ship);
   changeReputation(company, -15);
   ship.voyage.stalledUntil = state.t + days * D;
   report.outcome = 'seized';

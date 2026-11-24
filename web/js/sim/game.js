@@ -8,6 +8,7 @@ import * as act from './actions.js';
 import {
   money, news, emptyBook, bookTotal, companyOf, shipsOf, isIdle, fleetValue, netWorth, interestRate,
   changeReputation, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
+  shipTrack, shipBook, lastTrip, activityOf,
 } from './core.js';
 import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
 import { aiShipIdle, aiDaily } from './ai.js';
@@ -175,6 +176,8 @@ function stepHour(state, ctx, rng, notes) {
     const h = ship.hours || (ship.hours = { laden: 0, ballast: 0, port: 0, laidup: 0 });
     if (ship.status === 'sea') h[ship.cargo ? 'laden' : 'ballast']++;
     else h[ship.status === 'laidup' ? 'laidup' : 'port']++;
+    const sh = shipTrack(state, ship).h, a = activityOf(ship); // emploi du temps détaillé
+    sh[a] = (sh[a] || 0) + 1;
     if (ship.status === 'sea') sailHour(state, ctx, rng, ship, notes);
     else if (ship.status === 'port') portHour(state, ctx, rng, ship, notes);
   }
@@ -251,8 +254,7 @@ function sailHour(state, ctx, rng, ship, notes) {
       if (!v.nsrEscort && !iceOpen(state, 'nsr', state.t, ship)) {
         const fee = escortFee(ship);
         v.nsrEscort = true;
-        money(state, company, -fee, 'ports');
-        ship.spent += fee;
+        money(state, company, -fee, 'ports', ship);
         shipLog(state, ship, `Escorte d'un brise-glace dans le passage du Nord-Est : ${Math.round(fee / 1000)} k$`);
         note(state, notes, 'info', ship, `Les glaces sont revenues avant le ${ship.name} dans le passage du Nord-Est : un brise-glace l'escorte (${Math.round(fee / 1000)} k$).`);
       }
@@ -303,9 +305,8 @@ function sailHour(state, ctx, rng, ship, notes) {
     st.incidents[inc.kind] = (st.incidents[inc.kind] || 0) + 1;
     ship.condition = Math.max(0, ship.condition - inc.cond);
     if (inc.delayH) v.stalledUntil = state.t + inc.delayH;
-    money(state, company, -inc.cost, inc.kind === 'machine' ? 'reparations' : 'sinistres');
+    money(state, company, -inc.cost, inc.kind === 'machine' ? 'reparations' : 'sinistres', ship);
     if (inc.kind !== 'machine') costStat(state, 'incidents', inc.cost);
-    ship.spent += inc.cost;
     if (inc.damage && ship.cargo) {
       const d = ship.cargo.damage || 0;
       ship.cargo.damage = Math.min(0.9, d + inc.damage * (1 - d));
@@ -365,8 +366,7 @@ function sailHour(state, ctx, rng, ship, notes) {
   if (ship.fuel <= 0) {
     const qty = Math.round(T.tank * 0.3);
     const cost = qty * eco.worldFuelPrice(state) * 2.5 + 40000;
-    money(state, company, -cost, 'carburant');
-    ship.spent += cost;
+    money(state, company, -cost, 'carburant', ship);
     ship.fuel = qty;
     v.stalledUntil = state.t + 24;
     changeReputation(company, -1);
@@ -394,15 +394,15 @@ function arrive(state, ctx, ship, notes, rng) {
   ship.voyage = null;
   ctx.forget(ship.id);
   const fee = eco.portFee(T, to);
-  money(state, company, -fee, 'ports');
-  ship.spent += fee;
+  money(state, company, -fee, 'ports', ship);
+  const tr = lastTrip(state, ship);
+  if (tr && tr.d1 == null) tr.d1 = state.t;
   if (!company.portsServed.includes(to)) { company.portsServed.push(to); changeReputation(company, 0.5); }
   shipLog(state, ship, `Arrivée à ${portName(to)}`);
   // Port saisonnier déjà pris par les glaces : un brise-glace escorte le navire jusqu'au quai.
   if (isSeasonal(to) && !iceOpen(state, to, state.t, ship)) {
     const ice = escortFee(ship);
-    money(state, company, -ice, 'ports');
-    ship.spent += ice;
+    money(state, company, -ice, 'ports', ship);
     ship.iced = to;
     shipLog(state, ship, `Escorte d'un brise-glace jusqu'au quai : ${Math.round(ice / 1000)} k$`);
     note(state, notes, 'info', ship, `Les glaces sont arrivées avant le ${ship.name} : un brise-glace l'a escorté jusqu'au quai de ${portName(to)} (${Math.round(ice / 1000)} k$). Pour repartir, il faudra de nouveau un brise-glace, ou attendre le dégel (${forecastText(state, to, ship)}).`);
@@ -426,10 +426,9 @@ function arrive(state, ctx, ship, notes, rng) {
   if (insp?.kind === 'remarques') {
     note(state, notes, 'info', ship, `Inspection du ${ship.name} à ${portName(to)} : quelques remarques, mais le navire est autorisé à repartir. Pensez à le faire réparer.`);
   } else if (insp?.kind === 'detention') {
-    money(state, company, -insp.fine, 'sinistres');
+    money(state, company, -insp.fine, 'sinistres', ship);
     costStat(state, 'detentions', insp.fine);
-    money(state, company, -insp.cost, 'reparations');
-    ship.spent += insp.fine + insp.cost;
+    money(state, company, -insp.cost, 'reparations', ship);
     changeReputation(company, -3);
     ship.repairTo = insp.target;
     ship.detentionCost = insp.cost;
@@ -478,7 +477,10 @@ function deliverContract(state, ship, rng, notes) {
   // Denrées périssables : chaque jour de retard en gâte une partie.
   if (GOODS[c.good].perishable && state.t > c.deadline) damage = Math.min(0.9, damage + ((state.t - c.deadline) / D) * 0.04);
   const pay = c.pay * (1 - penalty) * (1 - Math.min(0.85, damage * 1.15));
-  ship.earned += pay;
+  shipBook(state, ship, pay, 'fret'); // fret facturé (l'encaissement passe par le client)
+  const st = shipTrack(state, ship), tr = lastTrip(state, ship);
+  if (tr && tr.rev == null) tr.rev = Math.round(pay);
+  if (penalty > 0) st.late++; else st.onTime++;
   company.delivered++;
   if (damage > 0.005) changeReputation(company, -damage * 8);
   // Le paiement passe par l'encaissement (bouton « Encaisser » pour les joueurs).
@@ -522,7 +524,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
   st.sinkings++;
   if (!insurance) st.uninsured++;
-  if (insurance) { money(state, company, insurance, 'sinistres'); costStat(state, 'indemnites', -insurance); }
+  if (insurance) { money(state, company, insurance, 'sinistres', ship); costStat(state, 'indemnites', -insurance); }
   // La cargaison : le chargeur réclame sa marchandise ; un négoce est couvert à 70 % si le navire était sain.
   let cargoLine = '';
   if (ship.cargo?.contractId) {
@@ -532,7 +534,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
     const claim = c ? Math.round(c.qty * GOODS[c.good].price * 0.25) : 0;
     const covered = cov.pi;
     const due = covered ? Math.min(claim, Math.max(50000, Math.min(300000, claim * 0.1))) : claim;
-    if (due) { money(state, company, -due, 'sinistres'); costStat(state, 'reclamations', due); }
+    if (due) { money(state, company, -due, 'sinistres', ship); costStat(state, 'reclamations', due); }
     changeReputation(company, -10);
     const M = (x) => `${(x / 1e6).toFixed(2).replace('.', ',')} M$`;
     cargoLine = !claim ? '' : covered
@@ -540,7 +542,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
       : ` Le chargeur réclame ${M(claim)}, ${cov.seaworthy ? 'que votre assurance ne couvre pas' : 'que l\'assurance refuse de couvrir'}.`;
   } else if (ship.cargo) {
     const cover = Math.round((ship.cargo.cost || 0) * cov.cargo);
-    if (cover) { money(state, company, cover, 'sinistres'); costStat(state, 'indemnites', -cover); }
+    if (cover) { money(state, company, cover, 'sinistres', ship); costStat(state, 'indemnites', -cover); }
     cargoLine = cover ? ` La marchandise est remboursée à ${Math.round(cov.cargo * 100)} % (${(cover / 1e6).toFixed(2).replace('.', ',')} M$).` : ' La marchandise est perdue.';
   }
   changeReputation(company, -5);
@@ -554,7 +556,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
     : cov.seaworthy ? 'Le navire n\'était pas assuré.' : 'L\'assureur refuse de payer : le navire n\'était pas en état de naviguer.';
   news(state, `Naufrage ! Le ${ship.name} (${company.name}) ${cause}. L'équipage a été hélitreuillé. ${ins}${cargoLine}`, { company: company.id, kind: 'disaster' });
   note(state, notes, 'sunk', ship, `Le ${ship.name} ${cause}. L'équipage est sauf. ${ins}${cargoLine}`);
-  removeShip(state, ctx, ship);
+  removeShip(state, ctx, ship, 'naufrage');
   state.wrecks = state.wrecks || [];
   state.wrecks.push({ lon: pos.lon, lat: pos.lat, name: ship.name, t: state.t, type: T.name });
 }
@@ -564,6 +566,7 @@ function deliverOrder(state, rng, order, notes) {
   const company = state.companies[order.owner];
   if (company.bankrupt) return;
   const ship = createShip(state, rng, order.owner, order.type, { port: order.yard, name: order.name || undefined });
+  ship.paid = order.paid;
   ship.fuel = SHIP_TYPES[order.type].tank * 0.6;
   shipLog(state, ship, `Livré neuf par le chantier de ${portName(order.yard)}`);
   news(state, `${company.name} prend livraison du ${ship.name}, ${SHIP_TYPES[order.type].name.toLowerCase()} neuf, à ${portName(order.yard)}.`, { company: company.id, kind: 'fleet' });
@@ -592,13 +595,12 @@ function daily(state, ctx, rng, notes) {
     const company = companyOf(state, ship);
     // Prime d'assurance selon la formule choisie par la compagnie.
     const prem = premiumPerDay(state, ship, company);
-    if (prem) { money(state, company, -prem, 'exploitation'); ship.spent += prem; }
+    if (prem) money(state, company, -prem, 'exploitation', ship);
     // Salaires, plus les gardes armés éventuels (débarqués quand le navire est désarmé).
     const crew = (eco.crewDayCost(T, company.flag, ship.crew) + equipUpkeep(ship)) * (ship.status === 'laidup' ? 0.2 : 1);
     const opex = eco.opexDay(T, eco.ageYears(state, ship)) * (ship.status === 'laidup' ? 0.3 : 1);
-    money(state, company, -crew, 'equipage');
-    money(state, company, -opex, 'exploitation');
-    ship.spent += crew + opex;
+    money(state, company, -crew, 'equipage', ship);
+    money(state, company, -opex, 'exploitation', ship);
   }
 
   for (const company of state.companies) {
@@ -650,7 +652,7 @@ function checkBank(state, ctx, company, notes) {
     changeReputation(company, -6);
     news(state, `La banque de ${company.name} saisit et vend le ${s.name} pour ${(price / 1e6).toFixed(2).replace('.', ',')} M$.`, { company: company.id, kind: 'disaster' });
     if (company.human) notes.push({ kind: 'bank', company: company.id, text: `Découvert trop important : la banque a saisi et vendu le ${s.name}.` });
-    removeShip(state, ctx, s);
+    removeShip(state, ctx, s, 'saisi par la banque', price);
   } else if (company.cash < -limit) {
     company.bankrupt = true;
     news(state, `${company.name} est en faillite.`, { company: company.id, kind: 'disaster' });

@@ -23,10 +23,41 @@ export const BOOK_LABELS = {
 export const emptyBook = () => Object.fromEntries(Object.keys(BOOK_LABELS).map((k) => [k, 0]));
 export const bookTotal = (b) => Object.values(b).reduce((s, v) => s + v, 0);
 
-export function money(state, company, amount, category) {
+// `ship` : le navire concerné, s'il y en a un (ses comptes à lui, pour le juger seul).
+export function money(state, company, amount, category, ship = null) {
   company.cash += amount;
   company.month[category] = (company.month[category] || 0) + amount;
   company.total[category] = (company.total[category] || 0) + amount;
+  if (ship) shipBook(state, ship, amount, category);
+}
+
+// ---------- Suivi de chaque navire (Bureau > Résultats > Par navire) ----------
+// Recettes et dépenses par poste, emploi du temps, derniers voyages. Le suivi commence à
+// l'achat ; pour un navire d'une ancienne sauvegarde, au premier jour suivi (`since`).
+export const TRIPS_KEPT = 20;
+export function shipTrack(state, ship) {
+  return (ship.st ??= { since: state.t, book: {}, h: {}, trips: [], n: 0, nmL: 0, nmB: 0, late: 0, onTime: 0 });
+}
+// Recette ou dépense d'un navire (sans mouvement de caisse : le fret facturé est encaissé plus tard).
+export function shipBook(state, ship, amount, category) {
+  if (amount >= 0) ship.earned += amount; else ship.spent -= amount;
+  const b = shipTrack(state, ship).book;
+  b[category] = (b[category] || 0) + amount;
+}
+// Le voyage en cours ou qui vient de finir (pour y inscrire la recette).
+export function lastTrip(state, ship) {
+  const tr = shipTrack(state, ship).trips;
+  return tr.length ? tr[tr.length - 1] : null;
+}
+// Emploi du temps, heure par heure.
+const STOPPED = new Set(['réparation', 'installation', 'détention', 'retenue', 'saisie', 'confisqué', 'otages', 'recrutement', 'réarmement']);
+export function activityOf(ship) {
+  if (ship.status === 'laidup') return 'desarme';
+  if (ship.hijacked || ship.seized) return 'immobile';
+  if (ship.status === 'sea') return ship.cargo || ship.dark ? 'charge' : 'lest';
+  if (STOPPED.has(ship.busyWhat)) return 'immobile';
+  if (ship.busyWhat || ship.plan || ship.pendingDelivery) return 'escale';
+  return 'attente';
 }
 
 // Statistiques de sinistres (équilibrage) : cumul par cause.
@@ -98,8 +129,9 @@ export function createShip(state, rng, owner, typeId, { port, age = 0, condition
     builtT: Math.round(state.t - age * 365 * HOURS_PER_DAY), condition,
     fuel: Math.round(T.tank * 0.4), status: 'port', port,
     busyUntil: 0, busyWhat: null, voyage: null, cargo: null, plan: null, pendingDelivery: null,
-    earned: 0, spent: 0, log: [],
+    earned: 0, spent: 0, log: [], boughtT: state.t, paid: null,
   };
+  shipTrack(state, ship);
   state.ships.push(ship);
   return ship;
 }
@@ -109,9 +141,19 @@ export function shipLog(state, ship, text) {
   if (ship.log.length > 30) ship.log.length = 30;
 }
 
-export function removeShip(state, ctx, ship) {
+// `why` : vendu, naufrage, saisi par la banque, abandonné… (gardé dans les comptes de la compagnie).
+export function removeShip(state, ctx, ship, why = 'retiré', price = 0) {
+  const company = state.companies[ship.owner];
+  if (company) {
+    const s = shipTrack(state, ship);
+    (company.pastShips ??= []).unshift({
+      id: ship.id, name: ship.name, type: ship.type, since: s.since, boughtT: ship.boughtT ?? null, paid: ship.paid ?? null,
+      end: state.t, why, price: Math.round(price), result: Math.round(bookTotal(s.book)), n: s.n,
+    });
+    if (company.pastShips.length > 30) company.pastShips.length = 30;
+  }
   state.ships = state.ships.filter((s) => s !== ship);
-  ctx.forget(ship.id);
+  ctx?.forget(ship.id);
   if (ship.cargo?.contractId) {
     const c = contractById(state, ship.cargo.contractId);
     if (c) state.contracts = state.contracts.filter((x) => x !== c);

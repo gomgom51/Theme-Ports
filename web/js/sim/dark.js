@@ -16,7 +16,7 @@
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { SHADY_PORTS } from '../data/sanctions.js';
-import { money, news, changeReputation, portName, shipLog, shipById, companyOf, costStat, removeShip, repCap } from './core.js';
+import { money, news, changeReputation, portName, shipLog, shipById, companyOf, costStat, removeShip, repCap, lastTrip } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import * as eco from './economy.js';
 import { isEmbargoed, detectionChance } from './shady.js';
@@ -149,7 +149,7 @@ export function resolveSeized(state, ctx, rng, shipId, choice) {
   const company = companyOf(state, ship);
   if (choice === 'payer') {
     if (company.cash < s.ransom) return fail(`Il faut ${M$(s.ransom)} en caisse.`);
-    money(state, company, -s.ransom, 'sinistres');
+    money(state, company, -s.ransom, 'sinistres', ship);
     costStat(state, 'rancons', s.ransom);
     ship.seized = null;
     ship.busyUntil = state.t + (s.by === 'justice' ? rng.int(10, 20) : rng.int(2, 5)) * D;
@@ -160,7 +160,7 @@ export function resolveSeized(state, ctx, rng, shipId, choice) {
     ship.seized = null;
     ship.crew = 0; ship.xp = 0; ship.skills = {};
     const hire = 60000;
-    money(state, company, -hire, 'divers');
+    money(state, company, -hire, 'divers', ship);
     ship.busyWhat = 'recrutement';
     ship.busyUntil = state.t + 7 * D;
     changeReputation(company, -8); // des marins abandonnés à leur sort : ça se sait
@@ -170,8 +170,7 @@ export function resolveSeized(state, ctx, rng, shipId, choice) {
   }
   if (s.by === 'gang') changeReputation(company, -8);
   news(state, s.by === 'justice' ? `${company.name} abandonne le ${ship.name}, confisqué à ${portName(s.port)}.` : `${company.name} abandonne le ${ship.name} aux mains d'un gang à ${portName(s.port)}.`, { company: company.id, kind: 'disaster' });
-  if (ctx) removeShip(state, ctx, ship);
-  else { state.ships = state.ships.filter((x) => x !== ship); if (ship.cargo?.contractId) state.contracts = state.contracts.filter((c) => c.id !== ship.cargo.contractId); }
+  removeShip(state, ctx, ship, 'abandonné');
   return { ok: true, abandoned: 'ship' };
 }
 
@@ -194,15 +193,16 @@ export function darkOnArrival(state, ctx, rng, ship, port, notes, note) {
       ship.dark = null;
       company.infamy = (company.infamy || 0) + DARK.caughtInfamy;
       changeReputation(company, -25);
-      money(state, company, -Math.round(dk.pay * 0.5), 'sinistres');
+      money(state, company, -Math.round(dk.pay * 0.5), 'sinistres', ship);
       costStat(state, 'douane', Math.round(dk.pay * 0.5));
       news(state, `Scandale : la douane de ${portName(port)} découvre à bord du ${ship.name} (${company.name}) ${DARK_KINDS[dk.kind].name.toLowerCase()}. Amende de ${M$(dk.pay * 0.5)}, l'équipage est arrêté.`, { company: company.id, kind: 'disaster' });
       seize(state, rng, ship, 'justice', notes, note, true);
       return;
     } else if (port === dk.to) {
       ship.dark = null;
-      money(state, company, dk.pay, 'discret');
-      ship.earned += dk.pay;
+      money(state, company, dk.pay, 'discret', ship);
+      const tr = lastTrip(state, ship);
+      if (tr && tr.rev == null) tr.rev = Math.round(dk.pay);
       shipLog(state, ship, `Cargaison noire livrée à ${portName(port)}`);
       if (company.human) {
         const n0 = notes.length;

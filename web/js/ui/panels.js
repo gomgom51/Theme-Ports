@@ -24,6 +24,7 @@ import { alertsPanel } from './alerts.js';
 import { portShadyInfo } from './shady.js';
 import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
+import { shipResults } from './shipresults.js';
 
 const badge = (c, size = 28) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -423,11 +424,18 @@ function financeTab(app) {
   return box;
 }
 
+// Résultats : le compte de la compagnie, ou chaque navire jugé séparément.
 function resultsTab(app) {
   const c = app.company();
+  const view = app.form.resultsView === 'navires' ? 'navires' : 'compagnie';
+  const seg = h('div.seg.results-seg', [['compagnie', 'Compagnie'], ['navires', 'Par navire']].map(([k, label]) => h('button', {
+    class: view === k ? 'active' : '', 'aria-pressed': view === k ? 'true' : 'false', onclick: () => { app.form.resultsView = k; app.refresh(); },
+  }, label)));
+  if (view === 'navires') return h('div', [seg, shipResults(app)]);
   const rows = Object.entries(BOOK_LABELS).filter(([k]) => c.total[k] || c.month[k] || c.lastMonth[k]);
   const cell = (v) => h('td', { class: v > 0 ? 'pos' : v < 0 ? 'neg' : 'muted' }, v ? money(v, true) : '—');
   return h('div', [
+    seg,
     h('table.table', [
       h('thead', h('tr', [h('th', ''), h('th', 'Ce mois'), h('th', 'Mois dernier'), h('th', 'Depuis le début')])),
       h('tbody', [

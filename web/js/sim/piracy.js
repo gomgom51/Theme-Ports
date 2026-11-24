@@ -116,7 +116,7 @@ export function piracyHour(state, rng, ship, pos) {
     // L'équipage s'enferme : les pirates pillent ce qu'ils peuvent et repartent.
     st.piracy.looted++;
     const loot = Math.round(rng.range(40000, 140000) * size / 1000) * 1000;
-    money(state, company, -loot, 'sinistres');
+    money(state, company, -loot, 'sinistres', ship);
     let stolen = 0;
     if (ship.cargo && ['divers', 'conteneurs', 'frigo', 'vehicules'].includes(ship.cargo.hold)) {
       stolen = rng.range(0.03, 0.12);
@@ -153,7 +153,7 @@ export function resolveHijack(state, rng, shipId, choice) {
   const h = ship.hijacked;
   const pay = choice === 'negocier' ? Math.round(h.ransom * 0.55 / 10000) * 10000 : h.ransom;
   const days = choice === 'negocier' ? rng.int(30, 60) : rng.int(3, 7);
-  money(state, company, -pay, 'sinistres');
+  money(state, company, -pay, 'sinistres', ship);
   costStat(state, 'rancons', pay);
   ship.voyage.stalledUntil = state.t + days * D;
   ship.hijacked = null;

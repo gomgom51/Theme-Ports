@@ -43,7 +43,7 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   const risk = sanctionRisk(state, ship, port);
   if (!risk || !rng.chance(risk.odds)) return null;
   const company = companyOf(state, ship);
-  money(state, company, -risk.fine, 'sinistres');
+  money(state, company, -risk.fine, 'sinistres', ship);
   costStat(state, 'sanctions', risk.fine);
   if (company.ai) company.ai.noEmbargoUntil = state.t + 365 * D; // l'ordinateur retient la leçon un an
   changeReputation(company, -8);
@@ -160,8 +160,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
   }
   if (port === cb.to) {
     ship.contraband = null;
-    money(state, company, cb.pay, 'discret');
-    ship.earned += cb.pay;
+    money(state, company, cb.pay, 'discret', ship);
     shipLog(state, ship, `Colis discret livré à ${portName(port)}`);
     addTrust(company, cb.from); // les gangs d'un port sous embargo commencent à vous faire confiance
     scheduleAftermath(state, rng, company, port, cb.nature); // ce qu'il contenait finira peut-être dans les nouvelles
@@ -171,7 +170,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
   return null;
 }
 function applySeizure(state, ship, company, port, fine, days, onNote) {
-  money(state, company, -fine, 'sinistres');
+  money(state, company, -fine, 'sinistres', ship);
   costStat(state, 'douane', fine);
   changeReputation(company, -15);
   ship.busyWhat = 'saisie';
@@ -190,7 +189,7 @@ export function resolveCase(state, rng, caseId, choice) {
   if (!ship) return { ok: true };
   ship.busyUntil = state.t;
   if (choice === 'soudoyer') {
-    money(state, company, -c.bribe, 'discret');
+    money(state, company, -c.bribe, 'discret', ship);
     if (rng.chance(c.chance)) {
       changeReputation(company, -2);
       ship.busyUntil = state.t + 12;

@@ -620,3 +620,32 @@ select.input { width: auto; max-width: 100%; }
 .battle-vs { align-self: center; font-weight: 800; color: var(--muted, #6b7a80); }
 .battle-phases { margin: 6px 0; padding-left: 20px; font-size: 13px; line-height: 1.5; }
 .battle-result { font-weight: 800; font-size: 15px; }
+
+/* ---------- Bureau > Résultats > Par navire ---------- */
+.results-seg { display: inline-flex; margin-bottom: 10px; }
+.ship-result-figure { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+.ship-result-detail { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--paper); margin: 2px 0 8px; }
+.ship-result-detail h4 { margin: 12px 0 6px; font-size: 13px; color: var(--ink); }
+.book-bars { display: grid; gap: 5px; }
+.book-bar { display: grid; grid-template-columns: minmax(120px, 34%) 1fr auto auto; align-items: center; gap: 8px; font-size: 12.5px; }
+.book-track { height: 10px; background: var(--paper-2); border-radius: 5px; overflow: hidden; }
+.book-track span { display: block; height: 100%; border-radius: 5px; }
+.book-track .in { background: var(--good); }
+.book-track .out { background: #c9837c; }
+.book-value { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 74px; text-align: right; }
+.book-day { min-width: 66px; text-align: right; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.time-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--paper-2); }
+.time-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12px; color: var(--ink-2); }
+.time-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.time-legend b { margin-left: 2px; }
+.trip-list { display: grid; }
+.trip-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.trip-row:last-child { border-bottom: 0; }
+.trip-rev { min-width: 74px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.row-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+@media (max-width: 560px) {
+  .ship-result-row .thumb { width: 60px; }
+  .book-bar { grid-template-columns: 1fr auto; }
+  .book-track { grid-column: 1 / -1; order: 3; }
+  .book-day { display: none; }
+}

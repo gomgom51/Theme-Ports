@@ -76,7 +76,7 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   const factor = zone ? zone.factor : nearCoast ? 0.6 : OPEN_SEA_FACTOR;
   const startCond = ship.voyage?.startCond ?? ship.condition;
   const c = spillCost(ship, pollutionT, factor, startCond, company);
-  money(state, company, -c.due, 'sinistres');
+  money(state, company, -c.due, 'sinistres', ship);
   costStat(state, 'pollution', c.due);
   changeReputation(company, -Math.min(20, 2 + c.liability / 10e6));
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });

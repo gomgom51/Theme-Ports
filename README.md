@@ -89,6 +89,9 @@ riche de la planète.
   d'un footballeur.
 * **Votre compagnie** : nom, emblème (24 dessins ou l'initiale de la compagnie) et couleur. Le bureau
   s'embellit avec la valeur nette, du cagibi du quai à la tour de verre.
+* **Résultats par navire** (Bureau > Résultats > Par navire) : bénéfice par jour, rentabilité
+  du prix payé, d'où vient l'argent et où il part, emploi du temps, derniers voyages, comparaison
+  avec les autres navires du même modèle, et le bilan des navires vendus ou perdus.
 * **Des clients** : chaque contrat vient d'un chargeur plus ou moins fiable. À la
   livraison, on encaisse… avec des imprévus : prime de ponctualité, surcharge
   carburant, renégociation selon les cours, contestation (accepter ou aller en
