@@ -94,7 +94,7 @@ export async function openPayment(app, paymentId) {
   const body = h('div', [
     // Première ligne : à qui revient l'argent (parties à plusieurs sur le même écran).
     h('div.pay-who', { style: { borderLeftColor: co.color } }, [
-      h('span.badge-wrap', { html: logoBadge(co.logo, co.color, 30) }),
+      h('span.badge-wrap', { html: logoBadge(co.logo, co.color, 40) }),
       h('b', { 'data-no-tr': '' }, co.captain ? `${co.captain} — ${co.name}` : co.name),
     ]),
     h('p', [h('b', `${GOODS[p.good].icon} ${tonnes(p.qty)} de ${GOODS[p.good].name.toLowerCase()}`), ` livrés à ${portName(p.to)} par le ${p.shipName} le ${date(p.deliveredT, true)}.`]),

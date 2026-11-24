@@ -1,5 +1,5 @@
 // Le bureau de la compagnie : cinq décors qui s'embellissent avec la valeur nette.
-import { logoMarkup } from './logos.js';
+import { logoMarkup, emblemInk } from './logos.js';
 import { shipSVG } from './shipart.js';
 
 // half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3).
@@ -74,7 +74,7 @@ function frame(x, y, w, h, inner, color = '#6b4a2e') {
 function logoSign(x, y, size, color, logo, plate = '#fbf8f1') {
   return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${size * 0.12}" fill="${plate}" stroke="#000" stroke-opacity=".15"/>
     <circle cx="${x + size / 2}" cy="${y + size / 2}" r="${size * 0.4}" fill="${color}"/>
-    <g transform="translate(${f(x + size * 0.18)} ${f(y + size * 0.18)}) scale(${f((size * 0.64) / 64)})" color="#fff">${logoMarkup(logo)}</g>`;
+    <g transform="translate(${f(x + size * 0.18)} ${f(y + size * 0.18)}) scale(${f((size * 0.64) / 64)})" color="${emblemInk(color)}">${logoMarkup(logo)}</g>`;
 }
 
 function plant(x, y, s = 1) {

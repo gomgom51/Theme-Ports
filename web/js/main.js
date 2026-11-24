@@ -149,7 +149,7 @@ function renderPanel() {
 
   panelEl.replaceChildren(...[
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
-      def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 36) }) : null),
+      def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 44) }) : null),
       h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', def.subtitle) : null]),
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
     ]),
@@ -177,7 +177,7 @@ function updateStandings(s, me) {
   el.dataset.key = key;
   el.replaceChildren(...rows.map((r, i) => h('span.standings-row', { class: [r.company.id === me ? 'me' : '', r.company.bankrupt ? 'out' : ''].join(' ') }, [
     h('span.standings-rank', MEDALS[i] || `${i + 1}.`),
-    h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 16) }),
+    h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 22) }),
     h('span.standings-name', r.company.name),
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
   ])), levelLine(netWorth(s, me), s.companies[me]));
@@ -226,7 +226,7 @@ function updateHud() {
   const s = app.state, c = app.company();
   const logoKey = c.logo + c.color;
   const logoEl = $('#hud-company-logo');
-  if (logoEl.dataset.key !== logoKey) { logoEl.innerHTML = logoBadge(c.logo, c.color, 34); logoEl.dataset.key = logoKey; }
+  if (logoEl.dataset.key !== logoKey) { logoEl.innerHTML = logoBadge(c.logo, c.color, 42); logoEl.dataset.key = logoKey; }
   $('#hud-company-name').textContent = c.name;
   updateContext();
   const cash = $('#hud-cash');
@@ -329,7 +329,7 @@ document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('cli
 
 function turnBanner(company) {
   const el = h('div.turn-banner', [h('div.turn-card', [
-    h('span.badge-wrap', { html: logoBadge(company.logo, company.color, 64) }),
+    h('span.badge-wrap', { html: logoBadge(company.logo, company.color, 96) }),
     h('div', [h('h2', company.name), h('p', 'À vous de jouer')]),
   ])]);
   document.body.append(el);

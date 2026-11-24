@@ -25,7 +25,7 @@ import { portShadyInfo } from './shady.js';
 import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 
-const badge = (c, size = 22) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
+const badge = (c, size = 28) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
 const LIVERIES = ['#5d6b75', '#7a5c3e', '#3f5e4a', '#6b4f6b', '#4a5f7a', '#8a6d2f'];
 
@@ -149,7 +149,7 @@ export function portPanel(app, id) {
   if (here.length) {
     body.append(h('h3', 'Navires à quai'));
     body.append(h('div.list.compact', here.map((s) => h('button.row.selectable', { onclick: () => app.open('ship', s.id) }, [
-      badge(state.companies[s.owner], 20),
+      badge(state.companies[s.owner], 26),
       h('span.grow', [h('b', s.name), h('span.muted.small', ` ${SHIP_TYPES[s.type].name}`)]),
       h('span.muted.small', state.companies[s.owner].name),
     ]))));
@@ -477,7 +477,7 @@ function rankingTab(app) {
   const box = h('div');
   box.append(h('div.list.compact', r.map((x, i) => h('div.row', [
     h('span.rank', `${i + 1}`),
-    badge(x.company, 26),
+    badge(x.company, 34),
     h('span.grow', [h('b', x.company.name), x.company.human ? '' : h('span.muted.small', ' (ordinateur)'), x.company.bankrupt ? h('span.tag.bad', 'faillite') : null]),
     h('span.muted.small', `${shipsOf(state, x.company.id).length} navires · réputation ${num(x.company.reputation)}`),
     h('b', money(x.worth)),
@@ -577,7 +577,7 @@ export function newsPanel(app) {
     title: 'Journal',
     body: h('div.log', state.news.map((n) => h('div.log-line', { class: n.kind }, [
       h('span.muted', date(n.t, true)), ' ', icon[n.kind] || '•', ' ',
-      n.company != null && state.companies[n.company] ? badge(state.companies[n.company], 16) : null, ' ',
+      n.company != null && state.companies[n.company] ? badge(state.companies[n.company], 20) : null, ' ',
       n.text,
     ]))),
   };

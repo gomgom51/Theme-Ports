@@ -4,7 +4,7 @@
 // cheminée. L'âge et l'état ne changent jamais les couleurs : ils se voient à la
 // rouille, aux rayures, aux bosses, à la peinture arrachée, aux trous et à la suie.
 import { SHIP_TYPES } from '../data/ships.js';
-import { logoMarkup } from './logos.js';
+import { logoMarkup, emblemOnWhite } from './logos.js';
 
 // Dimensions en mètres (L longueur, D creux, T tirant d'eau en charge, Tb à vide).
 //  era    : classic (ancien), eighties (années 80), modern
@@ -830,7 +830,7 @@ export function shipSVG(typeId, opts = {}) {
     const lr = Math.min(fw * s, fH * v * 0.6) * 0.42;
     const lcx = X(fx + fw / 2 - rake * 0.45), lcy = Y(fy0 + fH * 0.42);
     o.push(`<circle cx="${lcx}" cy="${lcy}" r="${f(lr)}" fill="#fff"/>`);
-    o.push(`<g transform="translate(${f(lcx - lr * 0.78)} ${f(lcy - lr * 0.78)}) scale(${f((lr * 1.56) / 64)})" color="${color}">${logoMarkup(logo)}</g>`);
+    o.push(`<g transform="translate(${f(lcx - lr * 0.78)} ${f(lcy - lr * 0.78)}) scale(${f((lr * 1.56) / 64)})" color="${emblemOnWhite(color)}">${logoMarkup(logo)}</g>`);
     // Suie et fumée : légère pour un moteur sain, noire et épaisse pour un vieux moteur.
     if (wear > 0.35) o.push(`<path d="M${X(fx + fw * 0.15 - rake * 0.8)} ${Y(fy1 - fH * 0.18)} h${f(fw * 0.7 * s)} l${f(-0.4 * s)} ${f(fH * v * 0.55 * wear)} h${f(-fw * 0.5 * s)} z" fill="url(#${id}soot)"/>`);
     const dark = wear > 0.45;

@@ -3,7 +3,7 @@ import { getLang, setLang } from '../i18n.js';
 import { PORTS, PORT_IDS, FLAGS, draftText } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
 import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
-import { LOGOS, LOGO_IDS, COLORS, logoBadge } from './logos.js';
+import { LOGOS, LOGO_IDS, COLORS, logoBadge, initialLogo, isInitialLogo } from './logos.js';
 import { flagEl } from './flags.js';
 import { yearOf } from '../sim/util.js';
 import { fuelPrice } from '../sim/economy.js';
@@ -116,19 +116,29 @@ export function setupScreen(app) {
         h('div.field-label', 'Compagnies (joueurs sur cet appareil ou ordinateur)'),
         h('div.slots', cfg.slots.map((s, i) => {
           const taken = new Set(cfg.slots.filter((o, j) => j !== i && o.kind !== 'none').map((o) => o.color));
+          // L'emblème « initiale » suit le nom de la compagnie pendant qu'on le tape.
+          const pick = h('button.logo-option.active', { title: 'Choisir l\'emblème et la couleur', 'aria-label': 'Emblème et couleur', disabled: s.kind === 'none', onclick: () => { s.open = !s.open; render(); }, html: logoBadge(s.logo, s.color, 52) });
+          const initial = h('button.logo-option', {
+            class: isInitialLogo(s.logo) ? 'active' : '', title: 'Initiale', 'aria-label': 'Initiale',
+            onclick: () => { s.logo = initialLogo(s.name); render(); }, html: logoBadge(initialLogo(s.name), s.color, 44),
+          });
           return h('div.slot', { class: s.kind === 'none' ? 'off' : '' }, [
-            h('button.logo-option.active', { title: 'Choisir l\'emblème et la couleur', 'aria-label': 'Emblème et couleur', disabled: s.kind === 'none', onclick: () => { s.open = !s.open; render(); }, html: logoBadge(s.logo, s.color, 38) }),
-            h('input.input', { value: s.name, maxlength: 28, disabled: s.kind === 'none', 'aria-label': `Nom de la compagnie ${i + 1}`, oninput: (e) => { s.name = e.target.value; } }),
+            pick,
+            h('input.input', { value: s.name, maxlength: 28, disabled: s.kind === 'none', 'aria-label': `Nom de la compagnie ${i + 1}`, oninput: (e) => {
+              s.name = e.target.value;
+              if (isInitialLogo(s.logo)) { s.logo = initialLogo(s.name); pick.innerHTML = logoBadge(s.logo, s.color, 52); }
+              initial.innerHTML = logoBadge(initialLogo(s.name), s.color, 44);
+            } }),
             h('div.seg', [['human', 'Joueur'], ['ai', 'Ordinateur'], ['none', 'Aucune']].map(([k, label]) => h('button', {
               class: s.kind === k ? 'active' : '',
               disabled: (k === 'none' && i === 0),
               onclick: () => { s.kind = k; render(); },
             }, label))),
             h('div.slot-identity', { hidden: !s.open || s.kind === 'none' }, [
-              h('div.logo-grid', LOGO_IDS.map((id) => h('button.logo-option', {
+              h('div.logo-grid', [...LOGO_IDS.map((id) => h('button.logo-option', {
                 class: id === s.logo ? 'active' : '', title: LOGOS[id].name, 'aria-label': LOGOS[id].name,
-                onclick: () => { s.logo = id; render(); }, html: logoBadge(id, s.color, 28),
-              }))),
+                onclick: () => { s.logo = id; render(); }, html: logoBadge(id, s.color, 44),
+              })), initial]),
               h('div.color-grid', COLORS.map((c) => h('button.color-option', {
                 class: c.id === s.color ? 'active' : '', title: c.name, 'aria-label': c.name, disabled: taken.has(c.id),
                 onclick: () => { s.color = c.id; render(); },
@@ -162,7 +172,7 @@ function choosePorts(app, cfg, index) {
     const startRep = Math.round(F.rating * 0.5 + 25);
     screen('setup ports', h('div.port-choice', [
       h('div.port-list', [
-        h('h2', [h('span.badge-wrap', { html: logoBadge(slot.logo, slot.color, 30) }), ` ${slot.name || 'Compagnie'} : port d'attache`]),
+        h('h2', [h('span.badge-wrap', { html: logoBadge(slot.logo, slot.color, 40) }), ` ${slot.name || 'Compagnie'} : port d'attache`]),
         h('div.list.compact', HOME_PORTS.map((p) => h('button.row.selectable', {
           class: (p === sel ? 'selected ' : '') + (taken.includes(p) ? 'disabled' : ''),
           disabled: taken.includes(p),
@@ -232,10 +242,10 @@ export function endScreen(app) {
   screen('setup', h('div.setup-card', [
     h('h2', 'Fin de la partie'),
     h('p', state.over.reason),
-    h('p.big-result', [h('span.badge-wrap', { html: logoBadge(winner.company.logo, winner.company.color, 40) }), ` ${winner.company.name} l'emporte avec ${money(winner.worth)} !`]),
+    h('p.big-result', [h('span.badge-wrap', { html: logoBadge(winner.company.logo, winner.company.color, 64) }), ` ${winner.company.name} l'emporte avec ${money(winner.worth)} !`]),
     h('div.list.compact', r.map((x, i) => h('div.row', [
       h('span.rank', `${i + 1}`),
-      h('span.badge-wrap', { html: logoBadge(x.company.logo, x.company.color, 24) }),
+      h('span.badge-wrap', { html: logoBadge(x.company.logo, x.company.color, 32) }),
       h('span.grow', [h('b', x.company.name), x.company.human ? '' : h('span.muted.small', ' (ordinateur)')]),
       x.company.bankrupt ? h('span.tag.bad', 'faillite') : null,
       h('b', money(x.worth)),

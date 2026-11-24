@@ -87,7 +87,7 @@ riche de la planète.
   On voit l'âge et l'état (rouille, peinture fanée, tôles rapiécées, fumée noire)
   et l'enfoncement selon la charge. Fiche « radar » de 7 qualités, comme celle
   d'un footballeur.
-* **Votre compagnie** : nom, emblème (12 au choix) et couleur. Le bureau
+* **Votre compagnie** : nom, emblème (24 dessins ou l'initiale de la compagnie) et couleur. Le bureau
   s'embellit avec la valeur nette, du cagibi du quai à la tour de verre.
 * **Des clients** : chaque contrat vient d'un chargeur plus ou moins fiable. À la
   livraison, on encaisse… avec des imprévus : prime de ponctualité, surcharge
