@@ -6,12 +6,14 @@ import * as S from './sounds.js';
 const KEY = 'portdattache.audio';
 // Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
 // Pendant la partie, deux thèmes par standing de la compagnie (niveau1 puis niveau1b,
-// … niveau5b), du vieux chant de marins à la musique de multinationale. Sans la seconde
-// chanson d'un niveau, la première continue ; jeu.mp3 en secours.
+// … niveau5b), du vieux chant de marins à la musique de multinationale, et niveau0 quand
+// la compagnie a perdu de l'argent (valeur nette sous 5 M$). Sans la seconde chanson d'un
+// niveau, la première continue ; jeu.mp3 en secours.
 const TRACKS = {
   title: { src: 'musique/accueil.mp3', volume: 0.45, loop: true },
   game: { src: 'musique/jeu.mp3', volume: 0.22, loop: true },
   end: { src: 'musique/victoire.mp3', volume: 0.5, loop: false },
+  tier0: { src: 'musique/niveau0.mp3', volume: 0.22, loop: true },
   tier1: { src: 'musique/niveau1.mp3', volume: 0.22, loop: true },
   tier2: { src: 'musique/niveau2.mp3', volume: 0.22, loop: true },
   tier3: { src: 'musique/niveau3.mp3', volume: 0.22, loop: true },
@@ -227,7 +229,9 @@ export class AudioManager {
   trackFor(scene) {
     const ok = (k) => TRACKS[k] && !this.missing?.has(TRACKS[k].src);
     if (scene === 'game') {
-      const step = this.musicTier ?? 0, k = `tier${Math.floor(step / 2) + 1}`;
+      const step = this.musicTier ?? 0;
+      if (step < 0) return ok('tier0') ? 'tier0' : ok('tier1') ? 'tier1' : ok('game') ? 'game' : null; // niveau 0 : les temps sont durs
+      const k = `tier${Math.floor(step / 2) + 1}`;
       const kb = step % 2 ? `${k}b` : null;
       return kb && ok(kb) ? kb : ok(k) ? k : ok('game') ? 'game' : null;
     }

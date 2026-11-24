@@ -70,16 +70,35 @@ C'est vers toi que je reviens…
 
 La musique de la partie suit le bureau de la compagnie (Bureau 💼) : quand la
 valeur nette fait passer au bureau suivant, le thème change en fondu. Chaque niveau
-a deux chansons : `niveauN.mp3`, puis `niveauNb.mp3` à partir de la moitié du niveau
-(9, 17, 55, 175 et 600 M$) — Suno produit deux versions de chaque prompt, gardez les
-deux. Sans la seconde, la première continue. On part du
+a deux chansons : `niveauN.mp3`, puis `niveauNb.mp3` à partir de 10, 23, 55, 175 et
+600 M$ — Suno produit deux versions de chaque prompt, gardez les deux. Sans la seconde,
+la première continue. Sous 5 M$ de valeur nette (la compagnie a perdu de l'argent depuis
+ses débuts), c'est le thème du niveau 0.
+
+### `niveau0.mp3` — Les temps sont durs (valeur nette sous 5 M$)
+
+L'argent manque, le doute s'installe. Une guitare seule, jouée au loin, comme
+entendue depuis un quai désert balayé par le vent. Des notes rares, hésitantes,
+avec de longs silences. Pas de batterie, pas de voix : de la mélancolie, pas du
+désespoir (le joueur doit avoir envie de se relever).
+
+Mode **Custom**, case **Instrumental** cochée, ce style (en anglais, Suno le
+comprend mieux) :
+
+```
+instrumental, lonely fingerpicked acoustic guitar, minor key, slow 70 bpm, distant and far away as if heard across an empty windswept harbour, wind blowing, faint creak of mooring ropes, sparse hesitant melody with long pauses, doubt and melancholy with a glimmer of hope, no drums, no vocals, natural room reverb, intimate lo-fi recording
+```
+
+Styles à exclure : `drums, vocals, piano, strings, synth, upbeat`. Gardez la version
+où la guitare reste lointaine sans que le vent la couvre, et dont la fin enchaîne
+avec le début. On part du
 vieux chant de marins et on arrive, au sommet, à la musique de multinationale.
 
 Ces morceaux accompagnent des heures de jeu : cocher **Instrumental** dans Suno,
 éviter les montées brutales, et garder la version dont la fin enchaîne le mieux
 avec le début (le jeu les joue en boucle). Durée idéale : 2 à 4 minutes.
 
-### `niveau1.mp3` — Le cagibi du quai (moins de 10 M$)
+### `niveau1.mp3` — Le cagibi du quai (5 à 15 M$)
 
 Un rafiot, un bureau au bout du quai : la taverne des vieux marins.
 
@@ -87,7 +106,7 @@ Un rafiot, un bureau au bout du quai : la taverne des vieux marins.
 instrumental, chant de marins traditionnel du XIXe siècle, concertina, violon, flûte en fer-blanc, tambour sur tonneau, frappements de pieds sur le plancher, 6/8, taverne de port enfumée, rustique et entraînant, sans voix, enregistrement chaleureux un peu ancien
 ```
 
-### `niveau2.mp3` — Le bureau sur le port (10 à 30 M$)
+### `niveau2.mp3` — Le bureau sur le port (15 à 35 M$)
 
 La compagnie a pignon sur rue. Le brief : « On a une vraie équipe, nos premiers
 clients fidèles, les navires tournent. Ça bosse toute la semaine et ça danse à
@@ -134,7 +153,7 @@ vocals, singing, waltz, slow, relaxed, lounge, ambient, lo-fi, jingle
 [End]
 ```
 
-### `niveau3.mp3` — Le siège de la compagnie (30 à 100 M$)
+### `niveau3.mp3` — Le siège de la compagnie (35 à 100 M$)
 
 Le pivot entre la petite affaire du port et le groupe international. Le brief
 du patron : « On a un vrai siège, des contrats avec les grands chargeurs, on

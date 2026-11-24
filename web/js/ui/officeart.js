@@ -2,17 +2,19 @@
 import { logoMarkup } from './logos.js';
 import { shipSVG } from './shipart.js';
 
-// half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3), à
-// mi-parcours en temps de jeu (la valeur nette croît à peu près géométriquement).
+// half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3).
+// Sous LOW (la compagnie a perdu de l'argent depuis ses débuts), thème du niveau 0.
+export const MUSIC_LOW = 5e6;
 export const OFFICE_TIERS = [
-  { min: 0, half: 9e6, name: 'Le cagibi du quai', text: 'Un bureau de fortune au bout du quai. Tout commence ici.' },
-  { min: 10e6, half: 17e6, name: 'Le bureau sur le port', text: 'Une vraie fenêtre sur le port et des dossiers bien rangés.' },
-  { min: 30e6, half: 55e6, name: 'Le siège de la compagnie', text: 'Boiseries, tableaux de navires et maquette sur le bureau.' },
+  { min: 0, half: 10e6, name: 'Le cagibi du quai', text: 'Un bureau de fortune au bout du quai. Tout commence ici.' },
+  { min: 15e6, half: 23e6, name: 'Le bureau sur le port', text: 'Une vraie fenêtre sur le port et des dossiers bien rangés.' },
+  { min: 35e6, half: 55e6, name: 'Le siège de la compagnie', text: 'Boiseries, tableaux de navires et maquette sur le bureau.' },
   { min: 100e6, half: 175e6, name: 'L\'étage de direction', text: 'Une baie vitrée sur tout le port. Les banquiers vous appellent.' },
   { min: 300e6, half: 600e6, name: 'La tour de verre', text: 'Le sommet d\'une tour. Le port entier à vos pieds.' },
 ];
-// Morceau de la partie : 0 à 9 (deux par niveau).
+// Morceau de la partie : -1 (niveau 0, la compagnie perd de l'argent), puis 0 à 9 (deux par niveau).
 export function musicStep(netWorth) {
+  if (netWorth < MUSIC_LOW) return -1;
   const t = officeTier(netWorth);
   return t * 2 + (netWorth >= OFFICE_TIERS[t].half ? 1 : 0);
 }

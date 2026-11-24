@@ -4,6 +4,8 @@ Musiques du jeu (facultatives)
 Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms exacts :
 
   accueil.mp3   chanson de l'écran d'accueil (jouée en boucle)
+  niveau0.mp3   partie, la compagnie perd de l'argent (valeur nette sous 5 M$) :
+                guitare seule et lointaine, vent, doute
   niveau1.mp3   partie, standing 1 : le cagibi du quai (vieux chant de marins)
   niveau2.mp3   partie, standing 2 : le bureau sur le port (bal folk breton)
   niveau3.mp3   partie, standing 3 : le siège de la compagnie (folk-rock cinématique)
@@ -11,8 +13,12 @@ Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms 
   niveau5.mp3   partie, standing 5 : la tour de verre (hymne de multinationale)
   niveau1b.mp3 … niveau5b.mp3
                 seconde chanson de chaque standing (une autre version du même prompt),
-                jouée à partir de la moitié du niveau : 9, 17, 55, 175 et 600 M$ de
-                valeur nette. Sans elle, la première chanson du niveau continue.
+                jouée à partir de 10, 23, 55, 175 et 600 M$ de valeur nette.
+                Sans elle, la première chanson du niveau continue.
+
+  Seuils : niveau 0 sous 5 M$ ; niveau 1 de 5 à 15 M$ (seconde chanson à 10) ;
+  niveau 2 de 15 à 35 (à 23) ; niveau 3 de 35 à 100 (à 55) ; niveau 4 de 100 à 300
+  (à 175) ; niveau 5 au-delà de 300 M$ (à 600).
   jeu.mp3       en secours, si un thème de niveau manque
   victoire.mp3  courte musique de fin de partie
 
