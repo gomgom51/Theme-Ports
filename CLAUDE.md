@@ -105,5 +105,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   to list texts still missing a translation (proper names need none). Mark an
   element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
+- Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers
+  (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
+  Keep these attributes when reworking those buttons, or the tour silently loses its targets.
 - Original game only: never reuse the name, art, music or screens of
   *Ports of Call*; keep only the general mechanics.

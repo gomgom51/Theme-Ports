@@ -104,11 +104,11 @@ export async function openPayment(app, paymentId) {
   ]);
   let buttons;
   if (ev?.kind === 'contestation') {
-    buttons = [{ label: `Contester`, value: 'contester', kind: 'ghost' }, { label: `Accepter ${money(finalAmount)}`, value: 'accepter', kind: 'primary' }];
+    buttons = [{ label: `Contester`, value: 'contester', kind: 'ghost' }, { label: `Accepter ${money(finalAmount)}`, value: 'accepter', kind: 'primary', attrs: { 'data-guide': 'collect' } }];
   } else if (ev?.kind === 'differe') {
-    buttons = [{ label: 'D\'accord', value: 'accepter', kind: 'primary' }];
+    buttons = [{ label: 'D\'accord', value: 'accepter', kind: 'primary', attrs: { 'data-guide': 'collect' } }];
   } else {
-    buttons = [{ label: 'Plus tard', value: null, kind: 'ghost' }, { label: `Encaisser ${money(finalAmount)}`, value: 'accepter', kind: 'primary' }];
+    buttons = [{ label: 'Plus tard', value: null, kind: 'ghost' }, { label: `Encaisser ${money(finalAmount)}`, value: 'accepter', kind: 'primary', attrs: { 'data-guide': 'collect' } }];
   }
   const choice = await dialog({ title: 'Encaissement', body, buttons });
   if (!choice) return;

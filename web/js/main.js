@@ -12,6 +12,7 @@ import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js
 import { playIntro } from './ui/intro.js';
 import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { AudioManager } from './ui/audio.js';
+import { guideTick, startGuide, guideMenuLabel, toggleGuide } from './ui/guide.js';
 import { logoBadge } from './ui/logos.js';
 import { flagSVG } from './ui/flags.js';
 import * as eco from './sim/economy.js';
@@ -154,7 +155,7 @@ function renderPanel() {
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
     ]),
     tabs ? h('div.tabs', { role: 'tablist' }, tabs.map(([id, label]) => h('button.tab', {
-      role: 'tab', class: id === tabId ? 'active' : '', 'aria-selected': id === tabId ? 'true' : 'false',
+      'data-tab': id, role: 'tab', class: id === tabId ? 'active' : '', 'aria-selected': id === tabId ? 'true' : 'false',
       onclick: () => app.openTab(id),
     }, label))) : null,
     body,
@@ -606,6 +607,7 @@ function loop(now) {
   timeSounds();
   app.map.frame(app.mode === 'game' && app.speed > 0 ? acc : 0);
   updateHud();
+  if (app.mode === 'game') guideTick(app);
   requestAnimationFrame(loop);
 }
 
@@ -628,9 +630,25 @@ function enterGame(state) {
 
 app.newGame = (opts) => {
   const state = newGame(opts, ctx);
+  if (opts.guide) startGuide(state);
   enterGame(state);
   saveGame(state, 'auto');
   const humans = state.companies.filter((c) => c.human);
+  // Visite guidée : un mot d'accueil, puis les bulles prennent le relais.
+  if (opts.guide) {
+    dialog({
+      title: 'Bienvenue, armateur !',
+      body: h('div', [
+        h('p', `Vous disposez de ${money(app.company().cash)} pour fonder votre empire maritime${humans.length > 1 ? ' (chaque compagnie joue à son tour quand ses navires attendent des ordres)' : ''}.`),
+        h('p', 'Des bulles vont vous montrer les premiers gestes, au moment où ils servent. Vous pouvez arrêter la visite à tout moment, et la reprendre depuis le menu ☰.'),
+      ]),
+      buttons: [{ label: 'C\'est parti', value: true, kind: 'primary' }],
+    }).then(() => {
+      const home = PORTS[app.company().homePort];
+      app.map.centerOn(home.lon, home.lat, Math.max(app.map.minScale, 3));
+    });
+    return;
+  }
   dialog({
     title: 'Bienvenue, armateur !',
     body: h('div', [
@@ -701,6 +719,7 @@ async function gameMenu() {
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
+      { label: guideMenuLabel(app.state), value: 'guide' },
       { label: 'Menu principal', value: 'title', kind: 'ghost' },
       { label: 'Reprendre', value: 'resume', kind: 'primary' },
     ],
@@ -722,6 +741,7 @@ async function gameMenu() {
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
   else if (v === 'parcels') { app.state.settings.noParcelOffers = !app.state.settings.noParcelOffers; app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
+  else if (v === 'guide') { toggleGuide(app); app.speed = wasSpeed; }
   else if (v === 'title') { if (await confirmBox('Retour au menu principal ?', 'La partie est sauvegardée automatiquement.', 'Quitter')) app.toTitle(); }
   else if (v === 'resume') app.speed = wasSpeed;
 }

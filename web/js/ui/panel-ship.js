@@ -225,7 +225,7 @@ function contractsBase(app, ship) {
       ]),
       h('div.card-side', [
         h('div.price', money(c.pay)),
-        why ? null : h('button.btn.primary.small', { onclick: async () => {
+        why ? null : h('button.btn.primary.small', { 'data-guide': 'accept', onclick: async () => {
           if (c.embargo && !(await embargoOk(app, ship, isEmbargoed(c.from) ? c.from : c.to))) return;
           const r = app.act(() => act.acceptContract(state, ctx, ship.id, c.id, { speed: T.speed, autoRefuel: true }), { sound: 'crates' });
           if (r?.ok) {
@@ -606,7 +606,7 @@ function departTab(app, ship) {
           ' Faire le plein automatiquement si nécessaire',
         ]),
       ]),
-      h('div.card-side', [est.error ? null : h('button.btn.primary', { onclick: () => {
+      h('div.card-side', [est.error ? null : h('button.btn.primary', { 'data-guide': 'sail', onclick: () => {
         const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true));
         if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; app.setPreview(null); }
       } }, 'Appareiller')]),
@@ -636,7 +636,7 @@ function departTab(app, ship) {
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);
   box.append(h('div.list.compact', rows.map((r) => h('button.row.selectable', {
     class: (r.p === dest ? 'selected ' : '') + (r.why ? 'disabled' : ''),
-    disabled: !!r.why,
+    disabled: !!r.why, 'data-guide': !r.why && r.contracts > 0 ? 'dest' : null, // visite guidée : un port qui a des contrats
     onclick: () => { app.form.dest[ship.id] = r.p; app.refresh(); },
   }, [
     flagEl(PORTS[r.p].flag),

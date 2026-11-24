@@ -218,7 +218,7 @@ function usedTab(app) {
         h('div.card-side', [
           miniRadar(shipStats(l.type, { condition: l.condition, age: l.age }), look.color),
           h('div.price', money(l.price)),
-          h('button.btn.primary.small', { disabled: !affordable, onclick: buy }, 'Acheter'),
+          h('button.btn.primary.small', { 'data-guide': 'buy', disabled: !affordable, onclick: buy }, 'Acheter'),
         ]),
       ]);
     })),
@@ -604,6 +604,7 @@ export function helpPanel() {
       p('2. Touchez votre navire (sur la carte ou dans la Flotte 🚢). Dans l\'onglet Contrats, acceptez un transport : le chargement commence et le navire partira tout seul, plein compris.'),
       p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu\'un événement survient : trois coups de cloche annoncent la pause, un tic-tac le retour du temps.'),
       p('Les grands événements (naufrage, pirates, douane, ouragan, banquier, crises mondiales…) s\'affichent en petite scène animée qui arrête le temps : fermez-la (✕) et le temps repart à vitesse 1. Menu : « Illustrations » pour les couper.'),
+      p('Visite guidée : des bulles montrent les premiers gestes au moment où ils servent. Elle se lance depuis l\'écran « Nouvelle partie », et le menu ☰ permet de l\'arrêter ou de la reprendre à tout moment.'),
       h('h3', 'Gagner de l\'argent'),
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
       p('Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Plus rentable qu\'un contrat, mais il faut avancer l\'argent (« Emprunter et acheter » si besoin) et les prix bougent pendant le voyage : les estimations donnent le cours attendu à l\'arrivée, et un prix de revente garanti (une prime) supprime le risque de baisse. Parfois, une affaire en or (★) paie presque le double : elle part vite.'),

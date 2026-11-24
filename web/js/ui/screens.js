@@ -4,6 +4,7 @@ import { PORTS, PORT_IDS, FLAGS, draftText } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
 import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
 import { LOGOS, LOGO_IDS, COLORS, logoBadge, initialLogo, isInitialLogo } from './logos.js';
+import { guideDefault } from './guide.js';
 import { flagEl } from './flags.js';
 import { yearOf } from '../sim/util.js';
 import { fuelPrice } from '../sim/economy.js';
@@ -98,7 +99,7 @@ export function loadScreen(app) {
 // ---------- Nouvelle partie ----------
 export function setupScreen(app) {
   const cfg = app.setupCfg || (app.setupCfg = {
-    duration: 5, difficulty: 'normal', autoPause: true,
+    duration: 5, difficulty: 'normal', autoPause: true, guide: guideDefault(),
     slots: DEFAULT_NAMES.map((name, i) => ({ name, kind: i === 0 ? 'human' : i < 3 ? 'ai' : 'none', color: COMPANY_COLORS[i], logo: COMPANY_LOGOS[i], open: i === 0 })),
   });
   const render = () => {
@@ -150,6 +151,7 @@ export function setupScreen(app) {
         humans === 0 ? h('div.small.warn-text', 'Il faut au moins une compagnie « Joueur ».') : null,
       ]),
       h('label.check', [h('input', { type: 'checkbox', checked: cfg.autoPause, onchange: (e) => { cfg.autoPause = e.target.checked; } }), ' Mettre le jeu en pause quand un navire attend des ordres']),
+      h('label.check', [h('input', { type: 'checkbox', checked: cfg.guide, onchange: (e) => { cfg.guide = e.target.checked; } }), ' Visite guidée : des bulles montrent les premiers gestes (on peut l\'arrêter à tout moment)']),
       h('div.setup-buttons', [
         h('button.btn.ghost', { onclick: () => titleScreen(app) }, '← Retour'),
         h('button.btn.primary', { disabled: humans === 0 || active === 0, onclick: () => choosePorts(app, cfg, 0) }, 'Choisir les ports d\'attache →'),
@@ -231,7 +233,7 @@ function startFromSetup(app, cfg) {
     companies.push({ name: s.name.trim() || 'Compagnie', human: s.kind === 'human', homePort: port, color: s.color, logo: s.logo });
   }
   app.map.highlightPorts = null;
-  app.newGame({ duration: cfg.duration, difficulty: cfg.difficulty, autoPause: cfg.autoPause, companies });
+  app.newGame({ duration: cfg.duration, difficulty: cfg.difficulty, autoPause: cfg.autoPause, guide: cfg.guide, companies });
 }
 
 // ---------- Fin de partie ----------

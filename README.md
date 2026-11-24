@@ -89,6 +89,10 @@ riche de la planète.
   d'un footballeur.
 * **Votre compagnie** : nom, emblème (24 dessins ou l'initiale de la compagnie) et couleur. Le bureau
   s'embellit avec la valeur nette, du cagibi du quai à la tour de verre.
+* **Visite guidée** (facultative, proposée à la première partie) : des bulles pointées sur les
+  vrais boutons montrent les premiers gestes au moment où ils servent (acheter, prendre un
+  contrat, lancer le temps, encaisser, ordres, plein, bureau, négoce) ; on peut la passer à
+  tout moment et la reprendre depuis le menu.
 * **Résultats par navire** (Bureau > Résultats > Par navire) : bénéfice par jour, rentabilité
   du prix payé, d'où vient l'argent et où il part, emploi du temps, derniers voyages, comparaison
   avec les autres navires du même modèle, et le bilan des navires vendus ou perdus.

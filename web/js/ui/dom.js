@@ -84,7 +84,7 @@ export function dialog({ title, body, buttons, vertical = false, wide = false })
       h('div.dialog', { class: wide ? 'wide' : '' }, [
         title ? h('h2', title) : null,
         typeof body === 'string' ? h('p', body) : body,
-        h('div.dialog-buttons', { class: vertical ? 'vertical' : '' }, buttons.map((b) => h('button.btn', { class: b.kind || '', onclick: () => close(b.value) }, b.label))),
+        h('div.dialog-buttons', { class: vertical ? 'vertical' : '' }, buttons.map((b) => h('button.btn', { ...(b.attrs || {}), class: b.kind || '', onclick: () => close(b.value) }, b.label))),
       ]),
     ]);
     root.append(wrap);
