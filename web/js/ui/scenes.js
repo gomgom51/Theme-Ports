@@ -303,14 +303,19 @@ export const SCENES = {
   },
   // Ouragan : la nuit, le navire escalade des creux énormes sous les éclairs ; parfois des
   // conteneurs passent par-dessus bord.
+  // L'intensité suit la force : coup de vent gris (force 8 et 9), nuit d'orage et éclairs
+  // à partir de 10, creux énormes à 12. Variantes : conteneurs ou cargaison emportés.
   storm: {
     title: 'Dans la tempête', mood: 'bad', loop: [2, 6],
     draw(g, t, o) {
-      const flash = (t % 4) > 1.3 && (t % 4) < 1.42;
-      g.drawImage(flash ? bands('sky-storm-f', ['#5b6f99', '#6c80aa', '#7d91bb'], 80) : bands('sky-storm2', ['#04070d', '#0a1120', '#111b30', '#18263f'], 80), 0, 0);
+      const f = clamp01(((o.force ?? 12) - 8) / 4), night = f >= 0.5;
+      const flash = night && (t % 4) > 1.3 && (t % 4) < 1.42;
+      g.drawImage(flash ? bands('sky-storm-f', ['#5b6f99', '#6c80aa', '#7d91bb'], 80)
+        : night ? bands('sky-storm2', ['#04070d', '#0a1120', '#111b30', '#18263f'], 80)
+          : bands('sky-gale', ['#262f3d', '#33404f', '#43505f', '#56626f'], 80), 0, 0);
       if (flash) { line(g, 40, 0, 34, 16, '#fffbe6'); line(g, 34, 16, 42, 20, '#fffbe6'); line(g, 42, 20, 36, 40, '#fffbe6'); }
       for (let i = 0; i < 8; i++) { const w = 30 + hash(i, 32) % 30, x = ((hash(i, 31) % 260) - t * 65 % 260 + 260) % 260 - 40, y = 8 + (hash(i, 33) % 40); R(g, x, y, w, 4, flash ? '#8b9cc0' : '#1c283c'); R(g, x + 4, y - 2, w - 10, 2, flash ? '#8b9cc0' : '#1c283c'); }
-      const surf = (x) => 72 + 14 * Math.sin(x / 24 - t * PI / 2) + 3 * Math.sin(x / 9 + t * PI);
+      const surf = (x) => 72 + (7 + 7 * f) * Math.sin(x / 24 - t * PI / 2) + (2 + f) * Math.sin(x / 9 + t * PI);
       const water = (x0, x1, dy) => {
         for (let x = x0; x < x1; x++) {
           const y = Math.round(surf(x)) + dy;
@@ -330,13 +335,18 @@ export const SCENES = {
       }
       drawShip(g, o.color, sx, sy + 3, a);
       water(66, 136, 4); // la vague devant recouvre le bas de la coque
+      // Cargaison avariée : un paquet de mer déferle sur le pont (au début seulement).
+      if (o.variant === 'cargo' && t > 0.7 && t < 2) {
+        const k = (t - 0.7) / 1.3;
+        for (let i = 0; i < 40; i++) { const u = (hash(i, 41) % 100) / 100, v = (hash(i, 42) % 100) / 100; R(g, sx - 22 + u * 44, sy - 6 - Math.sin(k * PI) * (6 + v * 10) + k * 4, 1 + (i % 2), 1, i % 3 ? '#e8f0f8' : '#a9c4e0'); }
+      }
       // Paquets de mer sur l'étrave quand elle plonge.
       const dip = clamp01(a * 5);
       if (dip > 0) {
         const bx = sx + 24 * Math.cos(a), by = sy + 24 * Math.sin(a) - 4;
         for (let i = 0; i < 16; i++) { const k = (t * 2 + i / 16) % 1, v = 0.5 + (hash(i, 7) % 50) / 100; R(g, bx + (hash(i, 8) % 2 ? 1 : -1) * k * 10 * v, by - Math.sin(k * PI) * 14 * dip * v, 1, 1, '#e8f0f8'); }
       }
-      rain(g, t, 110, 'rgba(160,190,230,0.5)', 170, 70);
+      rain(g, t, Math.round(50 + 60 * f), 'rgba(160,190,230,0.5)', 150 + 20 * f, 40 + 30 * f);
       vignette(g, 'rgba(0,0,0,A)', 0.5);
     },
   },
@@ -411,7 +421,7 @@ export const SCENES = {
 // l'image ou Échap ferment aussi). Renvoie la valeur du bouton choisi, null pour une fermeture.
 // content : contenu riche à la place du texte ; clickClose : false pour une décision (un clic
 // distrait sur l'image ne doit pas valoir réponse).
-export function showScene(app, kind, { title, text = '', content = null, color = '#c0392b', variant = null, buttons = [], clickClose = true } = {}) {
+export function showScene(app, kind, { title, text = '', content = null, color = '#c0392b', variant = null, force = null, buttons = [], clickClose = true } = {}) {
   const S = SCENES[kind];
   if (!S) return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -446,7 +456,7 @@ export function showScene(app, kind, { title, text = '', content = null, color =
       if (S.loop && t > S.loop[1]) t = S.loop[0] + ((t - S.loop[0]) % (S.loop[1] - S.loop[0]));
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.globalAlpha = 1;
-      S.draw(g, t, { color, variant });
+      S.draw(g, t, { color, variant, force });
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);

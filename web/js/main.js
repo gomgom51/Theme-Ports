@@ -426,12 +426,13 @@ function handleNotes(notes) {
     }
     if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive');
     if (n.kind === 'sunk') app.audio.play('sunk');
-    // Scène illustrée : naufrage, marée noire, détention ou saisie, ouragan (cyclones tropicaux et
-    // force 11 et plus seulement : un simple coup de vent ne mérite pas d'arrêter le jeu), banquier.
-    const bigStorm = n.storm && (/^(Ouragan|Typhon|Cyclone)/.test(n.storm) || n.force >= 11);
+    // Scène illustrée : naufrage, marée noire, détention ou saisie, banquier, et tempête quand
+    // elle compte : cyclone tropical, force 11 et plus, ou cargaison avariée (un simple coup de
+    // vent sans dégâts ne mérite pas d'arrêter le jeu). L'image suit la force de la tempête.
+    const bigStorm = n.storm && (/^(Ouragan|Typhon|Cyclone)/.test(n.storm) || n.force >= 11 || n.lost);
     const [scene, extra] = !scenes ? [null] : n.kind === 'sunk' ? ['sunk'] : n.kind === 'pollution' ? ['pollution']
       : n.kind === 'detention' ? [n.seizure ? 'customs' : 'detention']
-      : bigStorm ? ['storm', { variant: n.lost === 'boxes' ? 'boxes' : null }]
+      : bigStorm ? ['storm', { variant: n.lost === 'boxes' ? 'boxes' : n.lost ? 'cargo' : null, force: n.force }]
       : n.kind === 'banker' ? ['banker'] : n.kind === 'bank' ? ['banker', { variant: 'seize', title: 'La banque saisit un navire' }] : [null];
     if (scene) playScene(scene, sceneOpts(n, extra));
     const company = n.company != null ? app.state.companies[n.company] : null;
