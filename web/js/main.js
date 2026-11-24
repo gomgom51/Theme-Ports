@@ -73,15 +73,49 @@ panelEl.addEventListener('pointerdown', () => { lastInteraction = performance.no
 panelEl.addEventListener('input', () => { lastInteraction = performance.now(); });
 const scrollMemory = new Map();
 
-app.open = (type, id = null, tab = null) => {
+// Historique des panneaux ouverts (bouton ← et bouton retour d'Android) ; vidé à la fermeture.
+const HISTORY_MAX = 30;
+app.open = (type, id = null, tab = null, { back = false } = {}) => {
   const prev = app.ui.panel;
+  if (!back && prev && (prev.type !== type || prev.id !== id)) {
+    const hist = (app.ui.history ??= []);
+    hist.push({ type: prev.type, id: prev.id, tab: prev.shownTab ?? prev.tab ?? null });
+    if (hist.length > HISTORY_MAX) hist.shift();
+  }
   app.ui.panel = { type, id, tab: tab ?? (prev && prev.type === type && prev.id === id ? prev.tab : null) };
+  if (app.mode === 'game') armBrowserBack();
   if (type === 'ship') app.ui.selectedShip = id;
   app.hoverPreview = null;
   if (type !== 'ship') app.setPreview(null); else app.map.preview = app.basePreview || null;
   renderPanel();
 };
+// Navigateur : le bouton « Précédent » (ou celui de la souris) revient au panneau précédent au
+// lieu de quitter la page. Une seule entrée d'historique sert de garde tant qu'un panneau est ouvert.
+let backGuard = false, skipPop = false;
+function armBrowserBack() {
+  if (backGuard || isAndroid()) return;
+  try { history.pushState({ pda: 'panel' }, ''); backGuard = true; } catch { /* historique indisponible */ }
+}
+window.addEventListener('popstate', () => {
+  if (skipPop) { skipPop = false; return; } // garde retirée par la fermeture du panneau
+  backGuard = false;
+  if (app.mode === 'game' && app.ui.panel && !document.querySelector('.dialog-wrap')) { app.back(); if (app.ui.panel) armBrowserBack(); }
+});
+// Revenir au panneau précédent (un navire vendu ou perdu entre-temps est sauté).
+app.back = () => {
+  const hist = app.ui.history || [];
+  while (hist.length) {
+    const p = hist.pop();
+    if (p.type === 'ship' && !shipById(app.state, p.id)) continue;
+    app.open(p.type, p.id, p.tab, { back: true });
+    return true;
+  }
+  app.close();
+  return false;
+};
 app.close = () => {
+  app.ui.history = [];
+  if (backGuard) { backGuard = false; skipPop = true; history.back(); } // retire la garde
   app.ui.panel = null;
   app.hoverPreview = null;
   app.setPreview(null);
@@ -119,6 +153,7 @@ app.focusShip = (id) => {
   if (!ship) return;
   const pos = ship.status === 'sea' ? ctx.shipPosition(ship) : PORTS[ship.port];
   if (pos) app.map.centerOn(pos.lon, pos.lat, Math.max(app.map.view.scale, 5));
+  app.map.flashShip(id); // il clignote : on le repère d'un coup d'œil
 };
 
 function renderPanel() {
@@ -137,6 +172,7 @@ function renderPanel() {
   const tabs = def.tabs || null;
   let tabId = p.tab || def.tab || (tabs ? tabs[0][0] : null);
   if (tabs && !tabs.some((t) => t[0] === tabId)) tabId = tabs[0][0];
+  p.shownTab = tabId; // pour revenir sur le même onglet
   const key = `${p.type}:${p.id}:${tabId}`;
   const oldBody = panelEl.querySelector('.panel-body');
   if (oldBody && panelEl.dataset.key) scrollMemory.set(panelEl.dataset.key, oldBody.scrollTop);
@@ -150,6 +186,7 @@ function renderPanel() {
 
   panelEl.replaceChildren(...[
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
+      app.ui.history?.length ? h('button.icon-btn.panel-back', { 'aria-label': 'Retour', title: 'Retour au panneau précédent', onclick: () => app.back() }, '←') : null,
       def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 44) }) : null),
       h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', def.subtitle) : null]),
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
@@ -753,12 +790,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === ' ') { e.preventDefault(); app.setSpeed(app.speed ? 0 : 1); }
   else if (e.key >= '1' && e.key <= '3') app.setSpeed(+e.key);
   else if (e.key === 'Escape') { if (document.querySelector('.dialog-wrap')) return; app.close(); }
+  else if (e.key === 'Backspace' && app.ui.panel && !document.querySelector('.dialog-wrap')) { e.preventDefault(); app.back(); }
 });
 
 window.handleBack = () => {
   const d = document.querySelector('.dialog-wrap');
   if (d) { d.remove(); return true; }
-  if (app.mode === 'game' && app.ui.panel) { app.close(); return true; }
+  if (app.mode === 'game' && app.ui.panel) { app.back(); return true; } // panneau précédent, ou fermer
   if (app.mode === 'game') { gameMenu(); return true; }
   if (app.mode === 'end') { app.toTitle(); return true; }
   const scr = document.getElementById('screen');

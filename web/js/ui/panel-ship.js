@@ -117,7 +117,7 @@ export function shipPanel(app, id, tab) {
     h('div.ship-stats', [
       stat('État', pct(ship.condition), bar(ship.condition / 100, { good: 0.7, warn: 0.45 })),
       h('div.stat.stat-gauge', [h('div.stat-label', 'Carburant'), fuelGaugeEl(ship.fuel / T.tank, { size: 92, compact: true }), h('div.stat-value', `${num(ship.fuel)} / ${num(T.tank)} t`)]),
-      stat('Cargaison', ship.cargo ? `${GOODS[ship.cargo.good].icon} ${tonnes(ship.cargo.qty)}${ship.cargo.damage > 0.005 ? ` · avariée ${pct(ship.cargo.damage * 100)}` : ''}` : 'Cales vides'),
+      stat('Cargaison', ship.cargo ? [`${GOODS[ship.cargo.good].icon} ${tonnes(ship.cargo.qty)}`, ship.cargo.damage > 0.005 ? ' · ' : null, ship.cargo.damage > 0.005 ? h('span', `avariée ${pct(ship.cargo.damage * 100)}`) : null] : 'Cales vides'),
       stat('Capacité', tonnes(T.dwt)),
       stat('Âge', `${num1(age)} ans`),
       stat('Valeur', money(eco.shipValue(state, ship))),
@@ -260,7 +260,7 @@ function tradeTab(app, ship) {
         h('div.ship-stats.sale-compare', [
           stat('Acheté', `${money(ship.cargo.cost / ship.cargo.qty)}/t`, h('div.stat-sub', `${money(ship.cargo.cost)}${ship.cargo.boughtAt ? ' · ' + portName(ship.cargo.boughtAt) : ''}`)),
           q.possible ? stat('Vente ici', `${money(q.net / ship.cargo.qty)}/t`, h('div.stat-sub', `${money(q.net)} net, manutention déduite`)) : null,
-          q.possible ? stat('Résultat', h('span', { class: q.profit >= 0 ? 'pos' : 'neg' }, `${money(q.profit, true)}`), h('div.stat-sub', `${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${pct(Math.abs(q.profit) / ship.cargo.cost * 100)}`)) : null,
+          q.possible ? stat('Résultat', h('span', { class: q.profit >= 0 ? 'pos' : 'neg' }, `${money(q.profit, true)}`), h('div.stat-sub', q.profit >= 0 ? `bénéfice de ${pct(q.profit / ship.cargo.cost * 100)}` : `perte de ${pct(-q.profit / ship.cargo.cost * 100)}`)) : null,
         ]),
         q.possible ? null : h('div.card-why', `${portName(here)} ne peut pas décharger ce type de cargaison.`),
         ship.cargo.floor ? h('div.card-sub', ship.cargo.floor.until >= state.t

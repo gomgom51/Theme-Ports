@@ -194,6 +194,7 @@ p { margin: 6px 0; }
 }
 .panel-head .badge-wrap { display: inline-flex; flex: none; }
 .panel-titles { flex: 1; min-width: 0; }
+.panel-back { flex: none; font-size: 19px; font-weight: 800; }
 .panel-titles h2 { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-sub { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-actions { display: flex; gap: 6px; }

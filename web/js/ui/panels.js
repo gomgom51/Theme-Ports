@@ -1,5 +1,5 @@
 // Panneaux : flotte, port, courtier, bureau, marchés, journal, aide.
-import { PORTS, PORT_IDS, FLAGS, draftText } from '../data/ports.js';
+import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, GOOD_IDS, HOLDS } from '../data/goods.js';
 import * as eco from '../sim/economy.js';
@@ -84,7 +84,7 @@ export function fleetPanel(app) {
   ];
   for (const [label, list] of groups) {
     if (!list.length) continue;
-    body.append(h('h3', `${label} (${list.length})`));
+    body.append(h('h3', [h('span', label), ` (${list.length})`])); // le libellé seul, pour la traduction
     body.append(h('div.list.compact', list.map((s) => {
       const T = SHIP_TYPES[s.type];
       return h('button.row.selectable.with-thumb', { onclick: () => { app.open('ship', s.id); app.focusShip(s.id); } }, [
@@ -115,7 +115,7 @@ export function portPanel(app, id) {
   body.append(h('div.ship-stats', [
     stat('Pays', F.name),
     stat('Taille', SIZE_LABEL[P.size]),
-    stat('Tirant d\'eau max', draftText(P)),
+    stat('Tirant d\'eau max', draftParts(P)),
     stat('Fuel', `${num(eco.fuelPrice(state, id))} $/t`),
     stat('Chantier', REPAIR_LABEL[P.repair]),
     stat('Taxes portuaires', P.fees > 1.05 ? 'élevées' : P.fees < 0.92 ? 'faibles' : 'moyennes'),

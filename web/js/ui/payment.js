@@ -139,7 +139,7 @@ export function pendingList(app) {
     ]))) : null,
     recs.length ? h('h3', `À recevoir (${recs.length})`) : null,
     recs.length ? h('div.list.compact', recs.map((r) => h('div.row', [
-      h('span.grow.small', r.label), h('span.muted.small', `vers le ${date(r.due, true)}`), h('b', money(r.amount)),
+      h('span.grow.small', r.label), h('span.muted.small', `attendu vers le ${date(r.due, true)}`), h('b', money(r.amount)),
     ]))) : null,
   ]);
 }

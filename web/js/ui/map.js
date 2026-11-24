@@ -694,11 +694,38 @@ export class MapView {
         if (ship.id === ui.selectedShip) this.label(g, x + 17, y + 2, ship.name);
       });
     }
+    // Navire recherché (« Centrer sur la carte », liste de la flotte) : il clignote un instant.
+    if (this.flash) {
+      const f = this.flash, el = performance.now() - f.t0;
+      const p = el > f.ms ? null : this.shipScreenPos.find((s) => s.id === f.id);
+      if (el > f.ms) this.flash = null;
+      else if (p) this.drawFlash(g, p.x, p.y, el, f.ms);
+    }
     // Ports en grève.
     for (const [p, until] of Object.entries(state.strikes)) {
       if (until <= state.t) continue;
       const [x, y] = this.toScreen(PORTS[p].lon, PORTS[p].lat);
       this.badge(g, x - 14, y + 12, 'grève', '#ef5350', 9);
+    }
+  }
+
+  // Fait clignoter un navire : halo doré et ondes qui s'élargissent, pendant `ms` millisecondes.
+  flashShip(id, ms = 2800) { this.flash = { id, t0: performance.now(), ms }; }
+  drawFlash(g, x, y, el, ms) {
+    const fade = Math.min(1, (ms - el) / 500); // s'éteint doucement à la fin
+    const pulse = 0.75 + 0.25 * Math.sin(el / 120); // le halo bat comme un phare
+    const glow = g.createRadialGradient(x, y, 2, x, y, 32);
+    glow.addColorStop(0, `rgba(255, 196, 64, ${0.9 * fade * pulse})`);
+    glow.addColorStop(1, 'rgba(255, 196, 64, 0)');
+    g.fillStyle = glow;
+    g.beginPath(); g.arc(x, y, 32, 0, Math.PI * 2); g.fill();
+    for (let i = 0; i < 4; i++) {
+      const ph = (el - i * 650) / 1000;
+      if (ph < 0 || ph > 1) continue;
+      const r = 10 + ph * 46, a = (1 - ph) * fade;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+      g.lineWidth = 6; g.strokeStyle = `rgba(251, 248, 241, ${0.85 * a})`; g.stroke();
+      g.lineWidth = 3.2; g.strokeStyle = `rgba(232, 146, 20, ${a})`; g.stroke();
     }
   }
 

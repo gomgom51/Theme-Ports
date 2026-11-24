@@ -1763,4 +1763,14 @@ export default {
   "Des bulles vont vous montrer les premiers gestes, au moment où ils servent. Vous pouvez arrêter la visite à tout moment, et la reprendre depuis le menu ☰.": "Bubbles will show you the first moves, right when you need them. You can stop the tour at any time and resume it from the ☰ menu.",
   "C'est parti": "Let's go",
   "Visite guidée : des bulles montrent les premiers gestes au moment où ils servent. Elle se lance depuis l'écran « Nouvelle partie », et le menu ☰ permet de l'arrêter ou de la reprendre à tout moment.": "Guided tour: bubbles show the first moves right when you need them. Start it from the “New game” screen; the ☰ menu lets you stop or resume it at any time.",
+  "vraquiers": "bulk carriers",
+  "avariée {0}": "damaged {0}",
+  // Restes repérés en anglais
+  "service {0} · max {1}": "service {0} · max {1}",
+  "stock {0}": "stock {0}",
+  "Maximum ({0})": "Maximum ({0})",
+  "Pirates — {0}": "Pirates — {0}",
+  "Retour": "Back",
+  "Retour au panneau précédent": "Back to the previous panel",
+  "attendu vers le {0}": "expected around {0}",
 };

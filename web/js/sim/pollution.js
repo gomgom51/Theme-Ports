@@ -84,7 +84,7 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   (state.spills ??= []).push({ lon: pos.lon, lat: pos.lat, t: state.t, tonnes: Math.round(pollutionT), zone: zone?.id || null, company: company.id });
   if (state.spills.length > 40) state.spills.shift();
   const where = zone ? `sur les ${zone.name.charAt(0).toLowerCase() + zone.name.slice(1)}` : nearCoast ? 'près des côtes' : 'au large';
-  const M = (x) => `${(x / 1e6).toFixed(1).replace('.', ',')} M$`;
+  const M = (x) => (x < 1e6 ? `${Math.round(x / 1000).toLocaleString('fr-FR')} k$` : `${(x / 1e6).toFixed(2).replace('.', ',')} M$`);
   let ban = '';
   // Négligence (navire inapte) dans une zone sensible : le pays ferme ses ports au pollueur.
   if (!c.seaworthy && zone && zone.factor >= 2 && Object.values(PORTS).some((P) => P.flag === zone.flag)) {

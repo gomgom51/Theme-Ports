@@ -547,7 +547,12 @@ export const PORT_IDS = Object.keys(PORTS);
 // « 16 m · pétroliers 22 m » : tirant d'eau des quais et des terminaux profonds.
 const DEEP_LABEL = { liquide: 'pétroliers', vrac: 'vraquiers' };
 export function draftText(P) {
+  return draftParts(P).join('');
+}
+// Les mêmes morceaux séparés (chaque mot dans son propre nœud de texte, pour la traduction).
+export function draftParts(P) {
   const fmt = (x) => String(x).replace('.', ',');
-  const deep = Object.entries(P.deep || {}).map(([h, d]) => `${DEEP_LABEL[h] || h} ${fmt(d)} m`);
-  return `${fmt(P.draft)} m${deep.length ? ` · ${deep.join(', ')}` : ''}`;
+  const out = [`${fmt(P.draft)} m`];
+  Object.entries(P.deep || {}).forEach(([h, d], i) => out.push(i ? ', ' : ' · ', DEEP_LABEL[h] || h, ` ${fmt(d)} m`));
+  return out;
 }
