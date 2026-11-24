@@ -599,8 +599,8 @@ function departTab(app, ship) {
         ]),
       ]),
       h('div.card-side', [est.error ? null : h('button.btn.primary', { onclick: () => {
-        const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true), { sound: (res) => (res.queued ? null : 'depart') });
-        if (r?.ok) { delete app.form.dest[ship.id]; app.setPreview(null); }
+        const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true));
+        if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; app.setPreview(null); }
       } }, 'Appareiller')]),
     ]));
   } else {

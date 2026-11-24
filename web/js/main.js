@@ -32,6 +32,7 @@ import { heldDialog } from './ui/plots.js';
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
+const INCIDENT_SCENES = { incendie: 'fire', abordage: 'collision', echouement: 'grounding', voie_eau: 'leak', machine: 'breakdown', froid: 'reefer', gros_temps: 'storm' };
 const PAUSE_KINDS = new Set(['idle', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction', 'threat', 'scandal']);
 
 const ctx = makeContext();
@@ -417,7 +418,7 @@ function handleNotes(notes) {
       else if (app.state.settings.autoPause) paused = true;
       continue;
     }
-    if (n.kind === 'depart') { app.audio.play('depart'); continue; }
+    if (n.kind === 'depart') { app.audio.play('depart', shipById(app.state, n.shipId)); continue; }
     if (n.kind === 'hijack') {
       app.speed = 0;
       app.audio.play('sunk');
@@ -491,7 +492,13 @@ function handleNotes(notes) {
     // elle compte : cyclone tropical, force 11 et plus, ou cargaison avariée (un simple coup de
     // vent sans dégâts ne mérite pas d'arrêter le jeu). L'image suit la force de la tempête.
     const bigStorm = n.storm && (/^(Ouragan|Typhon|Cyclone)/.test(n.storm) || n.force >= 11 || n.lost);
+    // Incidents en mer : incendie, abordage, échouement, voie d'eau, avarie de machine, panne
+    // des frigos ; la cargaison qui ripe ou des conteneurs perdus par gros temps : la tempête.
+    const incShip = n.incident ? shipById(app.state, n.shipId) : null;
+    const incScene = INCIDENT_SCENES[n.incident];
     const [scene, extra] = !scenes ? [null] : n.kind === 'sunk' ? ['sunk'] : n.kind === 'pollution' ? ['pollution']
+      : incScene === 'storm' ? ['storm', { variant: n.lost, force: Math.max(n.force || 8, 8) }]
+      : incScene && incShip ? [incScene, { variant: shipKind(incShip.type) }]
       : n.kind === 'detention' ? [n.seizure ? 'customs' : 'detention']
       : bigStorm ? ['storm', { variant: n.lost === 'boxes' ? 'boxes' : n.lost ? 'cargo' : null, force: n.force }]
       : n.kind === 'banker' ? ['banker'] : n.kind === 'bank' ? ['banker', { variant: 'seize', title: 'La banque saisit un navire' }]

@@ -2,6 +2,7 @@
 // bruitages liés aux actions. Le son démarre au premier toucher ou clic, comme
 // l'exigent les navigateurs.
 import * as S from './sounds.js';
+import { SHIP_TYPES } from '../data/ships.js';
 
 const KEY = 'portdattache.audio';
 // Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
@@ -28,6 +29,37 @@ const TRACKS = {
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
 const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3' };
+// Corne de départ : un son par famille de navires (même fonction), joué plus grave pour un
+// gros navire et plus aigu pour un petit (hauteur selon le port en lourd, par rapport au navire
+// de référence de la famille), et chaque navire garde sa nuance (± 3 %).
+// Fichier facultatif sons/corne-<famille>.mp3 (ajouter la famille à HORN_FILES), sinon synthèse.
+const HORN_FILES = new Set([]);
+export const HORN_FAMILIES = {
+  cargo: { ref: 12500, types: ['caboteur', 'polyvalent', 'colis_lourds', 'frigorifique'] },
+  vapeur: { ref: 9000, types: ['cargo_ancien', 'petrolier_ancien'] },
+  vraquier: { ref: 58000, types: ['vraquier_handy', 'vraquier_supramax', 'vraquier_panamax', 'vraquier_capesize'] },
+  petrolier: { ref: 110000, types: ['chimiquier', 'petrolier_mr', 'petrolier_aframax', 'petrolier_suezmax', 'petrolier_vlcc', 'petrolier_ulcc'] },
+  gazier: { ref: 50000, types: ['gazier', 'methanier'] },
+  porte_conteneurs: { ref: 55000, types: ['feeder', 'porte_voitures', 'pc_panamax', 'pc_geant'] },
+};
+const HORN_OF = Object.fromEntries(Object.entries(HORN_FAMILIES).flatMap(([f, F]) => F.types.map((t) => [t, f])));
+export const hornFamily = (typeId) => HORN_OF[typeId] || 'cargo';
+// Hauteur du son pour un navire : plus grave quand il est plus gros que la référence.
+export function hornPitch(typeId, id = 0) {
+  const F = HORN_FAMILIES[hornFamily(typeId)], dwt = SHIP_TYPES[typeId]?.dwt || F.ref;
+  const size = Math.max(0.72, Math.min(1.35, Math.pow(F.ref / dwt, 0.18)));
+  return size * (1 + ((((id || 0) * 37) % 7) - 3) / 100);
+}
+// Synthèse (sans fichier) : corne, sifflet à vapeur, deux coups, corne à deux tons.
+export const HORN_SYNTH = {
+  cargo: { freq: 160, dur: 1.3, gain: 0.24 },
+  vapeur: { whistle: true, freq: 430, dur: 1.5, gain: 0.18 },
+  vraquier: { freq: 105, dur: 2, gain: 0.27 },
+  petrolier: { freq: 92, dur: 2.3, gain: 0.28, distance: 0.35 },
+  gazier: { freq: 122, dur: 1, blasts: 2, gap: 0.35, gain: 0.25 },
+  porte_conteneurs: { freq: 98, dur: 2.2, chord: true, gain: 0.22 },
+};
+
 // Sons des scènes d'événements fournis (sons/scene-<nom>.mp3, liste dans sons/LISEZMOI.txt) :
 // chargés à la première scène qui les joue. Une scène sans son reste silencieuse.
 const SCENE_SOUNDS = new Set([]);
@@ -151,6 +183,31 @@ export class AudioManager {
     this.playSample(name, { gain: 0.8, fadeOut: 0.6 });
   }
 
+  // Corne de départ d'une famille : le fichier s'il existe (chargé à la première demande),
+  // sinon la version synthétisée. Renvoie la durée approximative.
+  playHorn(fam, pitch = 1, t = this.ctx.currentTime + 0.03) {
+    const c = this.ctx, name = `corne-${fam}`;
+    this.buffers = this.buffers || {};
+    this.hornMissing ??= new Set();
+    if (this.buffers[name]) { this.playSample(name, { gain: 0.8, rate: pitch, fadeOut: 0.5 }); return this.buffers[name].duration / pitch; }
+    if (HORN_FILES.has(fam) && !this.hornMissing.has(name) && !this.hornLoading?.[name]) {
+      (this.hornLoading ??= {})[name] = fetch(`sons/${name}.mp3`).then((res) => (res.ok ? res.arrayBuffer() : Promise.reject()))
+        .then((b) => c.decodeAudioData(b)).then((buf) => { this.buffers[name] = buf; }).catch(() => this.hornMissing.add(name));
+    }
+    const B = HORN_SYNTH[fam] || HORN_SYNTH.cargo, r = this.reverb, out = this.sfxBus;
+    const H = { ...B, dur: B.dur / Math.sqrt(pitch) }; // un gros navire sonne plus grave et plus longtemps
+    const f = H.freq * pitch, n = H.blasts || 1;
+    for (let i = 0; i < n; i++) {
+      const at = t + i * (H.dur + (H.gap || 0.3));
+      if (H.whistle) S.whistle(c, out, at, { dur: H.dur, freq: f, gain: H.gain, reverb: r });
+      else {
+        S.horn(c, out, at, { dur: H.dur, freq: f, gain: H.gain, distance: H.distance ?? 0.25, reverb: r });
+        if (H.chord) S.horn(c, out, at, { dur: H.dur, freq: f * 1.19, gain: H.gain * 0.7, distance: H.distance ?? 0.25, reverb: r }); // deux tons
+      }
+    }
+    return n * H.dur + (n - 1) * (H.gap || 0.3) + 0.7;
+  }
+
   // Joue un son enregistré : extrait de `duration` secondes avec fondu de sortie.
   playSample(name, { gain = 0.8, duration = null, fadeOut = 0.3, rate = 1 } = {}) {
     const buf = this.buffers?.[name];
@@ -177,8 +234,11 @@ export class AudioManager {
     const t = c.currentTime + 0.03;
     const r = this.reverb, out = this.sfxBus;
     if (name === 'depart') {
-      S.horn(c, out, t, { dur: 1.6, freq: 104, gain: 0.26, distance: 0.25, reverb: r });
-      S.chain(c, out, t + 1.9, { gain: 0.12, dur: 0.7, pan: 0.3 });
+      // arg : le navire qui appareille (sa famille, et sa hauteur à lui).
+      const fam = arg ? hornFamily(arg.type) : 'cargo';
+      const pitch = arg ? hornPitch(arg.type, arg.id) : 1;
+      const len = this.playHorn(fam, pitch, t);
+      S.chain(c, out, t + len + 0.2, { gain: 0.12, dur: 0.7, pan: 0.3 });
     } else if (name === 'arrive') {
       S.gull(c, out, t, { calls: 3, pan: -0.3, distance: 0.25, gain: 0.2 });
       S.slap(c, out, t + 0.4, { gain: 0.2 });

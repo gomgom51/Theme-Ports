@@ -207,6 +207,32 @@ export function horn(ctx, out, t, { dur = 2.8, freq = 98, gain = 0.32, distance 
   return dur + 0.7;
 }
 
+// ---------- Sifflet à vapeur ----------
+// Vieux navires : un sifflet clair et soufflé (vapeur qui chuinte autour de la note).
+export function whistle(ctx, out, t, { dur = 1.5, freq = 420, gain = 0.2, reverb = null } = {}) {
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + 0.12);
+  g.gain.setValueAtTime(gain, t + dur);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.35);
+  for (const [f, a] of [[freq, 1], [freq * 1.25, 0.55], [freq * 1.5, 0.4], [freq * 2, 0.12]]) {
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(f * 0.9, t);
+    o.frequency.exponentialRampToValueAtTime(f, t + 0.15);
+    const og = ctx.createGain(); og.gain.value = a * 0.25;
+    o.connect(og).connect(g);
+    o.start(t); o.stop(t + dur + 0.4);
+  }
+  const steam = noiseSource(ctx, 'white', t, dur + 0.4);
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq * 3; bp.Q.value = 1.2;
+  const sg = ctx.createGain(); sg.gain.value = 0.18;
+  steam.connect(bp).connect(sg).connect(g);
+  g.connect(out);
+  if (reverb) { const send = ctx.createGain(); send.gain.value = 0.6; g.connect(send).connect(reverb); }
+  return dur + 0.35;
+}
+
 // ---------- Docks ----------
 // Caisse en bois posée sur le quai : choc sourd, claquement du bois, résonance de la caisse.
 export function crate(ctx, out, t, { gain = 0.5, pan = 0, size = 1, reverb = null } = {}) {

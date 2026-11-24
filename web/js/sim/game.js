@@ -320,7 +320,9 @@ function sailHour(state, ctx, rng, ship, notes) {
       sink(state, ctx, ship, notes, pos, wx, inc, rng);
       return;
     }
+    const n0 = notes.length;
     note(state, notes, inc.kind === 'machine' ? 'breakdown' : 'incident', ship, text);
+    if (notes.length > n0) Object.assign(notes[n0], { incident: inc.kind, force: wx.force, lost: inc.kind === 'gros_temps' ? (ship.cargo?.hold === 'conteneurs' ? 'boxes' : 'cargo') : null });
   }
 
   // Pirates : dans les zones à risque, une attaque peut survenir.

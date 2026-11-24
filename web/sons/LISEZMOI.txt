@@ -12,6 +12,27 @@ tic-tac.mp3 tic-tac quand le temps repart, accéléré selon la vitesse (3 premi
 Les autres bruitages (mer, mouettes, caisses, corne…) sont synthétisés par le jeu.
 Si un fichier manque, le jeu utilise sa version synthétisée.
 
+Cornes de départ (facultatives)
+-------------------------------
+Un son par famille de navires. Le jeu le joue plus grave pour un gros navire et plus aigu pour
+un petit (selon son port en lourd, par rapport au navire de référence de la famille), et chaque
+navire garde une petite nuance à lui. Choisir donc un son de navire moyen. 2 à 4 secondes,
+attaque nette, un peu de réverbération du port, sans musique ni voix. Déposer le fichier sous le
+nom indiqué, puis ajouter le nom de la famille à HORN_FILES dans web/js/ui/audio.js.
+Sans fichier, le jeu synthétise la corne.
+
+  corne-cargo.mp3             cargos (caboteur, cargo polyvalent, colis lourds, frigorifique) :
+                              corne de cargo moyen, un coup franc d'environ 1,5 s
+  corne-vapeur.mp3            vieux navires (vieux cargo, vieux pétrolier) : sifflet à vapeur
+                              d'autrefois, clair, avec le souffle de la vapeur
+  corne-vraquier.mp3          vraquiers (handy, supramax, panamax, capesize) : corne grave et
+                              longue d'un vraquier, environ 2 s
+  corne-petrolier.mp3         pétroliers et chimiquiers (du chimiquier au ULCC) : corne très
+                              grave et puissante de grand pétrolier, qui résonne
+  corne-gazier.mp3            gaziers et méthaniers : deux coups de corne moyens et brefs
+  corne-porte_conteneurs.mp3  porte-conteneurs et rouliers (feeder, panamax, géant, porte-voitures) :
+                              corne moderne à deux tons (« typhon »), grave et ample
+
 Sons des scènes d'événements (facultatifs)
 -------------------------------------------
 Chaque scène illustrée peut jouer un son : déposer le fichier sous le nom indiqué, puis
@@ -27,6 +48,15 @@ Incidents
   scene-paid.mp3       colis livré, échange contre la mallette
   scene-detention.mp3  navire retenu par les inspecteurs
   scene-pollution.mp3  marée noire
+  scene-fire.mp3       incendie à bord, l'équipage arrose le feu
+  scene-collision.mp3  collision entre deux navires dans la brume
+  scene-grounding.mp3  échouement sur les rochers, remorqueurs
+  scene-leak.mp3       voie d'eau, les pompes rejettent l'eau
+  scene-breakdown.mp3  avarie de machine, le navire dérive
+  scene-reefer.mp3     panne des groupes frigorifiques
+  scene-icecaught.mp3  navire pris par les glaces
+  scene-freeze.mp3     retour des glaces
+  scene-thaw.mp3       dégel
 
 Événements mondiaux
   scene-oilUp.mp3         le pétrole s'envole
