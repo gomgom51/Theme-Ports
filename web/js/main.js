@@ -585,7 +585,7 @@ async function gameMenu() {
       { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
       { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
       { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
-      { label: scenesOn() ? 'Illustrations des événements : oui' : 'Illustrations des événements : non', value: 'scenes' },
+      { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
       { label: 'Menu principal', value: 'title', kind: 'ghost' },

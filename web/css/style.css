@@ -415,7 +415,7 @@ select.input { width: auto; max-width: 100%; }
 .dialog li { margin: 6px 0; }
 .dialog-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 .dialog-buttons.vertical { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-.dialog-buttons.vertical .btn { width: 100%; }
+.dialog-buttons.vertical .btn { width: 100%; white-space: normal; } /* un libellé long passe à la ligne */
 /* Scènes d'événements : image en pixels nets, croix de fermeture comme une fenêtre. */
 .scene-dialog { position: relative; }
 .scene-dialog.bad { border-top-color: var(--bad); }
@@ -559,8 +559,13 @@ select.input { width: auto; max-width: 100%; }
   .card.with-art .card-side { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; }
 }
 @media (max-width: 520px) {
-  .hud-company { max-width: 40%; }
-  .speed button { min-width: 30px; padding: 0 4px; }
+  /* Téléphone : la barre doit tout faire tenir, menu ☰ compris. */
+  .hud { gap: 6px; }
+  .hud-company { max-width: 34%; padding-right: 8px; }
+  .hud-time { gap: 5px; }
+  .hud-date { white-space: normal; max-width: 64px; font-size: 11px; line-height: 1.1; text-align: right; }
+  .speed button { min-width: 26px; padding: 0 3px; height: 30px; }
+  .hud-menu { width: 32px; height: 32px; }
   .ship-hero { flex-direction: column; }
 }
 .client { font-weight: 600; }
