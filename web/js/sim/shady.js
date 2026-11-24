@@ -11,6 +11,7 @@ import { HOURS_PER_DAY, formatDate } from './util.js';
 import { equipMod } from './equipment.js';
 import { tipped, tipReward, TIP_DETECT } from './plots.js';
 import { skillConceal } from './crew.js';
+import { addTrust, parcelNature, scheduleAftermath } from './dark.js';
 
 const D = HOURS_PER_DAY;
 export const TAINT_DAYS = 365;
@@ -88,7 +89,7 @@ function makeOffer(state, ctx, rng, from) {
   const pay = Math.round((120000 + 3.2e6 * Math.pow(cust, 1.5) * rng.range(0.7, 1.3) + (info.nm / 5000) * 150000) / 10000) * 10000;
   const days = info.nm / (24 * 13);
   return {
-    id: state.nextId++, from, to, pay,
+    id: state.nextId++, from, to, pay, nature: parcelNature(rng), // ce qu'il contient vraiment : personne ne le dit
     deadline: Math.round(state.t + (days * 1.6 + 6) * D),
     expires: Math.round(state.t + rng.range(5, 14) * D),
   };
@@ -117,7 +118,7 @@ export function proposeParcel(state, ctx, rng, ship, to) {
   const cust = customsLevel(PORTS[to].flag);
   const pay = Math.round((120000 + 3.2e6 * Math.pow(cust, 1.5) * rng.range(0.7, 1.3) + (info.nm / 5000) * 150000) / 10000) * 10000;
   const days = info.nm / (24 * 13);
-  return { id: state.nextId++, from: ship.port, to, pay, deadline: Math.round(state.t + (days * 1.6 + 6) * D), expires: state.t + D, insist: rng.chance(0.3) };
+  return { id: state.nextId++, from: ship.port, to, pay, nature: parcelNature(rng), deadline: Math.round(state.t + (days * 1.6 + 6) * D), expires: state.t + D, insist: rng.chance(0.3) };
 }
 export function acceptProposal(state, shipId, offer) {
   const ship = shipById(state, shipId);
@@ -162,6 +163,8 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
     money(state, company, cb.pay, 'discret');
     ship.earned += cb.pay;
     shipLog(state, ship, `Colis discret livré à ${portName(port)}`);
+    addTrust(company, cb.from); // les gangs d'un port sous embargo commencent à vous faire confiance
+    scheduleAftermath(state, rng, company, port, cb.nature); // ce qu'il contenait finira peut-être dans les nouvelles
     onNote?.('paid', `Le colis caché à bord du ${ship.name} a été remis à ${portName(port)} : ${Math.round(cb.pay / 1000).toLocaleString('fr-FR')} k$ en liquide.`, { amount: cb.pay, parcel: true });
     return { delivered: true };
   }

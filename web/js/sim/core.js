@@ -78,8 +78,10 @@ export function creditLimit(state, company) {
 export function interestRate(company) {
   return FLAGS[company.flag].rate + ((100 - company.reputation) / 100) * 0.06;
 }
+// Infamie (affaires noires, sim/dark.js) : une tache définitive qui abaisse le plafond de réputation.
+export const repCap = (company) => 100 - Math.min(80, company.infamy || 0);
 export function changeReputation(company, delta) {
-  company.reputation = Math.max(0, Math.min(100, company.reputation + delta));
+  company.reputation = Math.max(0, Math.min(repCap(company), company.reputation + delta));
 }
 
 export function pickShipName(state, rng) {

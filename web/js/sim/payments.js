@@ -20,7 +20,7 @@ export function createPayment(state, ship, contract, penalty, damage = 0) {
     good: contract.good, qty: contract.qty, from: contract.from, to: contract.to,
     pay: contract.pay, penalty, damage, deadline: contract.deadline, deliveredT: state.t,
     fuelAtStart: contract.fuelAtStart || null, priceAtStart: contract.priceAtStart || null,
-    shipName: ship.name, res: null,
+    shipName: ship.name, res: null, charity: contract.charity?.name || null,
     talk: ship.skills?.negociation || 0, // beaux parleurs à bord
   };
   state.payments.push(p);
@@ -32,6 +32,8 @@ export const paymentBase = (p) => p.pay * (1 - p.penalty);
 // Tire (une seule fois) le déroulé de l'encaissement.
 export function resolution(state, rng, p) {
   if (p.res) return p.res;
+  // Aide d'urgence : l'association règle sa participation, sans discussion.
+  if (p.charity) { p.res = { lines: [{ label: `${p.charity} : participation aux frais`, amount: p.pay * (1 - p.penalty), kind: 'base' }], total: Math.round(p.pay * (1 - p.penalty)), event: null, client: p.charity }; return p.res; }
   const company = state.companies[p.company];
   const C = CLIENTS[p.client] || { name: 'Le chargeur', reliability: 70, style: 'ponctuel' };
   const R = clientRel(state, p.client);

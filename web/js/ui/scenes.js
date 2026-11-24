@@ -318,15 +318,23 @@ export const SCENES = {
   offer: {
     title: 'Une proposition discrète', mood: 'info', loop: [3.8, 5.8],
     draw(g, t, o) {
-      g.drawImage(bands('sky-dusk2', ['#1d2340', '#3a2f55', '#6b3f5e', '#a35a5a', '#cf8a5a'], 50), 0, 0);
-      stars(g, t, 14, 22);
-      sea(g, t, { cols: ['#3a3552', '#2f2c47', '#26243c', '#1d1c31'], crest: '#8a7aa3' }, 50, 50, 84);
+      const dark = o.variant === 'dark'; // affaire noire : nuit froide, gardes armés, voiture noire
+      g.drawImage(dark ? bands('sky-night-dark', ['#05070d', '#0b0f1c', '#121a2c', '#1a2438'], 50) : bands('sky-dusk2', ['#1d2340', '#3a2f55', '#6b3f5e', '#a35a5a', '#cf8a5a'], 50), 0, 0);
+      stars(g, t, dark ? 8 : 14, 22);
+      sea(g, t, dark ? { cols: ['#141b2a', '#111726', '#0e1421', '#0b101b'], crest: '#3c4a66' } : { cols: ['#3a3552', '#2f2c47', '#26243c', '#1d1c31'], crest: '#8a7aa3' }, 50, 50, 84);
       drawShip(g, o.color, 22, 81);
       quay(g, 84);
+      if (dark) R(g, 0, 84, W, H - 84, 'rgba(0,0,0,0.45)');
       for (let i = 0; i < 7; i++) R(g, 40 + i * 2, 72 + i * 2, 3, 1, '#8a6a3a'); // passerelle
-      R(g, 118, 58, 1, 26, '#3c434c'); R(g, 116, 55, 5, 4, '#ffcf6b');
-      cone(g, 118, 58, 92, 100, 144, 100, '#ffcf6b', 0.17 + 0.04 * Math.sin(t * 9));
-      crate(g, 156, 94); crate(g, 165, 94); crate(g, 160, 87); // caisses : de quoi se cacher
+      const lamp = dark ? '#bfd8ff' : '#ffcf6b';
+      R(g, 118, 58, 1, 26, '#3c434c'); R(g, 116, 55, 5, 4, lamp);
+      cone(g, 118, 58, 92, 100, 144, 100, lamp, (dark ? 0.1 : 0.17) + 0.04 * Math.sin(t * 9));
+      if (dark) { // la voiture noire, phares allumés, et deux gardes armés
+        R(g, 150, 88, 30, 9, '#0d0d10'); R(g, 155, 82, 18, 7, '#141418'); R(g, 157, 83, 6, 4, '#2a3344'); R(g, 165, 83, 6, 4, '#2a3344');
+        R(g, 152, 97, 5, 3, '#000'); R(g, 172, 97, 5, 3, '#000'); R(g, 148, 90, 2, 2, '#fff6c0');
+        cone(g, 148, 91, 120, 84, 120, 100, '#fff6c0', 0.12);
+        for (const gx of [186, 194]) { person(g, gx, 86, '#1b1b1f', { hat: '#111111', head: '#c99a74' }); line(g, gx - 1, 89, gx + 4, 92, '#5b5b5b'); }
+      } else { crate(g, 156, 94); crate(g, 165, 94); crate(g, 160, 87); } // caisses : de quoi se cacher
       g.save(); g.scale(2, 2);
       const parcel = (x, y) => { R(g, x, y, 4, 3, '#c89a5a'); R(g, x, y + 1, 4, 1, '#e8dcc0'); R(g, x + 2, y, 1, 3, '#e8dcc0'); };
       person(g, 26, 43, '#1d2f55', { hat: '#f4f4f4' }); // le capitaine, au pied de la passerelle
@@ -1064,6 +1072,62 @@ export const SCENES = {
       R(g, 76, 60, 7, 8, '#5b6470'); R(g, 77, 61, 5, 2, '#1d1d1d');
       g.save(); g.scale(2, 2); person(g, 42, SHIP_DECK / 2 - 7, '#2e4a7a', { hat: '#f2c230' }); g.restore();
       if (Math.floor(t * 3) % 3 === 0) burst(g, 80, 62, (t * 3) % 1, 7, ['#ffd34d', '#fff6c0', '#5fd3e8'], 7, 8, 13);
+    },
+  },
+
+  // Saisie par un gang : la nuit, des voitures noires barrent le quai, des hommes armés montent
+  // à bord, les feux du navire s'éteignent un à un.
+  gang: {
+    title: 'Navire aux mains d\'un gang', mood: 'bad', loop: [4, 6],
+    draw(g, t, o) {
+      g.drawImage(bands('sky-night-dark', ['#05070d', '#0b0f1c', '#121a2c', '#1a2438'], 50), 0, 0);
+      stars(g, t, 8, 22);
+      sea_(g, t, { cols: ['#141b2a', '#111726', '#0e1421', '#0b101b'], crest: '#3c4a66' }, 50, 50, 84);
+      drawShip(g, o.color, 70, 81, 0, 2, 'box');
+      const off = Math.floor(clamp01((t - 2.2) / 1.6) * 5); // les hublots s'éteignent
+      for (let i = 0; i < 5; i++) R(g, 34 + i * 4, 62, 2, 2, i < off ? '#1a1f2a' : '#ffe48a');
+      quay(g, 84); R(g, 0, 84, W, H - 84, 'rgba(0,0,0,0.5)');
+      for (const [x, c] of [[140, '#0d0d10'], [170, '#111114']]) { // voitures noires, phares
+        const k = ease(t / 1.4), cx = x + (1 - k) * 70;
+        R(g, cx, 88, 26, 8, c); R(g, cx + 4, 83, 15, 6, '#16161a'); R(g, cx + 2, 96, 4, 3, '#000'); R(g, cx + 19, 96, 4, 3, '#000');
+        R(g, cx - 1, 90, 2, 2, '#fff6c0'); cone(g, cx - 1, 91, cx - 40, 82, cx - 40, 100, '#fff6c0', 0.1);
+      }
+      for (let i = 0; i < 4; i++) { // hommes armés qui montent à bord par la passerelle
+        const k = clamp01((t - 1 - i * 0.35) / 1.4), x = 150 - k * 52 - i * 2, y = 86 - Math.max(0, k - 0.6) * 30;
+        if (k <= 0) continue;
+        person(g, x, y, '#1b1b1f', { hat: '#111111', head: '#c99a74', step: k < 1 ? Math.floor(t * 6 + i) % 2 : 0 });
+        line(g, x - 1, y + 3, x - 5, y + 5, '#6b6b6b'); // fusil
+      }
+      for (let i = 0; i < 7; i++) R(g, 108 + i * 2, 72 + i * 2, 3, 1, '#5a4a32'); // passerelle
+      if (t > 3.2) for (let i = 0; i < 3; i++) person(g, 56 + i * 6, 64, '#e8e0d0', { hat: '#f4f4f4' }); // l'équipage, mains en l'air
+      if (t > 3.2) for (let i = 0; i < 3; i++) { R(g, 56 + i * 6, 63, 1, 1, '#e8b98f'); R(g, 58 + i * 6, 63, 1, 1, '#e8b98f'); }
+      vignette(g, 'rgba(0,0,0,A)', 0.4);
+    },
+  },
+  // Aide d'urgence : au petit matin, le navire décharge des caisses marquées d'un cœur ; la
+  // foule attend, des bénévoles font la chaîne, les gens applaudissent.
+  charity: {
+    title: 'L\'aide d\'urgence est arrivée', mood: 'good', loop: [3.6, 5.6],
+    draw(g, t, o) {
+      g.drawImage(bands('sky-dawn', ['#f2b28a', '#f6c9a0', '#f4dcbc', '#e9e6d4'], 50), 0, 0);
+      disc(g, 160, 44, 9, '#fff0b8');
+      sea_(g, t, DAY, 50, 50, 84);
+      drawShip(g, o.color, 60, 81, 0, 2, 'box');
+      quay(g, 84);
+      // Les caisses passent de main en main, de la passerelle au tas sur le quai.
+      const aidBox = (x, y) => { R(g, x, y, 7, 6, '#f4f1e6'); R(g, x, y, 7, 1, '#d8d3c6'); R(g, x + 2, y + 2, 1, 1, '#d6455a'); R(g, x + 4, y + 2, 1, 1, '#d6455a'); R(g, x + 2, y + 3, 3, 1, '#d6455a'); R(g, x + 3, y + 4, 1, 1, '#d6455a'); };
+      for (let i = 0; i < 7; i++) R(g, 108 + i * 2, 72 + i * 2, 3, 1, '#8a6a3a'); // passerelle
+      const pile = Math.min(6, Math.floor(t * 1.5));
+      for (let i = 0; i < pile; i++) aidBox(150 + (i % 3) * 8, 92 - Math.floor(i / 3) * 6);
+      const k = (t * 1.2) % 1; aidBox(118 + k * 28, 84 - Math.sin(k * PI) * 4); // la caisse qui passe
+      g.save(); g.scale(2, 2);
+      for (const [x, c] of [[60, '#2e86c1'], [66, '#27ae60']]) person(g, x, 42, c, { hat: '#f4f4f4' }); // bénévoles
+      [[84, '#c0392b'], [88, '#8e44ad'], [92, '#e67e22'], [96, '#2c3e50'], [99, '#16a085']].forEach(([x, c], i) => {
+        const cheer = t > 2 ? Math.floor(t * 4 + i) % 2 : 0;
+        person(g, x, 44 - cheer * 0.5, c); if (cheer) R(g, x - 0.5, 44, 1, 1, '#e8b98f');
+      });
+      g.restore();
+      gulls(g, t % 4, 3, [200, 26]);
     },
   },
   ...WORLD_SCENES,

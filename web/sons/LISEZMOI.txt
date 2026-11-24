@@ -57,6 +57,8 @@ Incidents
   scene-icecaught.mp3  navire pris par les glaces
   scene-freeze.mp3     retour des glaces
   scene-thaw.mp3       dégel
+  scene-gang.mp3       navire ou équipage saisi par un gang
+  scene-charity.mp3    aide d'urgence livrée
 
 Événements mondiaux
   scene-oilUp.mp3         le pétrole s'envole

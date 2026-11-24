@@ -15,6 +15,7 @@ import { patrolRisk } from './patrols.js';
 import { hostilePort, pirateBoost } from './plots.js';
 import { piracyAlong } from './piracy.js';
 import { isSeasonal } from './ice.js';
+import { grudgeAt } from './dark.js';
 
 const D = HOURS_PER_DAY;
 
@@ -41,6 +42,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
   const skill = company.ai?.skill || 1;
   const T = SHIP_TYPES[ship.type];
   const here = ship.port;
+  // Cargaison noire à bord : droit au port de livraison.
+  if (ship.dark) { if (!act.depart(state, ctx, ship.id, ship.dark.to, T.speed, true).ok) ship.aiWait = state.t + 24; return; }
 
   // 0. Cargaison sous contrat encore à bord (départ raté faute de carburant) : repartir.
   if (ship.cargo?.contractId) {
@@ -104,6 +107,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (c.embargo && avoidsEmbargo(state, company)) continue; // pavillon qui applique les sanctions, ou déjà sanctionnée : on s'abstient
     if (act.checkContract(state, ctx, ship, c)) continue;
     if (hostilePort(state, company.id, c.to)) continue; // autorités achetées contre nous : on évite
+    if (grudgeAt(state, company, c.to)) continue; // un gang nous y attend
     const loadH = eco.handlingHours(here, c.hold, c.qty) + eco.handlingHours(c.to, c.hold, c.qty);
     const trip = tripCost(state, ctx, ship, c.to, loadH);
     if (!trip || trip.plan.error) continue;
@@ -111,7 +115,9 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (state.t + (trip.days + 1) * D > c.deadline) continue;
     // (Le risque d'impayé n'est pas déduit : la prime de risque des chargeurs peu fiables le
     // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)
-    const profit = c.pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0);
+    // Aide d'urgence : à perte, mais une compagnie à la réputation abîmée y gagne.
+    const repValue = c.charity && company.reputation < 55 ? c.charity.rep * 150000 : 0;
+    const profit = c.pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue;
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
   }
   // On garde de quoi faire le plein et payer quelques semaines de frais fixes.

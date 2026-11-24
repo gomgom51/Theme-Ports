@@ -111,6 +111,12 @@ riche de la planète.
   glaces tombent chaque année dans les mêmes semaines, à quelques jours près (fenêtre
   affichée, date annoncée quinze jours avant) ; un navire pris par les glaces attend le
   dégel ou paie un brise-glace ; la coque de classe glace allonge la saison.
+* **Affaires noires et aide d'urgence** : après quelques colis livrés depuis un port sous
+  embargo, les gangs proposent de vraies affaires (armes, drogue, passagers clandestins) :
+  fortune rapide, mais infamie définitive (plafond de réputation), douane plus sévère,
+  conséquences dans les nouvelles ; refuser peut coûter le navire ou l'équipage. À
+  l'inverse, après une catastrophe, l'aide d'urgence fait perdre de l'argent mais rend de
+  la réputation.
 * **La carte marine** : frontières et noms des pays, eaux nationales (moins de
   200 milles des côtes) et eaux internationales, drapeaux des ports.
 * **Le son** : ambiance du port à l'accueil (mer, mouettes, caisses, conteneurs,

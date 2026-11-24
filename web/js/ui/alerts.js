@@ -18,6 +18,8 @@ import { openRansom } from './piracy.js';
 import { plotAlerts, heldDialog, jettisonDialog } from './plots.js';
 import { pointsFree as crewPoints } from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, iceForecast, forecastText, escortFee, ICE } from '../sim/ice.js';
+import { DARK, DARK_KINDS, darkDetect } from '../sim/dark.js';
+import { seizedDialog } from './dark.js';
 
 const LEVELS = { urgent: 0, watch: 1, info: 2 };
 export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
@@ -25,7 +27,7 @@ export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
 // Limite de découvert au-delà de laquelle la banque saisit un navire (même règle que la simulation).
 export const seizureLimit = (state, company) => 300000 + 0.1 * fleetValue(state, company.id);
 
-const alertKey = (level, icon, text, t) => `${level}|${icon}|${t ? (t.ship ?? t.ransom ?? t.customs ?? t.held ?? t.jettison ?? t.panel ?? '') : ''}|${text.replace(/[\d\s.,%$−+-]+/g, '')}`;
+const alertKey = (level, icon, text, t) => `${level}|${icon}|${t ? (t.ship ?? t.ransom ?? t.customs ?? t.held ?? t.jettison ?? t.seized ?? t.panel ?? '') : ''}|${text.replace(/[\d\s.,%$−+-]+/g, '')}`;
 
 // ---------- Lu / non lu, comme des courriels ----------
 // Les compteurs rouges ne comptent que ce que vous n'avez pas encore vu. Une alerte vue
@@ -84,6 +86,14 @@ export function computeAlerts(state, ctx, companyId) {
     const s = state.ships.find((x) => x.id === c.shipId);
     add('urgent', '🤫', `La douane de ${PORTS[c.port].name} retient le ${s?.name || 'navire'} : payer l'amende ou tenter un arrangement ?`, { customs: c.id });
   }
+  for (const s of shipsOf(state, companyId)) {
+    if (!s.seized) continue;
+    add('urgent', s.seized.by === 'justice' ? '⚖' : '🔫', s.seized.by === 'justice' ? `Le ${s.name} est confisqué à ${PORTS[s.seized.port].name} : caution de ${money(s.seized.ransom)}, ou il est perdu.`
+      : s.seized.kind === 'crew' ? `L'équipage du ${s.name} est retenu par un gang à ${PORTS[s.seized.port].name} : rançon de ${money(s.seized.ransom)}.` : `Le ${s.name} est aux mains d'un gang à ${PORTS[s.seized.port].name} : rançon de ${money(s.seized.ransom)}.`, { seized: s.id });
+  }
+  for (const [port, until] of Object.entries(company.grudge || {})) {
+    if (until > state.t) add('watch', '⚠', `Un gang de ${PORTS[port].name} en veut à votre compagnie jusqu'au ${date(until, true)} : ${Math.round(DARK.grudgeSeize * 100)} % de risque de saisie à chaque escale.`);
+  }
   for (const [flag, until] of Object.entries(company.bans || {})) {
     if (until > state.t) add('watch', '⛔', `${FLAGS[flag].name} interdit ses ports à votre compagnie jusqu'au ${date(until, true)} (pollution).`);
   }
@@ -131,6 +141,10 @@ export function computeAlerts(state, ctx, companyId) {
       const to = ship.voyage.to, risk = iceRisk(state, to, etaOf(state, ctx, ship), ship);
       if (risk > 0) add(risk >= 1 ? 'urgent' : 'watch', '❄', `Le ${ship.name} risque de trouver ${PORTS[to].name} pris par les glaces à son arrivée (${risk >= 1 ? 'certain' : pct(risk * 100)}, ${forecastText(state, to, ship)}) : un brise-glace coûterait ${money(escortFee(ship))}. Accélérez si possible.`, go);
     }
+    if (ship.dark && ship.status === 'sea' && ship.voyage) {
+      const p = darkDetect(ship, ship.voyage.to);
+      add(p >= 0.2 ? 'urgent' : 'watch', DARK_KINDS[ship.dark.kind].icon, `Cargaison noire à bord du ${ship.name} : la douane de ${PORTS[ship.voyage.to].name} la trouve dans ${Math.round(p * 100)} % des cas (confiscation, scandale).`, go);
+    }
     if (crewPoints(ship) > 0) add('info', '🎖', `L'équipage du ${ship.name} peut choisir une spécialité.`, go);
     if (ship.status === 'laidup' && eco.freightLevel(state, ship.type) >= 1) {
       add('info', '📈', `Le fret est remonté pour les ${T.category.toLowerCase()}s : réarmer le ${ship.name} ?`, go);
@@ -155,7 +169,7 @@ export function alertsPanel(app) {
     body.append(h('div.list', list.map((a) => h(`div.card.alert.alert-${lv}`, { class: app.ui.newAlerts?.has(a.key) ? 'unread' : '' }, [
       h('div.card-main', [h('div.card-sub', [app.ui.newAlerts?.has(a.key) ? h('span.unread-dot', { title: 'Nouveau' }) : null, h('span.alert-icon', a.icon), ' ', a.text])]),
       a.target ? h('div.card-side', [h('button.btn.small', {
-        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.held != null) heldDialog(app, a.target.held); else if (a.target.jettison != null) jettisonDialog(app, a.target.jettison); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
+        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.held != null) heldDialog(app, a.target.held); else if (a.target.jettison != null) jettisonDialog(app, a.target.jettison); else if (a.target.seized != null) seizedDialog(app, a.target.seized); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
       }, 'Voir')]) : null,
     ]))));
   }

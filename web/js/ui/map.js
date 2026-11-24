@@ -559,6 +559,15 @@ export class MapView {
         g.fillStyle = '#2f7fb5'; g.fillText('❄', x - 9, y - 9);
       }
     }
+    // Ports où un gang en veut à la compagnie active.
+    const me = state.companies[ui.activeCompany];
+    for (const [port, until] of Object.entries(me?.grudge || {})) {
+      if (until <= state.t || !PORTS[port]) continue;
+      const [x, y] = this.toScreen(PORTS[port].lon, PORTS[port].lat);
+      g.font = '800 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText('⚠', x + 9, y - 9);
+      g.fillStyle = '#b8322a'; g.fillText('⚠', x + 9, y - 9);
+    }
     // Marées noires (s'estompent en deux ans).
     for (const sp of state.spills || []) {
       const age = (state.t - sp.t) / (24 * 365);

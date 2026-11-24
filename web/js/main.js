@@ -27,6 +27,7 @@ import { initI18n, setLang, getLang } from './i18n.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
+import { darkOfferDialog, seizedDialog } from './ui/dark.js';
 import { heldDialog } from './ui/plots.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
@@ -389,6 +390,24 @@ function handleNotes(notes) {
     if (n.kind === 'crew' && scenes) { crewUps.push(n); continue; }
     if (n.kind === 'ice') { if (scenes) iceChanges.push(n); else toast(`❄ ${n.text}`, { timeout: 9000 }); continue; }
     if (n.kind === 'iceSoon') { toast(`❄ ${n.text}`, { kind: 'warn', timeout: 10000 }); continue; }
+    // Affaires noires : la proposition, les saisies, et ce qu'on lit ensuite dans les nouvelles.
+    if (n.kind === 'darkoffer') {
+      const cid = n.company;
+      popup(async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); await darkOfferDialog(app, n); }, () => !!shipById(app.state, n.shipId)?.dark || !!shipById(app.state, n.shipId)?.seized);
+      continue;
+    }
+    if (n.kind === 'seized') {
+      const cid = n.company;
+      app.speed = 0;
+      app.audio.play('sunk');
+      toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 20000, action: 'Décider', onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); seizedDialog(app, n.shipId); } });
+      const decide = async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); await seizedDialog(app, n.shipId); return true; };
+      if (scenes) playScene(n.seized?.by === 'justice' ? 'customs' : 'gang', sceneOpts(n, { title: n.seized?.by === 'justice' ? 'Navire confisqué' : n.seized?.kind === 'crew' ? 'Équipage enlevé' : 'Navire aux mains d\'un gang', buttons: [{ label: 'Décider', value: 'ok', kind: 'primary' }] }), decide);
+      else popup(decide);
+      continue;
+    }
+    if (n.kind === 'aftermath') { toast(`📰 ${prefixOf(n)}${n.text} ${n.hint}`, { kind: 'bad', timeout: 16000 }); continue; }
+    if (n.kind === 'charity') { app.audio.play('cash'); if (scenes) playScene('charity', sceneOpts(n)); else toast(prefixOf(n) + n.text, { kind: 'money', timeout: 9000 }); continue; }
     if (n.kind === 'icecaught') {
       // Navire pris par les glaces : attendre (désarmé pour l'hiver) ou partir avec un brise-glace.
       const ship = shipById(app.state, n.shipId);

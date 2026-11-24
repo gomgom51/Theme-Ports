@@ -225,6 +225,7 @@ export function checkContract(state, ctx, ship, contract) {
   if (!contract || contract.takenBy !== null) return 'Ce contrat n\'est plus disponible.';
   if (contract.from !== ship.port) return 'Le contrat part d\'un autre port.';
   if (ship.cargo) return 'Les cales ne sont pas vides.';
+  if (ship.dark) return 'Les cales sont occupées par la cargaison noire.';
   const hold = eco.holdFor(ship.type, contract.good);
   if (!hold) return `Ce navire ne peut pas transporter : ${GOODS[contract.good].name.toLowerCase()}.`;
   if (!eco.portHandles(contract.from, hold) || !eco.portHandles(contract.to, hold)) return 'Un des ports ne peut pas manutentionner ce chargement.';
@@ -293,6 +294,7 @@ export function buyCargo(state, ctx, shipId, good, qty) {
   const T = SHIP_TYPES[ship.type];
   const company = companyOf(state, ship);
   if (!eco.exportsGood(ship.port, good)) return fail(`${portName(ship.port)} n'exporte pas ce produit.`);
+  if (ship.dark) return fail('Les cales sont occupées par la cargaison noire.');
   const hold = eco.holdFor(ship.type, good);
   if (!hold) return fail('Ce navire ne peut pas charger ce produit.');
   if (!eco.portHandles(ship.port, hold)) return fail('Le port ne peut pas charger ce type de cargaison.');
