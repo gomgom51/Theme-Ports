@@ -12,26 +12,23 @@ tic-tac.mp3 tic-tac quand le temps repart, accéléré selon la vitesse (3 premi
 Les autres bruitages (mer, mouettes, caisses, corne…) sont synthétisés par le jeu.
 Si un fichier manque, le jeu utilise sa version synthétisée.
 
-Cornes de départ (facultatives)
--------------------------------
-Un son par famille de navires. Le jeu le joue plus grave pour un gros navire et plus aigu pour
-un petit (selon son port en lourd, par rapport au navire de référence de la famille), et chaque
-navire garde une petite nuance à lui. Choisir donc un son de navire moyen. 2 à 4 secondes,
-attaque nette, un peu de réverbération du port, sans musique ni voix. Déposer le fichier sous le
-nom indiqué, puis ajouter le nom de la famille à HORN_FILES dans web/js/ui/audio.js.
-Sans fichier, le jeu synthétise la corne.
+Cornes de départ
+----------------
+Un son par famille de navires, fourni par l'auteur du jeu (raccourci au premier coup de corne,
+volumes égalisés). Le jeu le joue plus grave pour un gros navire et plus aigu pour un petit
+(selon son port en lourd, par rapport au navire de référence de la famille), et chaque navire
+garde une petite nuance à lui. Pour remplacer un son, garder le même nom de fichier (2 à 5 s).
+La liste des fichiers attendus est HORN_FILES dans web/js/ui/audio.js ; sans fichier, le jeu
+synthétise la corne.
 
-  corne-cargo.mp3             cargos (caboteur, cargo polyvalent, colis lourds, frigorifique) :
-                              corne de cargo moyen, un coup franc d'environ 1,5 s
+  corne-cargo.mp3             cargos (caboteur, cargo polyvalent, colis lourds, frigorifique)
   corne-vapeur.mp3            vieux navires (vieux cargo, vieux pétrolier) : sifflet à vapeur
-                              d'autrefois, clair, avec le souffle de la vapeur
-  corne-vraquier.mp3          vraquiers (handy, supramax, panamax, capesize) : corne grave et
-                              longue d'un vraquier, environ 2 s
-  corne-petrolier.mp3         pétroliers et chimiquiers (du chimiquier au ULCC) : corne très
-                              grave et puissante de grand pétrolier, qui résonne
-  corne-gazier.mp3            gaziers et méthaniers : deux coups de corne moyens et brefs
-  corne-porte_conteneurs.mp3  porte-conteneurs et rouliers (feeder, panamax, géant, porte-voitures) :
-                              corne moderne à deux tons (« typhon »), grave et ample
+  corne-vraquier.mp3          vraquiers (handy, supramax, panamax, capesize)
+  corne-petrolier.mp3         pétroliers et chimiquiers (du chimiquier au VLCC)
+  corne-gazier.mp3            gaziers et méthaniers
+  corne-porte_conteneurs.mp3  porte-conteneurs et rouliers (feeder, panamax, géant, porte-voitures)
+  corne-dramatique.mp3        clin d'œil : réservée au plus gros navire du jeu, le Géant des mers
+                              (ULCC), jouée telle quelle (HORN_SPECIAL dans web/js/ui/audio.js)
 
 Sons des scènes d'événements (facultatifs)
 -------------------------------------------

@@ -120,8 +120,9 @@ riche de la planète.
 * **La carte marine** : frontières et noms des pays, eaux nationales (moins de
   200 milles des côtes) et eaux internationales, drapeaux des ports.
 * **Le son** : ambiance du port à l'accueil (mer, mouettes, caisses, conteneurs,
-  corne de brume), bruitages (départ, chargement, arrivée, pompe à carburant,
-  caisse enregistreuse), tous synthétisés par le jeu. Musiques facultatives à
+  corne de brume), bruitages (chargement, arrivée, pompe à carburant, caisse
+  enregistreuse), une corne de départ par famille de navires, plus grave pour un gros
+  navire (et une corne spéciale pour le plus gros du jeu). Musiques facultatives à
   générer avec Suno : voir [docs/musique-suno.md](docs/musique-suno.md).
 * **Français ou anglais** : bouton 🌐 sur l'accueil et « Langue » dans le menu ; par
   défaut, la langue de l'appareil. *English available: 🌐 button on the title screen.*

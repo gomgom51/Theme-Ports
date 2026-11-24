@@ -32,8 +32,11 @@ const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/c
 // Corne de départ : un son par famille de navires (même fonction), joué plus grave pour un
 // gros navire et plus aigu pour un petit (hauteur selon le port en lourd, par rapport au navire
 // de référence de la famille), et chaque navire garde sa nuance (± 3 %).
-// Fichier facultatif sons/corne-<famille>.mp3 (ajouter la famille à HORN_FILES), sinon synthèse.
-const HORN_FILES = new Set([]);
+// Fichier sons/corne-<famille>.mp3 (la famille doit figurer dans HORN_FILES), sinon synthèse.
+const HORN_FILES = new Set(['cargo', 'vapeur', 'vraquier', 'petrolier', 'gazier', 'porte_conteneurs', 'dramatique']);
+// Clin d'œil : le plus gros navire du jeu a sa propre corne, jouée telle quelle (sans changer
+// sa hauteur). Tant que le fichier n'est pas chargé, il garde la corne de sa famille.
+const HORN_SPECIAL = { petrolier_ulcc: 'dramatique' };
 export const HORN_FAMILIES = {
   cargo: { ref: 12500, types: ['caboteur', 'polyvalent', 'colis_lourds', 'frigorifique'] },
   vapeur: { ref: 9000, types: ['cargo_ancien', 'petrolier_ancien'] },
@@ -158,7 +161,7 @@ export class AudioManager {
   }
 
   async loadSamples() {
-    this.buffers = {};
+    this.buffers ??= {};
     for (const [name, src] of Object.entries(SAMPLES)) {
       try {
         const res = await fetch(src);
@@ -166,6 +169,17 @@ export class AudioManager {
         this.buffers[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
       } catch { /* on garde la version synthétisée */ }
     }
+    for (const f of HORN_FILES) this.loadHorn(`corne-${f}`); // en arrière-plan : prêtes au premier départ
+  }
+
+  // Charge une corne (une seule fois) ; en cas d'échec, la synthèse prend le relais.
+  loadHorn(name) {
+    this.buffers ??= {};
+    this.hornMissing ??= new Set();
+    this.hornLoading ??= {};
+    if (this.buffers[name] || this.hornMissing.has(name) || this.hornLoading[name]) return;
+    this.hornLoading[name] = fetch(`sons/${name}.mp3`).then((res) => (res.ok ? res.arrayBuffer() : Promise.reject()))
+      .then((b) => this.ctx.decodeAudioData(b)).then((buf) => { this.buffers[name] = buf; }).catch(() => this.hornMissing.add(name));
   }
 
   // Son d'une scène d'événement, chargé à la demande.
@@ -183,17 +197,16 @@ export class AudioManager {
     this.playSample(name, { gain: 0.8, fadeOut: 0.6 });
   }
 
-  // Corne de départ d'une famille : le fichier s'il existe (chargé à la première demande),
-  // sinon la version synthétisée. Renvoie la durée approximative.
-  playHorn(fam, pitch = 1, t = this.ctx.currentTime + 0.03) {
+  // Corne de départ d'une famille (ou corne spéciale `special`, jouée sans changer sa hauteur) :
+  // le fichier s'il est chargé, sinon la version synthétisée. Renvoie la durée approximative.
+  playHorn(fam, pitch = 1, t = this.ctx.currentTime + 0.03, special = null) {
     const c = this.ctx, name = `corne-${fam}`;
-    this.buffers = this.buffers || {};
-    this.hornMissing ??= new Set();
+    this.buffers ??= {};
+    const sp = special && `corne-${special}`;
+    if (sp && this.buffers[sp]) { this.playSample(sp, { gain: 0.8, fadeOut: 0.2 }); return this.buffers[sp].duration; }
+    if (sp && HORN_FILES.has(special)) this.loadHorn(sp);
     if (this.buffers[name]) { this.playSample(name, { gain: 0.8, rate: pitch, fadeOut: 0.5 }); return this.buffers[name].duration / pitch; }
-    if (HORN_FILES.has(fam) && !this.hornMissing.has(name) && !this.hornLoading?.[name]) {
-      (this.hornLoading ??= {})[name] = fetch(`sons/${name}.mp3`).then((res) => (res.ok ? res.arrayBuffer() : Promise.reject()))
-        .then((b) => c.decodeAudioData(b)).then((buf) => { this.buffers[name] = buf; }).catch(() => this.hornMissing.add(name));
-    }
+    if (HORN_FILES.has(fam)) this.loadHorn(name);
     const B = HORN_SYNTH[fam] || HORN_SYNTH.cargo, r = this.reverb, out = this.sfxBus;
     const H = { ...B, dur: B.dur / Math.sqrt(pitch) }; // un gros navire sonne plus grave et plus longtemps
     const f = H.freq * pitch, n = H.blasts || 1;
@@ -237,7 +250,7 @@ export class AudioManager {
       // arg : le navire qui appareille (sa famille, et sa hauteur à lui).
       const fam = arg ? hornFamily(arg.type) : 'cargo';
       const pitch = arg ? hornPitch(arg.type, arg.id) : 1;
-      const len = this.playHorn(fam, pitch, t);
+      const len = this.playHorn(fam, pitch, t, arg ? HORN_SPECIAL[arg.type] : null);
       S.chain(c, out, t + len + 0.2, { gain: 0.12, dur: 0.7, pan: 0.3 });
     } else if (name === 'arrive') {
       S.gull(c, out, t, { calls: 3, pan: -0.3, distance: 0.25, gain: 0.2 });
