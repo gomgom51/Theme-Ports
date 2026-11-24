@@ -2,9 +2,10 @@
 // via the "world-atlas" npm package):
 //   * LAND: simplified coastlines used to draw the map,
 //   * GRID: a 0.5° sea/land mask used for route planning, with the straits
-//     that are too narrow for the grid carved in by hand and the two big
+//     that are too narrow for the grid carved in by hand, the two big
 //     canals (Suez, Panama) marked so that they can be closed by events or
-//     refused to ships that are too big.
+//     refused to ships that are too big, and the Northern Sea Route (Arctic,
+//     open in summer only) marked the same way.
 //
 // Usage (from the repository root):
 //   npm install && npm run build:world
@@ -192,14 +193,29 @@ function build() {
   const land50 = loadLand('land-50m');
   const land110 = loadLand('land-110m');
   rasterize(land50);
-  // Pack ice: no route through the Arctic (Northwest/Northeast passages) or close to Antarctica.
+  // Pack ice: no route close to Antarctica, and in the Arctic only three corridors:
+  // the Norwegian, Barents and Kara seas (Murmansk, Sabetta), the Chukchi and Beaufort
+  // seas (Prudhoe Bay), and between them the Northern Sea Route, marked like a canal
+  // ("nsr") so that the game can close it when the ice comes back.
+  const arctic = (lon, lat) => (lon >= -12 && lon < 95 && lat <= 78) ? 'open'
+    : ((lon >= 95 || lon < -172) && lat <= 78) ? 'nsr'
+    : (lon >= -172 && lon < -140 && lat <= 73) ? 'open' : null;
+  const nsrCells = [];
   for (let row = 0; row < H; row++) {
     const lat = 90 - (row + 0.5) * RES;
-    if (lat > 66 || lat < -62) for (let c = 0; c < W; c++) land[row * W + c] = 1;
+    for (let c = 0; c < W; c++) {
+      const lon = -180 + (c + 0.5) * RES, i = row * W + c;
+      if (lat < -62) { land[i] = 1; continue; }
+      if (lat <= 66) continue;
+      const zone = arctic(lon, lat);
+      if (!zone) land[i] = 1;
+      else if (zone === 'nsr' && !land[i]) nsrCells.push(i);
+    }
   }
   for (const pts of Object.values(STRAITS)) carve(pts, 0);
   const canals = {};
   for (const [id, pts] of Object.entries(CANALS)) { canals[id] = []; carve(pts, 0, canals[id]); }
+  canals.nsr = nsrCells.filter((i) => !land[i]);
 
   const bytes = new Uint8Array(Math.ceil((W * H) / 8));
   for (let i = 0; i < W * H; i++) if (land[i]) bytes[i >> 3] |= 1 << (i & 7);

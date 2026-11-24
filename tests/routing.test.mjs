@@ -6,10 +6,10 @@ console.log('init', Date.now() - t0, 'ms');
 const cases = [
   ['rotterdam', 'new_york', [], 3450],
   ['rotterdam', 'singapour', [], 8300],
-  ['rotterdam', 'singapour', ['suez'], 11700],
+  ['rotterdam', 'singapour', ['suez', 'nsr'], 11700], // par le Cap (passage du Nord-Est pris par les glaces)
   ['shanghai', 'los_angeles', [], 5700],
   ['new_york', 'los_angeles', [], 4950],
-  ['new_york', 'los_angeles', ['panama'], 13100],
+  ['new_york', 'los_angeles', ['panama', 'nsr'], 13100],
   ['port_hedland', 'shanghai', [], 3380],
   ['santos', 'shanghai', [], 11000],
   ['houston', 'rotterdam', [], 5000],
@@ -24,6 +24,16 @@ const cases = [
   ['buenos_aires', 'santos', [], 1000],
   ['colon', 'los_angeles', [], 2950],
   ['mumbai', 'dubai', [], 1050],
+  // Nouveaux ports et Arctique (passage du Nord-Est ouvert en été).
+  ['rotterdam', 'shanghai', ['nsr'], 10500],
+  ['rotterdam', 'shanghai', [], 8000],
+  ['rotterdam', 'murmansk', [], 1700],
+  ['rotterdam', 'churchill', [], 3400],
+  ['novorossiysk', 'piree', [], 830],
+  ['chittagong', 'singapour', [], 1500],
+  ['haifa', 'piree', [], 670],
+  ['vladivostok', 'busan', [], 540],
+  ['valdez', 'los_angeles', [], 1950],
 ];
 let bad = 0;
 for (const [a, b, closed, real] of cases) {

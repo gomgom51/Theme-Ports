@@ -17,6 +17,7 @@ import { openCase } from './shady.js';
 import { openRansom } from './piracy.js';
 import { plotAlerts, heldDialog, jettisonDialog } from './plots.js';
 import { pointsFree as crewPoints } from '../sim/crew.js';
+import { isSeasonal, iceOpen, iceRisk, iceForecast, forecastText, escortFee, ICE } from '../sim/ice.js';
 
 const LEVELS = { urgent: 0, watch: 1, info: 2 };
 export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
@@ -118,6 +119,17 @@ export function computeAlerts(state, ctx, companyId) {
         const perish = GOODS[c.good].perishable;
         add(perish ? 'urgent' : 'watch', '⏰', `Le ${ship.name} arrivera en retard à ${PORTS[c.to].name} (délai le ${date(c.deadline, true)}) : 3 % de pénalité par jour${perish ? ', et la marchandise se gâte' : ''}. Accélérez si possible.`, go);
       }
+    }
+    // Glaces : navire pris, gel annoncé dans son port, arrivée qui risque de tomber après le gel.
+    if (ship.iced && ship.status !== 'sea') {
+      add('watch', '🧊', `Le ${ship.name} est pris par les glaces à ${PORTS[ship.port].name} (${forecastText(state, ship.port, ship)}) : un brise-glace pour partir coûte ${money(escortFee(ship))}, ou désarmez-le pour l'hiver.`, go);
+    } else if (ship.status !== 'sea' && isSeasonal(ship.port)) {
+      const f = iceForecast(state, ship.port, ship);
+      if (f.open && f.from - state.t < 21 * 24) add(f.known || f.from - state.t < ICE.announce * 24 ? 'urgent' : 'watch', '❄', `Le ${ship.name} est à ${PORTS[ship.port].name} : ${forecastText(state, ship.port, ship)}. Partez avant, ou il faudra un brise-glace (${money(escortFee(ship))}).`, go);
+    }
+    if (ship.status === 'sea' && ship.voyage && isSeasonal(ship.voyage.to)) {
+      const to = ship.voyage.to, risk = iceRisk(state, to, etaOf(state, ctx, ship), ship);
+      if (risk > 0) add(risk >= 1 ? 'urgent' : 'watch', '❄', `Le ${ship.name} risque de trouver ${PORTS[to].name} pris par les glaces à son arrivée (${risk >= 1 ? 'certain' : pct(risk * 100)}, ${forecastText(state, to, ship)}) : un brise-glace coûterait ${money(escortFee(ship))}. Accélérez si possible.`, go);
     }
     if (crewPoints(ship) > 0) add('info', '🎖', `L'équipage du ${ship.name} peut choisir une spécialité.`, go);
     if (ship.status === 'laidup' && eco.freightLevel(state, ship.type) >= 1) {

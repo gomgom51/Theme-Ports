@@ -49,6 +49,13 @@ export const FLAGS = {
   VE: { name: 'Venezuela',       tax: 0.204, crew: 0.800, subsidy: 0.00, rating: 15, rate: 0.300 },
   QA: { name: 'Qatar',           tax: 0.060, crew: 0.950, subsidy: 0.00, rating: 65, rate: 0.055 },
   PA: { name: 'Panama',          tax: 0.00, crew: 0.850, subsidy: 0.00, rating: 40, rate: 0.070 },
+  RU: { name: 'Russie',          tax: 0.120, crew: 0.900, subsidy: 0.05, rating: 25, rate: 0.200 },
+  BD: { name: 'Bangladesh',      tax: 0.165, crew: 0.750, subsidy: 0.00, rating: 35, rate: 0.120 },
+  DZ: { name: 'Algérie',         tax: 0.156, crew: 0.875, subsidy: 0.00, rating: 40, rate: 0.100 },
+  MA: { name: 'Maroc',           tax: 0.150, crew: 0.875, subsidy: 0.00, rating: 55, rate: 0.070 },
+  IL: { name: 'Israël',          tax: 0.138, crew: 1.150, subsidy: 0.00, rating: 75, rate: 0.055 },
+  LY: { name: 'Libye',           tax: 0.120, crew: 0.850, subsidy: 0.00, rating: 15, rate: 0.200 },
+  KP: { name: 'Corée du Nord',   tax: 0.100, crew: 0.700, subsidy: 0.00, rating: 5,  rate: 0.350 },
 };
 
 // Ports. Coordonnées réelles (le routage les rattache à la mer la plus proche).
@@ -63,6 +70,8 @@ export const FLAGS = {
 //  fees      : coefficient sur les taxes portuaires, pilotes et remorqueurs
 //  exp / imp : marchandises exportées / importées et leur intensité (0 à 1)
 //  blurb     : avantages et inconvénients, affichés au choix du port d'attache
+//  ice       : port saisonnier (voir sim/ice.js) : jour de l'année du dégel (open) et du gel
+//              (close), à quelques jours près chaque année (spread)
 const STD = ['vrac', 'liquide', 'divers', 'conteneurs'];
 
 export const PORTS = {
@@ -422,6 +431,114 @@ export const PORTS = {
     exp: { brut: 1, raffines: 0.3, engrais: 0.2 },
     imp: { cereales: 0.7, manufactures: 0.5, machines: 0.5, vehicules: 0.2 },
     blurb: 'Le brut le plus abondant d\'Amérique et un fuel presque donné, dans un pays sous sanctions.',
+  },
+  novorossiysk: {
+    name: 'Novorossiïsk', flag: 'RU', lat: 44.72, lon: 37.79, size: 4, draft: 15,
+    terminals: [...STD, 'chimique', 'gpl'], deep: { liquide: 17 }, fuel: 0.75, repair: 1, fees: 0.9,
+    exp: { brut: 1, cereales: 0.9, raffines: 0.6, acier: 0.4, engrais: 0.3 },
+    imp: { manufactures: 0.5, machines: 0.4, vehicules: 0.3, fruits: 0.4 },
+    blurb: 'Le grand port russe de la mer Noire, au-delà des détroits turcs : brut et blé à prix cassés, mais un pays sous sanctions.',
+  },
+  ust_luga: {
+    name: 'Oust-Louga', flag: 'RU', lat: 59.68, lon: 28.4, size: 3, draft: 16,
+    terminals: [...STD, 'chimique', 'gpl', 'gnl'], fuel: 0.8, repair: 0, fees: 0.9,
+    exp: { raffines: 0.9, charbon: 0.8, engrais: 0.7, brut: 0.5, gpl: 0.4 },
+    imp: { manufactures: 0.4, machines: 0.3, fruits: 0.3 },
+    blurb: 'Au fond du golfe de Finlande : charbon, engrais et carburants russes sous sanctions. L\'hiver, les brise-glaces tiennent le chenal ouvert.',
+  },
+  vladivostok: {
+    name: 'Vladivostok', flag: 'RU', lat: 43.1, lon: 131.9, size: 3, draft: 13,
+    terminals: [...STD, 'frigo', 'vehicules'], deep: { liquide: 18 }, fuel: 0.8, repair: 2, fees: 0.9,
+    exp: { charbon: 0.9, brut: 0.6, bois: 0.5, acier: 0.3, fruits: 0.3 },
+    imp: { vehicules: 0.7, manufactures: 0.6, machines: 0.5, fruits: 0.2 },
+    blurb: 'Le port russe du Pacifique : charbon, bois, pétrole de Sibérie et poisson, contre les voitures et les biens d\'Asie. Sous sanctions.',
+  },
+  chittagong: {
+    name: 'Chittagong', flag: 'BD', lat: 22.3, lon: 91.8, size: 3, draft: 9.5,
+    terminals: [...STD, 'frigo'], deep: { liquide: 12 }, fuel: 1.05, repair: 1, fees: 1.0,
+    exp: { manufactures: 1 },
+    imp: { raffines: 0.6, cereales: 0.6, engrais: 0.5, machines: 0.5, charbon: 0.4, acier: 0.4, manufactures: 0.2 },
+    blurb: 'Le port du textile : des vêtements en conteneurs pour le monde entier, et un pays qui importe presque tout. Peu profond : petits navires seulement.',
+  },
+  arzew: {
+    name: 'Arzew', flag: 'DZ', lat: 35.85, lon: -0.3, size: 3, draft: 14,
+    terminals: ['vrac', 'liquide', 'chimique', 'gpl', 'gnl'], deep: { liquide: 18 }, fuel: 0.8, repair: 0, fees: 0.9,
+    exp: { gnl: 1, brut: 0.6, gpl: 0.6, raffines: 0.4, engrais: 0.3 },
+    imp: { cereales: 0.6 },
+    blurb: 'Le gaz algérien : méthaniers et pétroliers à deux jours de l\'Europe. Un port d\'hydrocarbures, et peu d\'autre chose.',
+  },
+  jorf_lasfar: {
+    name: 'Jorf Lasfar', flag: 'MA', lat: 33.12, lon: -8.63, size: 3, draft: 15,
+    terminals: ['vrac', 'liquide', 'chimique', 'divers'], fuel: 1.0, repair: 0, fees: 0.9,
+    exp: { engrais: 1, chimie: 0.7 },
+    imp: { charbon: 0.6, chimie: 0.4, cereales: 0.3 },
+    blurb: 'Le géant mondial des phosphates : engrais et acide phosphorique pour tous les continents. Importe le charbon et le soufre de ses usines.',
+  },
+  haifa: {
+    name: 'Haïfa', flag: 'IL', lat: 32.82, lon: 35.0, size: 3, draft: 15.5,
+    terminals: [...STD, 'chimique', 'vehicules', 'frigo', 'lourd'], fuel: 1.05, repair: 2, fees: 1.1,
+    exp: { chimie: 0.7, engrais: 0.5, machines: 0.4, fruits: 0.3 },
+    imp: { vehicules: 0.6, manufactures: 0.6, cereales: 0.5, machines: 0.4, brut: 0.4, charbon: 0.3 },
+    blurb: 'Grand port de Méditerranée orientale : potasse et chimie de la mer Morte, technologies et agrumes, contre voitures, céréales et biens de consommation.',
+  },
+  es_sider: {
+    name: 'Es Sider', flag: 'LY', lat: 30.63, lon: 18.35, size: 2, draft: 14,
+    terminals: ['liquide'], deep: { liquide: 20 }, fuel: 0.65, repair: 0, fees: 0.8,
+    exp: { brut: 1 },
+    imp: {},
+    blurb: 'Terminal pétrolier du golfe de Syrte : un brut léger recherché, à deux pas de l\'Europe, dans un pays instable au crédit hors de prix.',
+  },
+  nampo: {
+    name: 'Nampo', flag: 'KP', lat: 38.73, lon: 125.4, size: 1, draft: 10,
+    terminals: ['vrac', 'liquide', 'divers'], fuel: 1.2, repair: 0, fees: 0.7,
+    exp: { charbon: 0.8, minerai: 0.4 },
+    imp: { raffines: 1, cereales: 0.8, machines: 0.5, manufactures: 0.4 },
+    blurb: 'Le port de Pyongyang, sous embargo des Nations unies : il paie très cher le fuel et les vivres et brade son charbon. Les douanes du monde entier surveillent ceux qui y vont.',
+  },
+  valdez: {
+    name: 'Valdez', flag: 'US', lat: 61.12, lon: -146.35, size: 2, draft: 20,
+    terminals: ['liquide'], fuel: 1.15, repair: 0, fees: 1.1,
+    exp: { brut: 1 },
+    imp: {},
+    blurb: 'Le terminal de l\'oléoduc d\'Alaska, au fond d\'un fjord : du brut pour la côte ouest et l\'Asie. Une côte sauvage, où une marée noire coûte une fortune.',
+  },
+  churchill: {
+    name: 'Churchill', flag: 'CA', lat: 58.78, lon: -94.2, size: 2, draft: 12,
+    terminals: ['vrac', 'divers', 'liquide'], fuel: 1.3, repair: 0, fees: 1.0,
+    exp: { cereales: 1 },
+    imp: { raffines: 0.5, manufactures: 0.3 },
+    ice: { open: 196, close: 309, spread: 10 },
+    blurb: 'Sur la baie d\'Hudson : le blé des Prairies au plus court vers l\'Europe. Mais le port n\'ouvre que l\'été, entre la débâcle et le retour des glaces.',
+  },
+  nome: {
+    name: 'Nome', flag: 'US', lat: 64.5, lon: -165.42, size: 1, draft: 9,
+    terminals: ['divers', 'liquide', 'conteneurs'], fuel: 1.4, repair: 0, fees: 1.0,
+    exp: {},
+    imp: { raffines: 1, manufactures: 0.7, machines: 0.5, cereales: 0.2 },
+    ice: { open: 166, close: 319, spread: 10 },
+    blurb: 'Au bord de la mer de Béring : tout ce qui fait vivre l\'Alaska de l\'Ouest arrive par la mer pendant l\'été, et repart à vide. Port pris par les glaces l\'hiver.',
+  },  murmansk: {
+    name: 'Mourmansk', flag: 'RU', lat: 68.97, lon: 33.08, size: 3, draft: 15.5,
+    terminals: [...STD, 'gnl'], fuel: 0.85, repair: 2, fees: 0.9,
+    exp: { charbon: 0.9, minerai: 0.6, engrais: 0.4, brut: 0.4 },
+    imp: { fruits: 0.3, manufactures: 0.3, raffines: 0.3, machines: 0.2 },
+    blurb: 'Au-delà du cercle polaire, mais libre de glace toute l\'année grâce au Gulf Stream : charbon, minerai et engrais russes sous sanctions, et porte d\'entrée du passage du Nord-Est.',
+  },
+  sabetta: {
+    name: 'Sabetta', flag: 'RU', lat: 71.27, lon: 72.07, size: 2, draft: 13,
+    terminals: ['gnl', 'liquide', 'divers'], fuel: 1.1, repair: 0, fees: 1.1,
+    exp: { gnl: 1, brut: 0.3 },
+    imp: { machines: 0.5, raffines: 0.4 },
+    ice: { open: 182, close: 320, spread: 10 },
+    blurb: 'Le gaz de la péninsule de Yamal, au bout du monde : des méthaniers pleins, l\'été seulement, depuis un pays sous sanctions. Un navire de classe glace y gagne des semaines.',
+  },
+  prudhoe_bay: {
+    name: 'Prudhoe Bay', flag: 'US', lat: 70.33, lon: -148.4, size: 1, draft: 9,
+    terminals: ['lourd', 'divers', 'liquide'], fuel: 1.5, repair: 0, fees: 1.2,
+    exp: {},
+    imp: { colis: 1, machines: 0.6, raffines: 0.4 },
+    ice: { open: 205, close: 280, spread: 8 },
+    blurb: 'Les champs pétroliers du versant nord de l\'Alaska : modules et machines y arrivent pendant le court été arctique. Le brut, lui, repart par l\'oléoduc jusqu\'à Valdez.',
   },
 };
 

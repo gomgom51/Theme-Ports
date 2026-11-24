@@ -53,13 +53,23 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   `clientDemand`) in `web/js/sim/clients.js`; shady deals (`PIRATE_*`, `HELD_CHANCE`,
   `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`;
   per-goods trade spread `goodSpread` and `GOLDEN_CHANCE` in `economy.js`; crew skill
-  effects and `XP_STEPS` in `web/js/sim/crew.js`.
+  effects and `XP_STEPS` in `web/js/sim/crew.js`; ice (`ICE`: announcement delay,
+  ice-class extension, icebreaker escort fees, end-of-season contract premium,
+  Northern Sea Route safety horizon) in `web/js/sim/ice.js`, seasonal windows (`ice` on
+  ports in `web/js/data/ports.js`, `ICE_PASSAGES`), Arctic fee `CANAL_FEE.nsr` in `economy.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
   (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
   margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads
   are compressed per goods, with liquid bulk kept narrow (huge volumes).
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
+- Ice (rule 1): freeze/thaw dates are random each year but the window is always shown,
+  the exact date is announced `ICE.announce` days ahead, and every ice cost (escort in or
+  out, risk at arrival) appears before the decision. The Northern Sea Route is only routed
+  when safe (never a gamble); seasonal ports may be a gamble, with the risk shown.
+- Map/routing: `tools/build_world.mjs` opens three Arctic corridors north of 66° N
+  (Barents–Kara, Northern Sea Route marked as canal `nsr`, Chukchi–Beaufort); the rest
+  stays pack ice. Distance tables store closed-passage cases as diffs.
 
 ### Final balance pass (done) — results to preserve
 

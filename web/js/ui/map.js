@@ -1,7 +1,9 @@
 // Carte du monde : projection équirectangulaire, déplacement et zoom au doigt
 // ou à la souris, monde répété horizontalement (traversée du Pacifique).
 import { tr } from '../i18n.js';
-import { LAND_DETAILED, LAND_COARSE } from '../data/world.js';
+import { LAND_DETAILED, LAND_COARSE, GRID } from '../data/world.js';
+import { ICE_PLACES, iceOpen } from '../sim/ice.js';
+import { haversineNm } from '../sim/routing.js';
 import { BORDERS, COUNTRIES, WATERS } from '../data/countries.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { pointAlong } from '../sim/routing.js';
@@ -86,7 +88,7 @@ function buildWatersImage() {
   return { canvas: smooth, owner };
 }
 
-const LAT_TOP = 78, LAT_BOTTOM = -60;
+const LAT_TOP = 85, LAT_BOTTOM = -60; // jusqu'au passage du Nord-Est (78° N), sous la barre du haut
 
 function buildPath(str) {
   const path = new Path2D();
@@ -312,6 +314,53 @@ export class MapView {
     else this.handlers.onEmpty?.();
   }
 
+  // Masque des glaces (une cellule de la grille de routage par pixel), refait quand un lieu
+  // gèle ou dégèle.
+  iceMask(state) {
+    const frozen = ICE_PLACES.filter((id) => !iceOpen(state, id));
+    const key = frozen.join(',');
+    if (this.iceKey === key) return this.iceCanvas;
+    this.iceKey = key;
+    this.iceCanvas = null;
+    if (!frozen.length || typeof document === 'undefined') return null;
+    const c = document.createElement('canvas');
+    c.width = GRID.w; c.height = GRID.h;
+    const g = c.getContext('2d'), img = g.createImageData(GRID.w, GRID.h);
+    for (const id of frozen) for (const cell of this.iceCells(id)) {
+      const o = cell * 4; img.data[o] = 236; img.data[o + 1] = 246; img.data[o + 2] = 252; img.data[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    this.iceCanvas = c;
+    return c;
+  }
+  // Cellules de mer qui gèlent : le passage du Nord-Est, ou la mer autour d'un port saisonnier.
+  iceCells(id) {
+    this.iceCache ??= {};
+    if (this.iceCache[id]) return this.iceCache[id];
+    let cells = [];
+    if (GRID.canals[id]) cells = GRID.canals[id];
+    else {
+      const router = this.ctx?.router, P = PORTS[id];
+      if (router) {
+        const start = router.portCell[id], seen = new Set([start]), queue = [start];
+        while (queue.length) {
+          const c = queue.pop();
+          cells.push(c);
+          const row = (c / GRID.w) | 0, col = c % GRID.w;
+          for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const r = row + dr; if (r < 0 || r >= GRID.h) continue;
+            const n = r * GRID.w + (col + dc + GRID.w) % GRID.w;
+            if (seen.has(n) || router.land[n]) continue;
+            seen.add(n);
+            const [x, y] = router.center(n);
+            if (haversineNm(P.lon, P.lat, x, y) < 420) queue.push(n);
+          }
+        }
+      }
+    }
+    return (this.iceCache[id] = cells);
+  }
+
   // ---------- Dessin ----------
   copies(fn) {
     const { cx, scale } = this.view;
@@ -495,6 +544,21 @@ export class MapView {
       }
     }
     g.restore();
+    // Glaces : banquise sur le passage du Nord-Est et autour des ports saisonniers pris.
+    const ice = this.iceMask(state);
+    if (ice) {
+      const { cx, cy } = this.view;
+      g.save(); g.globalAlpha = 0.78; g.imageSmoothingEnabled = true;
+      this.copies((off) => g.drawImage(ice, this.w / 2 + (-180 + off - cx) * scale, this.h / 2 + (-90 - cy) * scale, 360 * scale, 180 * scale));
+      g.restore();
+      g.font = '700 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (const id of ICE_PLACES) {
+        if (!PORTS[id] || iceOpen(state, id)) continue;
+        const [x, y] = this.toScreen(PORTS[id].lon, PORTS[id].lat);
+        g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText('❄', x - 9, y - 9);
+        g.fillStyle = '#2f7fb5'; g.fillText('❄', x - 9, y - 9);
+      }
+    }
     // Marées noires (s'estompent en deux ans).
     for (const sp of state.spills || []) {
       const age = (state.t - sp.t) / (24 * 365);

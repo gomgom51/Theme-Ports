@@ -58,6 +58,13 @@ const FLAG_SVG = {
   VE: hStripes(['#ffcc00', '#00247d', '#cf142b']) + '<g fill="#fff">' + Array.from({ length: 8 }, (_, i) => { const a = Math.PI * (1.15 + (0.7 * i) / 7); return starPts(15 + 5.2 * Math.cos(a), 12.2 + 5.2 * Math.sin(a), 0.75); }).join('') + '</g>',
   QA: '<rect width="30" height="20" fill="#8a1538"/><polygon points="0,0 8,0 12,1.11 8,2.22 12,3.33 8,4.44 12,5.56 8,6.67 12,7.78 8,8.89 12,10.00 8,11.11 12,12.22 8,13.33 12,14.44 8,15.56 12,16.67 8,17.78 12,18.89 8,20.00 0,20" fill="#fff"/>',
   PA: '<rect width="30" height="20" fill="#fff"/><rect x="15" width="15" height="10" fill="#da121a"/><rect y="10" width="15" height="10" fill="#072357"/><g fill="#072357">' + starPts(7.5, 5, 2.4) + '</g><g fill="#da121a">' + starPts(22.5, 15, 2.4) + '</g>',
+  RU: hStripes(['#fff', '#0039a6', '#d52b1e']),
+  BD: '<rect width="30" height="20" fill="#006a4e"/><circle cx="13.5" cy="10" r="6" fill="#f42a41"/>',
+  DZ: '<rect width="15" height="20" fill="#006233"/><rect x="15" width="15" height="20" fill="#fff"/><path d="M18.75 6.69A5 5 0 1 0 18.75 13.31A4 4 0 1 1 18.75 6.69Z" fill="#d21034"/><g fill="#d21034">' + starPts(19.4, 10, 1.7) + '</g>',
+  MA: '<rect width="30" height="20" fill="#c1272d"/><g fill="none" stroke="#006233" stroke-width=".9">' + starPts(15, 10.4, 4.6).replace('<polygon', '<polygon stroke-linejoin="round"') + '</g>',
+  IL: '<rect width="30" height="20" fill="#fff"/><rect y="2" width="30" height="3" fill="#0038b8"/><rect y="15" width="30" height="3" fill="#0038b8"/><g fill="none" stroke="#0038b8" stroke-width=".9"><polygon points="15,6.4 18.1,11.8 11.9,11.8"/><polygon points="15,13.6 18.1,8.2 11.9,8.2"/></g>',
+  LY: '<rect width="30" height="5" fill="#e70013"/><rect y="5" width="30" height="10" fill="#000"/><rect y="15" width="30" height="5" fill="#239e46"/><path d="M16.2 7.4A3 3 0 1 0 16.2 12.6A2.4 2.4 0 1 1 16.2 7.4Z" fill="#fff"/><g fill="#fff">' + starPts(17.2, 10, 1.2) + '</g>',
+  KP: '<rect width="30" height="20" fill="#024fa2"/><rect y="3.4" width="30" height="13.2" fill="#fff"/><rect y="4.4" width="30" height="11.2" fill="#ed1c27"/><circle cx="10.5" cy="10" r="4" fill="#fff"/><g fill="#ed1c27">' + starPts(10.5, 10.3, 3.7) + '</g>',
 };
 
 export function flagSVG(code) {

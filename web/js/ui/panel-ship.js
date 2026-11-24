@@ -21,6 +21,7 @@ import { piracyLine, patrolLine } from './piracy.js';
 import { hostileTag, hostileLine, heldDialog } from './plots.js';
 import { isEmbargoed, taintActive, TAINT_DAYS } from '../sim/shady.js';
 import * as crew from '../sim/crew.js';
+import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
 
 // Commercer avec un pays sous embargo marque le navire un an : on demande avant, si le
 // navire est encore « propre ». Renvoie true pour continuer.
@@ -39,8 +40,10 @@ import { inspectionThreshold } from '../sim/incidents.js';
 const STATUS_ICON = { sea: '🌊', port: '⚓', laidup: '💤' };
 
 export function shipStatusText(state, ctx, ship) {
-  if (ship.status === 'laidup') return `Désarmé à ${portName(ship.port)}`;
+  const iced = ship.iced && ship.status !== 'sea' ? ' · pris par les glaces' : '';
+  if (ship.status === 'laidup') return `Désarmé à ${portName(ship.port)}${iced}`;
   if (ship.status === 'port') {
+    if (iced && !ship.busyWhat) return `Pris par les glaces à ${portName(ship.port)} — en attente d'ordres`;
     if (ship.busyWhat) {
       const left = Math.max(0, ship.busyUntil - state.t);
       const plan = ship.plan ? `, puis départ pour ${portName(ship.plan.to)}` : '';
@@ -59,6 +62,18 @@ export function etaOf(state, ctx, ship) {
   const route = ctx.shipRoute(ship);
   if (!route) return state.t;
   return state.t + Math.ceil(Math.max(0, route.nm - ship.voyage.progress) / ship.voyage.speed);
+}
+
+// Glaces : ce qu'il faut savoir avant de partir (port saisonnier à l'arrivée, port pris au
+// départ, passage du Nord-Est). plan : résultat de planVoyage.
+export function iceLines(state, ship, to, plan) {
+  const out = [];
+  if (plan?.escortOut) out.push(h('div.risk-line.warn-text', `🧊 ${portName(ship.port)} est pris par les glaces : escorte d'un brise-glace au départ, ${money(plan.escortOut)}.`));
+  if (plan?.iceRisk >= 1) out.push(h('div.risk-line.warn-text', `❄ ${portName(to)} sera pris par les glaces à l'arrivée (${plan.iceText}) : escorte d'un brise-glace obligatoire (${money(plan.iceFee)}), et de nouveau pour repartir.`));
+  else if (plan?.iceRisk > 0) out.push(h('div.risk-line.warn-text', `❄ ${portName(to)} : ${plan.iceText}. Risque qu'il soit pris à votre arrivée : ${pct(plan.iceRisk * 100)}. Il faudrait alors un brise-glace (${money(plan.iceFee)}), et de nouveau pour repartir.`));
+  else if (to && isSeasonal(to)) out.push(h('div.risk-line', `❄ Port saisonnier, libre de glace à votre arrivée (${forecastText(state, to, ship)}).`));
+  if (plan?.canals?.includes('nsr')) out.push(h('div.risk-line', `🧊 Par le passage du Nord-Est, sûr jusqu'à votre passage (${forecastText(state, 'nsr', ship)}).`));
+  return out;
 }
 
 function stat(label, value, extra) {
@@ -106,7 +121,8 @@ export function shipPanel(app, id, tab) {
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
     mine ? h('div.risk-box', [...riskLines(state, ship, { route: ship.status === 'sea' ? ctx.shipRoute(ship) : null }), ...shadyLines(state, ship, ship.status === 'sea' ? ship.voyage.to : null),
-      ship.contraband ? h('div.risk-line', `📦 Colis discret à bord pour ${portName(ship.contraband.to)} : ${money(ship.contraband.pay)} à la livraison, avant le ${date(ship.contraband.deadline, true)}.`) : null]) : null,
+      ship.contraband ? h('div.risk-line', `📦 Colis discret à bord pour ${portName(ship.contraband.to)} : ${money(ship.contraband.pay)} à la livraison, avant le ${date(ship.contraband.deadline, true)}.`) : null,
+      ship.iced && ship.status !== 'sea' ? h('div.risk-line.warn-text', `🧊 Pris par les glaces à ${portName(ship.port)} (${forecastText(state, ship.port, ship)}) : pour partir avant, un brise-glace coûte ${money(escortFee(ship))}${iceClass(ship) ? ' (classe glace)' : ''}. Sinon, le désarmer pour l'hiver réduit les frais.`) : null]) : null,
   ]);
 
   if (!mine) {
@@ -188,8 +204,9 @@ function contractsBase(app, ship) {
     const reserved = c.reservedFor === ship.owner && c.reservedUntil > state.t;
     return h('div.card.contract', { class: (why ? 'disabled ' : '') + (c.golden ? 'golden' : ''), onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, hostileTag(state, ship.owner, c.to)]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, hostileTag(state, ship.owner, c.to)]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
+        ...(isSeasonal(c.to) || est?.canals?.includes('nsr') ? iceLines(state, ship, c.to, est && !est.why ? est : null) : []),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(state, company, c.client)]) : null,
         c.client ? riskLine(state, company, c.client, c.pay) : null,
         why ? h('div.card-why', why) : h('div.card-sub', [
@@ -575,7 +592,7 @@ function departTab(app, ship) {
           contract ? h('br') : null,
           contract ? h('span', { class: est.eta > contract.deadline ? 'neg' : 'pos' }, est.eta > contract.deadline ? `Attention : arrivée après le délai du ${date(contract.deadline, true)}` : `Dans les délais (avant le ${date(contract.deadline, true)})`) : null,
         ]),
-        est.error ? null : h('div.risk-box.compact', [...riskLines(state, ship, { seaDays: est.seaDays, to: dest, route: est.route }).slice(ship.condition >= 40 ? 1 : 0), piracyLine(ship, est.route, speed, state), patrolLine(ship, est.route, speed), hostileLine(state, ship, dest), ...shadyLines(state, ship, dest)]),
+        est.error ? null : h('div.risk-box.compact', [...iceLines(state, ship, dest, est), ...riskLines(state, ship, { seaDays: est.seaDays, to: dest, route: est.route }).slice(ship.condition >= 40 ? 1 : 0), piracyLine(ship, est.route, speed, state), patrolLine(ship, est.route, speed), hostileLine(state, ship, dest), ...shadyLines(state, ship, dest)]),
         h('label.check', [
           h('input', { type: 'checkbox', checked: autoRefuel, onchange: (e) => { app.form.autoRefuel[ship.id] = e.target.checked; } }),
           ' Faire le plein automatiquement si nécessaire',
@@ -595,7 +612,7 @@ function departTab(app, ship) {
   const worn = ship.condition < inspectionThreshold(eco.ageYears(state, ship));
   // Liste des destinations.
   const rows = PORT_IDS.filter((p) => p !== ship.port).map((p) => {
-    const info = ctx.distanceInfo(ship.port, p, ctx.closedCanals(state, T.draft));
+    const info = ctx.distanceInfo(ship.port, p, ctx.closedCanals(state, T.draft, ship));
     let why = null;
     if (!eco.fitsPort(p, ship.type)) why = `tirant d'eau ${num1(eco.portDraft(p, ship.type))} m`;
     else if (ship.cargo && !eco.portHandles(p, ship.cargo.hold)) why = 'ne peut pas décharger';
@@ -606,7 +623,8 @@ function departTab(app, ship) {
     if (!why && need > T.tank) why = 'autonomie insuffisante';
     const exp = Object.keys(PORTS[p].exp).filter((g) => eco.holdFor(ship.type, g)).length;
     const contracts = state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good)).length;
-    return { p, nm, seaDays, why, contracts, exp };
+    const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
+    return { p, nm, seaDays, why, contracts, exp, ice, nsr: info?.canals?.includes('nsr') };
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);
   box.append(h('div.list.compact', rows.map((r) => h('button.row.selectable', {
     class: (r.p === dest ? 'selected ' : '') + (r.why ? 'disabled' : ''),
@@ -618,6 +636,9 @@ function departTab(app, ship) {
     isEmbargoed(r.p) ? EMBARGO_TAG() : null,
     r.why ? h('span.muted.small', r.why) : h('span.muted.small', `${num(r.nm)} milles · ${days(r.seaDays)}`),
     !r.why && worn && isStrict(r.p) ? h('span.tag.warn', { title: 'Port exigeant : risque de détention pour un navire usé' }, '⚠ contrôles') : null,
+    !r.why && r.ice >= 1 ? h('span.tag.warn', { title: 'Port pris par les glaces à votre arrivée : escorte d\'un brise-glace obligatoire.' }, '❄ glaces') : null,
+    !r.why && r.ice > 0 && r.ice < 1 ? h('span.tag.warn', { title: 'Le port risque d\'être pris par les glaces à votre arrivée.' }, `❄ risque ${pct(r.ice * 100)}`) : null,
+    !r.why && r.nsr ? h('span.tag', { title: 'Route par le passage du Nord-Est, ouvert l\'été.' }, '🧊 Nord-Est') : null,
     !r.why && r.contracts ? h('span.tag', `${r.contracts} contrat${r.contracts > 1 ? 's' : ''}`) : null,
   ]))));
   return box;

@@ -20,10 +20,26 @@ function build(closed) {
   return table;
 }
 const open = build([]);
-const closedTables = { suez: build(['suez']), panama: build(['panama']), 'panama,suez': build(['panama', 'suez']) };
+// Tables des cas fermés : seulement les trajets qui changent (le reste est dans DISTANCES).
+const diff = (t) => {
+  const d = {};
+  for (const a of PORT_IDS) for (const b of PORT_IDS) {
+    if (a === b || JSON.stringify(t[a][b]) === JSON.stringify(open[a][b])) continue;
+    (d[a] ??= {})[b] = t[a][b];
+  }
+  return d;
+};
+// Toutes les combinaisons de passages fermés (Nord-Est, Panama, Suez), clés triées.
+const ids = ['nsr', 'panama', 'suez'];
+const closedTables = {};
+for (let m = 1; m < 1 << ids.length; m++) {
+  const closed = ids.filter((_, k) => m & (1 << k));
+  closedTables[closed.join(',')] = diff(build(closed));
+}
 const out = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'js', 'data', 'distances.js');
-writeFileSync(out, `// Généré par tools/build_distances.mjs. Milles nautiques, ou [milles, canaux empruntés].
-// DISTANCES : canaux ouverts ; DISTANCES_CLOSED : par canaux fermés (« panama », « suez », « panama,suez »).
+writeFileSync(out, `// Généré par tools/build_distances.mjs. Milles nautiques, ou [milles, passages empruntés].
+// DISTANCES : tout ouvert ; DISTANCES_CLOSED : par passages fermés (« nsr », « panama », « suez »,
+// « nsr,panama »…), seulement les trajets qui changent (null : plus de route).
 export const DISTANCES = ${JSON.stringify(open)};
 export const DISTANCES_CLOSED = ${JSON.stringify(closedTables)};
 `);

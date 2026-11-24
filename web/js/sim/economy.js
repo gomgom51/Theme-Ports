@@ -7,10 +7,11 @@ import { CLIENTS } from '../data/clients.js';
 import { clientRel, clientDown, clientDemand, reserveFor, RESERVE_DAYS, RESERVE_BONUS } from './clients.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { clamp, HOURS_PER_DAY } from './util.js';
+import { isSeasonal, iceOpen, iceRisk, ICE, ICE_SHIP } from './ice.js';
 
 export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffinés est à 1
 export const HOLD_TYPES = ['vrac', 'liquide', 'divers', 'conteneurs', 'chimique', 'gpl', 'gnl', 'vehicules', 'frigo', 'lourd'];
-export const CANAL_FEE = { suez: 12, panama: 10 }; // $ par unité de jauge brute
+export const CANAL_FEE = { suez: 12, panama: 10, nsr: 8 }; // $ par unité de jauge brute (Nord-Est : pilotes et brise-glaces)
 export const BID_ASK = 0.01;
 export const BALLAST = 1.8;
 export const SPREAD = 1.15;   // écart de prix entre ports exportateurs et importateurs (× GOODS.spread)
@@ -320,6 +321,8 @@ export function bigTarget(p) {
 // big : grand volume (navire de plus de BIG_DWT tonnes).
 export function makeContract(state, ctx, rng, from, forType = null, { regional = false, big = false } = {}) {
   const P = PORTS[from];
+  // Port saisonnier : des offres seulement s'il est libre de glace pour quelques jours encore.
+  if (isSeasonal(from) && iceRisk(state, from, state.t + 4 * HOURS_PER_DAY) > 0) return null;
   const sizeOk = (id) => (!regional || SHIP_TYPES[id].dwt <= REGIONAL_DWT) && (!big || (SHIP_TYPES[id].dwt >= BIG_DWT && fitsPort(from, id)));
   const goods = Object.entries(P.exp).filter(([g, w]) => w > 0
     && (!forType || (holdFor(forType, g) && portHandles(from, holdFor(forType, g))))
@@ -327,6 +330,7 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   if (!goods.length) return null;
   const good = rng.weighted(goods);
   const dests = PORT_IDS.filter((p) => p !== from && (PORTS[p].imp[good] || 0) > 0
+    && (!isSeasonal(p) || iceOpen(state, p, state.t, ICE_SHIP))
     && (!regional || (ctx.distanceInfo(from, p)?.nm ?? Infinity) <= REGIONAL_NM))
     .map((p) => [p, PORTS[p].imp[good]]);
   if (!dests.length) return null;
@@ -375,12 +379,22 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const golden = reservedFor == null && rng.chance(GOLDEN_CHANCE);
   const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1) * (reservedFor != null ? 1 + RESERVE_BONUS : 1) * (golden ? rng.range(1.6, 2.2) : 1)) / 1000) * 1000;
   const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
+  // Vers un port saisonnier : livrable avant les glaces, ou réservé (mieux payé) aux navires de
+  // classe glace en fin de saison ; sinon, pas de contrat.
+  let ice = false;
+  if (isSeasonal(to)) {
+    const due = state.t + deadlineDays * HOURS_PER_DAY;
+    if (iceRisk(state, to, due) > 0) {
+      if (iceRisk(state, to, due, ICE_SHIP) > 0) return null;
+      ice = true;
+    }
+  }
   // Lignes régulières (conteneurs) et denrées réfrigérées : le chargeur exige un navire
   // presque aussi rapide que celui de référence. Un cargo lent ne peut pas les prendre.
   const minSpeed = hold === 'conteneurs' || hold === 'frigo' ? Math.round(T.speed * 9) / 10 : 0;
   const minRep = clamp(Math.round((margin - 0.96) * 117 + (pay > 1.5e6 ? 15 : 0) + (urgent ? 5 : 0)), 0, 75);
   return {
-    id: state.nextId++, from, to, good, qty, hold, pay, urgent, minRep, client, regional, big, minSpeed, embargo,
+    id: state.nextId++, from, to, good, qty, hold, pay: ice ? Math.round((pay * ICE.iceContract) / 1000) * 1000 : pay, urgent, minRep, client, regional, big, minSpeed, embargo, ice,
     clientRep: client ? clientDemand(state, client) : 0,
     reservedFor, reservedUntil: reservedFor != null ? Math.round(state.t + RESERVE_DAYS * HOURS_PER_DAY) : 0,
     fuelAtStart: Math.round(worldFuelPrice(state)), priceAtStart: state.market.world[good],

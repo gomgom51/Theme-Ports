@@ -60,4 +60,11 @@ export const EQUIPMENT = {
     blurb: 'Coupe la balise de position quand il le faut : les escales dans les pays sous embargo passent plus inaperçues, mais naviguer sans balise augmente le risque d\'abordage.',
   },
 };
+// Classe glace (sim/ice.js) : saison plus longue dans les glaces, escorte moins chère.
+EQUIPMENT.glace = {
+  name: 'Coque de classe glace', icon: '🧊', defence: 0, upkeep: 0, hours: 168,
+  price: (T) => 150000 + T.gt * 9,
+  mods: { burn: 1.03 },
+  blurb: 'Coque et hélice renforcées contre la glace : trois semaines de plus à chaque bout de la saison dans les ports arctiques et le passage du Nord-Est, et l\'escorte d\'un brise-glace à 40 % du prix. Plus lourd : 3 % de carburant en plus.',
+};
 export const EQUIPMENT_IDS = Object.keys(EQUIPMENT);

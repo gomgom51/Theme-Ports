@@ -14,6 +14,7 @@ import { acceptOffer, detectionChance, sanctionFine, taintActive } from './shady
 import { patrolRisk } from './patrols.js';
 import { hostilePort, pirateBoost } from './plots.js';
 import { piracyAlong } from './piracy.js';
+import { isSeasonal } from './ice.js';
 
 const D = HOURS_PER_DAY;
 
@@ -25,12 +26,13 @@ function noisy(rng, value, skill) {
 function tripCost(state, ctx, ship, to, extraHours = 0) {
   const p = act.planVoyage(state, ctx, ship, to, SHIP_TYPES[ship.type].speed);
   if (p.error) return null;
+  if (p.iceRisk > 0) return null; // l'IA ne joue pas avec les glaces
   const T = SHIP_TYPES[ship.type];
   const company = state.companies[ship.owner];
   const days = p.seaDays + extraHours / D;
   const age = eco.ageYears(state, ship);
   const upkeep = eco.upkeepPerSeaDay(state, T, age) * p.seaDays;
-  return { cost: p.fuelCost + p.fees + upkeep + eco.fixedDayCost(T, company.flag, 'active', age, ship.crew) * days, days, plan: p };
+  return { cost: p.fuelCost + p.fees + (p.escortOut || 0) + upkeep + eco.fixedDayCost(T, company.flag, 'active', age, ship.crew) * days, days, plan: p };
 }
 
 export function aiShipIdle(state, ctx, rng, ship) {
@@ -180,6 +182,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (p === here || !eco.fitsPort(p, ship.type)) continue;
     const d = ctx.distanceInfo(here, p)?.nm;
     if (!d) continue;
+    if (isSeasonal(p) && act.planVoyage(state, ctx, ship, p, T.speed * 0.9).iceRisk > 0) continue; // pas vers les glaces
     const n = state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good)
       && !act.checkContract(state, ctx, { ...ship, port: p, cargo: null }, c)).length;
     if (n) candidates.push([p, n / (d + 800)]);
@@ -216,7 +219,7 @@ function takeParcel(state, ctx, company, ship, to) {
   if (!company.ai?.daring || ship.contraband) return;
   const o = (state.offers || []).find((x) => x.from === ship.port && x.to === to);
   if (!o) return;
-  const route = ctx.route(ship.port, to, ctx.closedCanals(state, SHIP_TYPES[ship.type].draft));
+  const route = ctx.route(ship.port, to, ctx.closedCanals(state, SHIP_TYPES[ship.type].draft, ship));
   const pr = patrolRisk({ ...ship, contraband: o }, route, SHIP_TYPES[ship.type].speed);
   const caught = 1 - (1 - detectionChance(ship, to)) * (1 - (pr?.caught || 0));
   if (caught < 0.08) acceptOffer(state, ship.id, o.id);

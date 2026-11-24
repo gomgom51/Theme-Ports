@@ -7,6 +7,8 @@ import { LOGOS, LOGO_IDS, COLORS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
 import { yearOf } from '../sim/util.js';
 import { fuelPrice } from '../sim/economy.js';
+// Ports d'attache possibles : pas les ports saisonniers (on ne démarre pas dans les glaces).
+const HOME_PORTS = PORT_IDS.filter((p) => !PORTS[p].ice);
 import { h, money, num1, pct, lineChart } from './dom.js';
 import { listSaves, SLOT_LABEL, hasSave } from './save.js';
 
@@ -150,7 +152,7 @@ function choosePorts(app, cfg, index) {
   if (index >= humans.length) { startFromSetup(app, cfg); return; }
   const slot = humans[index];
   const taken = humans.slice(0, index).map((s) => s.port);
-  let sel = slot.port && !taken.includes(slot.port) ? slot.port : PORT_IDS.find((p) => !taken.includes(p));
+  let sel = slot.port && !taken.includes(slot.port) && HOME_PORTS.includes(slot.port) ? slot.port : HOME_PORTS.find((p) => !taken.includes(p));
   const render = () => {
     const P = PORTS[sel], F = FLAGS[P.flag];
     app.map.highlightPorts = new Set([sel]);
@@ -159,7 +161,7 @@ function choosePorts(app, cfg, index) {
     screen('setup ports', h('div.port-choice', [
       h('div.port-list', [
         h('h2', [h('span.badge-wrap', { html: logoBadge(slot.logo, slot.color, 30) }), ` ${slot.name || 'Compagnie'} : port d'attache`]),
-        h('div.list.compact', PORT_IDS.map((p) => h('button.row.selectable', {
+        h('div.list.compact', HOME_PORTS.map((p) => h('button.row.selectable', {
           class: (p === sel ? 'selected ' : '') + (taken.includes(p) ? 'disabled' : ''),
           disabled: taken.includes(p),
           onclick: () => { sel = p; render(); },
@@ -204,14 +206,14 @@ function kv(label, value, cls = '') {
 function startFromSetup(app, cfg) {
   const used = new Set(cfg.slots.filter((s) => s.kind === 'human').map((s) => s.port));
   // Les compagnies de l'ordinateur prennent des ports variés et bien équipés.
-  const good = PORT_IDS.filter((p) => PORTS[p].size >= 3 && PORTS[p].terminals.length >= 3);
+  const good = HOME_PORTS.filter((p) => PORTS[p].size >= 3 && PORTS[p].terminals.length >= 3);
   const companies = [];
   for (const s of cfg.slots) {
     if (s.kind === 'none') continue;
     let port = s.port;
     if (s.kind === 'ai') {
       const choices = good.filter((p) => !used.has(p));
-      port = choices[Math.floor(Math.random() * choices.length)] || PORT_IDS.find((p) => !used.has(p));
+      port = choices[Math.floor(Math.random() * choices.length)] || HOME_PORTS.find((p) => !used.has(p));
       used.add(port);
     }
     companies.push({ name: s.name.trim() || 'Compagnie', human: s.kind === 'human', homePort: port, color: s.color, logo: s.logo });

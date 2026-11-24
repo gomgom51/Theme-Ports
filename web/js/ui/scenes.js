@@ -5,6 +5,7 @@
 import { h } from './dom.js';
 import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, drawShip, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, box, cloud, disc, smoke } from './pixel.js';
 import { WORLD_SCENES } from './scenes-world.js';
+const sea_ = (...a) => sea(...a); // (la variable « sea » sert aussi de drapeau dans les scènes des glaces)
 import { SHIP_TYPES } from '../data/ships.js';
 
 // Silhouette d'un modèle pour les scènes : pétrolier, vraquier ou cargo / porte-conteneurs.
@@ -28,6 +29,51 @@ function rustStreaks(g, x, y) {
 }
 
 const PI = Math.PI;
+
+// ---------- Glaces ----------
+const ICE_C = { ice: '#dceaf2', shade: '#b8d0de', crack: '#8fb0c4', snow: '#f4f8fb' };
+// Neige qui tombe en tourbillonnant (densité n, vitesse v).
+function snow(g, t, n = 60, v = 14, wind = 6) {
+  for (let i = 0; i < n; i++) {
+    const x = (hash(i, 71) % (W + 20) + t * wind + Math.sin(t * 1.3 + i) * 3) % (W + 20) - 10;
+    const y = (hash(i, 72) % H + t * (v + (i % 5) * 2)) % H;
+    R(g, x, y, i % 7 ? 1 : 2, i % 7 ? 1 : 2, ICE_C.snow);
+  }
+}
+// Banquise sur une rangée de mer, de x0 à x1, avec ses fissures.
+function iceRow(g, y, x0, x1, crackSeed = 0) {
+  if (x1 <= x0) return;
+  R(g, x0, y, x1 - x0, 1, (y & 3) ? ICE_C.ice : ICE_C.shade);
+  for (let x = Math.ceil(x0 / 7) * 7; x < x1; x += 7) if (hash(x + crackSeed, y) % 9 === 0) R(g, x, y, 2 + (hash(x, y + 1) % 4), 1, ICE_C.crack);
+}
+// Port enneigé : entrepôts, grue et lampadaires (quai à droite).
+function snowyQuay(g, t, lights = 1) {
+  R(g, 150, 70, 50, 42, '#5b6068'); R(g, 150, 70, 50, 2, ICE_C.snow);
+  R(g, 160, 50, 30, 20, '#7a6a5e'); R(g, 158, 48, 34, 3, ICE_C.snow); R(g, 168, 60, 6, 10, '#3b332d');
+  R(g, 188, 30, 2, 40, '#a8823a'); R(g, 166, 30, 26, 2, '#a8823a'); R(g, 166, 29, 26, 1, ICE_C.snow); R(g, 170, 32, 1, 10, '#555');
+  for (const x of [154, 196]) {
+    R(g, x, 58, 1, 12, '#3c434c'); R(g, x - 1, 56, 3, 2, lights ? '#ffd98a' : '#8a8f96');
+    if (lights) cone(g, x, 58, x - 8, 72, x + 8, 72, '#ffd98a', 0.15 + 0.03 * Math.sin(t * 7 + x));
+  }
+}
+// Plaque de glace vue en perspective (ellipse aplatie), centre (cx, cy), demi-largeur r.
+function floe(g, cx, cy, r, seed = 0) {
+  const rh = Math.max(1, r * 0.32);
+  for (let y = Math.ceil(cy - rh); y <= cy + rh; y++) {
+    if (y < 56 || y >= H) continue;
+    const half = r * Math.sqrt(Math.max(0, 1 - ((y - cy) / rh) ** 2));
+    iceRow(g, y, Math.round(cx - half), Math.round(cx + half), seed);
+  }
+}
+const FLOES = Array.from({ length: 16 }, (_, k) => ({ x: hash(k, 73) % W, y: 58 + (hash(k, 74) % 52), r: 6 + (hash(k, 75) % 12) }));
+function polarBear(g, x, y, step) {
+  R(g, x, y, 10, 4, '#f2efe6'); R(g, x + 9, y - 1, 4, 3, '#f2efe6'); R(g, x + 12, y, 1, 1, '#1b1b1b');
+  R(g, x + 1, y + 4, 2, 2 - step, '#e4e0d4'); R(g, x + 7, y + 4, 2, 1 + step, '#e4e0d4');
+}
+function icebreaker(g, x, y) { // brise-glace (proue à droite)
+  R(g, x - 16, y - 4, 34, 4, '#c0392b'); R(g, x + 18, y - 3, 3, 2, '#c0392b'); R(g, x - 14, y, 30, 2, '#1d1d1d');
+  R(g, x - 10, y - 12, 14, 8, '#f4f4f4'); R(g, x - 8, y - 10, 10, 2, '#24323c'); R(g, x - 6, y - 17, 5, 5, '#e3b33b'); R(g, x - 6, y - 17, 5, 1, '#1b1b1b');
+}
 
 export const SCENES = {
   // Naufrage : tempête de nuit, le navire s'incline et sombre, l'hélicoptère hélitreuille l'équipage.
@@ -713,6 +759,111 @@ export const SCENES = {
       if (t > 1.5 && t < 2.1) R(g, cx + 3, 46, 2, 1, '#e8b98f'); // il épingle la médaille
       if (t > 1.8) { const bob = cheer ? (Math.floor(t * 4 + 1) % 2) : 0; R(g, 57, 44 - bob, 1, 1, o.color); R(g, 57, 45 - bob, 1, 1, Math.floor(t * 3) % 3 ? '#e3b33b' : '#fff6c0'); } // ruban et médaille
       g.restore();
+    },
+  },
+
+  // Les glaces reviennent : la neige tombe, la banquise gagne le port (variante 'sea' : le
+  // passage du Nord-Est se referme sous les aurores, un ours polaire s'avance sur la glace).
+  freeze: {
+    title: 'Les glaces reviennent', mood: 'info', loop: [4.6, 6.6],
+    draw(g, t, o) {
+      const sea = o.variant === 'sea', p = ease((t - 0.6) / 3.6);
+      const night = clamp01((t - 1) / 3);
+      g.drawImage(bands('sky-winter', ['#6d7d8e', '#8796a5', '#a3afbb', '#bcc5cd'], 56), 0, 0);
+      g.globalAlpha = night * 0.85; g.drawImage(bands('sky-polar', ['#07101f', '#0d1a30', '#15284a', '#22385c'], 56), 0, 0); g.globalAlpha = 1;
+      if (sea && night > 0.5) { // aurore boréale
+        for (let x = 0; x < W; x += 2) {
+          const yy = 14 + Math.sin(x / 23 + t * 0.8) * 6 + Math.sin(x / 9 - t * 1.3) * 2;
+          g.globalAlpha = (night - 0.5) * 1.2 * (0.5 + 0.5 * Math.sin(x / 31 + t));
+          R(g, x, yy, 2, 10 + Math.sin(x / 13 + t) * 4, x % 6 ? '#5ff0a8' : '#9cf7c8');
+        }
+        g.globalAlpha = 1;
+        stars(g, t, 18, 40);
+      }
+      sea_(g, t, { cols: ['#3e5566', '#35495a', '#2d3f4f', '#253545'], crest: '#7f97a8' }, 56);
+      for (let y = 56; y < H; y++) { // la banquise avance depuis la côte (et se soude au large)
+        const d = (y - 56) / (H - 56);
+        if (sea) { if (p > 0.85) iceRow(g, y, 0, W, 9); } else {
+          const edge = 200 - p * (250 + d * 40) + Math.sin(y * 0.9) * 4 + (hash(y, 75) % 5);
+          iceRow(g, y, Math.max(0, edge), W, 3);
+        }
+      }
+      if (sea && p <= 0.85) FLOES.forEach((f, k) => floe(g, f.x, f.y, f.r * (0.4 + p * 3.2) * (0.7 + (f.y - 56) / 80), k)); // plaques qui grossissent et se soudent
+      if (!sea) snowyQuay(g, t, night > 0.3 ? 1 : 0);
+      if (sea && t > 3.6) { const k = clamp01((t - 3.6) / 2.4); polarBear(g, 210 - k * 120, 82, Math.floor(t * 4) % 2); }
+      snow(g, t, 40 + Math.round(p * 50), 12 + p * 6, 8 + p * 10);
+      vignette(g, 'rgba(220,235,245,A)', 0.18 + p * 0.12);
+    },
+  },
+  // Dégel : le soleil revient, la banquise se fend et part en plaques, les oies reviennent
+  // (variante 'sea' : un brise-glace ouvre le passage du Nord-Est, un navire le suit).
+  thaw: {
+    title: 'Le dégel', mood: 'good', loop: [4.8, 6.8],
+    draw(g, t, o) {
+      const sea = o.variant === 'sea', p = ease((t - 0.8) / 3.6);
+      g.drawImage(bands('sky-spring', ['#7fb6d6', '#9bc8e0', '#bcdcec', '#e3eef0'], 56), 0, 0);
+      const sunY = 50 - ease(t / 2.5) * 26; // le soleil se lève
+      disc(g, 150, sunY, 7, '#ffe48a'); disc(g, 150, sunY, 10, 'rgba(255,228,138,0.25)');
+      sea_(g, t, DAY, 56);
+      // La glace se fend, puis s'en va en plaques qui dérivent et fondent.
+      if (p < 0.2) for (let y = 56; y < H; y++) iceRow(g, y, 0, W, 5);
+      else FLOES.forEach((f, k) => {
+        const q = (p - 0.2) / 0.8, depth = 0.7 + (f.y - 56) / 80;
+        floe(g, f.x + q * (k % 2 ? 26 : -20) * depth, f.y + q * 3, f.r * 1.9 * depth * (1 - q * (sea ? 0.55 : 0.85)), k);
+      });
+      if (p < 0.35) for (let i = 0; i < 12; i++) { // fissures qui s'ouvrent
+        const x = hash(i, 77) % W, y = 60 + hash(i, 78) % 50, L = Math.round(p * 60);
+        line(g, x, y, x + L * Math.cos(i), y + L * 0.3 * Math.sin(i * 2), '#3e5566');
+      }
+      if (sea) {
+        const k = clamp01((t - 1.2) / 4), bx = -30 + k * 150;
+        for (let i = 0; i < 12; i++) R(g, bx - 30 - i * 6, 84 + Math.sin(i * 1.7 + t * 4) * 2, 4, 1, '#e8f3f8'); // chenal ouvert
+        drawShip(g, o.color, bx - 52, 87, 0, 1, 'box');
+        icebreaker(g, bx, 86);
+      } else {
+        snowyQuay(g, t, 0);
+        for (let i = 0; i < 4; i++) R(g, 160 + i * 7, 51 + ((t * 3 + i) % 4), 1, 1, '#9fd0ec'); // le toit dégoutte
+      }
+      // Les oies sauvages reviennent, en V.
+      if (t > 1.5) { const gx = 220 - ((t - 1.5) * 28) % 260; for (let i = 0; i < 7; i++) { const off = Math.abs(i - 3); R(g, gx + off * 5, 22 + off * 3 + (Math.floor(t * 5 + i) % 2), 3, 1, '#2b2f38'); } }
+    },
+  },
+  // Votre navire pris par les glaces au port : la banquise l'enserre, la neige s'accumule sur
+  // le pont, des stalactites pendent, un matelot déneige ; le givre gagne les bords de l'image.
+  icecaught: {
+    title: 'Pris par les glaces', mood: 'bad', loop: [4.4, 6.4],
+    draw(g, t, o) {
+      const p = ease((t - 0.5) / 3.2), lock = t > 3.6 && t < 3.9;
+      g.drawImage(bands('sky-winter', ['#6d7d8e', '#8796a5', '#a3afbb', '#bcc5cd'], 56), 0, 0);
+      sea_(g, t, { cols: ['#3e5566', '#35495a', '#2d3f4f', '#253545'], crest: '#7f97a8' }, 56, 56, 84);
+      for (let y = 56; y < 84; y++) { // la glace se referme des deux côtés vers le navire
+        const d = (y - 56) / 28, gap = (1 - p) * 70 * (0.5 + d);
+        iceRow(g, y, 0, 70 - gap + Math.sin(y) * 2, 1); iceRow(g, y, 150 + gap - Math.sin(y * 1.3) * 2, W, 2);
+      }
+      const shake = lock ? Math.round(Math.sin(t * 60)) : 0;
+      drawShip(g, o.color, 104 + shake, 81, 0, 2, o.variant || 'box');
+      for (let x = 52; x < 156; x += 3) { // neige sur le pont, stalactites sous le bastingage
+        const hgt = Math.round(p * (1 + (hash(x, 79) % 3)));
+        if (hgt) R(g, x + shake, 71 - hgt, 3, hgt, ICE_C.snow);
+        if (p > 0.4 && hash(x, 80) % 3 === 0) R(g, x + 1 + shake, 74, 1, 1 + Math.round(p * (hash(x, 81) % 4)), '#cfe6f1');
+      }
+      if (p > 0.95) for (let y = 79; y < 84; y++) iceRow(g, y, 40, 168, 4); // le navire est soudé à la banquise
+      quay(g, 84); R(g, 0, 84, W, 2, ICE_C.snow);
+      // Un matelot déneige le pont à la pelle.
+      const sx = 86, dig = Math.floor(t * 2.5) % 2;
+      g.save(); g.scale(2, 2); person(g, sx / 2, 28, '#c0392b', { hat: '#2b2b30' }); g.restore();
+      R(g, sx + 6, 62 + dig * 2, 1, 6, '#6b4320'); R(g, sx + 5, 68 + dig * 2, 3, 2, '#9aa3ab');
+      if (dig) for (let i = 0; i < 4; i++) R(g, sx + 10 + i * 2, 58 - i, 1, 1, ICE_C.snow);
+      snow(g, t, 70, 16, 12);
+      // Givre qui gagne les bords et les coins de l'image.
+      const f = clamp01((t - 1.8) / 2.2);
+      for (let i = 0; i < 420 * f; i++) {
+        const side = i % 4, k = hash(i, 82) % (side < 2 ? H : W);
+        const corner = Math.min(k, (side < 2 ? H : W) - k) < 18 ? 2 : 1; // plus épais dans les coins
+        const dpt = Math.floor(((hash(i, 83) % 100) / 100) ** 2 * 16 * corner * f);
+        const [x, y] = side === 0 ? [dpt, k] : side === 1 ? [W - 1 - dpt, k] : side === 2 ? [k, dpt] : [k, H - 1 - dpt];
+        R(g, x, y, 1, 1, dpt < 4 ? '#ffffff' : dpt < 9 ? '#e4f2f9' : '#c9e2ef');
+      }
     },
   },
   ...WORLD_SCENES,

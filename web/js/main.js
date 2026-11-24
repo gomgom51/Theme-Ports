@@ -26,6 +26,7 @@ import { officeTier, OFFICE_TIERS, musicStep, reachedTier, MUSIC_LOW, officeSVG 
 import { initI18n, setLang, getLang } from './i18n.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
+import { escortFee } from './sim/ice.js';
 import { heldDialog } from './ui/plots.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
@@ -382,8 +383,29 @@ function handleNotes(notes) {
   // Un navire qui vient de livrer : le message de paiement suffit.
   const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
   const crewUps = []; // points de spécialité gagnés : une petite scène par compagnie, sans son
+  const iceChanges = []; // gel et dégel du jour : une scène par sorte (port ou passage, gel ou dégel)
   for (const n of notes) {
     if (n.kind === 'crew' && scenes) { crewUps.push(n); continue; }
+    if (n.kind === 'ice') { if (scenes) iceChanges.push(n); else toast(`❄ ${n.text}`, { timeout: 9000 }); continue; }
+    if (n.kind === 'iceSoon') { toast(`❄ ${n.text}`, { kind: 'warn', timeout: 10000 }); continue; }
+    if (n.kind === 'icecaught') {
+      // Navire pris par les glaces : attendre (désarmé pour l'hiver) ou partir avec un brise-glace.
+      const ship = shipById(app.state, n.shipId);
+      if (!ship) continue;
+      const cid = n.company;
+      const choose = async (v) => {
+        if (!shipById(app.state, n.shipId)) return false;
+        if (cid !== app.ui.activeCompany) switchCompany(cid);
+        if (v === 'layup') { app.act(() => act.layUp(app.state, n.shipId)); app.open('ship', n.shipId); return false; }
+        if (v === 'go') { app.open('ship', n.shipId, 'depart'); app.focusShip(n.shipId); return true; } // le temps reste arrêté pendant le choix
+        return false;
+      };
+      const buttons = [{ label: 'Désarmer pour l\'hiver', value: 'layup', kind: 'ghost' }, { label: `Brise-glace (${Math.round(escortFee(ship) / 1000)} k$)`, value: 'go', kind: 'primary' }];
+      toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Voir', onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); app.open('ship', n.shipId); app.focusShip(n.shipId); } });
+      if (scenes) playScene('icecaught', sceneOpts(n, { variant: shipKind(ship.type), buttons }), choose);
+      else popup(async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); return dialog({ title: 'Pris par les glaces', body: h('p', n.text), buttons }); }, choose);
+      continue;
+    }
     if (n.kind === 'idle' && delivered.has(n.shipId)) {
       if (app.state.settings.autoPause) paused = true;
       continue;
@@ -493,6 +515,11 @@ function handleNotes(notes) {
       // Partie à plusieurs : c'est au tour de la compagnie dont le navire attend.
       if (company && company.id !== app.ui.activeCompany && !switched) { switchCompany(company.id); switched = true; }
     }
+  }
+  for (const change of ['freeze', 'thaw']) for (const passage of [false, true]) {
+    const list = iceChanges.filter((n) => n.change === change && !!PORTS[n.place] === !passage);
+    if (!list.length) continue;
+    playScene(change, { title: change === 'freeze' ? 'Les glaces reviennent' : 'Le dégel', text: list.map((n) => n.text).join(' '), variant: passage ? 'sea' : null, color: companyColor() });
   }
   for (const cid of new Set(crewUps.map((n) => n.company))) {
     const list = crewUps.filter((n) => n.company === cid), first = list[0];

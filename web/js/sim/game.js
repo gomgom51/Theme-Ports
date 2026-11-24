@@ -24,9 +24,10 @@ import { piracyHour } from './piracy.js';
 import { coverage, premiumPerDay } from './insurance.js';
 import { patrolHour } from './patrols.js';
 import { gainXp, aiTrain, skillSpeed, skillWear } from './crew.js';
+import { iceDaily, isSeasonal, iceOpen, escortFee, forecastText } from './ice.js';
 
 const D = HOURS_PER_DAY;
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const COMPANY_COLORS = ['#e5484d', '#3e8ef7', '#30a46c', '#f5a623'];
 export const COMPANY_LOGOS = ['ancre', 'phare', 'barre', 'rose'];
 export const DIFFICULTIES = {
@@ -102,6 +103,8 @@ export function migrateState(state) {
       state.ports[p][g] ??= { ou: 0, imp: 0, stock: eco.stockCap(p, g) * rng.range(0.4, 0.9) };
     }
   }
+  // Avant le passage du Nord-Est (version 3) : les navires en mer gardent leur route.
+  if ((state.version || 1) < 3) for (const s of state.ships) if (s.voyage && !s.voyage.closed.includes('nsr')) s.voyage.closed.push('nsr');
   state.version = SAVE_VERSION;
   return state;
 }
@@ -141,7 +144,7 @@ function refreshUsedMarket(state, rng, initial = false) {
   while (state.used.length < 16 + state.companies.length) {
     const typeId = rng.weighted(types);
     const T = SHIP_TYPES[typeId];
-    const ports = PORT_IDS.filter((p) => eco.servesType(p, typeId));
+    const ports = PORT_IDS.filter((p) => eco.servesType(p, typeId) && !isSeasonal(p)); // pas de navire à vendre dans les glaces
     if (T.vintage) state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [26, 42], [35, 72]));
     else state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [2, T.life - 4], [45, 96]));
   }
@@ -217,7 +220,7 @@ function sailHour(state, ctx, rng, ship, notes) {
 
   // En attente devant un canal fermé.
   if (v.waitCanal) {
-    if (ctx.closedCanals(state, T.draft).includes(v.waitCanal)) { ship.fuel = Math.max(0, ship.fuel - T.idleBurn / D); return; }
+    if (ctx.closedCanals(state, T.draft, ship).includes(v.waitCanal)) { ship.fuel = Math.max(0, ship.fuel - T.idleBurn / D); return; }
     note(state, notes, 'info', ship, `Le ${ship.name} peut enfin franchir le ${CANAL_NAMES[v.waitCanal]}.`);
     v.waitCanal = null;
   }
@@ -239,7 +242,20 @@ function sailHour(state, ctx, rng, ship, notes) {
   for (const c of route.canals) {
     const at = route.canalAt?.[c];
     if (at == null || v.progress > at || v.progress + step < at) continue;
-    if (ctx.closedCanals(state, T.draft).includes(c)) {
+    // Passage du Nord-Est : si la glace arrive avant le navire (retard en route), un brise-glace
+    // l'escorte (on n'attend pas l'été devant la banquise).
+    if (c === 'nsr') {
+      if (!v.nsrEscort && !iceOpen(state, 'nsr', state.t, ship)) {
+        const fee = escortFee(ship);
+        v.nsrEscort = true;
+        money(state, company, -fee, 'ports');
+        ship.spent += fee;
+        shipLog(state, ship, `Escorte d'un brise-glace dans le passage du Nord-Est : ${Math.round(fee / 1000)} k$`);
+        note(state, notes, 'info', ship, `Les glaces sont revenues avant le ${ship.name} dans le passage du Nord-Est : un brise-glace l'escorte (${Math.round(fee / 1000)} k$).`);
+      }
+      continue;
+    }
+    if (ctx.closedCanals(state, T.draft, ship).includes(c)) {
       v.progress = at;
       v.waitCanal = c;
       note(state, notes, 'info', ship, `Le ${ship.name} est bloqué devant le ${CANAL_NAMES[c]} fermé. Il attendra la réouverture.`);
@@ -377,6 +393,15 @@ function arrive(state, ctx, ship, notes, rng) {
   ship.spent += fee;
   if (!company.portsServed.includes(to)) { company.portsServed.push(to); changeReputation(company, 0.5); }
   shipLog(state, ship, `Arrivée à ${portName(to)}`);
+  // Port saisonnier déjà pris par les glaces : un brise-glace escorte le navire jusqu'au quai.
+  if (isSeasonal(to) && !iceOpen(state, to, state.t, ship)) {
+    const ice = escortFee(ship);
+    money(state, company, -ice, 'ports');
+    ship.spent += ice;
+    ship.iced = to;
+    shipLog(state, ship, `Escorte d'un brise-glace jusqu'au quai : ${Math.round(ice / 1000)} k$`);
+    note(state, notes, 'info', ship, `Les glaces sont arrivées avant le ${ship.name} : un brise-glace l'a escorté jusqu'au quai de ${portName(to)} (${Math.round(ice / 1000)} k$). Pour repartir, il faudra de nouveau un brise-glace, ou attendre le dégel (${forecastText(state, to, ship)}).`);
+  }
   // Sanctions (navire passé par un pays sous embargo) et douane (colis caché à bord).
   if (rng) {
     const onNote = (kind, text, extra = {}) => { const n0 = notes.length; note(state, notes, kind, ship, text); if (notes.length > n0) Object.assign(notes[notes.length - 1], extra); };
@@ -549,6 +574,7 @@ function daily(state, ctx, rng, notes) {
   dailyReceivables(state, notes);
   clientsDaily(state, notes);
   plotsDaily(state, notes);
+  iceDaily(state, notes);
 
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];

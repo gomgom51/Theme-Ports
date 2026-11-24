@@ -15,6 +15,7 @@ import { taintShip } from './shady.js';
 import { equipMod } from './equipment.js';
 import { clientRefusal } from './clients.js';
 import { skillSpeed, skillHandling } from './crew.js';
+import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 
 const fail = (msg) => ({ ok: false, msg });
 const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
@@ -104,7 +105,7 @@ export function planVoyage(state, ctx, ship, to, speed) {
       return { error: `${portName(to)} ne peut pas décharger cette cargaison.` };
     }
   }
-  const closed = ctx.closedCanals(state, T.draft);
+  const closed = ctx.closedCanals(state, T.draft, ship);
   // Distance et canaux depuis les tables pré-calculées ; le tracé n'est calculé que si on le demande.
   const info = ctx.distanceInfo(from, to, closed);
   if (!info) return { error: 'Aucune route maritime praticable.' };
@@ -121,6 +122,13 @@ export function planVoyage(state, ctx, ship, to, speed) {
     fuelCost: needFuel * eco.fuelPrice(state, from), fixed: est.fixed, fees: est.fees,
     eta: state.t + Math.ceil(seaDays * HOURS_PER_DAY),
   };
+  // Glaces : arrivée dans un port saisonnier (risque qu'il soit pris, escorte alors obligatoire)
+  // et départ d'un port pris (escorte d'un brise-glace, payée au départ).
+  if (isSeasonal(to)) {
+    const risk = iceRisk(state, to, res.eta, ship);
+    if (risk > 0) { res.iceRisk = risk; res.iceFee = escortFee(ship); res.iceText = forecastText(state, to, ship); }
+  }
+  if (isSeasonal(from) && !iceOpen(state, from, state.t, ship)) res.escortOut = escortFee(ship);
   if (needFuel > T.tank) {
     res.error = `Autonomie insuffisante : il faudrait ${Math.round(needFuel)} t de fuel pour ${T.tank} t de soutes. Réduisez la vitesse ou faites escale.`;
   }
@@ -143,6 +151,12 @@ function launch(state, ctx, ship, plan) {
     money(state, company, -fee, 'ports');
     ship.spent += fee;
     shipLog(state, ship, `Péage du ${CANAL_NAMES[c]} : ${fmtM(fee)}`);
+  }
+  if (p.escortOut) { // port pris par les glaces : un brise-glace ouvre le chenal
+    money(state, company, -p.escortOut, 'ports');
+    ship.spent += p.escortOut;
+    shipLog(state, ship, `Escorte d'un brise-glace pour sortir de ${portName(ship.port)} : ${fmtM(p.escortOut)}`);
+    ship.iced = null;
   }
   ship.voyage = {
     from: ship.port, to: plan.to, speed: p.speed, closed: p.closed, progress: 0,
@@ -218,6 +232,7 @@ export function checkContract(state, ctx, ship, contract) {
   if (bannedUntil(companyOf(state, ship), PORTS[contract.to].flag) > state.t) return `${FLAGS[PORTS[contract.to].flag].name} interdit ses ports à votre compagnie (pollution).`;
   if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
   if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
+  if (contract.ice && !iceClass(ship)) return `Fin de saison à ${portName(contract.to)} : le chargeur exige un navire de classe glace.`;
   const refusal = clientRefusal(state, company, contract);
   if (refusal?.kind === 'rancune') return `${refusal.name} ne travaille plus avec vous depuis que vous l'avez dénoncé (jusqu'au ${formatDate(refusal.until)}).`;
   if (refusal?.kind === 'reserve') return `${refusal.name} réserve ce contrat à son partenaire le plus fidèle jusqu'au ${formatDate(refusal.until)}.`;

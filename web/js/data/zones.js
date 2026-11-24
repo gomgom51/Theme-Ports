@@ -17,4 +17,8 @@ export const ZONES = [
   { id: 'mexique', name: 'Golfe du Mexique', flag: 'US', lon: -90.5, lat: 28.6, r: 280, factor: 2 },
   { id: 'caraibes', name: 'Récifs des Caraïbes', flag: 'CO', lon: -77.5, lat: 13.5, r: 300, factor: 2.5 },
   { id: 'nz', name: 'Golfe d\'Hauraki', flag: 'NZ', lon: 175.2, lat: -36.4, r: 120, factor: 3 },
+  { id: 'alaska', name: 'Détroit du Prince-William', flag: 'US', lon: -146.8, lat: 60.6, r: 160, factor: 4 },
+  { id: 'hudson', name: 'Baie d\'Hudson', flag: 'CA', lon: -92.5, lat: 59.5, r: 260, factor: 3 },
+  { id: 'kara', name: 'Mer de Kara', flag: 'RU', lon: 70, lat: 72.5, r: 280, factor: 4 },
+  { id: 'beaufort', name: 'Mer de Beaufort', flag: 'US', lon: -149, lat: 71, r: 220, factor: 5 },
 ];

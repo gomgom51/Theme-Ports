@@ -12,7 +12,7 @@ riche de la planète.
   taux des prêts. Panama ne prélève aucun impôt mais inspire peu confiance ; le
   Japon prête presque gratuitement mais tout y coûte cher. On peut déménager en
   cours de partie.
-* **51 ports réels aux capacités différentes** : tirant d'eau des quais et des
+* **66 ports réels aux capacités différentes** : tirant d'eau des quais et des
   terminaux profonds (bouées pétrolières, quais minéraliers), terminaux (vrac,
   pétrole, chimie, GPL, GNL, conteneurs, rouliers, frigorifique, colis lourds),
   chantiers navals, prix du fuel, taxes, marchandises exportées et importées.
@@ -106,6 +106,11 @@ riche de la planète.
   débaucher un chargeur de son partenaire ; payer un informateur pour savoir qui
   complote contre vous et qui cache un colis (et le dénoncer à la douane). La victime
   est toujours avertie par une rumeur, et tout coup bas peut finir en scandale.
+* **Les glaces** : Churchill, Nome, Sabetta et Prudhoe Bay n'ouvrent que l'été, comme le
+  passage du Nord-Est, raccourci arctique entre l'Europe et l'Asie. Dégel et retour des
+  glaces tombent chaque année dans les mêmes semaines, à quelques jours près (fenêtre
+  affichée, date annoncée quinze jours avant) ; un navire pris par les glaces attend le
+  dégel ou paie un brise-glace ; la coque de classe glace allonge la saison.
 * **La carte marine** : frontières et noms des pays, eaux nationales (moins de
   200 milles des côtes) et eaux internationales, drapeaux des ports.
 * **Le son** : ambiance du port à l'accueil (mer, mouettes, caisses, conteneurs,

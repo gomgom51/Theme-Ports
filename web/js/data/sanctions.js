@@ -6,6 +6,8 @@ import { FLAGS } from './ports.js';
 export const EMBARGOED = {
   IR: { name: 'Iran', why: 'sanctions sur le pétrole et la finance' },
   VE: { name: 'Venezuela', why: 'sanctions sur le pétrole' },
+  RU: { name: 'Russie', why: 'sanctions sur le pétrole, la finance et la flotte' },
+  KP: { name: 'Corée du Nord', why: 'embargo des Nations unies' },
 };
 // Pays qui font respecter ces sanctions dans leurs ports (et y punissent les contrevenants).
 export const ENFORCING = new Set(['US', 'CA', 'NL', 'DE', 'FR', 'IT', 'ES', 'PL', 'RO', 'GR', 'JP', 'KR', 'AU', 'NZ']);
@@ -29,4 +31,4 @@ export const CONCEALMENT = {
   petrolier_vlcc: 1.3, petrolier_ulcc: 1.3, gazier: 1.3, methanier: 1.35,
 };
 // Ports où des intermédiaires proposent des colis discrets.
-export const SHADY_PORTS = ['colon', 'cartagena', 'puerto_la_cruz', 'lagos', 'tema', 'abidjan', 'luanda', 'djibouti', 'bandar_abbas', 'karachi', 'mombasa', 'manille', 'veracruz', 'alexandrie'];
+export const SHADY_PORTS = ['colon', 'cartagena', 'puerto_la_cruz', 'lagos', 'tema', 'abidjan', 'luanda', 'djibouti', 'bandar_abbas', 'karachi', 'mombasa', 'manille', 'veracruz', 'alexandrie', 'nampo', 'es_sider', 'chittagong', 'novorossiysk'];
