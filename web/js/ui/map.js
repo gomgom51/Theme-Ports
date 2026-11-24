@@ -6,6 +6,7 @@ import { BORDERS, COUNTRIES, WATERS } from '../data/countries.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { pointAlong } from '../sim/routing.js';
 import { flagImage } from './flags.js';
+import { EMBARGOED } from '../data/sanctions.js';
 import { ZONES } from '../data/zones.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
 
@@ -419,13 +420,20 @@ export class MapView {
       g.lineWidth = 1.6;
       g.strokeStyle = '#fff';
       g.stroke();
+      // Pays sous embargo : anneau rouge en pointillés, et ⚖ devant le nom.
+      const emb = !!EMBARGOED[P.flag];
+      if (emb) {
+        g.save(); g.setLineDash([3, 2]); g.beginPath(); g.arc(x, y, r + 5, 0, Math.PI * 2);
+        g.lineWidth = 2; g.strokeStyle = '#c4362c'; g.stroke(); g.restore();
+      }
       // Les grands ports sont nommés dès le départ, les petits quand on zoome.
       if (hl || P.size >= 5 || scale > (P.size >= 4 ? 3 : 4.2)) {
         const flag = flagImage(P.flag);
         const [side, dy] = LABEL_PLACE[id] || ['right', 0];
         const ly = y + dy * Math.max(0.4, Math.min(1, 6 / scale));
         const hasFlag = flag.complete && flag.naturalWidth;
-        const tw = g.measureText(P.name).width;
+        const label = emb ? `⚖ ${tr(P.name)}` : tr(P.name);
+        const tw = g.measureText(label).width;
         // À droite du point (par défaut) ou à gauche, pour les ports trop proches d'un voisin.
         let fx = side === 'left' ? x - r - 4 - 15 : x + r + 4;
         let tx = side === 'left' ? fx - (hasFlag ? 4 : -15) - tw : fx + (hasFlag ? 19 : 0);
@@ -438,9 +446,9 @@ export class MapView {
         }
         g.lineWidth = 3;
         g.strokeStyle = C.halo;
-        g.strokeText(tr(P.name), tx, ly);
-        g.fillStyle = hl ? C.portHl : C.ink;
-        g.fillText(tr(P.name), tx, ly);
+        g.strokeText(label, tx, ly);
+        g.fillStyle = hl ? C.portHl : emb ? '#b8322a' : C.ink;
+        g.fillText(label, tx, ly);
       }
     }
     this.dirty = false;

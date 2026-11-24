@@ -103,6 +103,29 @@ export function acceptOffer(state, shipId, offerId) {
   shipLog(state, ship, `Colis discret embarqué pour ${portName(o.to)}`);
   return { ok: true };
 }
+// Proposition spontanée, quand on vient d'accepter un contrat : un intermédiaire propose un
+// colis pour la même destination (souvent dans les ports louches, parfois dans les ports
+// corrompus, rarement ailleurs). Payé comme les autres colis ; doublé s'il insiste.
+export function proposalChance(port) {
+  return SHADY_PORTS.includes(port) ? 0.35 : corruption(PORTS[port].flag) > 0.15 ? 0.15 : 0.04;
+}
+export function proposeParcel(state, ctx, rng, ship, to) {
+  if (ship.contraband || ship.port === to || !rng.chance(proposalChance(ship.port))) return null;
+  const info = ctx.distanceInfo(ship.port, to);
+  if (!info) return null;
+  const cust = customsLevel(PORTS[to].flag);
+  const pay = Math.round((120000 + 3.2e6 * Math.pow(cust, 1.5) * rng.range(0.7, 1.3) + (info.nm / 5000) * 150000) / 10000) * 10000;
+  const days = info.nm / (24 * 13);
+  return { id: state.nextId++, from: ship.port, to, pay, deadline: Math.round(state.t + (days * 1.6 + 6) * D), expires: state.t + D, insist: rng.chance(0.3) };
+}
+export function acceptProposal(state, shipId, offer) {
+  const ship = shipById(state, shipId);
+  if (!ship || ship.contraband) return fail('Un colis est déjà caché à bord.');
+  ship.contraband = { ...offer };
+  shipLog(state, ship, `Colis discret embarqué pour ${portName(offer.to)}`);
+  return { ok: true };
+}
+
 // À chaque escale avec un colis à bord : fouille possible, puis livraison à destination.
 // onNote(kind, text, extra) ; pour un joueur humain, une saisie dans un port corrompu ouvre un choix.
 export function contrabandOnArrival(state, rng, ship, port, onNote) {

@@ -4,11 +4,11 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, HOLDS } from '../data/goods.js';
 import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
-import { shipById, contractById, portName } from '../sim/core.js';
+import { shipById, contractById, portName, creditLimit, interestRate } from '../sim/core.js';
 import { weatherAt } from '../sim/events.js';
 import { pointAlong } from '../sim/routing.js';
 import { CANAL_NAMES } from '../sim/context.js';
-import { h, money, tonnes, num, num1, pct, date, duration, days, bar, confirmBox, promptBox } from './dom.js';
+import { h, money, tonnes, num, num1, pct, date, duration, days, bar, confirmBox, promptBox, dialog } from './dom.js';
 import { artForShip, SHIP_ART } from './shipart.js';
 import { shipStats, radarEl } from './radar.js';
 import { flagEl } from './flags.js';
@@ -16,9 +16,20 @@ import { watersLabel } from './waters.js';
 import { clientLine, riskLine } from './payment.js';
 import { fuelGaugeEl, animateNeedle } from './gauge.js';
 import { riskLines, crewInfo, isStrict } from './risk.js';
-import { shadyLines, offersSection } from './shady.js';
+import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
 import { hostileTag, hostileLine, heldDialog } from './plots.js';
+import { isEmbargoed, taintActive, TAINT_DAYS } from '../sim/shady.js';
+
+// Commercer avec un pays sous embargo marque le navire un an : on demande avant, si le
+// navire est encore « propre ». Renvoie true pour continuer.
+const EMBARGO_TAG = () => h('span.tag.warn', { title: 'Pays sous embargo : y commercer marque le navire un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo');
+async function embargoOk(app, ship, port) {
+  if (!isEmbargoed(port) || taintActive(app.state, ship)) return true;
+  return confirmBox(`Commercer avec ${PORTS[port] ? portName(port) : 'ce pays'} ?`,
+    `${portName(port)} est sous embargo. Le ${ship.name} sera marqué pendant ${Math.round(TAINT_DAYS / 30)} mois : à chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie, il risquera une amende.`,
+    'Oui, commercer');
+}
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
 import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence } from '../sim/equipment.js';
 import { CREW_LEVELS } from '../data/ships.js';
@@ -173,9 +184,9 @@ function contractsBase(app, ship) {
     const routeOf = () => { if (est?.route) return est.route; const p = act.planVoyage(state, ctx, ship, c.to, T.speed); return p.route || null; };
     const company = state.companies[ship.owner];
     const reserved = c.reservedFor === ship.owner && c.reservedUntil > state.t;
-    return h('div.card.contract', { class: why ? 'disabled' : '', onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
+    return h('div.card.contract', { class: (why ? 'disabled ' : '') + (c.golden ? 'golden' : ''), onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, hostileTag(state, ship.owner, c.to)]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, hostileTag(state, ship.owner, c.to)]),
         h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(state, company, c.client)]) : null,
         c.client ? riskLine(state, company, c.client, c.pay) : null,
@@ -188,9 +199,13 @@ function contractsBase(app, ship) {
       ]),
       h('div.card-side', [
         h('div.price', money(c.pay)),
-        why ? null : h('button.btn.primary.small', { onclick: () => {
+        why ? null : h('button.btn.primary.small', { onclick: async () => {
+          if (c.embargo && !(await embargoOk(app, ship, isEmbargoed(c.from) ? c.from : c.to))) return;
           const r = app.act(() => act.acceptContract(state, ctx, ship.id, c.id, { speed: T.speed, autoRefuel: true }), { sound: 'crates' });
-          if (r?.ok) app.toast(`Chargement en cours. Le ${ship.name} partira automatiquement pour ${portName(c.to)} (plein fait si nécessaire).`);
+          if (r?.ok) {
+            app.toast(`Chargement en cours. Le ${ship.name} partira automatiquement pour ${portName(c.to)} (plein fait si nécessaire).`);
+            await maybeProposeParcel(app, ship, c.to);
+          }
         } }, 'Accepter'),
       ]),
     ]);
@@ -222,8 +237,12 @@ function tradeTab(app, ship) {
           q.possible ? stat('Résultat', h('span', { class: q.profit >= 0 ? 'pos' : 'neg' }, `${money(q.profit, true)}`), h('div.stat-sub', `${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${pct(Math.abs(q.profit) / ship.cargo.cost * 100)}`)) : null,
         ]),
         q.possible ? null : h('div.card-why', `${portName(here)} ne peut pas décharger ce type de cargaison.`),
+        ship.cargo.floor ? h('div.card-sub', ship.cargo.floor.until >= state.t
+          ? [h('span.tag.good', 'prix garanti'), ` À ${portName(ship.cargo.floor.port)} : au moins ${money(ship.cargo.floor.unit)}/t si vous y vendez avant le ${date(ship.cargo.floor.until, true)}.`]
+          : `La garantie de prix à ${portName(ship.cargo.floor.port)} a expiré.`) : null,
       ]),
       h('div.card-side', [q.possible ? h(`button.btn.small.${q.profit >= 0 ? 'primary' : 'danger'}`, { onclick: async () => {
+        if (!(await embargoOk(app, ship, here))) return;
         if (q.profit < 0 && !(await confirmBox('Vendre à perte ?', `Vous perdrez ${money(-q.profit)} sur cette cargaison.`, 'Vendre'))) return;
         app.act(() => act.sellCargo(state, ctx, ship.id), { sound: 'cash' });
       } }, `Vendre ici · ${money(q.profit, true)}`) : null]),
@@ -234,14 +253,19 @@ function tradeTab(app, ship) {
       if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
       const est = tripEstimate(app, ship, p, T.speed);
       if (est.error || !est.nm) continue;
-      const sale = eco.quoteTrade(state, p, ship.cargo.good, ship.cargo.qty, 'sell').total - ship.cargo.qty * eco.HANDLING_COST[ship.cargo.hold];
-      outlets.push({ p, net: sale - est.cost - ship.cargo.cost, est, unit: eco.sellPrice(state, p, ship.cargo.good) });
+      const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
+      const fq = eco.quoteTradeAt(state, p, ship.cargo.good, sound, 'sell', est.totalDays);
+      const fl = ship.cargo.floor, floorOk = fl && fl.port === p && state.t + est.totalDays * 24 <= fl.until;
+      const unit = floorOk ? Math.max(fq.avg, fl.unit) : fq.avg;
+      const sale = unit * sound - ship.cargo.qty * eco.HANDLING_COST[ship.cargo.hold];
+      outlets.push({ p, net: sale - est.cost - ship.cargo.cost, est, unit, floorOk });
     }
     outlets.sort((a, b) => b.net - a.net);
-    box.append(h('h3', 'Meilleurs débouchés (après frais de voyage)'));
+    box.append(h('h3', 'Meilleurs débouchés (après frais de voyage, au cours attendu à l\'arrivée)'));
     box.append(h('div.list.compact', outlets.slice(0, 6).map((o) => h('div.row', { onmouseenter: () => app.hoverRoute(o.est.route || null), onmouseleave: () => app.hoverRoute(null) }, [
-      h('span.grow', portName(o.p)),
+      h('span.grow', [portName(o.p), isEmbargoed(o.p) ? [' ', EMBARGO_TAG()] : null].flat().filter(Boolean)),
       h('span.muted', `${money(o.unit)}/t · ${days(o.est.totalDays)}`),
+      o.floorOk ? h('span.tag.good', 'garanti') : null,
       h('b', { class: o.net >= 0 ? 'pos' : 'neg' }, money(o.net, true)),
       h('button.btn.small.ghost', { onclick: () => { app.form.dest[ship.id] = o.p; app.openTab('depart'); } }, 'Y aller'),
     ]))));
@@ -253,7 +277,7 @@ function tradeTab(app, ship) {
     box.append(h('p.muted', `${portName(here)} n'exporte rien que ce navire puisse charger (${T.holds.map((x) => HOLDS[x].toLowerCase()).join(', ')}).`));
     return box;
   }
-  box.append(h('p.hint', 'Achetez une cargaison ici et revendez-la plus cher ailleurs. Les prix bougent pendant le voyage : c\'est plus risqué qu\'un contrat, mais souvent plus rentable.'));
+  box.append(h('p.hint', 'Achetez une cargaison ici et revendez-la plus cher ailleurs. Les estimations tiennent compte des prix qui retombent pendant le voyage ; il reste un risque de marché, que vous pouvez couvrir en garantissant votre prix de revente (une prime à l\'achat). Plus risqué qu\'un contrat, mais souvent plus rentable.'));
   for (const g of goods) {
     const G = GOODS[g];
     const unit = eco.buyPrice(state, here, g);
@@ -276,24 +300,48 @@ function tradeTab(app, ship) {
       const est = tripEstimate(app, ship, p, T.speed, qty, hold);
       if (est.error || !est.nm) continue;
       const buy = act.quoteBuy(state, ship, g, qty).total;
-      const sell = eco.quoteTrade(state, p, g, qty, 'sell').total - qty * eco.HANDLING_COST[hold];
-      dests.push({ p, net: sell - buy - est.cost, unit: eco.sellPrice(state, p, g), est, qty });
+      const fq = eco.quoteTradeAt(state, p, g, qty, 'sell', est.totalDays); // cours attendu à l'arrivée
+      const sell = fq.total - qty * eco.HANDLING_COST[hold];
+      dests.push({ p, net: sell - buy - est.cost, unit: fq.avg, est, qty });
     }
     dests.sort((a, b) => b.net - a.net);
     const choices = [0.25, 0.5, 0.75, 1].map((f) => Math.floor((T.dwt * f) / 100) * 100).filter((q) => q <= maxQty && q > 0);
     if (maxQty > 0 && !choices.includes(maxQty)) choices.push(maxQty);
+    // Trésorerie trop courte : emprunter le complément à la banque, en un clic.
+    const fullBuy = Math.floor(Math.min(T.dwt, stock) / 100) * 100;
+    const borrowNeed = fullBuy > maxQty ? Math.ceil((act.quoteBuy(state, ship, g, fullBuy).total * 1.02 - company.cash) / 10000) * 10000 : 0;
+    const borrowQty = borrowNeed > 0 && creditLimit(state, company) - company.debt >= borrowNeed ? fullBuy : 0;
+    // Achat : quantité, éventuel emprunt, et prix de revente garanti à la meilleure destination.
+    const buyFlow = async (q, loan = 0) => {
+      if (!(await embargoOk(app, ship, here))) return;
+      const quote = act.quoteBuy(state, ship, g, q);
+      const best = dests[0];
+      const gq = best ? eco.quoteTradeAt(state, best.p, g, q, 'sell', best.est.totalDays) : null;
+      const rate = best ? act.guaranteeRate(g, best.est.totalDays) : 0;
+      const premium = gq ? Math.round(rate * gq.avg * q / 1000) * 1000 : 0;
+      const lines = [h('p', `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`)];
+      if (loan) lines.push(h('p', `La banque vous prête ${money(loan)} (prêt « intérêts seuls » : environ ${money(loan * interestRate(company) / 12)} par mois, remboursable quand vous voulez).`));
+      if (gq) lines.push(h('p.hint', `Prix garanti (facultatif) : pour ${money(premium)} (${pct(rate * 100)}), la revente à ${portName(best.p)} vous rapportera au moins ${money(gq.avg)}/t, le cours attendu à l'arrivée, si vous y vendez avant le ${date(state.t + (best.est.totalDays * 1.5 + 5) * 24, true)}. Si le cours monte, vous gardez la hausse.`));
+      const choice = await dialog({
+        title: `Acheter ${tonnes(q)} de ${G.name.toLowerCase()} ?`, body: h('div', lines),
+        buttons: [{ label: 'Annuler', value: null, kind: 'ghost' }, ...(gq ? [{ label: `Acheter + prix garanti (${money(premium)})`, value: 'garantie' }] : []), { label: loan ? 'Emprunter et acheter' : 'Acheter', value: 'acheter', kind: 'primary' }],
+      });
+      if (!choice) return;
+      if (loan && !app.act(() => act.borrow(state, company.id, loan))?.ok) return;
+      const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q), { sound: 'pay' });
+      if (!r?.ok) return;
+      if (best) app.form.dest[ship.id] = best.p;
+      if (choice === 'garantie') app.act(() => act.guaranteePrice(state, ship.id, best.p, gq.avg, best.est.totalDays));
+    };
     box.append(h('div.card', [
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), G.name, h('span.price-inline', `${money(unit)}/t`)]),
         h('div.card-sub', `Stock disponible : ${tonnes(stock)} · cours mondial ${money(G.price * state.market.world[g])}/t`),
         limit ? h('div.card-why', limit === 'cash' ? `Votre trésorerie limite l'achat à ${tonnes(maxQty)} (cale : ${tonnes(full)}).` : `Le stock du port limite l'achat à ${tonnes(maxQty)} (cale : ${tonnes(full)}).`) : null,
-        dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, maxQty > 0 ? `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}` : `${money(dests[0].net, true)} pour une cale pleine (${tonnes(dests[0].qty)})`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
-        choices.length ? h('div.chips', choices.sort((a, b) => a - b).map((q) => h('button.chip', { onclick: async () => {
-          const quote = act.quoteBuy(state, ship, g, q);
-          if (!(await confirmBox(`Acheter ${tonnes(q)} de ${G.name.toLowerCase()} ?`, `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`, 'Acheter'))) return;
-          const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q), { sound: 'pay' });
-          if (r?.ok && dests[0]) app.form.dest[ship.id] = dests[0].p;
-        } }, tonnes(q)))) : h('div.card-why', stock <= 0 ? 'Stock épuisé, revenez plus tard.' : 'Trésorerie insuffisante.'),
+        dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), isEmbargoed(dests[0].p) ? ' ' : null, isEmbargoed(dests[0].p) ? EMBARGO_TAG() : null, ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, maxQty > 0 ? `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}` : `${money(dests[0].net, true)} pour une cale pleine (${tonnes(dests[0].qty)})`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
+        choices.length ? h('div.chips', choices.sort((a, b) => a - b).map((q) => h('button.chip', { onclick: () => buyFlow(q) }, tonnes(q)))) : null,
+        borrowQty ? h('div.chips', [h('button.chip', { onclick: () => buyFlow(borrowQty, borrowNeed) }, `Emprunter et acheter ${tonnes(borrowQty)}`)]) : null,
+        !choices.length && !borrowQty ? h('div.card-why', stock <= 0 ? 'Stock épuisé, revenez plus tard.' : 'Trésorerie insuffisante.') : null,
       ]),
     ]));
   }
@@ -537,6 +585,7 @@ function departTab(app, ship) {
   }, [
     flagEl(PORTS[r.p].flag),
     h('span.grow', portName(r.p)),
+    isEmbargoed(r.p) ? EMBARGO_TAG() : null,
     r.why ? h('span.muted.small', r.why) : h('span.muted.small', `${num(r.nm)} milles · ${days(r.seaDays)}`),
     !r.why && worn && isStrict(r.p) ? h('span.tag.warn', { title: 'Port exigeant : risque de détention pour un navire usé' }, '⚠ contrôles') : null,
     !r.why && r.contracts ? h('span.tag', `${r.contracts} contrat${r.contracts > 1 ? 's' : ''}`) : null,

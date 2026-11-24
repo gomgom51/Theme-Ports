@@ -299,10 +299,30 @@ export function quoteSale(state, ship) {
   if (!ship.cargo || ship.cargo.contractId || !ship.port) return null;
   // Une cargaison avariée se vend moins : la part perdue ou abîmée ne vaut plus rien.
   const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
-  const q = eco.quoteTrade(state, ship.port, ship.cargo.good, sound, 'sell');
+  let q = eco.quoteTrade(state, ship.port, ship.cargo.good, sound, 'sell');
+  // Prix garanti à ce port (prime payée à l'achat) : jamais moins que le cours promis.
+  const fl = ship.cargo.floor;
+  if (fl && fl.port === ship.port && state.t <= fl.until && fl.unit * sound > q.total) q = { ...q, avg: fl.unit, total: fl.unit * sound, guaranteed: true };
   const handling = ship.cargo.qty * (eco.HANDLING_COST[ship.cargo.hold] || 0);
   const net = q.total - handling;
   return { ...q, handling, net, profit: net - ship.cargo.cost, possible: eco.portHandles(ship.port, ship.cargo.hold) };
+}
+
+// Prix garanti : contre une prime (1 à 5 % selon la volatilité de la marchandise et la
+// durée du voyage), la revente à ce port rapportera au moins le cours attendu aujourd'hui.
+export function guaranteeRate(good, days) {
+  return Math.max(0.01, Math.min(0.05, 0.6 * GOODS[good].vol * Math.sqrt(Math.max(1, days))));
+}
+export function guaranteePrice(state, shipId, port, unit, days) {
+  const ship = shipById(state, shipId);
+  if (!ship?.cargo || ship.cargo.contractId) return fail('Aucune cargaison à garantir.');
+  const company = companyOf(state, ship);
+  const premium = Math.round(guaranteeRate(ship.cargo.good, days) * unit * ship.cargo.qty / 1000) * 1000;
+  money(state, company, -premium, 'negoce');
+  ship.cargo.cost += premium;
+  ship.cargo.floor = { port, unit, until: Math.round(state.t + (days * 1.5 + 5) * HOURS_PER_DAY) };
+  shipLog(state, ship, `Prix garanti à ${portName(port)} : ${Math.round(unit)} $/t (prime ${fmtM(premium)})`);
+  return { ok: true, premium };
 }
 
 export function sellCargo(state, ctx, shipId) {

@@ -3,7 +3,7 @@
 import { PORTS, FLAGS } from '../data/ports.js';
 import { EMBARGOED, ENFORCING, SHADY_PORTS, customsLevel, corruption } from '../data/sanctions.js';
 import { portName } from '../sim/core.js';
-import { detectionChance, seizureFine, sanctionRisk, isEmbargoed, acceptOffer, resolveCase, TAINT_DAYS } from '../sim/shady.js';
+import { detectionChance, seizureFine, sanctionRisk, isEmbargoed, acceptOffer, resolveCase, TAINT_DAYS, proposeParcel, acceptProposal } from '../sim/shady.js';
 import { h, money, date, dialog, toast } from './dom.js';
 import { flagEl } from './flags.js';
 
@@ -66,6 +66,42 @@ export function portShadyInfo(id) {
   if (ENFORCING.has(P.flag)) lines.push(h('p.hint', `${F.name} applique les sanctions : un navire passé par un pays sous embargo dans l'année peut y être mis à l'amende.`));
   lines.push(h('p.hint', `Douane ${customsWord(P.flag)}${corruption(P.flag) > 0.15 ? ', fonctionnaires réputés accommodants' : ''}.${SHADY_PORTS.includes(id) ? ' Des intermédiaires y proposent des colis discrets.' : ''}`));
   return lines;
+}
+
+// Proposition spontanée d'un colis, juste après avoir accepté un contrat. Refuser fait
+// parfois doubler l'offre. « Ne plus me proposer » se réactive dans le menu.
+export async function maybeProposeParcel(app, ship, to) {
+  const { state, ctx } = app;
+  if (state.settings.noParcelOffers || !ship || ship.contraband) return;
+  const o = app.withRng((rng) => proposeParcel(state, ctx, rng, ship, to));
+  if (!o) return;
+  const ask = async (offer, insisting) => {
+    const p = detectionChance(ship, offer.to);
+    return dialog({
+      title: insisting ? 'Il insiste' : 'Une proposition discrète',
+      body: h('div', [
+        h('p', insisting
+          ? `L'intermédiaire revient à la charge : il double la mise, ${money(offer.pay)} en liquide pour le même colis.`
+          : `Sur le quai, un intermédiaire vous aborde : un petit colis à glisser dans la cargaison du ${ship.name}, pour ${portName(offer.to)}, payé ${money(offer.pay)} en liquide à la livraison (avant le ${date(offer.deadline, true)}).`),
+        h('p', [`Risque de fouille à l'arrivée : `, h('b', { class: levelClass(p) }, riskWords(p, ship.crew || 0)), ` (et à chaque escale en route). Si la douane le trouve : amende de ${money(seizureFine(offer.pay))}, 10 à 25 jours d'immobilisation, réputation entachée.`]),
+      ]),
+      buttons: [
+        ...(insisting ? [] : [{ label: 'Ne plus me proposer', value: 'jamais', kind: 'ghost' }]),
+        { label: 'Refuser', value: 'non', kind: 'ghost' },
+        { label: `Accepter (${money(offer.pay)})`, value: 'oui', kind: 'primary' },
+      ],
+    });
+  };
+  let choice = await ask(o, false);
+  if (choice === 'jamais') { state.settings.noParcelOffers = true; toast('Plus de propositions spontanées (réactivables dans le menu).', { timeout: 4000 }); return; }
+  if (choice !== 'oui' && o.insist) {
+    o.pay *= 2;
+    choice = await ask(o, true);
+  }
+  if (choice === 'oui') {
+    const r = app.act(() => acceptProposal(state, ship.id, o));
+    if (r?.ok) toast(`Colis caché à bord du ${ship.name}.`, { timeout: 3000 });
+  }
 }
 
 // Décision après une saisie : payer l'amende ou tenter un arrangement.

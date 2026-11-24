@@ -11,9 +11,9 @@ import { clamp, HOURS_PER_DAY } from './util.js';
 export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffinés est à 1
 export const HOLD_TYPES = ['vrac', 'liquide', 'divers', 'conteneurs', 'chimique', 'gpl', 'gnl', 'vehicules', 'frigo', 'lourd'];
 export const CANAL_FEE = { suez: 12, panama: 10 }; // $ par unité de jauge brute
-export const BID_ASK = 0.015;
+export const BID_ASK = 0.01;
 export const BALLAST = 1.8;
-export const SPREAD = 0.85;   // écart de prix entre ports exportateurs et importateurs (× GOODS.spread)
+export const SPREAD = 1.15;   // écart de prix entre ports exportateurs et importateurs (× GOODS.spread)
 export const AI_FLEET = 10;   // taille de flotte visée par l'ordinateur, en « points » (habileté 1)
 export const CYCLE = { sd: 0.0075, max: 0.3 }; // cycle mondial du fret : à-coups quotidiens et amplitude maximale (log)
 // Décote des navires d'occasion (exposant de (1 - âge/durée de vie)) et hausse annuelle des frais fixes avec l'âge.
@@ -91,6 +91,20 @@ export function quoteTrade(state, p, g, qty, side) {
   const e = state.ports[p][g];
   const delta = (side === 'buy' ? 1 : -1) * qty * 0.1 / depth(p, g);
   const avg = basePrice(state, p, g) * (1 + e.imp + delta / 2) * (side === 'buy' ? 1 + BID_ASK : 1 - BID_ASK);
+  return { avg: Math.max(avg, 1), total: Math.max(avg, 1) * qty, delta };
+}
+// Cours attendu dans `days` jours (pour estimer une revente honnêtement) : la part passagère
+// du prix d'un port (ou), l'effet des transactions récentes (imp) et l'écart du cours
+// mondial s'estompent pendant le voyage. Sans cela, le « meilleur débouché » est souvent un
+// port au prix momentanément haut, qui sera retombé à l'arrivée.
+export function quoteTradeAt(state, p, g, qty, side, days = 0) {
+  if (!(days > 0)) return quoteTrade(state, p, g, qty, side);
+  const G = GOODS[g], e = state.ports[p][g];
+  const world = Math.exp(Math.log(state.market.world[g]) * Math.exp(-days / 180));
+  const ou = e.ou * Math.exp(-days / 20), imp = e.imp * Math.exp(-days / 12);
+  const base = G.price * world * (1 + role(p, g) * G.spread * TUNING.spread / 2) * (1 + ou) * embargoFactor(p, g);
+  const delta = (side === 'buy' ? 1 : -1) * qty * 0.1 / depth(p, g);
+  const avg = base * (1 + imp + delta / 2) * (side === 'buy' ? 1 + BID_ASK : 1 - BID_ASK);
   return { avg: Math.max(avg, 1), total: Math.max(avg, 1) * qty, delta };
 }
 export function applyTrade(state, p, g, qty, side) {
@@ -350,7 +364,9 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const embargo = isEmbargoedPort(from) || isEmbargoedPort(to);
   // La prime de retour à vide s'ajoute au taux de base (elle ne le multiplie pas).
   const ballast = TUNING.ballast + ((BALLAST_HOLD[hold] || 1) - 1) * 1.5;
-  const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1) * (reservedFor != null ? 1 + RESERVE_BONUS : 1)) / 1000) * 1000;
+  // Affaire en or (rare) : un chargeur pressé paie bien plus, mais l'offre ne dure pas.
+  const golden = reservedFor == null && rng.chance(GOLDEN_CHANCE);
+  const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1) * (reservedFor != null ? 1 + RESERVE_BONUS : 1) * (golden ? rng.range(1.6, 2.2) : 1)) / 1000) * 1000;
   const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
   // Lignes régulières (conteneurs) et denrées réfrigérées : le chargeur exige un navire
   // presque aussi rapide que celui de référence. Un cargo lent ne peut pas les prendre.
@@ -363,11 +379,21 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
     fuelAtStart: Math.round(worldFuelPrice(state)), priceAtStart: state.market.world[good],
     nm: Math.round(route.nm),
     deadline: Math.round(state.t + deadlineDays * HOURS_PER_DAY),
-    expires: Math.round(state.t + rng.range(4, 12) * HOURS_PER_DAY),
+    expires: Math.round(state.t + (golden ? rng.range(2, 4) : rng.range(4, 12)) * HOURS_PER_DAY),
+    golden,
     takenBy: null,
   };
 }
 
+export const GOLDEN_CHANCE = 0.03;
+// Une affaire en or s'annonce aux compagnies (humaines) qui ont un navire dans ce port.
+function announceGolden(state, c) {
+  for (const co of state.companies) {
+    if (!co.human || co.bankrupt) continue;
+    const ship = state.ships.find((s) => s.owner === co.id && s.status === 'port' && s.port === c.from);
+    if (ship) (state.queuedNotes ??= []).push({ kind: 'golden', company: co.id, shipId: ship.id, text: `Affaire en or à ${PORTS[c.from].name} : ${Math.round(c.pay / 1000).toLocaleString('fr-FR')} k$ pour ${c.qty.toLocaleString('fr-FR')} t vers ${PORTS[c.to].name}. L'offre ne durera pas.` });
+  }
+}
 export function refreshContracts(state, ctx, rng, fill = false) {
   state.contracts = state.contracts.filter((c) => c.takenBy !== null || c.expires > state.t);
   // Contrats ouverts par port et par catégorie, comptés en une seule passe.
@@ -385,7 +411,7 @@ export function refreshContracts(state, ctx, rng, fill = false) {
       for (let k = 0; k < target - open; k++) {
         if (!fill && k > 0 && !rng.chance(0.6)) break;
         const c = makeContract(state, ctx, rng, p, null, { regional: kind === 'regional', big: kind === 'big' });
-        if (c) state.contracts.push(c);
+        if (c) { state.contracts.push(c); if (c.golden && !fill) announceGolden(state, c); }
       }
     }
   }

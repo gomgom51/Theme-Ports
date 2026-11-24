@@ -130,7 +130,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
         const loadH = eco.handlingHours(here, hold, qty) + eco.handlingHours(p, hold, qty);
         const trip = tripCost(state, ctx, ship, p, loadH);
         if (!trip || trip.plan.error) continue;
-        const sell = eco.quoteTrade(state, p, g, qty, 'sell').total - qty * eco.HANDLING_COST[hold];
+        // Cours attendu à l'arrivée (les prix momentanément hauts retombent pendant le voyage).
+        const sell = eco.quoteTradeAt(state, p, g, qty, 'sell', trip.days).total - qty * eco.HANDLING_COST[hold];
         // Prudence : on retire une marge de risque proportionnelle à la durée et à la volatilité.
         const risk = buy.total * GOODS[g].vol * Math.sqrt(trip.days) * 1.2;
         // Le bruit porte sur le cours de revente (quelques %), pas sur toute la valeur :

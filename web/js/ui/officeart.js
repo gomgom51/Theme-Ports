@@ -2,13 +2,20 @@
 import { logoMarkup } from './logos.js';
 import { shipSVG } from './shipart.js';
 
+// half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3), à
+// mi-parcours en temps de jeu (la valeur nette croît à peu près géométriquement).
 export const OFFICE_TIERS = [
-  { min: 0, name: 'Le cagibi du quai', text: 'Un bureau de fortune au bout du quai. Tout commence ici.' },
-  { min: 10e6, name: 'Le bureau sur le port', text: 'Une vraie fenêtre sur le port et des dossiers bien rangés.' },
-  { min: 30e6, name: 'Le siège de la compagnie', text: 'Boiseries, tableaux de navires et maquette sur le bureau.' },
-  { min: 100e6, name: 'L\'étage de direction', text: 'Une baie vitrée sur tout le port. Les banquiers vous appellent.' },
-  { min: 300e6, name: 'La tour de verre', text: 'Le sommet d\'une tour. Le port entier à vos pieds.' },
+  { min: 0, half: 9e6, name: 'Le cagibi du quai', text: 'Un bureau de fortune au bout du quai. Tout commence ici.' },
+  { min: 10e6, half: 17e6, name: 'Le bureau sur le port', text: 'Une vraie fenêtre sur le port et des dossiers bien rangés.' },
+  { min: 30e6, half: 55e6, name: 'Le siège de la compagnie', text: 'Boiseries, tableaux de navires et maquette sur le bureau.' },
+  { min: 100e6, half: 175e6, name: 'L\'étage de direction', text: 'Une baie vitrée sur tout le port. Les banquiers vous appellent.' },
+  { min: 300e6, half: 600e6, name: 'La tour de verre', text: 'Le sommet d\'une tour. Le port entier à vos pieds.' },
 ];
+// Morceau de la partie : 0 à 9 (deux par niveau).
+export function musicStep(netWorth) {
+  const t = officeTier(netWorth);
+  return t * 2 + (netWorth >= OFFICE_TIERS[t].half ? 1 : 0);
+}
 
 export function officeTier(netWorth) {
   let k = 0;

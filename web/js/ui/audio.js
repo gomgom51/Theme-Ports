@@ -5,8 +5,9 @@ import * as S from './sounds.js';
 
 const KEY = 'portdattache.audio';
 // Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
-// Pendant la partie, un thème par standing de la compagnie (niveau1 à niveau5),
-// du vieux chant de marins à la musique de multinationale ; jeu.mp3 en secours.
+// Pendant la partie, deux thèmes par standing de la compagnie (niveau1 puis niveau1b,
+// … niveau5b), du vieux chant de marins à la musique de multinationale. Sans la seconde
+// chanson d'un niveau, la première continue ; jeu.mp3 en secours.
 const TRACKS = {
   title: { src: 'musique/accueil.mp3', volume: 0.45, loop: true },
   game: { src: 'musique/jeu.mp3', volume: 0.22, loop: true },
@@ -16,6 +17,11 @@ const TRACKS = {
   tier3: { src: 'musique/niveau3.mp3', volume: 0.22, loop: true },
   tier4: { src: 'musique/niveau4.mp3', volume: 0.22, loop: true },
   tier5: { src: 'musique/niveau5.mp3', volume: 0.22, loop: true },
+  tier1b: { src: 'musique/niveau1b.mp3', volume: 0.22, loop: true },
+  tier2b: { src: 'musique/niveau2b.mp3', volume: 0.22, loop: true },
+  tier3b: { src: 'musique/niveau3b.mp3', volume: 0.22, loop: true },
+  tier4b: { src: 'musique/niveau4b.mp3', volume: 0.22, loop: true },
+  tier5b: { src: 'musique/niveau5b.mp3', volume: 0.22, loop: true },
 };
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
@@ -212,7 +218,7 @@ export class AudioManager {
   }
 
   // ---------- Musique ----------
-  // Standing de la compagnie (0 à 4) : change le thème joué pendant la partie.
+  // Morceau de la partie (0 à 9 : deux par standing de la compagnie).
   setMusicTier(tier) {
     if (this.musicTier === tier) return;
     this.musicTier = tier;
@@ -221,8 +227,9 @@ export class AudioManager {
   trackFor(scene) {
     const ok = (k) => TRACKS[k] && !this.missing?.has(TRACKS[k].src);
     if (scene === 'game') {
-      const k = `tier${(this.musicTier ?? 0) + 1}`;
-      return ok(k) ? k : ok('game') ? 'game' : null;
+      const step = this.musicTier ?? 0, k = `tier${Math.floor(step / 2) + 1}`;
+      const kb = step % 2 ? `${k}b` : null;
+      return kb && ok(kb) ? kb : ok(k) ? k : ok('game') ? 'game' : null;
     }
     return ok(scene) ? scene : null;
   }
@@ -231,28 +238,40 @@ export class AudioManager {
     const key = scene === 'game' ? `game:${this.musicTier ?? 0}` : scene;
     if (key === this.musicScene) return;
     this.musicScene = key;
-    this.fadeOutMusic();
     const name = this.trackFor(scene);
     const track = TRACKS[name];
-    if (!track || !this.settings.music) return;
+    if (!track || !this.settings.music) { this.fadeOutMusic(); return; }
+    if (this.music && this.musicSrc === track.src) return; // même morceau : il continue
+    // Le morceau en cours ne s'efface que quand le suivant joue vraiment : si la seconde
+    // chanson d'un niveau n'existe pas, la première continue sans reprendre au début.
+    const prev = this.music, prevSrc = this.musicSrc, prevKind = this.musicKind;
     const el = new Audio(track.src);
     el.loop = track.loop;
     el.volume = 0;
-    // Fichier absent : on le note et on se rabat sur le morceau suivant (jeu.mp3).
     el.addEventListener('error', () => {
       (this.missing ||= new Set()).add(track.src);
-      if (this.music === el && scene === 'game' && name !== 'game') { this.musicScene = null; this.playMusic('game'); }
+      if (this.music !== el) return;
+      if (prev && !prev.paused && prevKind === 'game' && scene === 'game') { this.music = prev; this.musicSrc = prevSrc; this.musicKind = prevKind; return; }
+      if (prev) this.fade(prev, 0, 1200, () => prev.pause());
+      this.music = null; this.musicSrc = null;
+      // Fichier absent : on se rabat sur le morceau suivant (première chanson, puis jeu.mp3).
+      if (scene === 'game' && name !== 'game') { this.musicScene = null; this.playMusic('game'); }
     });
     el.play().then(() => {
+      if (this.music !== el) { el.pause(); return; }
+      if (prev && prev !== el) this.fade(prev, 0, 1200, () => prev.pause());
       this.fade(el, track.volume, 2500);
       // La musique couvre un peu l'ambiance.
-      if (this.ambBus && this.music === el) this.ambBus.gain.setTargetAtTime(0.6, this.ctx.currentTime, 1);
+      if (this.ambBus) this.ambBus.gain.setTargetAtTime(0.6, this.ctx.currentTime, 1);
     }).catch(() => {});
     this.music = el;
+    this.musicSrc = track.src;
+    this.musicKind = scene;
   }
   fadeOutMusic() {
     const el = this.music;
     this.music = null;
+    this.musicSrc = null;
     if (this.ambBus) this.ambBus.gain.setTargetAtTime(1, this.ctx.currentTime, 1);
     if (el) this.fade(el, 0, 1200, () => el.pause());
   }

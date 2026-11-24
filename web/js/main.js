@@ -22,7 +22,7 @@ import { openPayment } from './ui/payment.js';
 import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
-import { officeTier, OFFICE_TIERS } from './ui/officeart.js';
+import { officeTier, OFFICE_TIERS, musicStep } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
 import { showScene, scenesOn, setScenesOn } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
@@ -216,7 +216,7 @@ function updateHud() {
     ab.textContent = u.alerts || '';
     ab.hidden = !u.alerts;
     ab.classList.toggle('urgent', u.urgent);
-    app.audio.setMusicTier(officeTier(netWorth(s, c.id)));
+    app.audio.setMusicTier(musicStep(netWorth(s, c.id)));
     updateStandings(s, c.id);
   }
   const humans = s.companies.filter((x) => x.human);
@@ -388,6 +388,12 @@ function handleNotes(notes) {
       toast(n.text, { kind: 'bad', timeout: 20000, action: 'Décider', onAction: () => openCase(app, n.caseId) });
       if (scenes) playScene('customs', sceneOpts(n, { buttons: [{ label: 'Décider', value: 'ok', kind: 'primary' }] }), async () => { await openCase(app, n.caseId); return true; });
       else openCase(app, n.caseId);
+      continue;
+    }
+    if (n.kind === 'golden') {
+      // Affaire en or dans un port où vous avez un navire : on la signale, sans arrêter le jeu.
+      app.audio.play('cash');
+      toast(prefixOf(n) + n.text, { kind: 'money', timeout: 12000, action: 'Voir', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('ship', n.shipId, 'contrats'); app.focusShip(n.shipId); } });
       continue;
     }
     if (n.kind === 'held') {
@@ -586,6 +592,7 @@ async function gameMenu() {
       { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
       { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
+      { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
       { label: 'Menu principal', value: 'title', kind: 'ghost' },
@@ -607,6 +614,7 @@ async function gameMenu() {
   else if (v === 'music') { app.audio.setMusic(!app.audio.settings.music); app.speed = wasSpeed; }
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
+  else if (v === 'parcels') { app.state.settings.noParcelOffers = !app.state.settings.noParcelOffers; app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'title') { if (await confirmBox('Retour au menu principal ?', 'La partie est sauvegardée automatiquement.', 'Quitter')) app.toTitle(); }
   else if (v === 'resume') app.speed = wasSpeed;

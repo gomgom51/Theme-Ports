@@ -69,7 +69,10 @@ C'est vers toi que je reviens…
 ## 2. Pendant la partie : un thème par standing de la compagnie
 
 La musique de la partie suit le bureau de la compagnie (Bureau 💼) : quand la
-valeur nette fait passer au bureau suivant, le thème change en fondu. On part du
+valeur nette fait passer au bureau suivant, le thème change en fondu. Chaque niveau
+a deux chansons : `niveauN.mp3`, puis `niveauNb.mp3` à partir de la moitié du niveau
+(9, 17, 55, 175 et 600 M$) — Suno produit deux versions de chaque prompt, gardez les
+deux. Sans la seconde, la première continue. On part du
 vieux chant de marins et on arrive, au sommet, à la musique de multinationale.
 
 Ces morceaux accompagnent des heures de jeu : cocher **Instrumental** dans Suno,
