@@ -226,6 +226,41 @@ export const SCENES = {
       vignette(g, 'rgba(40,120,60,A)', 0.18);
     },
   },
+  // Proposition discrète : à la tombée du jour, un homme en long manteau rejoint le capitaine
+  // au pied de la passerelle, regarde autour de lui et sort un petit colis de son manteau.
+  // Variante « insist » : il brandit aussi une liasse de billets.
+  offer: {
+    title: 'Une proposition discrète', mood: 'info', loop: [3.8, 5.8],
+    draw(g, t, o) {
+      g.drawImage(bands('sky-dusk2', ['#1d2340', '#3a2f55', '#6b3f5e', '#a35a5a', '#cf8a5a'], 50), 0, 0);
+      stars(g, t, 14, 22);
+      sea(g, t, { cols: ['#3a3552', '#2f2c47', '#26243c', '#1d1c31'], crest: '#8a7aa3' }, 50, 50, 84);
+      drawShip(g, o.color, 22, 81);
+      quay(g, 84);
+      for (let i = 0; i < 7; i++) R(g, 40 + i * 2, 72 + i * 2, 3, 1, '#8a6a3a'); // passerelle
+      R(g, 118, 58, 1, 26, '#3c434c'); R(g, 116, 55, 5, 4, '#ffcf6b');
+      cone(g, 118, 58, 92, 100, 144, 100, '#ffcf6b', 0.17 + 0.04 * Math.sin(t * 9));
+      crate(g, 156, 94); crate(g, 165, 94); crate(g, 160, 87); // caisses : de quoi se cacher
+      g.save(); g.scale(2, 2);
+      const parcel = (x, y) => { R(g, x, y, 4, 3, '#c89a5a'); R(g, x, y + 1, 4, 1, '#e8dcc0'); R(g, x + 2, y, 1, 3, '#e8dcc0'); };
+      person(g, 26, 43, '#1d2f55', { hat: '#f4f4f4' }); // le capitaine, au pied de la passerelle
+      const inP = ease(t / 2.2), mx = 88 - inP * 46; // l'homme au manteau arrive de la droite
+      person(g, mx, 43, '#2b2b30', { hat: '#111111', step: inP < 1 ? Math.floor(t * 5) % 2 : 0 });
+      R(g, mx, 48, 3, 1, '#2b2b30'); // long manteau
+      // Il jette un œil à gauche, à droite…
+      if (t > 2.2 && t < 3.2) R(g, Math.floor((t - 2.2) * 4) % 2 ? mx + 3 : mx - 1, 43, 1, 1, '#111111');
+      // … puis sort le colis de son manteau et le tend.
+      const out = clamp01((t - 3.2) / 0.5);
+      if (out > 0) parcel(mx - 1 - out * 3.5, 45 - (out >= 1 ? Math.round(Math.sin(t * 3)) * 0.5 : 0));
+      if (o.variant === 'insist' && t > 3.4) { // une liasse de billets dans l'autre main
+        const by = 41 + Math.round(Math.sin(t * 4));
+        R(g, mx + 3, by, 5, 2, '#3f8f4f'); R(g, mx + 3, by - 2, 5, 2, '#57a86a'); R(g, mx + 5, by - 2, 1, 4, '#e8f5d0');
+      }
+      g.restore();
+      if (o.variant === 'insist' && t > 3.6) for (let i = 0; i < 5; i++) { const k = (t * 1.2 + i / 5) % 1; R(g, 96 + Math.sin(i * 2.3) * 6, 80 - k * 12, 1, 1, i % 2 ? '#ffd34d' : '#e8f5d0'); }
+      vignette(g, 'rgba(60,20,70,A)', 0.25);
+    },
+  },
   // Détention : inspecteur au quai, navire enchaîné, panneau d'interdiction.
   detention: {
     title: 'Navire retenu par les inspecteurs', mood: 'bad', loop: [0, 4],
@@ -374,7 +409,9 @@ export const SCENES = {
 
 // Montre une scène dans une fenêtre, avec une croix de fermeture en haut à droite (clic sur
 // l'image ou Échap ferment aussi). Renvoie la valeur du bouton choisi, null pour une fermeture.
-export function showScene(app, kind, { title, text = '', color = '#c0392b', variant = null, buttons = [] } = {}) {
+// content : contenu riche à la place du texte ; clickClose : false pour une décision (un clic
+// distrait sur l'image ne doit pas valoir réponse).
+export function showScene(app, kind, { title, text = '', content = null, color = '#c0392b', variant = null, buttons = [], clickClose = true } = {}) {
   const S = SCENES[kind];
   if (!S) return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -390,12 +427,13 @@ export function showScene(app, kind, { title, text = '', color = '#c0392b', vari
       resolve(v);
     };
     const onKey = (e) => { if (e.key === 'Escape' && wrap.isConnected) { e.preventDefault(); e.stopPropagation(); close(null); } };
-    canvas.addEventListener('click', () => close(null));
+    if (clickClose) canvas.addEventListener('click', () => close(null));
+    else canvas.style.cursor = 'default';
     const wrap = h('div.dialog-wrap.scene-wrap', { onclick: (e) => { if (e.target === wrap) close(null); } }, [
       h('div.dialog.wide.scene-dialog', { class: S.mood }, [
         h('button.dialog-close', { title: 'Fermer', 'aria-label': 'Fermer', onclick: () => close(null) }, '✕'),
         h('h2', title || S.title),
-        h('div.scene', [canvas, text ? h('p.scene-text', text) : null]),
+        h('div.scene', [canvas, content ? h('div.scene-text', content) : text ? h('p.scene-text', text) : null]),
         buttons.length ? h('div.dialog-buttons', buttons.map((b) => h('button.btn', { class: b.kind || '', onclick: () => close(b.value) }, b.label))) : null,
       ]),
     ]);
