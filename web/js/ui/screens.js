@@ -12,7 +12,9 @@ const HOME_PORTS = PORT_IDS.filter((p) => !PORTS[p].ice);
 import { h, money, num1, pct, lineChart } from './dom.js';
 import { listSaves, SLOT_LABEL, hasSave } from './save.js';
 
-const DEFAULT_NAMES = ['Armement du Ponant', 'Hanse Reederei', 'Pacific Star Lines', 'Levant Maritime'];
+// Noms fictifs qui font un clin d'œil à de grands armateurs (Marseille, Hambourg, Taïwan, Genève)
+// sans reprendre leur nom.
+const DEFAULT_NAMES = ['Bonne Mère Armement', 'Alster-Lloyd', 'Everbloom Marine', 'Léman Shipping'];
 const REPAIR = ['aucun', 'petit (70 % max)', 'complet', 'grand chantier'];
 
 function screen(cls, children) {
