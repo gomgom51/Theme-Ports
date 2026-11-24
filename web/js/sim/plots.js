@@ -74,7 +74,7 @@ export function orderPlot(state, rng, byId, { kind, target, zone, port }) {
   else return { ok: false, msg: 'Commande inconnue.' };
   if (by.cash < price) return { ok: false, msg: `Il faut ${k$(price)} en caisse.` };
   // Une seule affaire à la fois contre la même cible au même endroit (quel qu'en soit le commanditaire).
-  if (activePlots(state).some((p) => p.target === target && p.kind === kind && (kind === 'pirates' ? p.zone === zone : p.port === port))) return { ok: false, msg: 'Quelqu\'un s\'en occupe déjà : le milieu ne prend pas deux fois la même commande.' };
+  if (activePlots(state).some((p) => p.target === target && p.kind === kind && (kind === 'pirates' ? p.zone === zone : p.port === port))) return { ok: false, msg: 'Quelqu\'un s\'en occupe déjà : la zone ne prend pas deux fois la même commande.' };
   money(state, by, -price, 'divers');
   const days = kind === 'pirates' ? PIRATE_DAYS : CORRUPT_DAYS;
   const plot = {

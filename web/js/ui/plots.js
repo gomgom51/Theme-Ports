@@ -1,4 +1,4 @@
-// Interface des coups bas : le milieu (ports louches), l'informateur, la retenue abusive,
+// Interface des coups bas : la zone (intermédiaires des ports louches), l'informateur, la retenue abusive,
 // les rumeurs de menace dans les notifications importantes, le débauchage d'un chargeur.
 import { CLIENTS } from '../data/clients.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
@@ -72,7 +72,7 @@ export async function jettisonDialog(app, shipId) {
   }
 }
 
-// ---------- Le milieu : pirates et fonctionnaires (port louche, un de vos navires à quai) ----------
+// ---------- La zone : pirates et fonctionnaires (port louche, un de vos navires à quai) ----------
 export function underworldSection(app, port) {
   const { state } = app;
   const me = app.ui.activeCompany;
@@ -96,7 +96,7 @@ export function underworldSection(app, port) {
     if (r?.ok) toast('Marché conclu. Rien ne vous relie à cette affaire… pour l\'instant.', { timeout: 4000 });
   };
   return h('div.underworld', [
-    h('h3', '🕴 Le milieu'),
+    h('h3', '🕴 La zone'),
     h('p.hint', 'Des intermédiaires peu recommandables proposent leurs services contre vos concurrents. Tout finit par se savoir : chaque affaire peut s\'ébruiter (scandale, réputation, amende).'),
     h('div.form-row', [h('b', 'Pirates : '), t1, zoneSel, h('button.btn.small.danger', { onclick: () => order('pirates') }, 'Payer les pirates')]),
     h('div.form-row', [h('b', 'Fonctionnaires : '), t2, portSel, h('button.btn.small.danger', { onclick: () => order('corruption') }, 'Les acheter')]),
