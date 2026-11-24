@@ -280,6 +280,8 @@ p { margin: 6px 0; }
 .underworld, .informant { border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 6px; }
 .tag.gold { color: #8a5a00; border-color: #e0b84a; background: #fff4cf; }
 .card.contract.golden { border-color: #e0b84a; box-shadow: 0 0 0 2px rgba(224, 184, 74, 0.35); background: linear-gradient(180deg, #fffaf0, var(--paper)); }
+.skill-pips { color: var(--teal); letter-spacing: 2px; margin-left: 8px; font-size: 13px; }
+.xp-line { display: grid; gap: 4px; margin: 6px 0 10px; font-size: 13px; color: var(--ink-2); }
 .loyal-dots { color: var(--good); letter-spacing: 1px; font-size: 12px; white-space: nowrap; }
 .pay-risk { font-size: 12.5px; }
 .client-row .client .tag { margin-left: 4px; }

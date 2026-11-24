@@ -9,6 +9,7 @@ import { EQUIPMENT } from '../data/equipment.js';
 import { hasCitadel, hasEquip } from './equipment.js';
 import * as eco from './economy.js';
 import { pirateBoost, PIRATE_BOOST, PIRATE_STRENGTH } from './plots.js';
+import { skillDefence } from './crew.js';
 
 const D = HOURS_PER_DAY;
 //  rate     : probabilité d'attaque par jour passé dans la zone
@@ -54,9 +55,9 @@ function phaseValues(ship, speed, s) {
   return [
     { id: 'approche', label: 'Approche', def: Math.max(0, (speed - 13) / 2.5) + (hasEquip(ship, 'navigation') ? 0.7 : 0), att: s / 3,
       win: 'Le navire accélère et sème les embarcations.', lose: 'Les embarcations rattrapent le navire.' },
-    { id: 'abordage', label: 'Abordage', def: (hasEquip(ship, 'barbeles') ? 1.6 : 0) + crew, att: s / 2.2,
+    { id: 'abordage', label: 'Abordage', def: (hasEquip(ship, 'barbeles') ? 1.6 : 0) + crew + skillDefence(ship), att: s / 2.2,
       win: 'Barbelés et lances à eau : les échelles retombent à la mer.', lose: 'Les assaillants grimpent à bord.' },
-    { id: 'combat', label: 'Combat à bord', def: (hasEquip(ship, 'gardes') ? 4 : 0) + crew, att: s / 1.6,
+    { id: 'combat', label: 'Combat à bord', def: (hasEquip(ship, 'gardes') ? 4 : 0) + crew + skillDefence(ship), att: s / 1.6,
       win: 'Les gardes repoussent les assaillants.', lose: 'L\'équipage est débordé.' },
   ];
 }

@@ -51,7 +51,13 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   `web/js/sim/incidents.js`; flag `tax` / `crew` in `web/js/data/ports.js`;
   shippers (`RESERVE_*`, `DENOUNCE_HIT`, `AI_DENOUNCE`, `GRUDGE_DAYS`, `GRATITUDE`,
   `clientDemand`) in `web/js/sim/clients.js`; shady deals (`PIRATE_*`, `HELD_CHANCE`,
-  `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`.
+  `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`;
+  per-goods trade spread `goodSpread` and `GOLDEN_CHANCE` in `economy.js`; crew skill
+  effects and `XP_STEPS` in `web/js/sim/crew.js`.
+- Lessons (trade): trade estimates must use the price expected on arrival
+  (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
+  margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads
+  are compressed per goods, with liquid bulk kept narrow (huge volumes).
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 
@@ -59,6 +65,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 
 - AI population, 5 years, 96 companies: median ×8 net worth, bottom 10 % ≈ ×1,
   no bankruptcy; every home port viable (Houston/US flag lowest, ×3–8 median).
+  After the owner's 6-hour playtest ("money is slow"), deliberately faster: median
+  ≈ ×19, bottom 10 % ≈ ×4, best ≈ ×54, Houston ×13 (trade, golden deals, crew skills).
+  Strategies then: bulk 8, liners 4, tankers 3, cargos 1 over 16 seeds; fleet OK.
 - 10 years: all AIs survive, growth turns linear once the fleet cap is reached.
 - Strategies over 16 seeds: bulk 7 wins, tankers 5, liners 3, cargos 1 (cargos'
   edge is grey/black trade, which the test bots barely use); medians ×13–24.

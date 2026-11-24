@@ -20,6 +20,7 @@ import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
 import { hostileTag, hostileLine, heldDialog } from './plots.js';
 import { isEmbargoed, taintActive, TAINT_DAYS } from '../sim/shady.js';
+import * as crew from '../sim/crew.js';
 
 // Commercer avec un pays sous embargo marque le navire un an : on demande avant, si le
 // navire est encore « propre ». Renvoie true pour continuer.
@@ -135,6 +136,7 @@ export function shipPanel(app, id, tab) {
     if (ship.cargo?.contractId && !tab) tab = 'depart';
     if (ship.cargo && !ship.cargo.contractId && !tab) tab = 'negoce';
   }
+  tabs.push(['equipage', crew.pointsFree(ship) ? 'Équipage ●' : 'Équipage', () => crewSkillsTab(app, ship)]);
   tabs.push(['journal', 'Journal de bord', () => logTab(app, ship)]);
 
   return {
@@ -345,6 +347,34 @@ function tradeTab(app, ship) {
       ]),
     ]));
   }
+  return box;
+}
+
+// ---------- Équipage : expérience et spécialités ----------
+function crewSkillsTab(app, ship) {
+  const { state } = app;
+  const box = h('div');
+  const xp = ship.xp || 0, next = crew.nextStep(ship), free = crew.pointsFree(ship);
+  const prev = [0, ...crew.XP_STEPS].filter((x) => x <= xp).pop();
+  box.append(h('p.hint', [
+    ship.crew ? `L'équipage apprend en mer, plus vite parce qu'il est ${CREW_LEVELS[ship.crew].short}. ` : 'L\'équipage apprend en mer. ',
+    `À chaque palier, choisissez une spécialité : ${crew.MAX_RANK} niveaux au plus par spécialité, ${crew.XP_STEPS.length} points en tout. L'équipage reste avec le navire (on change son niveau au port, onglet Escale).`,
+  ]));
+  box.append(h('div.xp-line', [
+    h('span', next ? `${Math.floor(xp)} jours de mer · prochain point à ${next} jours` : `${Math.floor(xp)} jours de mer · tous les points sont gagnés`),
+    bar(next ? (xp - prev) / (next - prev) : 1, { good: 0, warn: 0 }),
+  ]));
+  if (free) box.append(h('p.pos', free === 1 ? 'Un point à attribuer : choisissez une spécialité.' : `${free} points à attribuer : choisissez des spécialités.`));
+  box.append(h('div.list', crew.SKILL_IDS.map((id) => {
+    const S = crew.SKILLS[id], r = crew.rank(ship, id);
+    return h('div.card', { class: r ? 'highlight' : '' }, [
+      h('div.card-main', [
+        h('div.card-title', [`${S.icon} ${S.name}`, h('span.skill-pips', { title: `Niveau ${r} sur ${crew.MAX_RANK}` }, '●'.repeat(r) + '○'.repeat(crew.MAX_RANK - r))]),
+        h('div.card-sub', S.text),
+      ]),
+      h('div.card-side', free && r < crew.MAX_RANK ? [h('button.btn.small.primary', { onclick: () => app.act(() => crew.train(state, ship.id, id)) }, 'Former')] : []),
+    ]);
+  })));
   return box;
 }
 

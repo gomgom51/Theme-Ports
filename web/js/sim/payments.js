@@ -21,6 +21,7 @@ export function createPayment(state, ship, contract, penalty, damage = 0) {
     pay: contract.pay, penalty, damage, deadline: contract.deadline, deliveredT: state.t,
     fuelAtStart: contract.fuelAtStart || null, priceAtStart: contract.priceAtStart || null,
     shipName: ship.name, res: null,
+    talk: ship.skills?.negociation || 0, // beaux parleurs à bord
   };
   state.payments.push(p);
   return p;
@@ -36,10 +37,11 @@ export function resolution(state, rng, p) {
   const R = clientRel(state, p.client);
   const lines = [{ label: 'Fret convenu', amount: p.pay, kind: 'base' }];
   let total = p.pay;
+  const soft = 1 - 0.12 * (p.talk || 0); // beaux parleurs : pénalités, réserves, retenues et renégociations réduites
   if (p.penalty > 0) {
     const late = Math.round((p.deliveredT - p.deadline) / D);
-    const cut = -p.pay * p.penalty;
-    lines.push({ label: `Retard de ${late} jour${late > 1 ? 's' : ''} : pénalité de ${pct(p.penalty)}`, amount: cut, kind: 'bad-event' });
+    const cut = -p.pay * p.penalty * soft;
+    lines.push({ label: `Retard de ${late} jour${late > 1 ? 's' : ''} : pénalité de ${pct(p.penalty * soft)}`, amount: cut, kind: 'bad-event' });
     total += cut;
   } else {
     const early = (p.deadline - p.deliveredT) / D;
@@ -51,7 +53,7 @@ export function resolution(state, rng, p) {
   }
   // Marchandise perdue ou avariée en route : le réceptionnaire émet des réserves.
   if (p.damage > 0.005) {
-    const cut = -p.pay * Math.min(0.85, p.damage * 1.15);
+    const cut = -p.pay * Math.min(0.85, p.damage * 1.15) * soft;
     lines.push({ label: `Marchandise avariée (${pct(p.damage)}) : le réceptionnaire émet des réserves`, amount: cut, kind: 'bad-event' });
     total += cut;
   }
@@ -81,7 +83,7 @@ export function resolution(state, rng, p) {
     total += cut;
     event = { kind: 'faillite', loss: Math.round(-cut) };
   } else if (roll < pBankrupt + pDispute) {
-    const share = rng.range(0.05, 0.2);
+    const share = rng.range(0.05, 0.2) * soft;
     event = { kind: 'contestation', withheld: Math.round(total * share), share };
     lines.push({ label: `${C.name} conteste l'état de la marchandise et retient ${pct(share)}`, amount: -event.withheld, kind: 'bad-event' });
   } else if (roll < pBankrupt + pDispute + pDefer) {
@@ -91,7 +93,7 @@ export function resolution(state, rng, p) {
   } else if (rng.next() < pMarket) {
     const g = GOODS[p.good].name.toLowerCase();
     if (priceMove < 0) {
-      const cut = -total * Math.min(0.06, -priceMove * 0.25);
+      const cut = -total * Math.min(0.06, -priceMove * 0.25) * soft;
       lines.push({ label: `Le cours des ${g} a chuté de ${pct(-priceMove)} : le client renégocie`, amount: cut, kind: 'bad-event' });
       total += cut;
     } else {

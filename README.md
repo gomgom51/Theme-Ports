@@ -97,6 +97,10 @@ riche de la planète.
   confiance du marché et vous boude) ou l'on reste discret (certains vous en
   remercient). Livrer à l'heure rend un chargeur fidèle : moins d'ennuis, et ses
   contrats proposés en priorité ; les meilleurs payeurs exigent une bonne réputation.
+* **Négoce** : estimations au cours attendu à l'arrivée, prix de revente garanti contre
+  une prime, emprunt en un clic ; et de temps en temps une affaire en or (★).
+* **L'équipage** apprend en mer et se spécialise : combattants, entretien, mécanique,
+  contrebande, logistique, beaux parleurs.
 * **Des coups bas** : dans les ports louches, payer des pirates pour viser les navires
   d'un concurrent ou acheter les fonctionnaires d'un port pour qu'ils les retiennent ;
   débaucher un chargeur de son partenaire ; payer un informateur pour savoir qui

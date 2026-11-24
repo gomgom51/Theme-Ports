@@ -23,6 +23,7 @@ import { equipMod, equipUpkeep } from './equipment.js';
 import { piracyHour } from './piracy.js';
 import { coverage, premiumPerDay } from './insurance.js';
 import { patrolHour } from './patrols.js';
+import { gainXp, aiTrain, skillSpeed, skillWear } from './crew.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 2;
@@ -227,7 +228,12 @@ function sailHour(state, ctx, rng, ship, notes) {
   const wx = weatherAt(state, pos.lon, pos.lat);
   const speedFactor = wx.force >= 7 ? Math.max(0.45, 1 - (wx.force - 6) * 0.08) : 1;
   const condFactor = ship.condition < 50 ? 1 - (50 - ship.condition) / 120 : 1;
-  const step = v.speed * speedFactor * condFactor;
+  const step = v.speed * speedFactor * condFactor * skillSpeed(ship); // mécaniciens experts : un peu plus vite
+  // L'équipage apprend en mer : un point de spécialité à chaque palier.
+  if (gainXp(ship)) {
+    if (companyOf(state, ship).human) note(state, notes, 'crew', ship, `L'équipage du ${ship.name} a gagné en expérience : une spécialité à choisir (fiche du navire → Équipage).`);
+    else aiTrain(ship, T.holds);
+  }
 
   // Canal fermé pendant le voyage : on s'arrête devant.
   for (const c of route.canals) {
@@ -249,7 +255,7 @@ function sailHour(state, ctx, rng, ship, notes) {
   // Usure : plus rapide pour un vieux navire et par gros temps.
   let wear = eco.wearPerHour(age);
   if (wx.force >= 9) wear += (wx.force - 8) * 0.045 * (1 + (100 - ship.condition) / 100);
-  ship.condition = Math.max(0, ship.condition - wear);
+  ship.condition = Math.max(0, ship.condition - wear * skillWear(ship)); // spécialistes de l'entretien
 
   if (wx.storm && wx.force >= 9 && !v.storms.includes(wx.storm.id)) {
     v.storms.push(wx.storm.id);

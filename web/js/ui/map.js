@@ -673,19 +673,35 @@ export class MapView {
   }
 
   // Insigne de piraterie : crâne et tibias blancs sur disque sombre cerclé de rouge.
+  // Pavillon pirate : drapeau noir sur sa hampe, tête de mort et tibias croisés.
   pirateBadge(g, x, y, s = 1) {
     g.save();
     g.translate(x, y); g.scale(s, s);
-    g.beginPath(); g.arc(0, 0, 12, 0, Math.PI * 2);
-    g.fillStyle = '#26110f'; g.fill();
-    g.lineWidth = 2.2; g.strokeStyle = '#c4362c'; g.stroke();
-    g.strokeStyle = '#f4efe3'; g.fillStyle = '#f4efe3'; g.lineCap = 'round';
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    // Hampe et pommeau.
+    g.lineWidth = 3.4; g.strokeStyle = 'rgba(244,239,227,0.9)';
+    g.beginPath(); g.moveTo(-14, -14); g.lineTo(-14, 13); g.stroke();
+    g.lineWidth = 1.8; g.strokeStyle = '#4a3420';
+    g.beginPath(); g.moveTo(-14, -14); g.lineTo(-14, 13); g.stroke();
+    g.fillStyle = '#c9a24a'; g.beginPath(); g.arc(-14, -15, 1.9, 0, Math.PI * 2); g.fill();
+    // Le pavillon, légèrement ondulé, avec un liseré clair pour ressortir sur la carte.
+    g.beginPath();
+    g.moveTo(-13, -13);
+    g.quadraticCurveTo(-2, -16.5, 13, -12);
+    g.lineTo(13, 5);
+    g.quadraticCurveTo(-2, 9, -13, 5);
+    g.closePath();
+    g.fillStyle = '#17110f'; g.fill();
+    g.lineWidth = 1.5; g.strokeStyle = '#f4efe3'; g.stroke();
+    // Tête de mort et tibias croisés, au centre du pavillon.
+    g.translate(0, -4.2); g.scale(0.82, 0.82);
+    g.strokeStyle = '#f4efe3'; g.fillStyle = '#f4efe3';
     g.lineWidth = 2;
     g.beginPath(); g.moveTo(-6.5, -2); g.lineTo(6.5, 7); g.moveTo(6.5, -2); g.lineTo(-6.5, 7); g.stroke();
     for (const [bx, by] of [[-6.5, -2], [6.5, 7], [6.5, -2], [-6.5, 7]]) { g.beginPath(); g.arc(bx, by, 1.4, 0, Math.PI * 2); g.fill(); }
     g.beginPath(); g.arc(0, -3.2, 4.6, 0, Math.PI * 2); g.fill();
     g.fillRect(-2.7, -0.5, 5.4, 3.4);
-    g.fillStyle = '#26110f';
+    g.fillStyle = '#17110f';
     g.beginPath(); g.arc(-1.8, -3.4, 1.35, 0, Math.PI * 2); g.arc(1.8, -3.4, 1.35, 0, Math.PI * 2); g.fill();
     g.fillRect(-1.5, 1.4, 0.8, 1.5); g.fillRect(0.7, 1.4, 0.8, 1.5);
     g.restore();

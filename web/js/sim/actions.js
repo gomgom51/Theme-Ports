@@ -14,6 +14,7 @@ import { bannedUntil } from './pollution.js';
 import { taintShip } from './shady.js';
 import { equipMod } from './equipment.js';
 import { clientRefusal } from './clients.js';
+import { skillSpeed, skillHandling } from './crew.js';
 
 const fail = (msg) => ({ ok: false, msg });
 const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
@@ -38,6 +39,7 @@ function notReady(ship) {
 
 // Une grève bloque le chargement et le déchargement jusqu'à sa fin.
 export function startBusy(state, ship, what, hours) {
+  if (what === 'chargement' || what === 'déchargement') hours *= skillHandling(ship); // logisticiens
   let until = state.t + hours;
   const strike = state.strikes[ship.port];
   if (strike && strike > state.t && (what === 'chargement' || what === 'déchargement')) until = strike + hours;
@@ -107,7 +109,7 @@ export function planVoyage(state, ctx, ship, to, speed) {
   const info = ctx.distanceInfo(from, to, closed);
   if (!info) return { error: 'Aucune route maritime praticable.' };
   const route = { nm: info.nm, canals: info.canals };
-  const seaDays = route.nm / (24 * speed);
+  const seaDays = route.nm / (24 * speed * skillSpeed(ship)); // mécaniciens experts
   const age = eco.ageYears(state, ship);
   const needFuel = eco.burnPerDay(T, speed, age) * equipMod(ship, 'burn') * seaDays * 1.08 + T.idleBurn;
   const est = eco.voyageEstimate(state, {

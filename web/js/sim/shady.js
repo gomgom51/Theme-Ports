@@ -10,6 +10,7 @@ import { money, news, changeReputation, portName, shipLog, shipById, companyOf, 
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { equipMod } from './equipment.js';
 import { tipped, tipReward, TIP_DETECT } from './plots.js';
+import { skillConceal } from './crew.js';
 
 const D = HOURS_PER_DAY;
 export const TAINT_DAYS = 365;
@@ -63,7 +64,7 @@ export const EMBARGO_PREMIUM = 1.25;
 export function crewDiscretion(ship) { return [1, 0.9, 0.8][ship.crew || 0]; }
 // Probabilité que la douane d'un port trouve le colis lors d'une escale.
 export function detectionChance(ship, port) {
-  return customsLevel(PORTS[port].flag) * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal');
+  return customsLevel(PORTS[port].flag) * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal') * skillConceal(ship);
 }
 export const seizureFine = (pay) => Math.max(500000, pay * 3);
 

@@ -16,6 +16,7 @@ import { etaOf } from './panel-ship.js';
 import { openCase } from './shady.js';
 import { openRansom } from './piracy.js';
 import { plotAlerts, heldDialog, jettisonDialog } from './plots.js';
+import { pointsFree as crewPoints } from '../sim/crew.js';
 
 const LEVELS = { urgent: 0, watch: 1, info: 2 };
 export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
@@ -118,6 +119,7 @@ export function computeAlerts(state, ctx, companyId) {
         add(perish ? 'urgent' : 'watch', '⏰', `Le ${ship.name} arrivera en retard à ${PORTS[c.to].name} (délai le ${date(c.deadline, true)}) : 3 % de pénalité par jour${perish ? ', et la marchandise se gâte' : ''}. Accélérez si possible.`, go);
       }
     }
+    if (crewPoints(ship) > 0) add('info', '🎖', `L'équipage du ${ship.name} peut choisir une spécialité.`, go);
     if (ship.status === 'laidup' && eco.freightLevel(state, ship.type) >= 1) {
       add('info', '📈', `Le fret est remonté pour les ${T.category.toLowerCase()}s : réarmer le ${ship.name} ?`, go);
     }

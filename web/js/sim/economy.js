@@ -77,10 +77,17 @@ export function embargoFactor(p, g) {
   return r > 0 ? 1.08 : r < 0 ? 0.95 : 1;
 }
 export const EMBARGO_PREMIUM = 1.25;
+// Écart de prix d'une marchandise entre ports exportateurs et importateurs, resserré vers
+// une valeur commune : les vracs (écarts larges) gardent à peu près leur marge d'avant, les
+// marchandises chères (écarts minces) en gagnent. Sinon le négoce profite surtout au vrac.
+// Les vracs liquides (volumes énormes) gardent leur marge d'avant : sinon les pétroliers
+// raflent tout le négoce.
+const LIQUID_GOODS = new Set(['brut', 'raffines', 'gpl', 'gnl', 'chimie']);
+export const goodSpread = (g) => (LIQUID_GOODS.has(g) ? GOODS[g].spread * 0.74 : 0.12 + 0.5 * (GOODS[g].spread - 0.12));
 export const isEmbargoedPort = (p) => !!EMBARGOED[PORTS[p].flag];
 function basePrice(state, p, g) {
   const G = GOODS[g], e = state.ports[p][g];
-  return G.price * state.market.world[g] * (1 + role(p, g) * G.spread * TUNING.spread / 2) * (1 + e.ou) * embargoFactor(p, g);
+  return G.price * state.market.world[g] * (1 + role(p, g) * goodSpread(g) * TUNING.spread / 2) * (1 + e.ou) * embargoFactor(p, g);
 }
 export function midPrice(state, p, g) { return basePrice(state, p, g) * (1 + state.ports[p][g].imp); }
 export function buyPrice(state, p, g) { return midPrice(state, p, g) * (1 + BID_ASK); }
@@ -102,7 +109,7 @@ export function quoteTradeAt(state, p, g, qty, side, days = 0) {
   const G = GOODS[g], e = state.ports[p][g];
   const world = Math.exp(Math.log(state.market.world[g]) * Math.exp(-days / 180));
   const ou = e.ou * Math.exp(-days / 20), imp = e.imp * Math.exp(-days / 12);
-  const base = G.price * world * (1 + role(p, g) * G.spread * TUNING.spread / 2) * (1 + ou) * embargoFactor(p, g);
+  const base = G.price * world * (1 + role(p, g) * goodSpread(g) * TUNING.spread / 2) * (1 + ou) * embargoFactor(p, g);
   const delta = (side === 'buy' ? 1 : -1) * qty * 0.1 / depth(p, g);
   const avg = base * (1 + imp + delta / 2) * (side === 'buy' ? 1 + BID_ASK : 1 - BID_ASK);
   return { avg: Math.max(avg, 1), total: Math.max(avg, 1) * qty, delta };
