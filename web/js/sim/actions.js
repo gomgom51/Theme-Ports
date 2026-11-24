@@ -382,7 +382,19 @@ export function buyUsedShip(state, ctx, rng, companyId, listingId) {
   state.used = state.used.filter((x) => x !== l);
   shipLog(state, ship, `Acheté d'occasion à ${portName(l.port)} pour ${fmtM(l.price)}`);
   news(state, `${company.name} achète le ${ship.name} (${SHIP_TYPES[l.type].name.toLowerCase()}) à ${portName(l.port)}.`, { company: companyId, kind: 'fleet' });
+  notifyRivals(state, company, ship, `${company.name} achète le ${ship.name} (${SHIP_TYPES[l.type].name.toLowerCase()}) à ${portName(l.port)}.`, false);
   return { ok: true, ship };
+}
+
+// Un concurrent agrandit sa flotte : les joueurs humains le voient (scène « à la longue-vue »).
+// Navire neuf : toujours ; occasion : au plus une fois par mois, pour ne pas interrompre la
+// partie à chaque achat (le fil des nouvelles les montre tous). Partie à plusieurs : les
+// joueurs partagent l'écran, l'achat d'un humain a déjà sa propre scène.
+export function notifyRivals(state, company, ship, text, newbuild) {
+  if (company.human || !state.companies.some((c) => c.human && !c.bankrupt)) return;
+  if (!newbuild && state.t - (state.rivalSeen ?? 0) < 30 * HOURS_PER_DAY) return; // pas avant le 2e mois (achats de départ)
+  state.rivalSeen = state.t;
+  (state.queuedNotes ??= []).push({ kind: 'rivalship', rival: company.id, color: company.color, shipType: ship.type, newbuild, text });
 }
 
 export function newBuildPrice(state, company, typeId, yard) {

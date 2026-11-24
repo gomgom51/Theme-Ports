@@ -532,7 +532,10 @@ function deliverOrder(state, rng, order, notes) {
   ship.fuel = SHIP_TYPES[order.type].tank * 0.6;
   shipLog(state, ship, `Livré neuf par le chantier de ${portName(order.yard)}`);
   news(state, `${company.name} prend livraison du ${ship.name}, ${SHIP_TYPES[order.type].name.toLowerCase()} neuf, à ${portName(order.yard)}.`, { company: company.id, kind: 'fleet' });
+  const n0 = notes.length;
   note(state, notes, 'idle', ship, `Le ${ship.name} sort du chantier de ${portName(order.yard)} : il attend vos ordres.`);
+  if (notes.length > n0) notes[n0].newbuild = true; // scène du baptême
+  act.notifyRivals(state, company, ship, `${company.name} prend livraison du ${ship.name}, ${SHIP_TYPES[order.type].name.toLowerCase()} neuf, à ${portName(order.yard)}.`, true);
 }
 
 // ---------- Une fois par jour ----------

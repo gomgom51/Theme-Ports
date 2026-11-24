@@ -3,8 +3,29 @@
 // détention, marée noire, et les événements mondiaux de scenes-world.js).
 // Un son facultatif par scène : sons/scene-<nom>.mp3.
 import { h } from './dom.js';
-import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, drawShip, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, box } from './pixel.js';
+import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, drawShip, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, box, cloud, disc, smoke } from './pixel.js';
 import { WORLD_SCENES } from './scenes-world.js';
+import { SHIP_TYPES } from '../data/ships.js';
+
+// Silhouette d'un modèle pour les scènes : pétrolier, vraquier ou cargo / porte-conteneurs.
+export function shipKind(type) {
+  const holds = SHIP_TYPES[type]?.holds || [];
+  if (holds.some((h) => ['liquide', 'chimique', 'gpl', 'gnl'].includes(h))) return 'tank';
+  return holds[0] === 'vrac' ? 'bulk' : 'box';
+}
+// Pavillon de compagnie qui claque au vent (6 × 4, bande blanche), hampe en x, sommet en y.
+function companyFlag(g, x, y, color, t, raise = 1, pole = 14) {
+  R(g, x, y, 1, pole, '#d8d8d8');
+  const fy = Math.round(y + (1 - raise) * (pole - 4));
+  for (let c = 0; c < 6; c++) {
+    const dy = Math.round(Math.sin(t * 7 - c * 0.9) * (c / 6) * 1.2);
+    R(g, x + 1 + c, fy + dy, 1, 4, color); R(g, x + 1 + c, fy + dy + 1, 1, 1, '#f4f4f4');
+  }
+}
+// Traînées de rouille d'un vieux navire (mêmes coordonnées que drawShip, échelle 1).
+function rustStreaks(g, x, y) {
+  for (let i = 0; i < 9; i++) { const rx = x - 22 + (hash(i, 31) % 44), ry = y - 6 + (hash(i, 32) % 2); R(g, rx, ry, 1, 2 + (hash(i, 33) % 3), i % 3 ? '#7a4a2a' : '#94603a'); }
+}
 
 const PI = Math.PI;
 
@@ -412,6 +433,201 @@ export const SCENES = {
       g.restore();
       if (seize) seal(g, 100, 90, clamp01((t - 2.05) / 0.6));
       vignette(g, 'rgba(120,20,10,A)', 0.2 + 0.1 * clamp01((t - 0.3) / 1.8));
+    },
+  },
+
+  // Navire d'occasion acheté : au quai, le courtier remet les papiers contre le chèque, le
+  // vieux navire est repeint aux couleurs de la compagnie et l'équipage hisse son pavillon.
+  buyship: {
+    title: 'Un navire de plus dans la flotte', mood: 'good', loop: [5, 7],
+    draw(g, t, o) {
+      const kind = o.variant || 'box';
+      g.drawImage(bands('sky-buy', ['#78b3d6', '#8fc1de', '#a8d0e6', '#c4e1ef'], 50), 0, 0);
+      for (let i = 0; i < 3; i++) cloud(g, ((t * 3 + i * 74) % (W + 50)) - 40, 8 + (i % 2) * 8, 22 + i * 4);
+      sea(g, t, DAY, 44, 44, 84);
+      gulls(g, t % 4, 2, [196, 30]);
+      const sx = 64, wy = 82, paint = clamp01((t - 2.4) / 2.2);
+      drawShip(g, '#8a8f96', sx, wy, 0, 2, kind, '#5d4a3a'); // l'ancienne livrée, grise et rouillée
+      g.save(); g.translate(sx, wy); g.scale(2, 2); rustStreaks(g, 0, 0); g.restore();
+      if (paint > 0) { // repeint aux couleurs de la compagnie, de la poupe à la proue
+        g.save(); g.beginPath(); g.rect(sx - 52, 0, Math.round(104 * paint), H); g.clip();
+        drawShip(g, o.color, sx, wy, 0, 2, kind);
+        g.restore();
+      }
+      if (paint >= 1) for (let i = 0; i < 3; i++) { const k = ((t - 4.6) * 0.5 + i / 3) % 1; R(g, sx - 48 + k * 96, 72, 3, 1, 'rgba(255,255,255,0.8)'); } // peinture fraîche qui brille
+      quay(g, 84);
+      R(g, 166, 84, 6, 4, '#3c434c'); // bitte d'amarrage
+      g.save(); g.scale(2, 2);
+      const hx = sx / 2, hy = wy / 2;
+      // À la poupe, l'ancien pavillon descend, puis le vôtre est hissé.
+      if (t < 4.2) companyFlag(g, hx - 26, hy - 24, '#8a8f96', t, 1 - clamp01((t - 3.4) / 0.8), 16);
+      else companyFlag(g, hx - 26, hy - 24, o.color, t, clamp01((t - 4.4) / 0.8), 16);
+      for (let i = 0; i < 6; i++) R(g, hx + 18 + i, hy - 5 + i, 2, 1, '#8a6a3a'); // passerelle
+      if (paint > 0 && paint < 1) { // le peintre sur sa nacelle
+        const px = Math.round(hx - 26 + 52 * paint);
+        R(g, px, hy - 12, 1, 4, '#d8d8d8'); R(g, px - 3, hy, 7, 1, '#8a6a3a');
+        person(g, px - 1, hy - 7, '#f2c230', { hat: '#ffffff' });
+        R(g, px + 2, hy - 5 + Math.round(Math.sin(t * 14)), 1, 2, o.color); // rouleau
+      }
+      const papers = (x, y) => { R(g, x, y, 3, 4, '#f4f1e6'); R(g, x, y + 1, 3, 1, '#b9b3a2'); R(g, x + 1, y + 3, 1, 1, '#c0392b'); };
+      const cash = (x, y) => { R(g, x, y, 4, 2, '#3f8f4f'); R(g, x + 1, y, 1, 2, '#e8f5d0'); };
+      const cx0 = 58;
+      person(g, cx0, 43, '#1d2f55', { hat: '#f4f4f4' }); // votre capitaine, au pied de la passerelle
+      const inB = ease(t / 1.6), bx = 100 - inB * 36; // le courtier arrive avec les papiers
+      person(g, bx, 43, '#5a5f66', { hat: '#2b2b30', step: inB < 1 ? Math.floor(t * 5) % 2 : 0 });
+      R(g, bx + 3, 46, 2, 2, '#6b4320'); // sa serviette
+      const x = clamp01((t - 1.7) / 0.7); // échange : le chèque passe à droite, les papiers à gauche
+      if (t < 1.7) { papers(bx - 2, 45); cash(cx0 + 2, 45); }
+      else if (x < 1) { papers(bx - 2 - x * 6, 45 - Math.sin(x * PI) * 2); cash(cx0 + 2 + x * 3, 45 - Math.sin(x * PI) * 2); }
+      else {
+        papers(cx0 - 1, 44 - (t > 4.4 ? Math.round(Math.abs(Math.sin(t * 5))) : 0)); // brandis quand le pavillon monte
+        if (t < 3.2) R(g, cx0 + 3, 46 + Math.round(Math.sin(t * 16)) * 0.5, 3, 1, '#e8b98f'); // poignée de main
+        cash(bx + 3, 44);
+      }
+      g.restore();
+    },
+  },
+  // Navire neuf : la marraine lâche la bouteille, qui se brise sur l'étrave ; le navire glisse
+  // sur la cale de lancement, la sirène retentit et le feu d'artifice éclate.
+  newbuild: {
+    title: 'Baptême d\'un navire neuf', mood: 'good', loop: [4.4, 6.4],
+    draw(g, t, o) {
+      const kind = o.variant || 'box';
+      const pal = { cols: ['#3d3a5c', '#33324f', '#2a2a44', '#222239'], crest: '#9a86b5' };
+      g.drawImage(bands('sky-launch', ['#1f2a52', '#3a3b6c', '#684a78', '#ad6277', '#e09a6c'], 58), 0, 0);
+      stars(g, t, 12, 20);
+      for (let i = 0; i < 9; i++) R(g, i * 7, 54 - (hash(i, 41) % 4), 7, 4 + (hash(i, 41) % 4), '#2d2a45'); // côte lointaine
+      for (let i = 0; i < 5; i++) R(g, 3 + hash(i, 42) % 58, 53 + hash(i, 43) % 3, 1, 1, '#ffd38a');
+      sea(g, t, pal, 58, 58, H);
+      // Portique du chantier, en silhouette.
+      const gc = '#463c5e';
+      R(g, 112, 18, 2, 56, gc); R(g, 186, 18, 2, 54, gc); R(g, 104, 15, 92, 4, gc);
+      for (let x = 106; x < 194; x += 6) line(g, x, 15, x + 3, 18, '#5a4f74');
+      R(g, 146, 19, 6, 3, gc); R(g, 148, 22, 1, 12, '#5a4f74'); // chariot et câble
+      // Cale de lancement et terre-plein.
+      const rampY = (x) => 96 - (x - 40) * 0.185;
+      g.fillStyle = '#6d6a72'; g.beginPath(); g.moveTo(40, 96); g.lineTo(170, rampY(170)); g.lineTo(W, 72); g.lineTo(W, H); g.lineTo(40, H); g.closePath(); g.fill();
+      line(g, 40, 96, 170, rampY(170), '#9b97a0'); R(g, 170, 72, 30, 1, '#9b97a0');
+      for (let x = 46; x < 168; x += 9) R(g, x, Math.round(rampY(x)) + 1, 4, 1, '#55525a'); // traverses
+      // Le navire : immobile, puis il glisse et prend la mer.
+      const th = -0.183, cs = Math.cos(th);
+      let cx = 132, cy = rampY(132) - 3, ang = th;
+      if (t > 1.8) {
+        const p = Math.min(1, (t - 1.8) / 1.2), d = 40 * p * p;
+        cx = 132 - d * cs; cy = rampY(cx) - 3;
+        if (t > 3) { // à flot : il file sur son erre, se redresse et se balance
+          const tau = t - 3;
+          cx = 92.7 - 40 * (1 - Math.exp(-1.6 * tau));
+          cy = 83.2 + 2.8 * (1 - Math.exp(-3 * tau)) + Math.sin(t * 3) * 0.4;
+          ang = th * Math.exp(-3 * tau) * Math.cos(5 * tau) + Math.sin(t * 2.4) * 0.02;
+        }
+      }
+      if (t < 1.8) for (let i = 0; i < 4; i++) { const bx = 112 + i * 12; R(g, bx, rampY(bx) - 3, 3, 3, '#8a6a3a'); } // ber de lancement
+      drawShip(g, o.color, cx, cy, ang, 1, kind);
+      g.save(); g.globalAlpha = 0.8; g.beginPath(); g.rect(0, 86, 104, H); g.clip(); sea(g, t, pal, 58, 86, H); g.restore(); // l'eau recouvre la carène
+      // Gerbe d'eau quand la poupe touche l'eau.
+      if (t > 2.5 && t < 4.2) for (let i = 0; i < 18; i++) {
+        const k = (t - 2.5 - (hash(i, 44) % 10) / 40) / 1.2; if (k < 0 || k > 1) continue;
+        const vx = ((hash(i, 45) % 20) - 14) * 1.3, vy = 14 + hash(i, 46) % 16;
+        R(g, 82 + vx * k, 85 - vy * k + 22 * k * k, 1, 1 + (i % 2), i % 3 ? '#e8f1f8' : '#b7d3e6');
+      }
+      // Sirène : bouffées de vapeur à la cheminée.
+      if (t > 3.1) {
+        const fx = cx + Math.cos(ang) * -17 - Math.sin(ang) * -17, fy = cy + Math.sin(ang) * -17 + Math.cos(ang) * -17;
+        for (let i = 0; i < 6; i++) { const k = ((t - 3.1) * 0.8 + i / 6) % 1; disc(g, fx + k * 6, fy - k * 10, 1 + k * 2.5, `rgba(240,240,245,${(0.7 * (1 - k)).toFixed(2)})`); }
+      }
+      // Estrade, guirlande de fanions et foule.
+      R(g, 168, 66, 32, 6, '#7b5a3a'); R(g, 168, 66, 32, 1, '#a5794d');
+      R(g, 170, 42, 1, 24, '#b8b0a0'); R(g, 170, 42, 8, 1, '#b8b0a0');
+      for (let i = 0; i < 10; i++) { const fx = 171 + i * 3, fy = 46 + Math.round(Math.sin((i / 9) * PI) * 3); R(g, fx, fy, 2, 2, ['#c0392b', '#f4f4f4', '#2e86c1', o.color][i % 4]); R(g, fx, fy + 2, 1, 1, ['#c0392b', '#f4f4f4', '#2e86c1', o.color][i % 4]); }
+      const cheer = t > 1.4;
+      [[180, '#8e44ad'], [186, '#c0392b'], [192, '#2e86c1'], [176, '#e67e22'], [196, '#27ae60']].forEach(([px, c], i) => {
+        const jump = cheer ? (Math.floor(t * 4 + i) % 2) : 0;
+        person(g, px, 59 - jump, c);
+        if (cheer && i % 2 === 0) { R(g, px + 1, 55 - jump, 1, 3, '#d8d8d8'); R(g, px + 2, 55 - jump, 2, 2, o.color); } // petits drapeaux
+      });
+      // La bouteille : tenue, lâchée, brisée sur l'étrave.
+      const pv = [170, 42], L = 28.7, phi0 = 0.9, phiHit = -0.51;
+      let phi = phi0, broken = false;
+      if (t > 0.9) {
+        const q = clamp01((t - 0.9) / 0.45);
+        phi = phi0 + (phiHit - phi0) * q * q;
+        if (q >= 1) { broken = true; const tau = t - 1.35; phi = phiHit * Math.exp(-tau * 1.4) * Math.cos(tau * 4.5); }
+      }
+      const len = broken ? 10 : L, bx = pv[0] + Math.sin(phi) * len, by = pv[1] + Math.cos(phi) * len;
+      line(g, pv[0], pv[1], bx, by, '#e8e0c8');
+      if (broken) R(g, bx - 1, by, 2, 2, '#2f7d4a');
+      else { R(g, bx - 1, by, 3, 5, '#2f7d4a'); R(g, bx, by - 1, 1, 2, '#e3b33b'); R(g, bx - 1, by + 2, 3, 1, '#f4f1e6'); }
+      person(g, 191, 58, '#f4f4f4', { hat: o.color }); // la marraine
+      if (t < 0.9) R(g, 192, 60, 1, 1, '#e8b98f'); // elle tient la bouteille
+      if (t > 1.35 && t < 2.6) for (let i = 0; i < 16; i++) { // mousse et éclats de verre
+        const k = (t - 1.35) / 1.25, a = (i / 16) * PI * 2, r = 3 + k * (6 + hash(i, 47) % 6);
+        R(g, 156 + Math.cos(a) * r, 69 + Math.sin(a) * r * 0.8 + k * k * 8, 1, 1, i % 4 === 0 ? '#5fbf7a' : i % 2 ? '#fff6d8' : '#f4f4f4');
+      }
+      // Feu d'artifice.
+      if (t > 2.4) {
+        const cols = [o.color, '#ffd34d', '#f4f4f4', '#5fd3e8'];
+        for (let b = 0; b < 3; b++) {
+          const k = ((t - 2.4) / 2 + b / 3) % 1, n = Math.floor((t - 2.4) / 2 + b / 3);
+          const ex = 30 + (hash(b, 48 + (n % 2)) % 130), ey = 10 + hash(b, 49 + (n % 2)) % 24, col = cols[(b + n) % 4];
+          if (k < 0.25) R(g, ex, ey + (1 - k / 0.25) * 26, 1, 2, '#ffe9b0'); // la fusée monte
+          else {
+            const e = (k - 0.25) / 0.75, r = 3 + e * 14;
+            g.globalAlpha = 1 - e * e;
+            if (e < 0.12) R(g, ex - 1, ey - 1, 3, 3, '#fffbe6'); // l'éclair de l'explosion
+            for (let i = 0; i < 16; i++) {
+              const a = (i / 16) * PI * 2, fall = e * e * 5;
+              R(g, ex + Math.cos(a) * r, ey + Math.sin(a) * r + fall, 1, 1, col);
+              R(g, ex + Math.cos(a) * r * 0.7, ey + Math.sin(a) * r * 0.7 + fall * 0.7, 1, 1, i % 2 ? col : '#fff6d8'); // traînée
+            }
+            g.globalAlpha = 1;
+          }
+        }
+      }
+    },
+  },
+  // Un concurrent agrandit sa flotte : son navire passe dans les jumelles, à ses couleurs.
+  // Variante 'kind/new' : navire neuf, escorté par un remorqueur qui lance ses jets d'eau.
+  rivalship: {
+    title: 'Un concurrent agrandit sa flotte', mood: 'info', loop: [2.6, 4.6],
+    draw(g, t, o) {
+      const [kind, extra] = (o.variant || 'box').split('/'), isNew = extra === 'new';
+      g.drawImage(bands('sky-spy', ['#86bcd9', '#9cc9e1', '#b5d7ea', '#cfe6f1'], 56), 0, 0);
+      cloud(g, 60 - t * 2, 18, 30); cloud(g, 140 - t * 2, 26, 24);
+      R(g, 0, 53, W, 3, '#7d9aa6'); // côte au loin
+      sea(g, t, DAY, 56);
+      const ox = Math.round(Math.sin(t * 1.7) * 1.5), oy = Math.round(Math.cos(t * 1.3)); // les mains qui tiennent les jumelles
+      const sx = 100 + 120 * (1 - ease(t / 2.4)), sy = 76 + Math.round(Math.sin(t * 2) * 0.6);
+      // Sillage derrière la poupe (le navire file vers la gauche) et moustache d'étrave.
+      for (let i = 0; i < 14; i++) { const k = ((t * 1.5 + i / 14) % 1); R(g, sx + 50 + k * 50, sy + 1 + Math.round(Math.sin(i * 2.1) * 2 * k), 3 + k * 4, 1, 'rgba(235,245,250,' + (0.8 * (1 - k)).toFixed(2) + ')'); }
+      R(g, sx - 56, sy - 1, 5, 2, '#e8f1f8');
+      drawShip(g, o.color, sx, sy, 0, [-2, 2], kind, isNew ? undefined : '#5d4a3a');
+      if (!isNew) for (let i = 0; i < 8; i++) R(g, sx - 44 + (hash(i, 51) % 84), sy - 10, 1, 3 + hash(i, 53) % 4, '#7a4a2a'); // rouille
+      companyFlag(g, sx + 51, sy - 30, o.color, t, 1, 22); // son pavillon, à la poupe
+      smoke(g, sx + 35, sy - 35, t, { n: 8, color: isNew ? '#d8dde2' : '#4a4a4a', alpha: 0.6, rise: 6, drift: 6, size: 3 });
+      if (isNew) {
+        for (let i = 0; i < 3; i++) { const k = ((t * 0.7 + i / 3) % 1); R(g, sx - 44 + k * 88, sy - 10, 3, 1, 'rgba(255,255,255,0.9)'); } // coque neuve qui brille
+        // Remorqueur d'escorte et ses jets d'eau en arc.
+        const tx = sx - 10, ty = sy + 14;
+        R(g, tx - 11, ty - 3, 24, 4, '#b8332c'); R(g, tx - 9, ty + 1, 20, 1, '#1d1d1d'); R(g, tx - 3, ty - 8, 8, 5, '#f4f4f4'); R(g, tx - 1, ty - 7, 4, 1, '#24323c'); R(g, tx, ty - 12, 2, 4, '#e3b33b');
+        for (let j = 0; j < 2; j++) for (let i = 0; i < 16; i++) {
+          const k = ((t * 1.2 + i / 16) % 1), dir = j ? 1 : -1;
+          R(g, tx + 1 + dir * k * 30, ty - 12 - Math.sin(k * PI) * 22, 2, 2, 'rgba(235,246,252,' + (1 - 0.4 * k).toFixed(2) + ')');
+        }
+      }
+      gulls(g, (t % 3) * 0.8, 2, [sx + 20, 34], -1);
+      // Les deux oculaires : tout ce qui sort des cercles est noir, bague de laiton, reflets.
+      const r = 44, cA = 73 + ox, cB = 127 + ox, cy = 56 + oy;
+      for (let y = 0; y < H; y++) {
+        const dy = y + 0.5 - cy, inside = r * r - dy * dy;
+        if (inside <= 0) { R(g, 0, y, W, 1, '#0b0d12'); continue; }
+        const dx = Math.round(Math.sqrt(inside)), a0 = cA - dx, a1 = cA + dx, b0 = cB - dx, b1 = cB + dx;
+        R(g, 0, y, a0, 1, '#0b0d12'); R(g, b1, y, W - b1, 1, '#0b0d12');
+        if (a1 < b0) R(g, a1, y, b0 - a1, 1, '#0b0d12'); // entre les deux cercles, en haut et en bas
+        R(g, a0, y, 2, 1, '#9a7a34'); R(g, b1 - 2, y, 2, 1, '#6e5624');
+        if (a1 < b0) { R(g, a1 - 2, y, 2, 1, '#6e5624'); R(g, b0, y, 2, 1, '#9a7a34'); }
+      }
+      for (const c of [cA, cB]) for (let i = 0; i < 8; i++) { const a = -2.4 + i * 0.08; R(g, c + Math.cos(a) * (r - 6), cy + Math.sin(a) * (r - 6), 2, 1, 'rgba(255,255,255,0.35)'); }
     },
   },
   ...WORLD_SCENES,

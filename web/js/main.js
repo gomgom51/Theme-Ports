@@ -24,7 +24,7 @@ import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
-import { showScene, scenesOn, setScenesOn } from './ui/scenes.js';
+import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { heldDialog } from './ui/plots.js';
 
@@ -390,6 +390,13 @@ function handleNotes(notes) {
       else openCase(app, n.caseId);
       continue;
     }
+    if (n.kind === 'rivalship') {
+      // Un concurrent agrandit sa flotte (navire neuf, ou occasion au plus une fois par mois).
+      const rival = app.state.companies[n.rival];
+      if (scenes && rival) playScene('rivalship', { title: n.newbuild ? 'Un concurrent lance un navire neuf' : 'Un concurrent agrandit sa flotte', text: n.text, color: rival.color || n.color, variant: shipKind(n.shipType) + (n.newbuild ? '/new' : '') });
+      else toast(`📰 ${n.text}`, { timeout: 9000 });
+      continue;
+    }
     if (n.kind === 'golden') {
       // Affaire en or dans un port où vous avez un navire : on la signale, sans arrêter le jeu.
       app.audio.play('cash');
@@ -433,7 +440,8 @@ function handleNotes(notes) {
     const [scene, extra] = !scenes ? [null] : n.kind === 'sunk' ? ['sunk'] : n.kind === 'pollution' ? ['pollution']
       : n.kind === 'detention' ? [n.seizure ? 'customs' : 'detention']
       : bigStorm ? ['storm', { variant: n.lost === 'boxes' ? 'boxes' : n.lost ? 'cargo' : null, force: n.force }]
-      : n.kind === 'banker' ? ['banker'] : n.kind === 'bank' ? ['banker', { variant: 'seize', title: 'La banque saisit un navire' }] : [null];
+      : n.kind === 'banker' ? ['banker'] : n.kind === 'bank' ? ['banker', { variant: 'seize', title: 'La banque saisit un navire' }]
+      : n.newbuild && shipById(app.state, n.shipId) ? ['newbuild', { variant: shipKind(shipById(app.state, n.shipId).type) }] : [null];
     if (scene) playScene(scene, sceneOpts(n, extra));
     const company = n.company != null ? app.state.companies[n.company] : null;
     const prefix = company && app.state.companies.filter((c) => c.human).length > 1 ? `${company.name} : ` : '';
@@ -665,5 +673,10 @@ app.audio.setScene('title');
 titleScreen(app);
 playIntro(app); // au lancement seulement : le caboteur quitte le port, puis le menu
 requestAnimationFrame(loop);
+// Navire d'occasion acheté : la scène de la remise des papiers (le temps repart ensuite).
+app.boughtShip = (ship) => {
+  if (!scenesOn() || !ship) return;
+  playScene('buyship', { text: `Le ${ship.name} est à vous : l'équipage hisse vos couleurs à ${PORTS[ship.port]?.name || ''}.`, color: companyColor(ship.owner), variant: shipKind(ship.type) });
+};
 window.__app = app; // pratique pour le débogage dans la console
 app.handleNotes = handleNotes; // idem : rejouer une notification (scènes, tests)

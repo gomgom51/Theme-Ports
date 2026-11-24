@@ -1446,4 +1446,9 @@ export default {
   "L'équipage du {0} a gagné en expérience : une spécialité à choisir (fiche du navire → Équipage).": "The {0}'s crew has gained experience: a specialty to choose (ship sheet → Crew).",
   "Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Plus rentable qu'un contrat, mais il faut avancer l'argent (« Emprunter et acheter » si besoin) et les prix bougent pendant le voyage : les estimations donnent le cours attendu à l'arrivée, et un prix de revente garanti (une prime) supprime le risque de baisse. Parfois, une affaire en or (★) paie presque le double : elle part vite.": "Trading: buy a cargo in an exporting port and sell it in an importing port. More profitable than a contract, but you must put up the money (\"Borrow and buy\" if needed) and prices move during the voyage: the estimates give the price expected on arrival, and a guaranteed resale price (a premium) removes the risk of a fall. Sometimes a golden deal (★) pays almost double: it goes fast.",
   "Équipage : il apprend en mer et gagne des points de spécialité (combattants, entretien, mécanique, contrebande, logistique, beaux parleurs), à choisir dans l'onglet Équipage du navire.": "Crew: it learns at sea and earns specialty points (fighters, maintenance, mechanics, smuggling, logistics, smooth talkers), to choose in the ship's Crew tab.",
+  "Un navire de plus dans la flotte": "One more ship in the fleet",
+  "Baptême d'un navire neuf": "Christening a new ship",
+  "Un concurrent agrandit sa flotte": "A rival expands its fleet",
+  "Un concurrent lance un navire neuf": "A rival launches a new ship",
+  "Le {0} est à vous : l'équipage hisse vos couleurs à {1}.": "The {0} is yours: the crew hoists your colours in {1}.",
 };
