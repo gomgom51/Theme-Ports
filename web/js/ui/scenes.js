@@ -630,6 +630,91 @@ export const SCENES = {
       for (const c of [cA, cB]) for (let i = 0; i < 8; i++) { const a = -2.4 + i * 0.08; R(g, c + Math.cos(a) * (r - 6), cy + Math.sin(a) * (r - 6), 2, 1, 'rgba(255,255,255,0.35)'); }
     },
   },
+
+  // Nouveau niveau : l'échafaudage passe de gauche à droite et le bureau se transforme ; les
+  // étoiles du niveau s'allument, confettis. variant : { from, to (images du bureau), level }.
+  office: {
+    title: 'Un nouveau bureau !', mood: 'good', loop: [3.8, 5.8],
+    draw(g, t, o) {
+      const v = o.variant || {};
+      R(g, 0, 0, W, H, '#1b1f27');
+      const paint = (img) => { if (img?.complete && img.naturalWidth) { g.imageSmoothingEnabled = true; g.drawImage(img, -34, 0, 268, 112); g.imageSmoothingEnabled = false; } };
+      const wx = Math.round(-12 + (W + 24) * clamp01((t - 1) / 2));
+      paint(v.from);
+      if (wx > 0) { g.save(); g.beginPath(); g.rect(0, 0, wx, H); g.clip(); paint(v.to); g.restore(); }
+      if (t > 0.9 && t < 3.1) { // l'échafaudage, ses planches et l'ouvrier au rouleau
+        R(g, wx - 1, 0, 2, H, '#8a6a3a'); R(g, wx + 7, 0, 2, H, '#8a6a3a');
+        for (let y = 14; y < H; y += 26) R(g, wx - 3, y, 14, 2, '#b58a4e');
+        const py = 40 + Math.round(Math.sin(t * 5) * 24);
+        g.save(); g.scale(2, 2); person(g, (wx + 1) / 2, py / 2, '#f2c230', { hat: '#ffffff' }); g.restore();
+        R(g, wx - 3, py + 2, 2, 6, '#ffffff'); R(g, wx - 4, py + 8, 4, 2, o.color); // rouleau
+        smoke(g, wx - 4, 100, t, { n: 10, color: '#e8e0d0', alpha: 0.5, rise: 10, drift: -3, size: 4, life: 1.6 });
+      }
+      if (t > 3) {
+        const n = v.level || 1;
+        const star = (x, y, sc, c) => {
+          const rows = ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '##...##'];
+          rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '#') R(g, x + (i - 3) * sc, y + (j - 3) * sc, sc, sc, c); }));
+        };
+        for (let i = 0; i < n; i++) { // les étoiles du niveau, une à une
+          const k = clamp01((t - 3 - i * 0.18) / 0.25); if (k <= 0) continue;
+          const x = 14 + i * 18, y = 13;
+          star(x + 1, y + 1, 2, 'rgba(0,0,0,0.45)');
+          star(x, y, k < 1 ? 3 : 2, (Math.floor(t * 3 + i) % 5) ? '#ffd34d' : '#fff6c0');
+        }
+        const cols = [o.color, '#ffd34d', '#f4f4f4', '#5fd3e8', '#ff8a7a'];
+        for (let i = 0; i < 40; i++) { // confettis
+          const k = ((t - 3) / 2 + (hash(i, 61) % 100) / 100) % 1;
+          R(g, (hash(i, 62) % W) + Math.sin(t * 3 + i) * 3, -4 + k * (H + 8), 2, 1 + (i % 2), cols[i % cols.length]);
+        }
+      }
+    },
+  },
+  // Un équipage gagne un point de spécialité : sur le pont, le capitaine épingle une médaille,
+  // les marins lancent leur bonnet en l'air et une étoile s'élève.
+  crewxp: {
+    title: 'Un équipage gagne en expérience', mood: 'good', loop: [3, 5],
+    draw(g, t, o) {
+      g.drawImage(bands('sky-crew', ['#7fb6d6', '#97c6df', '#b2d5e8', '#cbe3ef'], 52), 0, 0);
+      cloud(g, 120 - t * 2, 14, 30); cloud(g, 186 - t * 2, 26, 22);
+      sea(g, t, DAY, 52, 52, 84);
+      // Château et cheminée aux couleurs de la compagnie.
+      R(g, 0, 26, 48, 58, '#f2efe6'); R(g, 0, 26, 48, 2, '#d8d3c6');
+      for (let x = 4; x < 44; x += 7) { R(g, x, 34, 4, 4, '#24323c'); R(g, x, 50, 4, 4, '#24323c'); }
+      R(g, 14, 8, 16, 18, o.color); R(g, 14, 8, 16, 3, '#1b1b1b');
+      smoke(g, 22, 6, t, { n: 8, color: '#9aa0a6', alpha: 0.5, rise: 5, drift: 5, size: 3 });
+      // Bastingage et pont.
+      R(g, 48, 70, W - 48, 1, '#f4f4f4'); R(g, 48, 77, W - 48, 1, '#f4f4f4');
+      for (let x = 52; x < W; x += 12) R(g, x, 70, 1, 14, '#e2e2e2');
+      R(g, 0, 84, W, H - 84, '#6c7a72'); R(g, 0, 84, W, 1, '#8c9a92');
+      for (let x = 0; x < W; x += 16) R(g, x, 92 + (x % 32 ? 0 : 8), 10, 1, '#5d6b63');
+      gulls(g, t % 4, 2, [210, 30]);
+      // La médaille, puis l'étoile qui s'élève au-dessus de l'équipage.
+      if (t > 2.2) {
+        const k = ease((t - 2.2) / 0.8), sy = 66 - k * 38, tw = Math.floor(t * 4) % 2;
+        const rows = ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '##...##'];
+        rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '#') R(g, 113 + (i - 3) * 3, sy + (j - 3) * 3, 3, 3, tw ? '#ffd34d' : '#ffe680'); }));
+        if (k >= 1) for (let i = 0; i < 10; i++) { const a = (i / 10) * PI * 2 + t; R(g, 114 + Math.cos(a) * (15 + tw), sy + Math.sin(a) * (15 + tw), 1, 1, '#fff6c0'); }
+      }
+      g.save(); g.scale(2, 2);
+      const xs = [46, 56, 66, 76], cheer = t > 2.2;
+      xs.forEach((x, i) => { // les marins, en rang
+        const bob = cheer ? (Math.floor(t * 4 + i) % 2) : 0;
+        person(g, x, 42 - bob, '#2e4a7a', { hat: '#f4f4f4' });
+        R(g, x, 44 - bob, 3, 1, '#f4f4f4'); // col marin
+        if (cheer) { // le bonnet lancé en l'air, qui retombe
+          const k = ((t - 2.2) % 2) / 0.9;
+          if (k < 1) { R(g, x, 42 - bob, 3, 1, '#e8b98f'); R(g, x, 42 - bob - Math.sin(k * PI) * (10 + i * 2), 3, 1, '#f4f4f4'); }
+        }
+      });
+      const cin = ease(t / 1.4), cx = 26 + cin * 25; // le capitaine vient se placer à côté du deuxième marin
+      person(g, cx, 44, '#1d2f55', { hat: '#f4f4f4', step: cin < 1 ? Math.floor(t * 5) % 2 : 0 });
+      R(g, cx, 46, 1, 1, '#e3b33b'); R(g, cx + 2, 46, 1, 1, '#e3b33b'); // épaulettes
+      if (t > 1.5 && t < 2.1) R(g, cx + 3, 46, 2, 1, '#e8b98f'); // il épingle la médaille
+      if (t > 1.8) { const bob = cheer ? (Math.floor(t * 4 + 1) % 2) : 0; R(g, 57, 44 - bob, 1, 1, o.color); R(g, 57, 45 - bob, 1, 1, Math.floor(t * 3) % 3 ? '#e3b33b' : '#fff6c0'); } // ruban et médaille
+      g.restore();
+    },
+  },
   ...WORLD_SCENES,
 };
 

@@ -22,7 +22,7 @@ import { openPayment } from './ui/payment.js';
 import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
-import { officeTier, OFFICE_TIERS, musicStep } from './ui/officeart.js';
+import { officeTier, OFFICE_TIERS, musicStep, reachedTier, MUSIC_LOW, officeSVG } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
@@ -177,16 +177,45 @@ function updateStandings(s, me) {
     h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 16) }),
     h('span.standings-name', r.company.name),
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
-  ])), levelLine(netWorth(s, me)));
+  ])), levelLine(netWorth(s, me), s.companies[me]));
 }
-// Niveau de la compagnie (le bureau) et ce qu'il faut pour le suivant.
-function levelLine(worth) {
-  const tier = officeTier(worth), next = OFFICE_TIERS[tier + 1];
-  const k = next ? Math.max(0, Math.min(1, (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min))) : 1;
+// Niveau de la compagnie (le bureau) et ce qu'il faut pour le suivant. Un niveau atteint est
+// acquis ; seul le niveau 0 (la compagnie perd de l'argent) le fait oublier, le temps de remonter.
+function levelLine(worth, company) {
+  const bar = (k) => h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, k)) * 100)}%` } })]);
+  if (worth < MUSIC_LOW) return h('span.standings-level', { title: OFFICE_TIERS[0].name }, [h('span', `🏢 Niveau 0/${OFFICE_TIERS.length} · remonter à ${money(MUSIC_LOW)}`), bar(worth / MUSIC_LOW)]);
+  const tier = reachedTier(company, worth), next = OFFICE_TIERS[tier + 1];
   return h('span.standings-level', { title: OFFICE_TIERS[tier].name }, [
     h('span', next ? `🏢 Niveau ${tier + 1}/${OFFICE_TIERS.length} · prochain à ${money(next.min)}` : `🏢 Niveau ${tier + 1}/${OFFICE_TIERS.length} · le sommet !`),
-    h('span.level-bar', [h('span', { style: { width: `${Math.round(k * 100)}%` } })]),
+    bar(next ? (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min) : 1),
   ]);
+}
+// Nouveau niveau atteint : le bureau se transforme (scène). Un niveau reste acquis.
+function checkLevels(s) {
+  for (const co of s.companies) {
+    if (!co.human || co.bankrupt) continue;
+    const t = officeTier(netWorth(s, co.id));
+    if (co.level == null) { co.level = t; continue; } // nouvelle partie ou ancienne sauvegarde : sans fanfare
+    if (t <= co.level) continue;
+    const from = co.level;
+    co.level = t;
+    levelUp(co, from, t);
+  }
+}
+function levelUp(co, from, to) {
+  const T = OFFICE_TIERS[to], n = OFFICE_TIERS.length;
+  const several = app.state.companies.filter((c) => c.human).length > 1; // partie à plusieurs : à qui est le bureau
+  app.audio.play('cash');
+  if (!scenesOn()) { toast(several ? `🏢 ${co.name} atteint le niveau ${to + 1}/${n} : ${T.name}.` : `🏢 Niveau ${to + 1}/${n} atteint : ${T.name}.`, { kind: 'money', timeout: 9000 }); return; }
+  const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0]; // la maquette du bureau
+  const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
+  const img = (tier) => {
+    const svg = officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `lvl${co.id}-` }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200" ');
+    const i = new Image();
+    i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    return i;
+  };
+  playScene('office', { title: several ? `Un nouveau bureau pour ${co.name} !` : 'Un nouveau bureau !', text: `Niveau ${to + 1}/${n} atteint : ${T.name}. ${T.text}`, color: co.color, variant: { from: img(from), to: img(to), level: to + 1 } });
 }
 
 function updateHud() {
@@ -216,7 +245,8 @@ function updateHud() {
     ab.textContent = u.alerts || '';
     ab.hidden = !u.alerts;
     ab.classList.toggle('urgent', u.urgent);
-    app.audio.setMusicTier(musicStep(netWorth(s, c.id)));
+    checkLevels(s);
+    app.audio.setMusicTier(musicStep(netWorth(s, c.id), c.level ?? 0));
     updateStandings(s, c.id);
   }
   const humans = s.companies.filter((x) => x.human);
@@ -351,7 +381,9 @@ function handleNotes(notes) {
   const sceneOpts = (n, extra = {}) => ({ text: prefixOf(n) + n.text, color: companyColor(n.company), ...extra });
   // Un navire qui vient de livrer : le message de paiement suffit.
   const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
+  const crewUps = []; // points de spécialité gagnés : une petite scène par compagnie, sans son
   for (const n of notes) {
+    if (n.kind === 'crew' && scenes) { crewUps.push(n); continue; }
     if (n.kind === 'idle' && delivered.has(n.shipId)) {
       if (app.state.settings.autoPause) paused = true;
       continue;
@@ -461,6 +493,18 @@ function handleNotes(notes) {
       // Partie à plusieurs : c'est au tour de la compagnie dont le navire attend.
       if (company && company.id !== app.ui.activeCompany && !switched) { switchCompany(company.id); switched = true; }
     }
+  }
+  for (const cid of new Set(crewUps.map((n) => n.company))) {
+    const list = crewUps.filter((n) => n.company === cid), first = list[0];
+    const names = list.map((n) => shipById(app.state, n.shipId)?.name).filter(Boolean);
+    const text = list.length === 1 ? first.text : `Les équipages de ${names.join(', ')} ont gagné en expérience : une spécialité à choisir pour chacun (fiche du navire → Équipage).`;
+    playScene('crewxp', { ...sceneOpts(first), text: prefixOf(first) + text, buttons: [{ label: 'Choisir la spécialité', value: 'go', kind: 'primary' }] }, async (v) => {
+      if (v !== 'go' || !shipById(app.state, first.shipId)) return false;
+      if (cid !== app.ui.activeCompany) switchCompany(cid);
+      app.open('ship', first.shipId, 'equipage');
+      app.focusShip(first.shipId);
+      return true; // le temps reste arrêté pendant le choix
+    });
   }
   if (app.sceneQueue.length) paused = true; // une scène est ouverte : on n'avance plus
   if (paused) app.speed = 0;

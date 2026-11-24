@@ -13,11 +13,17 @@ export const OFFICE_TIERS = [
   { min: 300e6, half: 600e6, name: 'La tour de verre', text: 'Le sommet d\'une tour. Le port entier à vos pieds.' },
 ];
 // Morceau de la partie : -1 (niveau 0, la compagnie perd de l'argent), puis 0 à 9 (deux par niveau).
-export function musicStep(netWorth) {
+// level : niveau déjà atteint (company.level). Un niveau atteint est acquis : en repassant
+// sous son seuil, on garde son bureau et sa musique (la première chanson du niveau) ; seul le
+// niveau 0 (sous MUSIC_LOW) ramène au cagibi et au thème du doute.
+export function musicStep(netWorth, level = 0) {
   if (netWorth < MUSIC_LOW) return -1;
-  const t = officeTier(netWorth);
+  const t = Math.max(level, officeTier(netWorth));
   return t * 2 + (netWorth >= OFFICE_TIERS[t].half ? 1 : 0);
 }
+// Niveau atteint par la compagnie (0 à 4), et bureau affiché (le cagibi au niveau 0).
+export const reachedTier = (company, netWorth) => Math.max(company?.level ?? 0, officeTier(netWorth));
+export const shownTier = (company, netWorth) => (netWorth < MUSIC_LOW ? 0 : reachedTier(company, netWorth));
 
 export function officeTier(netWorth) {
   let k = 0;

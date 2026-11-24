@@ -19,6 +19,8 @@ Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms 
   Seuils : niveau 0 sous 5 M$ ; niveau 1 de 5 à 15 M$ (seconde chanson à 10) ;
   niveau 2 de 15 à 35 (à 23) ; niveau 3 de 35 à 100 (à 55) ; niveau 4 de 100 à 300
   (à 175) ; niveau 5 au-delà de 300 M$ (à 600).
+  Un niveau atteint est acquis : en repassant sous son seuil, on garde son bureau
+  et sa première chanson. Seul le niveau 0 (sous 5 M$) fait revenir le thème du doute.
   jeu.mp3       en secours, si un thème de niveau manque
   victoire.mp3  courte musique de fin de partie
 

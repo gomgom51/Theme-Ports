@@ -72,8 +72,10 @@ La musique de la partie suit le bureau de la compagnie (Bureau 💼) : quand la
 valeur nette fait passer au bureau suivant, le thème change en fondu. Chaque niveau
 a deux chansons : `niveauN.mp3`, puis `niveauNb.mp3` à partir de 10, 23, 55, 175 et
 600 M$ — Suno produit deux versions de chaque prompt, gardez les deux. Sans la seconde,
-la première continue. Sous 5 M$ de valeur nette (la compagnie a perdu de l'argent depuis
-ses débuts), c'est le thème du niveau 0.
+la première continue. Un niveau atteint est acquis : si la valeur nette repasse sous son
+seuil, le bureau et la première chanson du niveau restent. Seul le niveau 0 fait exception :
+sous 5 M$ de valeur nette (la compagnie a perdu de l'argent depuis ses débuts), c'est le
+thème du niveau 0 et le retour au cagibi, jusqu'à ce que la compagnie remonte.
 
 ### `niveau0.mp3` — Les temps sont durs (valeur nette sous 5 M$)
 

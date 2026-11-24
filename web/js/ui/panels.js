@@ -15,7 +15,7 @@ import { shipSVG, artForShip, SHIP_ART } from './shipart.js';
 import { shipStats, radarSVG, AXES } from './radar.js';
 import { LOGO_IDS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
-import { officeSVG, officeTier, OFFICE_TIERS } from './officeart.js';
+import { officeSVG, OFFICE_TIERS, shownTier, MUSIC_LOW } from './officeart.js';
 import { pendingList, clientLine, loyaltyDots } from './payment.js';
 import { CLIENTS } from '../data/clients.js';
 import { clientRel, clientDown, relationOf, clientDemand, clientState, LOYAL, RESERVE_LOYALTY } from '../sim/clients.js';
@@ -288,7 +288,7 @@ function officeHero(app) {
   const { state } = app;
   const c = app.company();
   const worth = netWorth(state, c.id);
-  const tier = officeTier(worth);
+  const tier = shownTier(c, worth), low = worth < MUSIC_LOW;
   const best = shipsOf(state, c.id).sort((a, b) => eco.shipValue(state, b) - eco.shipValue(state, a))[0];
   const model = best ? { typeId: best.type, color: c.color, logo: c.logo, name: best.name } : null;
   const next = OFFICE_TIERS[tier + 1];
@@ -297,8 +297,10 @@ function officeHero(app) {
     h('div.office-caption', [
       h('span', [h('b', OFFICE_TIERS[tier].name), ' — ', OFFICE_TIERS[tier].text]),
       h('span.office-next', [
-        h('span.muted', next ? `Niveau ${tier + 1}/${OFFICE_TIERS.length} · prochain bureau à ${money(next.min)} de valeur nette, vous en êtes à ${money(worth)}` : `Niveau ${OFFICE_TIERS.length}/${OFFICE_TIERS.length} : le sommet !`),
-        next ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min))) * 100)}%` } })]) : null,
+        h('span.muted', low ? `Niveau 0/${OFFICE_TIERS.length} · la compagnie perd de l'argent : retour au cagibi jusqu'à ${money(MUSIC_LOW)} de valeur nette, vous en êtes à ${money(worth)}`
+          : next ? `Niveau ${tier + 1}/${OFFICE_TIERS.length} · prochain bureau à ${money(next.min)} de valeur nette, vous en êtes à ${money(worth)}` : `Niveau ${OFFICE_TIERS.length}/${OFFICE_TIERS.length} : le sommet !`),
+        low ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, worth / MUSIC_LOW)) * 100)}%` } })])
+        : next ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min))) * 100)}%` } })]) : null,
       ]),
     ]),
   ]);
