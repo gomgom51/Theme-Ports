@@ -23,6 +23,7 @@ import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from '.
 import { equipMod, equipUpkeep } from './equipment.js';
 import { piracyHour } from './piracy.js';
 import { tradeDaily, loansDaily } from './trade.js';
+import { resolveProspect } from './prospect.js';
 import { coverage, premiumPerDay } from './insurance.js';
 import { patrolHour } from './patrols.js';
 import { gainXp, aiTrain, skillSpeed, skillWear } from './crew.js';
@@ -200,6 +201,7 @@ function portHour(state, ctx, rng, ship, notes) {
       act.startBusy(state, ship, 'déchargement', eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty));
       return;
     }
+    if (what === 'démarchage') { resolveProspect(state, ctx, rng, ship, notes); return; } // ses commerciaux ont fini : le résultat suffit
     if (what === 'déchargement' && ship.pendingDelivery) deliverContract(state, ship, rng, notes);
     // Cales vides dans un port louche sous embargo : les gangs peuvent proposer une affaire.
     if (what === 'déchargement' && darkPort(ship.port)) maybeDarkOffer(state, ctx, rng, ship, ship.port, notes, note);

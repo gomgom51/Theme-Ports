@@ -17,6 +17,7 @@ import { piracyAlong } from './piracy.js';
 import { isSeasonal } from './ice.js';
 import { grudgeAt } from './dark.js';
 import { lenderTerms, quoteSellAt, loanRoom } from './trade.js';
+import { canProspect, startProspect } from './prospect.js';
 
 const D = HOURS_PER_DAY;
 export const AI_CAPITAL_COST = 0.4; // par an : rendement attendu d'un navire, coût de l'argent bloqué dans une cargaison
@@ -188,6 +189,9 @@ export function aiShipIdle(state, ctx, rng, ship) {
     }
     return;
   }
+
+  // 3 ter. Rien d'intéressant ici : démarcher les chargeurs (une fois par escale) avant de repartir à vide.
+  if (!canProspect(ship) && rng.chance(0.6) && startProspect(state, rng, ship, ctx).ok) return;
 
   // 3 bis. Compagnie audacieuse sans rien de mieux : livrer un colis discret, ce qui la repositionne.
   if (company.ai?.daring && !ship.contraband && !ship.cargo) {

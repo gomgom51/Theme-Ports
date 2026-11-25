@@ -36,7 +36,7 @@ const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
 const INCIDENT_SCENES = { incendie: 'fire', abordage: 'collision', echouement: 'grounding', voie_eau: 'leak', machine: 'breakdown', froid: 'reefer', gros_temps: 'storm' };
-const PAUSE_KINDS = new Set(['idle', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction', 'threat', 'scandal']);
+const PAUSE_KINDS = new Set(['idle', 'prospect', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction', 'threat', 'scandal']);
 
 const ctx = makeContext();
 const app = {
@@ -539,6 +539,17 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'aid') { toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
+    // Fin du démarchage : un contrat (ici ou dans un port proche), ou rien.
+    if (n.kind === 'prospect') {
+      const cid = n.company;
+      if (n.contractId) app.audio.play('bell');
+      toast(prefixOf(n) + n.text, { kind: n.contractId ? 'money' : 'info', timeout: 10000, action: 'Voir', onAction: () => {
+        if (cid !== app.ui.activeCompany) switchCompany(cid);
+        if (n.port && n.port !== shipById(app.state, n.shipId)?.port) app.open('port', n.port); else { app.open('ship', n.shipId, 'contrats'); app.focusShip(n.shipId); }
+      } });
+      if (app.state.settings.autoPause) { paused = true; if (cid !== app.ui.activeCompany && !switched) { switchCompany(cid); switched = true; } } // le navire attend ses ordres
+      continue;
+    }
     // Appels d'offres : l'annonce, puis les engagements et livraisons des concurrents.
     if (n.kind === 'tender') { app.audio.play('bell'); toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
     if (n.kind === 'tenderCommit' || n.kind === 'tenderDelivered') {

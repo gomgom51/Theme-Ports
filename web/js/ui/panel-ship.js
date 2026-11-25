@@ -25,6 +25,7 @@ import * as crew from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
 import { darkLines, seizedDialog } from './dark.js';
 import { routeChip } from './route.js';
+import { prospectOdds, canProspect, startProspect } from '../sim/prospect.js';
 import { grudgeAt } from '../sim/dark.js';
 import { repCap } from '../sim/core.js';
 
@@ -195,7 +196,27 @@ export function shipPanel(app, id, tab) {
 // ---------- Contrats ----------
 // Contrats du port, puis propositions discrètes s'il y en a.
 function contractsTab(app, ship) {
-  return h('div', [contractsBase(app, ship), offersSection(app, ship)]);
+  return h('div', [prospectCard(app, ship), contractsBase(app, ship), offersSection(app, ship)]);
+}
+// Démarcher les chargeurs : vos commerciaux proposent le navire (1 à 2 jours), chances annoncées.
+function prospectCard(app, ship) {
+  const { state } = app;
+  if (ship.owner !== app.ui.activeCompany || ship.status !== 'port' || ship.cargo || ship.dark) return null;
+  const o = prospectOdds(state, ship, app.ctx);
+  const why = canProspect(ship) || o.why;
+  const part = (label, v) => (Math.abs(v) >= 0.005 ? h('span.prospect-part', [h('span', label), ' ', h('b', `${v > 0 ? '+' : '−'}${pct(Math.abs(v) * 100)}`)]) : null);
+  return h('div.card.prospect', [
+    h('div.card-main', [
+      h('div.card-title', ['📞 ', h('span', 'Démarcher les chargeurs')]),
+      h('div.card-sub', `Vos commerciaux proposent le ${ship.name} aux chargeurs : 1 à 2 jours à quai. Résultat : un contrat taillé pour ce navire, une piste dans un port proche (réservée le temps d'y aller), ou rien.`),
+      o.why ? null : h('div.card-sub', [h('span', 'Chances estimées :'), ' ', h('b', pct(o.p * 100)), ' ', h('span.muted', '('),
+        ...[part('port', o.parts.port), part('réputation', o.parts.rep), part('chargeurs fidèles', o.parts.loyalty), part('bureau', o.parts.office), part('beaux parleurs à bord', o.parts.talk)].filter(Boolean).flatMap((x, i) => (i ? [', ', x] : [x])),
+        h('span.muted', ')')]),
+      !o.why && !o.here ? h('div.card-sub.muted', 'Rien à charger ici pour ce navire : en cas de succès, ce sera une piste dans un port proche.') : null,
+      why ? h('div.card-why', why) : null,
+    ]),
+    h('div.card-side', [h('button.btn.small', { disabled: !!why, onclick: () => app.act(() => app.withRng((rng) => startProspect(state, rng, ship, app.ctx))) }, 'Démarcher')]),
+  ]);
 }
 function contractsBase(app, ship) {
   const { state, ctx } = app;

@@ -97,6 +97,8 @@ riche de la planète.
   navires concurrents en route annoncés) et financement des cargaisons par les négociants du port
   de chargement ou les acheteurs de la destination (conditions selon la place, meilleures à chaque
   prêt remboursé). Cartes d'opportunité à l'écran : affaires en or, aide d'urgence, appels d'offres.
+* **Démarcher les chargeurs** : quand rien ne convient, vos commerciaux proposent le navire (1 à 2
+  jours, chances annoncées) : un contrat taillé pour lui, une piste dans un port proche, ou rien.
 * **Résultats par navire** (Bureau > Résultats > Par navire) : bénéfice par jour, rentabilité
   du prix payé, d'où vient l'argent et où il part, emploi du temps, derniers voyages, comparaison
   avec les autres navires du même modèle, et le bilan des navires vendus ou perdus.

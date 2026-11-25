@@ -894,6 +894,7 @@ export const PORT_STATUS = {
   'réparation': { color: '#d9822b', icon: 'wrench', label: 'Réparation' },
   'réarmement': { color: '#d9822b', icon: 'cycle', label: 'Réarmement' },
   installation: { color: '#7b5ea7', icon: 'gear', label: 'Installation d\'équipement' },
+  'démarchage': { color: '#7b5ea7', icon: 'cycle', label: 'Démarchage des chargeurs' },
   'détention': { color: '#c4362c', icon: 'stop', label: 'Retenu par les inspecteurs' },
   saisie: { color: '#c4362c', icon: 'stop', label: 'Retenu par la douane' },
   retenue: { color: '#c4362c', icon: 'stop', label: 'Retenu sans motif sérieux' },

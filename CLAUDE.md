@@ -61,7 +61,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   infamy reputation cap `repCap` in `web/js/sim/core.js`; city tenders (`TENDER`: frequency, premium, quantity,
   duration) and cargo financing (`FINANCE`: share lent and rate per port profile, destination bonus, track record,
   60-day term, late and early-repayment fees, exposure cap = net worth) in `web/js/sim/trade.js`; AI opportunity
-  cost of cash locked in cargo `AI_CAPITAL_COST` in `web/js/sim/ai.js`.
+  cost of cash locked in cargo `AI_CAPITAL_COST` in `web/js/sim/ai.js`; prospecting for shippers (`PROSPECT`: duration,
+  odds per port size / reputation / loyalty / office / negotiation skill, lead share and range, pay) in
+  `web/js/sim/prospect.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
   (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
   margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads

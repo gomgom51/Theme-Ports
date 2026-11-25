@@ -735,3 +735,7 @@ select.input { width: auto; max-width: 100%; }
 .fin-figure { display: flex; flex-direction: column; align-items: flex-end; flex: none; font-variant-numeric: tabular-nums; }
 .buy-dialog .form-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
 .buy-dialog h4 { margin: 12px 0 6px; }
+
+/* ---------- Démarcher les chargeurs ---------- */
+.card.prospect { border-style: dashed; }
+.prospect-part { white-space: nowrap; font-size: 12px; color: var(--ink-2); }

@@ -56,6 +56,7 @@ export function activityOf(ship) {
   if (ship.hijacked || ship.seized) return 'immobile';
   if (ship.status === 'sea') return ship.cargo || ship.dark ? 'charge' : 'lest';
   if (STOPPED.has(ship.busyWhat)) return 'immobile';
+  if (ship.busyWhat === 'démarchage') return 'attente'; // à quai, sans cargaison, à chercher un chargeur
   if (ship.busyWhat || ship.plan || ship.pendingDelivery) return 'escale';
   return 'attente';
 }
