@@ -42,8 +42,9 @@ const MOOD_FALLBACK = { blacklistb: 'blacklist' };
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
 const SAMPLES = {
   fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3', nofuel: 'sons/tasse-vide.mp3',
-  // Vertu : harpe qui monte / qui retombe (la confiance garde sa synthèse tant qu'il n'y a pas de fichier).
-  virtueUp: 'sons/vertu-plus.mp3', virtueDown: 'sons/vertu-moins.mp3',
+  // Confiance : deux battements de cœur quand elle monte (la baisse garde sa synthèse tant qu'il n'y a pas
+  // de fichier). Vertu : harpe qui monte / qui retombe.
+  trustUp: 'sons/confiance-plus.mp3', virtueUp: 'sons/vertu-plus.mp3', virtueDown: 'sons/vertu-moins.mp3',
 };
 // Corne de départ : un son par famille de navires (même fonction), joué plus grave pour un
 // gros navire et plus aigu pour un petit (hauteur selon le port en lourd, par rapport au navire
