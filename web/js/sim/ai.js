@@ -3,7 +3,7 @@
 import { imageFactor } from './clients.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, OIL_GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import * as act from './actions.js';
 import { shipsOf, fleetValue, creditLimit, contractById, bookTotal, netWorth } from './core.js';
@@ -146,7 +146,10 @@ export function aiShipIdle(state, ctx, rng, ship) {
     const virtuous = company.ai?.leaning === 'vertueux';
     const repValue = c.charity && virtuous ? c.charity.rep * (virtuous ? 300000 : 150000) : 0;
     const pay = c.pay * payCut(state, company.id, c.from) * imageFactor(company, c.client); // guerre des prix contre elle ; chargeur soucieux de son image
-    const profit = pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue;
+    // L'IA vertueuse (victoire de la réputation) fuit le pétrole, qui lui coûte de la vertu : elle n'en
+    // transporte que faute de mieux.
+    const oilShame = virtuous && OIL_GOODS.includes(c.good) ? pay * VIRTUOUS_OIL_PENALTY : 0;
+    const profit = pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue - oilShame;
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
   }
   // On garde de quoi faire le plein et payer quelques semaines de frais fixes.
@@ -191,7 +194,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
         // Le bruit porte sur le cours de revente (quelques %), pas sur toute la valeur :
         // sinon l'IA choisit systématiquement les erreurs d'estimation les plus optimistes.
         const tainted = (eco.isEmbargoedPort(here) ? buy.total : 0) + (eco.isEmbargoedPort(p) ? sell : 0);
-        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk - interest - locked - (tainted ? embargoCost(state, company, ship, tainted) : 0);
+        const oilShame = company.ai?.leaning === 'vertueux' && OIL_GOODS.includes(g) ? sell * VIRTUOUS_OIL_PENALTY : 0; // l'IA vertueuse fuit le pétrole
+        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk - interest - locked - (tainted ? embargoCost(state, company, ship, tainted) : 0) - oilShame;
         options.push({ kind: 'trade', good: g, qty, to: p, finance: fin ? { source: 'origin' } : null, profit, perDay: profit / Math.max(1, trip.days) });
       }
       }
@@ -271,6 +275,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
 // Pas de commerce avec les pays sous embargo : pavillon qui applique les sanctions,
 // ou compagnie mise à l'amende il y a moins d'un an.
 // (Une compagnie de l'ombre passe outre : elle vise la flotte fantôme, et compte les amendes.)
+// Part du fret que l'IA vertueuse « paie » pour transporter du pétrole (sa vertu y fond).
+export const VIRTUOUS_OIL_PENALTY = 0.35;
 const avoidsEmbargo = (state, company) => company.ai?.leaning !== 'ombre' && (ENFORCING.has(company.flag) || company.ai?.leaning === 'vertueux' || (company.ai?.noEmbargoUntil || 0) > state.t);
 // Amende attendue pour un commerce sous embargo (le navire finira presque toujours
 // par faire escale dans un pays qui applique les sanctions dans l'année).
@@ -374,7 +380,7 @@ export function aiDaily(state, ctx, rng, company) {
   const pending = state.orders.filter((o) => o.owner === company.id).length;
   if (!pending && avgFreight >= 0.95 && company.cash > 15e6) {
     const yard = 'shanghai';
-    const options = Object.entries(SHIP_TYPES).filter(([id, T]) => !T.vintage && (!company.ai.pool || company.ai.pool.includes(id))
+    const options = Object.entries(SHIP_TYPES).filter(([id, T]) => !T.vintage && (!company.ai.pool || company.ai.pool.includes(id)) && !(company.ai.leaning === 'vertueux' && T.holds.includes('liquide'))
       && act.newBuildPrice(state, company, id, yard) < company.cash * 0.6)
       .map(([id, T]) => [id, Math.sqrt(T.dwt) / Math.sqrt(T.price) * Math.sqrt(PORT_IDS.filter((p) => eco.servesType(p, id)).length / 12)
         * (company.ai.leaning === 'batisseur' && !ships.some((s) => SHIP_TYPES[s.type].holds[0] === T.holds[0]) ? 4 : 1)]);
@@ -395,7 +401,8 @@ export function aiDaily(state, ctx, rng, company) {
 
 function buyOne(state, ctx, rng, company, budget) {
   // Une compagnie spécialisée (ai.pool) n'achète que ses types de navires.
-  const affordable = state.used.filter((l) => l.price <= budget && l.condition > 45 && (!company.ai.pool || company.ai.pool.includes(l.type)));
+  // L'IA vertueuse n'achète pas de pétroliers (le pétrole lui coûte de la vertu).
+  const affordable = state.used.filter((l) => l.price <= budget && l.condition > 45 && (!company.ai.pool || company.ai.pool.includes(l.type)) && !(company.ai.leaning === 'vertueux' && SHIP_TYPES[l.type].holds.includes('liquide')));
   if (!affordable.length) return null;
   // Préférence pour les navires qui servent beaucoup de ports (un ULCC n'a que trois terminaux)
   // et qui coûtent peu à exploiter par rapport à un navire moderne de même taille.
