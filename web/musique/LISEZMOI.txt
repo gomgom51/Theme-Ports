@@ -30,6 +30,7 @@ Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms 
   legende.mp3      victoire « Compagnie légendaire » en vue : épopée maritime en 6/8
   ombre.mp3        victoire « La flotte fantôme » en vue : thème du méchant
   liste-noire.mp3  la compagnie est sur la liste noire internationale : saga solennelle (valse lente, trompette seule)
+  liste-noireb.mp3 seconde chanson de la liste noire, après deux ans sur la liste (sans elle, la première continue)
   menace.mp3       un concurrent est à 90 % d'une victoire : compte à rebours
   Sans ces fichiers, la musique du niveau continue.
 

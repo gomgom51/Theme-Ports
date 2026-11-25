@@ -32,8 +32,12 @@ const TRACKS = {
   legend: { src: 'musique/legende.mp3', volume: 0.24, loop: true },
   shadow: { src: 'musique/ombre.mp3', volume: 0.24, loop: true },
   blacklist: { src: 'musique/liste-noire.mp3', volume: 0.24, loop: true },
+  blacklistb: { src: 'musique/liste-noireb.mp3', volume: 0.24, loop: true }, // seconde chanson, après deux ans sur la liste
   menace: { src: 'musique/menace.mp3', volume: 0.24, loop: true },
 };
+
+// Seconde chanson d'un thème de situation : sans elle, la première.
+const MOOD_FALLBACK = { blacklistb: 'blacklist' };
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
 const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3', nofuel: 'sons/tasse-vide.mp3' };
@@ -328,6 +332,7 @@ export class AudioManager {
   trackFor(scene) {
     const ok = (k) => TRACKS[k] && !this.missing?.has(TRACKS[k].src);
     if (scene === 'game' && this.musicMood && ok(this.musicMood)) return this.musicMood;
+    if (scene === 'game' && MOOD_FALLBACK[this.musicMood] && ok(MOOD_FALLBACK[this.musicMood])) return MOOD_FALLBACK[this.musicMood]; // sans la seconde chanson, la première continue
     if (scene === 'game') {
       const step = this.musicTier ?? 0;
       if (step < 0) return ok('tier0') ? 'tier0' : ok('tier1') ? 'tier1' : ok('game') ? 'game' : null; // niveau 0 : les temps sont durs

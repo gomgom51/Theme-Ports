@@ -260,6 +260,7 @@ function checkLevels(s) {
 // Thème de situation : une victoire en vue pour vous (75 %), la liste noire, ou un concurrent
 // tout près de gagner (90 %). Calculé une fois par jour de jeu.
 let moodCache = { key: null, mood: null };
+const BLACKLIST_SONG_B = 2; // années sur la liste noire avant la seconde chanson
 function musicMood(s, c) {
   const key = `${c.id}:${Math.floor(s.t / 24)}`;
   if (moodCache.key === key) return moodCache.mood;
@@ -270,7 +271,8 @@ function musicMood(s, c) {
     if (f >= VICTORY.alerts[0] && f > best) { best = f; mood = k; }
     for (const o of s.companies) if (o.id !== c.id && !o.bankrupt) rival = Math.max(rival, victoryProgress(s, o, k).frac);
   }
-  if (!mood && c.blacklisted) mood = 'blacklist';
+  // Sur la liste noire : la première chanson, puis la seconde après deux ans (le chemin de l'ombre est long).
+  if (!mood && c.blacklisted) mood = s.t - c.blacklisted.t >= BLACKLIST_SONG_B * 365 * 24 ? 'blacklistb' : 'blacklist';
   if (!mood && rival >= VICTORY.alerts[1]) mood = 'menace';
   moodCache = { key, mood };
   return mood;

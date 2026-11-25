@@ -334,6 +334,10 @@ jazz, swing, tango, heist, caper, upbeat, drums, percussion, drum kit, electroni
 
 **Titre** : Pavillon noir
 
+Suno produit deux versions : gardez les deux. La première sous le nom `liste-noire.mp3`, la
+seconde sous `liste-noireb.mp3` : elle prend le relais après deux ans sur la liste noire (le
+chemin de l'ombre est long). Sans elle, la première continue.
+
 **Paroles** (structure seulement) :
 
 ```
@@ -428,7 +432,7 @@ instrumental, tense countdown, 100 bpm, ticking clock percussion, insistent stac
 
 1. Télécharger les MP3 depuis Suno.
 2. Les renommer exactement `accueil.mp3`, `niveau1.mp3` à `niveau5.mp3`, `victoire.mp3`, et pour les
-   thèmes de situation `liste-noire.mp3`, `ombre.mp3`, `domination.mp3`, `respect.mp3`, `legende.mp3`
+   thèmes de situation `liste-noire.mp3` (et `liste-noireb.mp3`), `ombre.mp3`, `domination.mp3`, `respect.mp3`, `legende.mp3`
    et `menace.mp3`.
 3. Les déposer dans `web/musique/` du dépôt (sur GitHub : *Add file → Upload files*).
 4. Le prochain APK et la version PC les intègrent automatiquement.
