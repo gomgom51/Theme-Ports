@@ -63,6 +63,16 @@ export function holderLine(state, rec, R, mineId) {
   const c = state.companies[rec.holder];
   return h('span', [rec.holder === mineId ? h('b', 'À vous') : h('b', { 'data-no-tr': '' }, c?.name || '?'), ` · ${R.fmt(rec.value)}${c?.bankrupt ? ' (compagnie disparue)' : ''}`]);
 }
+// Où en est la compagnie pour un record ou un méfait : barre vers le seuil (non attribué) ou vers
+// le détenteur à battre ; un record « complet » déjà pris reste au premier (pas de barre).
+export function recordProgress(state, me, kind, id) {
+  const R = (kind === 'evil' ? EVIL : RECORDS)[id], rec = recordHolder(state, id, kind), v = R.value(state, me);
+  const bar = (k) => h('span.rec-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, k)) * 100)}%` } })]);
+  if (rec?.holder === me.id) return h('div.small.good', `À vous : ${R.fmt(rec.value)}${R.binary ? ' (pour toujours)' : ''}`);
+  if (rec && R.binary) return h('div.small.muted', [`Vous : ${R.fmt(v)} · déjà pris, il reste au premier.`]);
+  const target = rec ? rec.value : R.min();
+  return h('div.rec-progress', [bar(v / Math.max(1e-9, target)), h('div.small.muted', rec ? `Vous : ${R.fmt(v)} · à battre : plus de ${R.fmt(rec.value)}` : `Vous : ${R.fmt(v)} / ${R.fmt(target)}`)]);
+}
 function recordCards(app, kind) {
   const { state } = app;
   const me = state.companies[app.ui.activeCompany];
@@ -76,7 +86,7 @@ function recordCards(app, kind) {
         h('b', R.name),
         h('div.small', R.text),
         h('div.small.trophy-holder', holderLine(state, rec, R, me.id)),
-        mine ? null : h('div.small.muted', [`Vous : ${R.fmt(v)}`, !R.binary && rec ? ` · à battre : plus de ${R.fmt(rec.value)}` : null]),
+        mine ? null : recordProgress(state, me, kind, id),
         rec && rec.holder !== me.id && rec.holder != null && state.companies[rec.holder] && rec.t != null ? h('div.small.muted', `Depuis le ${date(rec.t, true)}`) : null,
       ]),
     ]);
