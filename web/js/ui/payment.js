@@ -66,7 +66,7 @@ async function incidentDialog(app, company, incident) {
     title: `Que faire de ${C.name} ?`,
     body: h('div', [
       h('p', what),
-      h('p', [h('b', 'Dénoncer publiquement : '), `sa fiabilité baisse de ${DENOUNCE_HIT[incident.kind]} points aux yeux de tout le marché (il devra mieux payer ses transporteurs) et vous gagnez ${DENOUNCE_REP} points de réputation, mais il ne travaillera plus avec vous pendant ${Math.round(GRUDGE_DAYS / 30)} mois.`]),
+      h('p', [h('b', 'Dénoncer publiquement : '), `sa fiabilité baisse de ${DENOUNCE_HIT[incident.kind]} points aux yeux de tout le marché (il devra mieux payer ses transporteurs) et vous gagnez ${DENOUNCE_REP} points de vertu (votre image dans la presse), mais il ne travaillera plus avec vous pendant ${Math.round(GRUDGE_DAYS / 30)} mois.`]),
       h('p', [h('b', 'Rester discret : '), `votre fidélité auprès de lui augmente. ${reward}`]),
     ]),
     buttons: [{ label: 'Dénoncer publiquement', value: 'denoncer', kind: 'ghost' }, { label: 'Rester discret', value: 'discret', kind: 'primary' }],
