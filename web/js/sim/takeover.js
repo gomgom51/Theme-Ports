@@ -12,7 +12,7 @@ import { HOURS_PER_DAY, formatDate } from './util.js';
 import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money, removeShip } from './core.js';
 import { onEliminated } from './honours.js';
 import { crossesLine, BLACKLIST } from './shadow.js';
-import { victoryProgress } from './victory.js';
+import { victoryProgress, VICTORY } from './victory.js';
 import { OFFICE_TIERS } from '../data/offices.js';
 
 const D = HOURS_PER_DAY;
@@ -29,6 +29,8 @@ export const TAKEOVER = {
   aiMaxRatioBold: 2.9,   // une conquérante paie jusqu'à 2,9 fois (presque toute réputation)
   aiReserve: 1.3,        // et garde 30 % de marge de trésorerie nette
   aiReserveBold: 1.1,    // une conquérante, 10 %
+  dismantleK: 2,         // démanteler une compagnie de l'ombre : deux fois sa valeur nette (sociétés-écrans)
+  reprieveInfamy: 0.005, // ses actionnaires de l'ombre ne vendent pas au premier venu : chance selon l'infamie
 };
 
 export const levelOf = (c) => c.level ?? 0;
@@ -37,12 +39,12 @@ export const netCash = (state, c) => c.cash - c.debt - cargoLoans(state, c.id);
 // partent à la casse) : au prix de ses actifs, sans prime de réputation.
 export const dismantleOnly = (buyer, target) => !!target.blacklisted && !buyer?.blacklisted;
 export function takeoverPrice(state, target, buyer = null) {
-  const k = dismantleOnly(buyer, target) ? 1 : 1 + target.reputation / TAKEOVER.repK;
+  const k = dismantleOnly(buyer, target) ? TAKEOVER.dismantleK : 1 + target.reputation / TAKEOVER.repK;
   return Math.round(Math.max(TAKEOVER.minWorth, netWorth(state, target.id)) * k / 10000) * 10000;
 }
 export const reprieveOf = (state, c) => (c.reprieve && c.reprieve.until > state.t ? c.reprieve : null);
 export const pendingBid = (state, targetId) => (state.bids || []).find((b) => b.target === targetId && b.status === 'pending') || null;
-export const reprieveChance = (c) => Math.max(0.05, Math.min(0.95, TAKEOVER.reprieveBase + c.reputation * TAKEOVER.reprieveRep - (c.reprieve?.n || 0) * TAKEOVER.reprieveRepeat));
+export const reprieveChance = (c) => Math.max(0.05, Math.min(0.95, TAKEOVER.reprieveBase + (c.blacklisted ? Math.min(0.6, (c.infamy || 0) * TAKEOVER.reprieveInfamy) : c.reputation * TAKEOVER.reprieveRep) - (c.reprieve?.n || 0) * TAKEOVER.reprieveRepeat));
 
 // Peut-on racheter cette compagnie ? (raison sinon, et de quoi l'afficher)
 export function canTakeover(state, buyerId, targetId, { ignoreBid = null } = {}) {
@@ -208,7 +210,7 @@ export function aiTakeover(state, rng, company, notes = null) {
     if (!chk.ok || cash < chk.price * (bold ? TAKEOVER.aiReserveBold : TAKEOVER.aiReserve)) continue;
     const ratio = chk.price / Math.max(TAKEOVER.minWorth, netWorth(state, t.id));
     if (chk.dismantle) {
-      const threat = victoryProgress(state, t, 'shadow').frac >= 0.6;
+      const threat = victoryProgress(state, t, 'shadow').frac >= VICTORY.alerts[0]; // seulement après l'alerte officielle
       if (!(threat || bold)) continue;
       if (!best || chk.price < best.price) best = { t, ratio: 0, price: chk.price };
       continue;

@@ -97,7 +97,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   is sold while the company is in debt, or small fleets die at the quay.
 - Victories (owner's design, "civilization approach"): the time limit still decides if nobody wins.
   Sole master on board (every rival ruined or bought), the most respected (reputation 100: ordinary gains stop at 95,
-  each of the first five of eight deeds raises the cap by one; level 4), legendary (hold 5 of 8 exclusive records;
+  each of the first five of eight deeds raises the cap by one; level 4; then held six months without falling below 95,
+  so rivals warned at 75–90 % have a window to strike), legendary (hold 5 of 8 exclusive records;
   numbered records can be broken, "complete" ones stay with the first), shadow fleet (years on the international
   blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (Office →
   Victories) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
@@ -105,8 +106,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   takeovers (buy only a company of your level or below), the reputation victory, and bank pressure.
 - Takeovers: paid from net cash (cash − debt − cargo loans), never borrowed. A human target gets a 30-day offer, can
   ask for six months (odds from reputation) and is warned whenever a rival can afford it. A blacklisted company can only
-  be bought to be dismantled (net worth, no premium, fleet scrapped): otherwise a pariah's near-zero reputation makes
-  it the cheapest buy and every shadow fleet is absorbed within three years. Inherited infamy that would cross the
+  be bought to be dismantled (fleet scrapped) at twice its net worth (shell companies), its reprieve odds follow its
+  infamy, and AIs only move against it after the official 75 % warning: at net worth with no premium, a pariah was the
+  cheapest buy and every shadow fleet was absorbed within three years. Inherited infamy that would cross the
   blacklist line is shown before buying.
 - Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with
   the parry price; AIs parry when cheap and aim at the rival closest to a victory (conquerors at their cheapest prey).
@@ -149,9 +151,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   slows it much (tender premium, loan share, exposure cap, `SPREAD` each move it by less than the seed noise);
   `BALLAST` 1.6 gives ×26 but drops the bottom 10 % to ×3. Strategies over 16 seeds: tankers 7, liners 5,
   cargos 2, bulk 2, medians ×36–61. Fleet test OK. 10 years: all AIs survive, linear growth once capped.
-- Victories (16 AI games, 13 years, one company per leaning): 11–13 games won, median first victory ≈ 9–10 years,
-  about half before year 10; wins by reputation (most), shadow fleet and legend; domination is the hardest (conquerors
-  usually eliminate one rival, often the shadow fleet, never all three). With leanings: population survivors median
+- Victories (16 AI games, 14 years, one company per leaning): 10 games won, median first victory 9.5 years, 7 before
+  year 10; reputation 5, shadow fleet 3, legend 2 (owner's call: shadow felt weak, reputation too resilient, fixed with
+  the six-month hold, shell companies, 7 years / 16 ships on the blacklist); domination is the hardest (conquerors
+  usually eliminate one rival, never all three). A shadow fleet that survives wins; its survival hinges on
+  `TAKEOVER.dismantleK` (×1 → 2 wins, ×1.5 → 2, ×2 with 6 years → 6, ×2 with 7 years → 3). With leanings: population survivors median
   ×27, bottom 10 % ×10, no bankruptcy; most shadow fleets are bought or dismantled within five years. Strategies over
   16 seeds (neutral leanings, victories off): tankers 5, cargos 4, bulk 4, liners 3. Fleet test OK.
 - Lessons: used-ship prices must follow earning power (slow `AGING.dep`),

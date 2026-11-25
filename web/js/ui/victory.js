@@ -7,6 +7,7 @@ import { DEEDS, DEED_IDS, RECORDS, RECORD_IDS, EVIL, EVIL_IDS, deedCount, record
 import { repCap } from '../sim/core.js';
 import { OFFICE_TIERS } from '../data/offices.js';
 import { honourSVG } from './trophyart.js';
+import * as TK from '../sim/takeover.js';
 
 const D = 24;
 const badge = (c, size = 26) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
@@ -43,10 +44,10 @@ export function victoriesTab(app) {
           h('div.vic-parts', p.parts.map((x) => h('span.vic-part', { class: x.frac >= 1 ? 'done' : '' }, [`${x.frac >= 1 ? '✓ ' : ''}${x.label} : `, h('b', x.text)]))),
         ]),
       ]))));
-      if (kind === 'reputation') card.append(h('p.small.muted', `Réputation ordinaire plafonnée à 95 ; chaque haut fait (Bureau → Trophées) relève le plafond d'un point, jusqu'à 100. Niveau ${VICTORY.repLevel + 1} : ${OFFICE_TIERS[VICTORY.repLevel].name.toLowerCase()} (${money(OFFICE_TIERS[VICTORY.repLevel].min)} de valeur nette, un niveau atteint est acquis).`));
+      if (kind === 'reputation') card.append(h('p.small.muted', [`Réputation ordinaire plafonnée à 95 ; chaque haut fait (Bureau → Trophées) relève le plafond d'un point, jusqu'à 100. Niveau ${VICTORY.repLevel + 1} : ${OFFICE_TIERS[VICTORY.repLevel].name.toLowerCase()} (${money(OFFICE_TIERS[VICTORY.repLevel].min)} de valeur nette, un niveau atteint est acquis).`, ` Une fois 100 atteint, le compte à rebours de ${VICTORY.repHoldDays} jours démarre ; sous ${VICTORY.repHoldFloor} (retards, scandale, dénigrement), il repart de zéro.`]));
       if (kind === 'domination') card.append(h('p.small.muted', 'Un concurrent est éliminé quand il fait faillite ou que vous le rachetez (Bureau → Concurrents). Le rachat se paie comptant, sans emprunt.'));
       if (kind === 'legend') card.append(h('p.small.muted', 'Les records chiffrés se battent : il suffit de faire mieux que leur détenteur pour les lui prendre (Bureau → Trophées).'));
-      if (kind === 'shadow') card.append(h('p.small.muted', 'La liste noire tombe quand l\'infamie atteint son maximum (affaires noires) : vous serez prévenu avant de franchir la ligne.'));
+      if (kind === 'shadow') card.append(h('p.small.muted', `La liste noire tombe quand l'infamie atteint son maximum (affaires noires) : vous serez prévenu avant de franchir la ligne. Ses propriétaires se cachent derrière des sociétés-écrans : la démanteler coûte ${TK.TAKEOVER.dismantleK} fois sa valeur nette.`));
     }
     box.append(card);
   }

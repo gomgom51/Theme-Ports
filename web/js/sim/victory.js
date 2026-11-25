@@ -17,15 +17,17 @@ const YEAR = 365 * D;
 
 export const VICTORY = {
   repLevel: 3,          // niveau 4 (index 3) : « L'étage de direction »
+  repHoldDays: 180,     // la réputation parfaite doit tenir six mois…
+  repHoldFloor: 95,     // …sans retomber sous 95 (sinon le compte à rebours repart de zéro)
   repDeeds: 5,
   legendRecords: 5,
-  shadowYears: 5, shadowShips: 14,
+  shadowYears: 7, shadowShips: 16,
   alerts: [0.75, 0.9],
 };
 export const VICTORY_KINDS = ['domination', 'reputation', 'legend', 'shadow'];
 export const VICTORY_INFO = {
   domination: { name: 'Seul maître à bord', icon: '⚓', text: 'Tous vos concurrents ruinés ou rachetés.' },
-  reputation: { name: 'La plus respectée', icon: '🎖', text: 'Une réputation parfaite (100), au moins cinq hauts faits et le niveau 4.' },
+  reputation: { name: 'La plus respectée', icon: '🎖', get text() { return `Atteindre une réputation parfaite (100) avec au moins cinq hauts faits et le niveau 4, puis la tenir ${Math.round(VICTORY.repHoldDays / 30)} mois sans retomber sous ${VICTORY.repHoldFloor}.`; } },
   legend: { name: 'Compagnie légendaire', icon: '🏆', text: 'Détenir en même temps cinq des huit records.' },
   shadow: { name: 'La flotte fantôme', icon: '🗡', get text() { return `${VICTORY.shadowYears} ans sur la liste noire internationale avec au moins ${VICTORY.shadowShips} navires, et une affaire noire menée à bien dans chaque pays sous embargo.`; } },
 };
@@ -46,10 +48,12 @@ export function victoryProgress(state, company, kind) {
     parts = [part('Concurrents éliminés', rivals.length ? out / rivals.length : 0, `${out} / ${rivals.length}`)];
   } else if (kind === 'reputation') {
     const n = deedCount(company), lv = levelOf(company);
+    const hold = company.repHold ? (state.t - company.repHold.since) / D : 0;
     parts = [
-      part('Réputation', (company.reputation - 80) / 20, `${Math.floor(company.reputation)} / 100`),
+      part('Réputation', company.repHold ? 1 : (company.reputation - 80) / 20, company.repHold ? `${Math.floor(company.reputation)} (100 atteint)` : `${Math.floor(company.reputation)} / 100`),
       part('Hauts faits', n / VICTORY.repDeeds, `${n} / ${VICTORY.repDeeds}`),
       part('Niveau', (lv + 1) / (VICTORY.repLevel + 1), `${lv + 1} / ${VICTORY.repLevel + 1}`),
+      part('Tenue', hold / VICTORY.repHoldDays, company.repHold ? `${Math.floor(hold)} / ${VICTORY.repHoldDays} jours au-dessus de ${VICTORY.repHoldFloor}` : 'pas encore (atteindre 100)'),
     ];
   } else if (kind === 'legend') {
     const n = recordsHeld(state, company.id).length;
@@ -65,7 +69,7 @@ export function victoryProgress(state, company, kind) {
       part('Pays sous embargo', done.length / DARK_COUNTRIES.length, `${done.length} / ${DARK_COUNTRIES.length}${done.length < DARK_COUNTRIES.length ? ` (reste : ${DARK_COUNTRIES.filter((f) => !H.darkFrom[f]).map((f) => EMBARGOED[f].name).join(', ')})` : ''}`),
     ];
   }
-  const won = parts.every((p) => p.frac >= 1) && (kind !== 'reputation' || company.reputation >= 100);
+  const won = parts.every((p) => p.frac >= 1);
   return { parts, frac: parts.reduce((a, p) => a + p.frac, 0) / parts.length, won };
 }
 
@@ -86,6 +90,12 @@ export function levelsDaily(state, notes) {
 // Chaque jour : alertes à 75 % et 90 %, puis victoire éventuelle (fin de partie).
 export function victoryDaily(state, notes) {
   if (state.over || state.victoryClaimed) return;
+  // Compte à rebours de la réputation parfaite : il démarre à 100 (niveau requis atteint) et
+  // repart de zéro si la réputation retombe sous le plancher.
+  for (const c of activeCompanies(state)) {
+    if (c.repHold && c.reputation < VICTORY.repHoldFloor) c.repHold = null;
+    else if (!c.repHold && c.reputation >= 100 && levelOf(c) >= VICTORY.repLevel) c.repHold = { since: state.t };
+  }
   for (const kind of VICTORY_KINDS) {
     if (!victoryOn(state, kind)) continue;
     for (const c of activeCompanies(state)) {

@@ -39,7 +39,7 @@ export function rivalsTab(app) {
         ]),
       ]),
       h('div.rival-buy', [
-        h('div.grow', [h('span', chk.dismantle ? 'Prix pour la démanteler : ' : 'Prix de rachat : '), h('b', money(chk.price ?? TK.takeoverPrice(state, c, me))), chk.dismantle ? h('div.small.muted', 'Sur la liste noire : ses navires sanctionnés ne peuvent pas changer de main. On ne peut que racheter la compagnie pour la démanteler (sa valeur nette, sans prime ; sa flotte part à la casse).') : null, chk.ok ? null : h('div.small.muted', chk.why)]),
+        h('div.grow', [h('span', chk.dismantle ? 'Prix pour la démanteler : ' : 'Prix de rachat : '), h('b', money(chk.price ?? TK.takeoverPrice(state, c, me))), chk.dismantle ? h('div.small.muted', `Sur la liste noire : ses navires sanctionnés ne peuvent pas changer de main. On ne peut que racheter la compagnie pour la démanteler, et ses vrais propriétaires se cachent derrière des sociétés-écrans : ${TK.TAKEOVER.dismantleK} fois sa valeur nette ; sa flotte part à la casse.`) : null, chk.ok ? null : h('div.small.muted', chk.why)]),
         h('button.btn.small.primary', { disabled: !chk.ok, onclick: () => takeoverDialog(app, c.id) }, chk.dismantle ? 'Démanteler' : 'Racheter'),
       ]),
       h('div.rival-attacks', [
@@ -84,7 +84,7 @@ export async function takeoverDialog(app, targetId) {
   if (!chk.ok) { toast(chk.why, { kind: 'warn' }); return; }
   const pv = TK.takeoverPreview(state, me, targetId);
   if (chk.dismantle) {
-    if (!(await confirmBox(`Démanteler ${c.name} ?`, h('div', [h('p', `Vous payez ${money(chk.price)} à ses actionnaires (sa valeur nette, sans prime). Sur la liste noire, ses navires ne peuvent pas changer de main : toute sa flotte part à la casse, et vous n'en reprenez rien.`), h('p', `${c.name} disparaît : un concurrent de moins.`), c.human ? h('p.warn-text', `${c.name} est dirigée par un joueur : il aura ${TK.TAKEOVER.bidDays} jours pour réagir.`) : null]), `Démanteler · ${money(chk.price)}`))) return;
+    if (!(await confirmBox(`Démanteler ${c.name} ?`, h('div', [h('p', `Vous payez ${money(chk.price)} (${TK.TAKEOVER.dismantleK} fois sa valeur nette : ses vrais propriétaires se cachent derrière des sociétés-écrans). Sur la liste noire, ses navires ne peuvent pas changer de main : toute sa flotte part à la casse, et vous n'en reprenez rien.`), h('p', `${c.name} disparaît : un concurrent de moins.`), c.human ? h('p.warn-text', `${c.name} est dirigée par un joueur : il aura ${TK.TAKEOVER.bidDays} jours pour réagir.`) : null]), `Démanteler · ${money(chk.price)}`))) return;
     const r = app.act(() => TK.makeBid(state, me, targetId, state.queuedNotes ??= []), { sound: 'cash' });
     if (r?.ok) toast(r.bid ? `Offre déposée : ${c.name} a ${TK.TAKEOVER.bidDays} jours pour réagir.` : `${c.name} est démantelée.`, { kind: 'money', timeout: 6000 });
     return;
@@ -165,7 +165,9 @@ export async function bidDialog(app, bidId) {
     body: h('div', [
       h('p', `${buyer.name} propose ${money(bid.price)} à vos actionnaires. Sans réaction, la vente se fera le ${date(bid.until, true)} si l'offre tient toujours : la partie serait alors finie pour ${me.name}.`),
       h('p', `L'offre tombe d'elle-même si, d'ici là, votre prix dépasse sa trésorerie nette (votre réputation le multiplie : 1 + réputation ÷ ${TK.TAKEOVER.repK}) ou si vous passez à un niveau supérieur au sien.`),
-      bid.asked ? h('p.muted', 'Vous avez déjà demandé un délai pour cette offre.') : h('p', `Vous pouvez demander six mois à vos actionnaires pour redresser la barre : ${pct(chance * 100)} de chances qu'ils acceptent (selon votre réputation ; moins à chaque nouvelle demande). Ils vous protégeraient alors de tout rachat pendant six mois.`),
+      bid.asked ? h('p.muted', 'Vous avez déjà demandé un délai pour cette offre.') : h('p', me.blacklisted
+        ? `Vos actionnaires de l'ombre ne vendent pas au premier venu : demandez-leur six mois, ${pct(chance * 100)} de chances qu'ils acceptent (selon votre infamie ; moins à chaque nouvelle demande). Ils vous protégeraient alors de tout rachat pendant six mois.`
+        : `Vous pouvez demander six mois à vos actionnaires pour redresser la barre : ${pct(chance * 100)} de chances qu'ils acceptent (selon votre réputation ; moins à chaque nouvelle demande). Ils vous protégeraient alors de tout rachat pendant six mois.`),
     ]),
     buttons: [
       { label: 'Vendre maintenant', value: 'sell', kind: 'ghost' },
