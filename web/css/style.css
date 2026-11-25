@@ -799,6 +799,12 @@ select.input { width: auto; max-width: 100%; }
 .deed-card .grow, .trophy-card .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .deed-card.got { background: #fbf4dd; border-color: #e0c17a; }
 .deed-card.impossible { opacity: 0.55; }
+/* Capitaine (onglet Équipage). */
+.captain-line { margin: 4px 0 8px; }
+.captain-card { margin-bottom: 10px; }
+.captain-form { display: flex; gap: 6px; margin-top: 6px; }
+.captain-form .input { flex: 1; min-width: 0; }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Crise mondiale du raffinage (onglet Contrats des pétroliers). */
 .card.warn-card { border-color: #d9a441; background: #fbf1dc; margin-bottom: 8px; }
 /* Allure économique (onglet Appareiller) et gains des opportunités. */

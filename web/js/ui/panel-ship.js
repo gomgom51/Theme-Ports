@@ -140,7 +140,7 @@ export function shipPanel(app, id, tab) {
       stat('Capacité', tonnes(T.dwt)),
       stat('Âge', `${num1(age)} ans`),
       stat('Valeur', money(eco.shipValue(state, ship))),
-      stat('Équipage', crewInfo(ship).short),
+      stat('Équipage', crewInfo(ship).short, ship.captainName ? h('div.stat-sub', { 'data-no-tr': '' }, `🧑‍✈️ ${ship.captainName}`) : null),
       stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).map((id) => EQUIPMENT[id].icon).join(' ') : 'aucun'),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
@@ -482,6 +482,35 @@ async function buyDialog(app, ship, g, q, dests) {
 }
 
 // ---------- Équipage : expérience et spécialités ----------
+// Nom du capitaine : proposé dès le premier point gagné (jamais imposé), modifiable à tout moment.
+const CAPTAIN_NAMES = ['Yann Le Goff', 'Amara Diallo', 'Sven Halvorsen', 'Mei Lin', 'Diego Ferreira', 'Aiko Tanaka', 'Kwame Mensah', 'Elena Petrova',
+  'Rahul Mehta', 'Fatima Benali', 'Jonas Becker', 'Lucía Moreno', 'Tomasz Nowak', 'Nadia Haddad', 'Erik Lindqvist', 'Grace Okafor', 'Matteo Rossi',
+  'Anouk de Vries', 'Kenji Mori', 'Rosa Alvarez', 'Ioannis Pappas', 'Leïla Mansour', 'Hamish MacLeod', 'Thi Lan Nguyen', 'Bastien Kerjean', 'Olu Adeyemi'];
+function captainCard(app, ship) {
+  const { state } = app;
+  if (ship.owner !== app.ui.activeCompany) return ship.captainName ? h('p.captain-line', [h('span', '🧑‍✈️ Capitaine '), h('b', { 'data-no-tr': '' }, ship.captainName)]) : null;
+  const rename = async () => {
+    const v = await promptBox('Nom du capitaine', ship.captainName || '', `Capitaine du ${ship.name}`);
+    if (v) { ship.captainName = v.slice(0, 30); app.refresh(); }
+  };
+  if (ship.captainName) {
+    return h('p.captain-line', [h('span', '🧑‍✈️ Capitaine '), h('b', { 'data-no-tr': '' }, ship.captainName), ' ',
+      h('button.icon-btn.small', { title: 'Renommer le capitaine', 'aria-label': 'Renommer le capitaine', onclick: rename }, '✎')]);
+  }
+  if ((ship.xp || 0) < crew.XP_STEPS[0]) return null; // pas encore de premier point : rien à proposer
+  const used = new Set(state.ships.map((s) => s.captainName).filter(Boolean));
+  const free = CAPTAIN_NAMES.filter((n) => !used.has(n));
+  const input = h('input.input', { maxlength: 30, placeholder: 'Nom du capitaine', 'aria-label': 'Nom du capitaine' });
+  const save = () => { const v = input.value.trim(); if (v) { ship.captainName = v; app.refresh(); } };
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+  return h('div.card.captain-card', [h('div.card-main', [
+    h('div.card-title', '🧑‍✈️ Un capitaine qui a fait ses preuves'),
+    h('div.card-sub', 'Son équipage vient de gagner son premier point d\'expérience : donnez-lui un nom (facultatif, modifiable plus tard).'),
+    h('div.captain-form', [input,
+      h('button.btn.small', { title: 'Proposer un nom', onclick: () => { input.value = (free.length ? free : CAPTAIN_NAMES)[Math.floor(Math.random() * (free.length || CAPTAIN_NAMES.length))]; input.focus(); } }, '🎲'),
+      h('button.btn.small.primary', { onclick: save }, 'Baptiser')]),
+  ])]);
+}
 function crewSkillsTab(app, ship) {
   const { state } = app;
   const box = h('div');
@@ -491,6 +520,7 @@ function crewSkillsTab(app, ship) {
     ship.crew ? `L'équipage apprend en mer, plus vite parce qu'il est ${CREW_LEVELS[ship.crew].short}. ` : 'L\'équipage apprend en mer. ',
     `À chaque palier, choisissez une spécialité : ${crew.MAX_RANK} niveaux au plus par spécialité, ${crew.XP_STEPS.length} points en tout. L'équipage reste avec le navire (on change son niveau au port, onglet Escale).`,
   ]));
+  box.append(captainCard(app, ship));
   box.append(h('div.xp-line', [
     h('span', next ? `${Math.floor(xp)} jours de mer · prochain point à ${next} jours` : `${Math.floor(xp)} jours de mer · tous les points sont gagnés`),
     bar(next ? (xp - prev) / (next - prev) : 1, { good: 0, warn: 0 }),

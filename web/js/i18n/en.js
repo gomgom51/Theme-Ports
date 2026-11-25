@@ -2401,4 +2401,12 @@ export default {
   "Fin de la crise du raffinage : les raffineries redémarrent, les contrats de pétrole reviennent.": "The refinery crisis is over: the refineries restart and oil contracts come back.",
   "Crise mondiale du raffinage : plus aucun contrat ni appel d'offres de pétrole hors des pays sous embargo jusqu'au {0}. Les contrats signés sont honorés ; désarmer un pétrolier coûte moins cher que l'attente.": "Global refinery crisis: no more oil contracts or city tenders outside embargoed countries until {0}. Signed contracts are honoured; laying up a tanker costs less than waiting.",
   "🛢 Crise mondiale du raffinage : plus aucun contrat ni appel d'offres de pétrole hors des pays sous embargo jusqu'au {0}. Les contrats déjà signés sont honorés.": "🛢 Global refinery crisis: no more oil contracts or city tenders outside embargoed countries until {0}. Contracts already signed are honoured.",
+  "🧑‍✈️ Capitaine": "🧑‍✈️ Captain",
+  "Renommer le capitaine": "Rename the captain",
+  "Nom du capitaine": "Captain's name",
+  "Capitaine du {0}": "Captain of the {0}",
+  "🧑‍✈️ Un capitaine qui a fait ses preuves": "🧑‍✈️ A captain who has proved themselves",
+  "Son équipage vient de gagner son premier point d'expérience : donnez-lui un nom (facultatif, modifiable plus tard).": "Their crew has just earned its first experience point: give the captain a name (optional, you can change it later).",
+  "Proposer un nom": "Suggest a name",
+  "Baptiser": "Name",
 };
