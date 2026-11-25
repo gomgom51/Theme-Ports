@@ -187,7 +187,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   reputation 5, shadow 3, legend 1. Population: median ×36, bottom 10 % ×9.6, no bankruptcy, 13 bought (mostly shadow
   fleets). Strategies: tankers 8, liners 4, cargos 2, bulk 2 (tankers led in every run since the split: watch rule 3).
   First tries with the economy reading the minimum of the two scores crushed every risk-taker (bottom 10 % ×2.5,
-  conquerors bought in 13 of 16 games): the economy must read trust only. A shadow fleet that survives wins; its survival hinges on
+  conquerors bought in 13 of 16 games): the economy must read trust only. With oil costing virtue: victories 4 of 16, median
+  13.3 years, reputation 1 (the virtuous AI carries oil like everyone, so it rarely gets there; a human chasing that
+  victory would avoid oil); strategies tankers 7. With the refinery crisis (2 to 4 weeks): victories 6, median 9.8
+  years (legend 3, shadow 2, reputation 1); strategies tankers 7, bulk 5, liners 3, cargos 1, tanker median ×57 → ×50
+  (a short crisis trims tanker income but does not change which strategy tops a market). A shadow fleet that survives wins; its survival hinges on
   `TAKEOVER.dismantleK` (×1 → 2 wins, ×1.5 → 2, ×2 with 6 years → 6, ×2 with 7 years → 3). With leanings: population survivors median
   ×27, bottom 10 % ×10, no bankruptcy; most shadow fleets are bought or dismantled within five years. Strategies over
   16 seeds (neutral leanings, victories off): tankers 5, cargos 4, bulk 4, liners 3. Fleet test OK.
