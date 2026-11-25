@@ -2442,4 +2442,8 @@ export default {
   "Chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie : risque d'amende {0} ({1}).": "Every call in Europe, North America, Japan, Korea or Oceania: risk of a fine {0} ({1}).",
   "☠ Votre route traverse :": "☠ Your route crosses:",
   "Risque d'attaque ≈ {0}. Défense {1}{2} : chance de repousser une attaque ordinaire {3}, les plus dangereuses {4}. Sans citadelle, un navire abordé est détourné contre rançon. Ralentir allonge le passage ; aller vite aide à semer les pirates.{5}": "Attack risk ≈ {0}. Defence {1}{2}: chance to repel an ordinary attack {3}, the most dangerous {4}. Without a citadel, a boarded ship is hijacked for ransom. Slowing down lengthens the passage; going fast helps shake off pirates.{5}",
+  "☣ Cargaison polluante.": "☣ Polluting cargo.",
+  "Votre route longe :": "Your route runs along:",
+  "(reste :": "(left:",
+  "Corée du Nord": "North Korea",
 };

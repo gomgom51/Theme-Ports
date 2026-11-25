@@ -78,7 +78,8 @@ export function victoryProgress(state, company, kind) {
     parts = [
       part('Sur la liste noire', years / VICTORY.shadowYears, company.blacklisted ? `${years.toFixed(1).replace('.', ',')} / ${VICTORY.shadowYears} ans` : 'pas encore'),
       part('Navires', ships / VICTORY.shadowShips, `${ships} / ${VICTORY.shadowShips}`),
-      part('Pays sous embargo', done.length / DARK_COUNTRIES.length, `${done.length} / ${DARK_COUNTRIES.length}${done.length < DARK_COUNTRIES.length ? ` (reste : ${DARK_COUNTRIES.filter((f) => !H.darkFrom[f]).map((f) => EMBARGOED[f].name).join(', ')})` : ''}`),
+      part('Pays sous embargo', done.length / DARK_COUNTRIES.length, [`${done.length} / ${DARK_COUNTRIES.length}`, ...(done.length < DARK_COUNTRIES.length // pays un à un (traduits chacun à l'écran)
+        ? [' ', '(reste :', ' ', ...DARK_COUNTRIES.filter((f) => !H.darkFrom[f]).flatMap((f, i) => [i ? ', ' : null, EMBARGOED[f].name]), ')'] : [])]),
     ];
   }
   const won = parts.every((p) => p.frac >= 1);

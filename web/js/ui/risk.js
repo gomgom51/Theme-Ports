@@ -38,11 +38,14 @@ export function riskLines(state, ship, { seaDays = null, to = null, route = null
   if (route && ship.cargo && isPolluting(ship.cargo.good)) {
     const w = worstCase(ship, route, ship.status === 'sea' ? (ship.voyage?.startCond ?? ship.condition) : ship.condition, company);
     const M = (x) => `${(x / 1e6).toFixed(1).replace('.', ',')} M$`;
-    const along = w.zones.length ? `Votre route longe ${w.zones.map((z) => `${z.name} (×${String(z.factor).replace('.', ',')})`).join(', ')}.` : 'Votre route reste au large des côtes sensibles.';
+    // Morceaux séparés (zones une à une) : la traduction anglaise les reconnaît chacun.
+    const along = w.zones.length
+      ? [h('span', 'Votre route longe :'), ' ', ...w.zones.flatMap((z, i) => [i ? ', ' : null, h('span', z.name), ` (×${String(z.factor).replace('.', ',')})`]), '.']
+      : [h('span', 'Votre route reste au large des côtes sensibles.')];
     const cost = w.insured
       ? `En cas de marée noire, nettoyage jusqu'à ${M(w.liability)} : l'assurance paie, il vous resterait ${M(w.due)} de franchise.`
       : `En cas de marée noire, nettoyage jusqu'à ${M(w.liability)}, à vos frais (jusqu'à ${M(w.due)})${w.seaworthy ? ', votre assurance ne couvrant pas la pollution.' : ' car le navire n\'est pas en état, et le pays touché vous fermerait ses ports un an.'}`;
-    out.push(h(`div.risk-line${w.insured ? '' : '.neg'}`, [`☣ Cargaison polluante. ${along} ${cost}`]));
+    out.push(h(`div.risk-line${w.insured ? '' : '.neg'}`, [h('span', '☣ Cargaison polluante.'), ' ', ...along, ' ', h('span', cost)]));
   }
   // 2. L'avis de l'équipage sur les dangers.
   if (crew.info === 0) {
