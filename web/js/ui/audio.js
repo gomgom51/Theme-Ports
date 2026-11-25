@@ -31,9 +31,9 @@ const TRACKS = {
   reputation: { src: 'musique/respect.mp3', volume: 0.24, loop: true },
   legend: { src: 'musique/legende.mp3', volume: 0.24, loop: true },
   shadow: { src: 'musique/ombre.mp3', volume: 0.24, loop: true },
-  blacklist: { src: 'musique/liste-noire.mp3', volume: 0.24, loop: true },
+  blacklist: { src: 'musique/liste-noire.mp3', volume: 0.28, loop: true }, // enregistrée un peu moins fort (−17 LUFS)
   blacklistb: { src: 'musique/liste-noireb.mp3', volume: 0.24, loop: true }, // seconde chanson, après deux ans sur la liste
-  menace: { src: 'musique/menace.mp3', volume: 0.24, loop: true },
+  menace: { src: 'musique/menace.mp3', volume: 0.21, loop: true }, // enregistrée un peu plus fort (−14,5 LUFS)
 };
 
 // Seconde chanson d'un thème de situation : sans elle, la première.
