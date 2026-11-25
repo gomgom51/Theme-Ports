@@ -32,6 +32,7 @@ import { darkOnArrival, darkDaily, maybeDarkOffer, darkPort, charityDelivered } 
 import { honoursDaily, onDelivered, onStain, onEliminated, onAid } from './honours.js';
 import { levelsDaily, victoryDaily } from './victory.js';
 import { takeoverDaily, aiTakeover } from './takeover.js';
+import { shadowDaily } from './shadow.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 3;
@@ -603,6 +604,7 @@ function daily(state, ctx, rng, notes) {
   clientsDaily(state, notes);
   plotsDaily(state, notes, rng);
   takeoverDaily(state, notes); // offres de rachat, compagnies rachetables prévenues
+  shadowDaily(state, notes); // liste noire internationale
   iceDaily(state, notes);
   darkDaily(state, ctx, rng, notes);
   tradeDaily(state, ctx, rng, notes); // appels d'offres des villes

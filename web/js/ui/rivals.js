@@ -8,6 +8,7 @@ import { relationOf, LOYAL } from '../sim/clients.js';
 import { pointsEarned, XP_STEPS } from '../sim/crew.js';
 import * as P from '../sim/plots.js';
 import * as TK from '../sim/takeover.js';
+import { crossesLine, BLACKLIST } from '../sim/shadow.js';
 import { h, money, date, num, pct, dialog, confirmBox, toast } from './dom.js';
 import { logoBadge } from './logos.js';
 
@@ -86,6 +87,7 @@ export async function takeoverDialog(app, targetId) {
     h('p', `Prix : ${money(pv.price)} payés comptant (valeur nette ${money(pv.worth)} × ${(1 + c.reputation / TK.TAKEOVER.repK).toFixed(2).replace('.', ',')} pour sa réputation).`),
     h('p', `Vous reprenez ${pv.ships} navire(s), ses commandes et ses contrats, ${money(pv.cash)} de liquidités et ${money(pv.debt)} de dettes.`),
     h('p', [`Votre réputation passerait de ${Math.floor(state.companies[me].reputation)} à environ ${Math.floor(pv.rep)}.`, pv.infamy > (state.companies[me].infamy || 0) + 0.5 ? ' Vous hériteriez aussi d\'une part de son infamie.' : null]),
+    crossesLine(state.companies[me], pv.infamy - (state.companies[me].infamy || 0)) ? h('p.warn-text', `⛔ Son infamie porterait la vôtre à ${Math.round(pv.infamy)} : à ${BLACKLIST.infamy}, votre compagnie entrerait sur la liste noire internationale, pour toujours.`) : null,
     c.human ? h('p.warn-text', `${c.name} est dirigée par un joueur : il aura ${TK.TAKEOVER.bidDays} jours pour réagir (demander un délai à ses actionnaires).`) : null,
   ]), c.human ? 'Faire l\'offre' : `Racheter · ${money(pv.price)}`);
   if (!ok) return;

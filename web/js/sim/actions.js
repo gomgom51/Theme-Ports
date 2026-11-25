@@ -19,6 +19,7 @@ import { skillSpeed, skillHandling } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 import { onTradeSale } from './honours.js';
 import { payCut } from './plots.js';
+import { closedPort } from './shadow.js';
 
 // why : la raison, quand l'interface doit y réagir (« carburant-fonds » : pas de quoi payer le plein).
 const fail = (msg, why = null) => ({ ok: false, msg, why });
@@ -99,6 +100,7 @@ export function planVoyage(state, ctx, ship, to, speed) {
   if (bannedUntil(company, PORTS[to].flag) > state.t) {
     return { error: `${FLAGS[PORTS[to].flag].name} interdit ses ports à votre compagnie jusqu'au ${formatDate(bannedUntil(company, PORTS[to].flag))} (pollution).` };
   }
+  if (closedPort(company, to)) return { error: `Liste noire : ${FLAGS[PORTS[to].flag].name} saisirait le navire à son arrivée.` };
   if (ship.cargo) {
     if (ship.cargo.contractId) {
       const c = contractById(state, ship.cargo.contractId);

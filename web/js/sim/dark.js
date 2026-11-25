@@ -21,6 +21,7 @@ import { HOURS_PER_DAY, formatDate } from './util.js';
 import * as eco from './economy.js';
 import { isEmbargoed, detectionChance } from './shady.js';
 import { onDarkDone, onStain, onDirty } from './honours.js';
+import { closedPort } from './shadow.js';
 
 const D = HOURS_PER_DAY;
 const fail = (msg) => ({ ok: false, msg });
@@ -68,7 +69,8 @@ export const darkDetect = (ship, port) => Math.min(0.9, detectionChance(ship, po
 
 function makeDarkOffer(state, ctx, rng, ship, from) {
   const kind = rng.pick(DARK_IDS), K = DARK_KINDS[kind];
-  const dests = K.dests.filter((p) => p !== from && PORTS[p] && eco.fitsPort(p, ship.type) && ctx.distanceInfo(from, p));
+  const owner = companyOf(state, ship);
+  const dests = K.dests.filter((p) => p !== from && PORTS[p] && eco.fitsPort(p, ship.type) && ctx.distanceInfo(from, p) && !closedPort(owner, p)); // liste noire : pas vers un port fermé
   if (!dests.length) return null;
   const to = rng.pick(dests), nm = ctx.distanceInfo(from, to).nm;
   const pay = Math.round((rng.range(...K.pay) + (nm / 5000) * 500000) / 10000) * 10000;

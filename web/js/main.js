@@ -604,6 +604,14 @@ function handleNotes(notes) {
       if (app.state.settings.autoPause) paused = true;
       continue;
     }
+    // Liste noire : l'avertissement à 60 d'infamie, puis l'entrée sur la liste (pour toujours).
+    if (n.kind === 'blacklistWarn') { app.audio.play('bell'); toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 16000 }); if (app.state.settings.autoPause) paused = true; continue; }
+    if (n.kind === 'blacklisted') {
+      app.speed = 0;
+      app.audio.play('sunk');
+      popup(() => dialog({ title: '⛔ Liste noire internationale', body: h('p', prefixOf(n) + n.text), buttons: [{ label: 'Compris', value: 'ok', kind: 'primary' }] }));
+      continue;
+    }
     if (n.kind === 'recordLost') {
       toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 10000, action: 'Trophées', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); } });
       continue;

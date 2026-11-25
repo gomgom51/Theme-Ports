@@ -18,6 +18,7 @@ import { openRansom } from './piracy.js';
 import { plotAlerts, heldDialog, jettisonDialog } from './plots.js';
 import { counterDialog, bidDialog } from './rivals.js';
 import { pendingBid, canTakeover, takeoverPrice } from '../sim/takeover.js';
+import { BLACKLIST } from '../sim/shadow.js';
 import { pointsFree as crewPoints } from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, iceForecast, forecastText, escortFee, ICE } from '../sim/ice.js';
 import { DARK, DARK_KINDS, darkDetect } from '../sim/dark.js';
@@ -153,6 +154,9 @@ export function computeAlerts(state, ctx, companyId) {
     }
   }
   plotAlerts(state, companyId, (level, icon, text, target) => add(level, icon, text, target?.plot != null ? null : target));
+  // Liste noire : ce qu'elle ferme ; ou l'infamie qui s'en approche.
+  if (company.blacklisted) add('info', '⛔', `Liste noire internationale depuis le ${date(company.blacklisted.t, true)} : ports d'Europe, d'Amérique du Nord, du Japon, de Corée et d'Océanie fermés à vos navires ; seule la banque de l'ombre vous prête (deux fois moins, 15 points plus cher).`);
+  else if ((company.infamy || 0) >= BLACKLIST.warn) add('watch', '⛔', `Infamie ${Math.round(company.infamy)} : à ${BLACKLIST.infamy}, liste noire internationale pour toujours (ports des pays qui appliquent les sanctions et banques régulières fermés).`);
   // Rachat : une offre sur la table, ou des concurrents qui en ont les moyens.
   const bid = pendingBid(state, companyId);
   if (bid) add('urgent', '🤝', `${state.companies[bid.by].name} veut racheter votre compagnie (${money(bid.price)}) : la vente se fera le ${date(bid.until, true)} si l'offre tient toujours.`, { bid: bid.id });

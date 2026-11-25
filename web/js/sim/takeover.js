@@ -11,6 +11,7 @@
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money } from './core.js';
 import { onEliminated } from './honours.js';
+import { crossesLine, BLACKLIST } from './shadow.js';
 import { OFFICE_TIERS } from '../data/offices.js';
 
 const D = HOURS_PER_DAY;
@@ -183,6 +184,8 @@ export function aiTakeover(state, rng, company, notes = null) {
     const chk = canTakeover(state, company.id, t.id);
     if (!chk.ok || cash < chk.price * TAKEOVER.aiReserve) continue;
     const ratio = chk.price / Math.max(TAKEOVER.minWorth, netWorth(state, t.id));
+    const pv = takeoverPreview(state, company.id, t.id);
+    if (company.ai?.leaning !== 'ombre' && crossesLine(company, pv.infamy - (company.infamy || 0))) continue; // son infamie la mettrait sur la liste noire
     if (ratio > (bold ? TAKEOVER.aiMaxRatio * 1.4 : TAKEOVER.aiMaxRatio)) continue;
     if (!best || ratio < best.ratio) best = { t, ratio };
   }

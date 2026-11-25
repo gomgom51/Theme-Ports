@@ -115,11 +115,11 @@ export function cargoLoans(state, companyId) {
 
 export function creditLimit(state, company) {
   // Pression d'un concurrent sur sa banque (sim/plots.js) : plafond réduit pour un temps.
-  const cut = company.creditCut && company.creditCut.until > state.t ? company.creditCut.k : 1;
+  const cut = (company.creditCut && company.creditCut.until > state.t ? company.creditCut.k : 1) * (company.blacklisted ? 0.5 : 1); // liste noire : la banque de l'ombre prête moins
   return Math.max(0, (0.6 * fleetValue(state, company.id) + company.reputation * 25000) * cut);
 }
 export function interestRate(company) {
-  return FLAGS[company.flag].rate + ((100 - company.reputation) / 100) * 0.06;
+  return FLAGS[company.flag].rate + ((100 - company.reputation) / 100) * 0.06 + (company.blacklisted ? 0.15 : 0); // banque de l'ombre
 }
 // Infamie (affaires noires, sim/dark.js) : une tache définitive qui abaisse le plafond de réputation.
 // Plafond de réputation : 95 pour la conduite ordinaire, un point de plus par haut fait (cinq au plus),
