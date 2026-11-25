@@ -16,6 +16,7 @@ import { HOURS_PER_DAY } from './util.js';
 import { money, news, changeReputation, shipLog, shipsOf, portName } from './core.js';
 import { relationOf, clientRel, LOYAL } from './clients.js';
 import { PIRACY_ZONES, piracyZoneAt } from './piracy.js';
+import { onHostile } from './honours.js';
 
 const D = HOURS_PER_DAY;
 const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
@@ -76,6 +77,7 @@ export function orderPlot(state, rng, byId, { kind, target, zone, port }) {
   // Une seule affaire à la fois contre la même cible au même endroit (quel qu'en soit le commanditaire).
   if (activePlots(state).some((p) => p.target === target && p.kind === kind && (kind === 'pirates' ? p.zone === zone : p.port === port))) return { ok: false, msg: 'Quelqu\'un s\'en occupe déjà : la zone ne prend pas deux fois la même commande.' };
   money(state, by, -price, 'divers');
+  onHostile(state, by, tg);
   const days = kind === 'pirates' ? PIRATE_DAYS : CORRUPT_DAYS;
   const plot = {
     id: state.nextId++, kind, by: byId, target, zone: zone || null, port: port || null,
@@ -150,6 +152,7 @@ export function poachClient(state, rng, byId, clientId) {
   if (by.cash < price) return { ok: false, msg: `Il faut ${k$(price)} en caisse.` };
   const rival = state.companies[tp.id];
   money(state, by, -price, 'divers');
+  onHostile(state, by, rival);
   rival.clients[clientId].loyalty = 0;
   for (const c of state.contracts) if (c.client === clientId && c.reservedFor === rival.id && c.takenBy === null) { c.reservedFor = null; c.reservedUntil = 0; }
   by.clients ??= {};

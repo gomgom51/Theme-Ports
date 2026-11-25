@@ -9,6 +9,7 @@ import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORT
 import { money, news, changeReputation, portName, shipLog, shipById, companyOf, costStat } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { equipMod } from './equipment.js';
+import { onDirty, onEmbargoTrade, onStain, onParcel } from './honours.js';
 import { tipped, tipReward, TIP_DETECT } from './plots.js';
 import { skillConceal } from './crew.js';
 import { addTrust, parcelNature, scheduleAftermath } from './dark.js';
@@ -24,6 +25,8 @@ const fail = (msg) => ({ ok: false, msg });
 export function taintShip(state, ship, port, value) {
   if (!isEmbargoed(port)) return;
   ship.taint = { t: state.t, port, value: Math.round((taintActive(state, ship)?.value || 0) + value) };
+  const owner = companyOf(state, ship);
+  if (owner) { onEmbargoTrade(owner, value); onDirty(state, owner); }
   shipLog(state, ship, `Commerce avec un pays sous embargo (${FLAGS[PORTS[port].flag].name})`);
 }
 export function taintActive(state, ship) {
@@ -50,6 +53,7 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   const company = companyOf(state, ship);
   money(state, company, -risk.fine, 'sinistres', ship);
   costStat(state, 'sanctions', risk.fine);
+  onStain(state, company);
   if (company.ai) company.ai.noEmbargoUntil = state.t + 365 * D; // l'ordinateur retient la leçon un an
   changeReputation(company, -8);
   ship.taint = null;
@@ -106,6 +110,7 @@ export function acceptOffer(state, shipId, offerId) {
   if (ship.status !== 'port' || ship.port !== o.from) return fail('Le navire doit être à quai dans ce port.');
   if (ship.contraband) return fail('Un colis est déjà caché à bord.');
   ship.contraband = { ...o };
+  onDirty(state, companyOf(state, ship));
   state.offers = state.offers.filter((x) => x !== o);
   shipLog(state, ship, `Colis discret embarqué pour ${portName(o.to)}`);
   return { ok: true };
@@ -167,6 +172,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
     ship.contraband = null;
     money(state, company, cb.pay, 'discret', ship);
     shipLog(state, ship, `Colis discret livré à ${portName(port)}`);
+    onParcel(state, company);
     addTrust(company, cb.from); // les gangs d'un port sous embargo commencent à vous faire confiance
     scheduleAftermath(state, rng, company, port, cb.nature); // ce qu'il contenait finira peut-être dans les nouvelles
     onNote?.('paid', `Le colis caché à bord du ${ship.name} a été remis à ${portName(port)} : ${Math.round(cb.pay / 1000).toLocaleString('fr-FR')} k$ en liquide.`, { amount: cb.pay, parcel: true });
@@ -175,6 +181,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
   return null;
 }
 function applySeizure(state, ship, company, port, fine, days, onNote) {
+  onStain(state, company);
   money(state, company, -fine, 'sinistres', ship);
   costStat(state, 'douane', fine);
   changeReputation(company, -15);

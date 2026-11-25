@@ -29,6 +29,8 @@ import { patrolHour } from './patrols.js';
 import { gainXp, aiTrain, skillSpeed, skillWear } from './crew.js';
 import { iceDaily, isSeasonal, iceOpen, escortFee, forecastText } from './ice.js';
 import { darkOnArrival, darkDaily, maybeDarkOffer, darkPort, charityDelivered } from './dark.js';
+import { honoursDaily, onDelivered, onStain, onEliminated, onAid } from './honours.js';
+import { levelsDaily, victoryDaily } from './victory.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 3;
@@ -53,6 +55,8 @@ export function newGame(opts, ctx) {
       duration: opts.duration ?? 5,
       difficulty: opts.difficulty || 'normal',
       autoPause: opts.autoPause ?? true,
+      // Conditions de victoire (toutes par défaut) ; le temps imparti départage si personne ne gagne.
+      victories: { domination: true, reputation: true, legend: true, shadow: true, ...(opts.victories || {}) },
     },
     market, ports,
     companies: [], ships: [], contracts: [], used: [], orders: [],
@@ -437,6 +441,7 @@ function arrive(state, ctx, ship, notes, rng) {
     costStat(state, 'detentions', insp.fine);
     money(state, company, -insp.cost, 'reparations', ship);
     changeReputation(company, -3);
+    onStain(state, company);
     ship.repairTo = insp.target;
     ship.detentionCost = insp.cost;
     const days = Math.round((insp.hours / 24) * 10) / 10;
@@ -505,6 +510,8 @@ function deliverContract(state, ship, rng, notes) {
     if (r.incident) reportClient(state, rng, company, r.incident, aiDenounces(rng, company, r.incident) ? 'denoncer' : 'discret');
   }
   noteDelivery(state, company, c.client, { late: penalty > 0, damaged: damage > 0.005 });
+  onDelivered(state, company, { qty: c.qty, good: c.good, late: penalty > 0 }); // records et hauts faits
+  if (c.charity && !(penalty > 0)) onAid(company);
   charityDelivered(state, company, ship, c, penalty > 0); // aide d'urgence : réputation et bonne presse
   if (penalty > 0) {
     company.late++;
@@ -627,6 +634,9 @@ function daily(state, ctx, rng, notes) {
   if (day % 7 === 0) { refreshUsedMarket(state, rng); recordHistory(state); }
   const d = dateOf(state.t);
   if (d.getUTCDate() === 1) monthly(state, notes);
+  levelsDaily(state, notes); // maturité des compagnies (niveaux acquis)
+  honoursDaily(state, notes); // hauts faits, records, méfaits
+  victoryDaily(state, notes);
   checkEnd(state, notes);
 }
 
@@ -659,11 +669,13 @@ function checkBank(state, ctx, company, notes) {
     company.cash += price;
     if (s.cargo?.contractId) changeReputation(company, -10);
     changeReputation(company, -6);
+    onStain(state, company);
     news(state, `La banque de ${company.name} saisit et vend le ${s.name} pour ${(price / 1e6).toFixed(2).replace('.', ',')} M$.`, { company: company.id, kind: 'disaster' });
     if (company.human) notes.push({ kind: 'bank', company: company.id, text: `Découvert trop important : la banque a saisi et vendu le ${s.name}.` });
     removeShip(state, ctx, s, 'saisi par la banque', price);
   } else if (company.cash < -limit) {
     company.bankrupt = true;
+    onEliminated(state, company);
     news(state, `${company.name} est en faillite.`, { company: company.id, kind: 'disaster' });
     if (company.human) notes.push({ kind: 'bankrupt', company: company.id, text: `${company.name} est en faillite.` });
   }
@@ -689,6 +701,7 @@ export function ranking(state) {
 }
 
 function checkEnd(state, notes) {
+  if (state.over) return; // une victoire vient de terminer la partie
   const humans = state.companies.filter((c) => c.human);
   const years = state.settings.duration;
   let reason = null;

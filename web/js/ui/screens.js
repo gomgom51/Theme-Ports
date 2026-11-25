@@ -3,6 +3,7 @@ import { getLang, setLang } from '../i18n.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
 import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
+import { VICTORY_KINDS, VICTORY_INFO } from '../sim/victory.js';
 import { LOGOS, LOGO_IDS, COLORS, logoBadge, initialLogo, isInitialLogo } from './logos.js';
 import { guideDefault } from './guide.js';
 import { flagEl } from './flags.js';
@@ -100,6 +101,7 @@ export function loadScreen(app) {
 export function setupScreen(app) {
   const cfg = app.setupCfg || (app.setupCfg = {
     duration: 5, difficulty: 'normal', autoPause: true, guide: guideDefault(),
+    victories: { domination: true, reputation: true, legend: true, shadow: true },
     slots: DEFAULT_NAMES.map((name, i) => ({ name, kind: i === 0 ? 'human' : i < 3 ? 'ai' : 'none', color: COMPANY_COLORS[i], logo: COMPANY_LOGOS[i], open: i === 0 })),
   });
   const render = () => {
@@ -108,6 +110,11 @@ export function setupScreen(app) {
     screen('setup', h('div.setup-card', [
       h('h2', 'Nouvelle partie'),
       h('div.field', [h('div.field-label', 'Durée'), h('div.chips', DURATIONS.map((d) => h('button.chip', { class: cfg.duration === d.years ? 'active' : '', onclick: () => { cfg.duration = d.years; render(); } }, d.label)))]),
+      h('div.field', [
+        h('div.field-label', 'Conditions de victoire'),
+        h('div.chips', VICTORY_KINDS.map((k) => h('button.chip', { class: cfg.victories[k] ? 'active' : '', 'aria-pressed': cfg.victories[k] ? 'true' : 'false', title: VICTORY_INFO[k].text, onclick: () => { cfg.victories[k] = !cfg.victories[k]; render(); } }, `${VICTORY_INFO[k].icon} ${VICTORY_INFO[k].name}`))),
+        h('div.small.muted', cfg.duration ? 'Si personne ne gagne avant la fin du temps imparti, la plus grande valeur nette l\'emporte.' : 'Sans limite de temps : seule une victoire termine la partie.'),
+      ]),
       h('div.field', [
         h('div.field-label', 'Difficulté'),
         h('div.chips', Object.entries(DIFFICULTIES).map(([k, d]) => h('button.chip', { class: cfg.difficulty === k ? 'active' : '', onclick: () => { cfg.difficulty = k; render(); } }, d.label))),
@@ -233,29 +240,32 @@ function startFromSetup(app, cfg) {
     companies.push({ name: s.name.trim() || 'Compagnie', human: s.kind === 'human', homePort: port, color: s.color, logo: s.logo });
   }
   app.map.highlightPorts = null;
-  app.newGame({ duration: cfg.duration, difficulty: cfg.difficulty, autoPause: cfg.autoPause, guide: cfg.guide, companies });
+  app.newGame({ duration: cfg.duration, difficulty: cfg.difficulty, autoPause: cfg.autoPause, guide: cfg.guide, victories: { ...cfg.victories }, companies });
 }
 
 // ---------- Fin de partie ----------
 export function endScreen(app) {
   const { state } = app;
   const r = ranking(state);
-  const winner = r[0];
+  const byVictory = state.over.winner != null ? r.find((x) => x.company.id === state.over.winner) : null;
+  const winner = byVictory || r[0];
+  const info = state.over.kind ? VICTORY_INFO[state.over.kind] : null;
   screen('setup', h('div.setup-card', [
-    h('h2', 'Fin de la partie'),
+    h('h2', info ? `${info.icon} Victoire : ${info.name}` : 'Fin de la partie'),
     h('p', state.over.reason),
-    h('p.big-result', [h('span.badge-wrap', { html: logoBadge(winner.company.logo, winner.company.color, 64) }), ` ${winner.company.name} l'emporte avec ${money(winner.worth)} !`]),
+    info ? h('p.muted', info.text) : null,
+    h('p.big-result', [h('span.badge-wrap', { html: logoBadge(winner.company.logo, winner.company.color, 64) }), info ? ` ${winner.company.name} l'emporte !` : ` ${winner.company.name} l'emporte avec ${money(winner.worth)} !`]),
     h('div.list.compact', r.map((x, i) => h('div.row', [
       h('span.rank', `${i + 1}`),
       h('span.badge-wrap', { html: logoBadge(x.company.logo, x.company.color, 32) }),
       h('span.grow', [h('b', x.company.name), x.company.human ? '' : h('span.muted.small', ' (ordinateur)')]),
-      x.company.bankrupt ? h('span.tag.bad', 'faillite') : null,
+      x.company.absorbed ? h('span.tag.bad', `rachetée par ${state.companies[x.company.absorbed.by]?.name || '?'}`) : x.company.bankrupt ? h('span.tag.bad', 'faillite') : null,
       h('b', money(x.worth)),
     ]))),
     lineChart(state.companies.map((c) => ({ color: c.color, points: c.history.map((p) => [p.t, p.nw]) })), { yFormat: (v) => money(v), xFormat: (t) => String(yearOf(t)) }),
     h('div.setup-buttons', [
       h('button.btn.ghost', { onclick: () => app.toTitle() }, 'Menu principal'),
-      state.companies.some((c) => c.human && !c.bankrupt) ? h('button.btn.primary', { onclick: () => app.continueEndless() }, 'Continuer sans limite de temps') : null,
+      state.companies.some((c) => c.human && !c.bankrupt) ? h('button.btn.primary', { onclick: () => app.continueEndless() }, info ? 'Continuer à jouer' : 'Continuer sans limite de temps') : null,
     ]),
   ]));
 }

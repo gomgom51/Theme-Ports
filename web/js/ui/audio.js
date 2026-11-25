@@ -264,6 +264,9 @@ export class AudioManager {
     } else if (name === 'pause') {
       // Le temps s'arrête : trois coups de cloche.
       this.playSample('bell', { gain: 0.5, fadeOut: 0.2 });
+    } else if (name === 'bell') {
+      // Un seul coup de cloche : une nouvelle qui mérite l'attention, sans arrêter le temps.
+      this.playSample('bell', { gain: 0.32, duration: 1.3, fadeOut: 0.4 });
     } else if (name === 'time') {
       // Le temps repart : un tic-tac, d'autant plus rapide que la vitesse est grande.
       const rate = [1, 1, 1.4, 1.9][arg] || 1;

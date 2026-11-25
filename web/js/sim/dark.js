@@ -20,6 +20,7 @@ import { money, news, changeReputation, portName, shipLog, shipById, companyOf, 
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import * as eco from './economy.js';
 import { isEmbargoed, detectionChance } from './shady.js';
+import { onDarkDone, onStain, onDirty } from './honours.js';
 
 const D = HOURS_PER_DAY;
 const fail = (msg) => ({ ok: false, msg });
@@ -102,6 +103,7 @@ export function acceptDark(state, shipId, o) {
   const company = companyOf(state, ship);
   ship.dark = { ...o };
   company.crossed = true;
+  onDirty(state, company);
   company.infamy = (company.infamy || 0) + DARK_KINDS[o.kind].infamy;
   changeReputation(company, 0); // le plafond baisse
   shipLog(state, ship, `Cargaison noire embarquée pour ${portName(o.to)}`);
@@ -193,6 +195,7 @@ export function darkOnArrival(state, ctx, rng, ship, port, notes, note) {
       ship.dark = null;
       company.infamy = (company.infamy || 0) + DARK.caughtInfamy;
       changeReputation(company, -25);
+      onStain(state, company);
       money(state, company, -Math.round(dk.pay * 0.5), 'sinistres', ship);
       costStat(state, 'douane', Math.round(dk.pay * 0.5));
       news(state, `Scandale : la douane de ${portName(port)} découvre à bord du ${ship.name} (${company.name}) ${DARK_KINDS[dk.kind].name.toLowerCase()}. Amende de ${M$(dk.pay * 0.5)}, l'équipage est arrêté.`, { company: company.id, kind: 'disaster' });
@@ -204,6 +207,7 @@ export function darkOnArrival(state, ctx, rng, ship, port, notes, note) {
       const tr = lastTrip(state, ship);
       if (tr && tr.rev == null) tr.rev = Math.round(dk.pay);
       shipLog(state, ship, `Cargaison noire livrée à ${portName(port)}`);
+      onDarkDone(state, company, dk.from);
       if (company.human) {
         const n0 = notes.length;
         note(state, notes, 'paid', ship, `La cargaison noire du ${ship.name} est livrée à ${portName(port)} : ${M$(dk.pay)} en liquide. Personne n'a rien vu.`);

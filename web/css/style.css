@@ -739,3 +739,40 @@ select.input { width: auto; max-width: 100%; }
 /* ---------- Démarcher les chargeurs ---------- */
 .card.prospect { border-style: dashed; }
 .prospect-part { white-space: nowrap; font-size: 12px; color: var(--ink-2); }
+
+/* ---------- Victoires et trophées ---------- */
+.victories { display: grid; gap: 10px; }
+.vic-claimed { background: #fbf1d6; border: 1px solid #e0c17a; border-radius: 8px; padding: 8px 10px; }
+.vic-card { border: 1px solid var(--line); border-radius: 10px; background: var(--paper-2); padding: 10px 12px; }
+.vic-card.off { opacity: 0.6; }
+.vic-head { display: flex; align-items: flex-start; gap: 10px; }
+.vic-icon { font-size: 24px; line-height: 1; width: 30px; text-align: center; flex: none; }
+.vic-rows { display: grid; gap: 7px; margin-top: 9px; }
+.vic-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--paper); border: 1px solid transparent; }
+.vic-row.mine { border-color: var(--teal); }
+.vic-row .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.vic-line { display: flex; justify-content: space-between; gap: 8px; }
+.vic-pct { font-weight: 800; font-variant-numeric: tabular-nums; }
+.vic-bar { display: block; height: 6px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
+.vic-bar > span { display: block; height: 100%; background: var(--teal); border-radius: 3px; }
+.vic-bar.warm > span { background: #d39b2a; }
+.vic-bar.hot > span { background: #c4362c; }
+.vic-parts { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--ink-2); }
+.vic-part.done { color: #2f7a4f; }
+.trophies h3 { margin: 16px 0 4px; }
+.trophies h3:first-child { margin-top: 0; }
+.deed-grid, .trophy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; margin-top: 6px; }
+.deed-card, .trophy-card { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper-2); }
+.deed-card .grow, .trophy-card .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.deed-card.got { background: #fbf4dd; border-color: #e0c17a; }
+.deed-card.impossible { opacity: 0.55; }
+.deed-medal { position: relative; flex: none; width: 40px; height: 50px; }
+.deed-ribbon { position: absolute; left: 11px; top: 0; width: 18px; height: 20px; background: linear-gradient(90deg, #2c5d8a 0 33%, #f4f0e6 33% 66%, #b5402f 66%); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
+.deed-disc { position: absolute; left: 2px; top: 14px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; background: radial-gradient(circle at 35% 30%, #f8e08a, #d9a92e 60%, #a8801c); box-shadow: inset 0 0 0 2px #a8801c, 0 1px 2px rgba(0, 0, 0, 0.3); }
+.deed-card:not(.got) .deed-disc { filter: grayscale(1); opacity: 0.45; }
+.deed-card:not(.got) .deed-ribbon { filter: grayscale(1); opacity: 0.45; }
+.trophy-art { flex: none; width: 48px; height: 64px; display: grid; place-items: center; }
+.trophy-card.mine { background: #fbf4dd; border-color: #e0c17a; }
+.trophy-card.evil { background: #f1ede6; }
+.trophy-card.evil.mine { background: #ece3e3; border-color: #9c4a4a; }
+.trophy-holder b { font-weight: 800; }

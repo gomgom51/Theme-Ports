@@ -11,6 +11,7 @@ import { money, news, changeReputation, costStat } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { coverage } from './insurance.js';
 import { equipMod } from './equipment.js';
+import { onSpill } from './honours.js';
 
 export const CLEANUP_RATE = 600;    // $ par tonne de « pollution équivalent brut »
 export const OPEN_SEA_FACTOR = 0.15; // déversement au large, loin des côtes
@@ -79,6 +80,7 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   money(state, company, -c.due, 'sinistres', ship);
   costStat(state, 'pollution', c.due);
   changeReputation(company, -Math.min(20, 2 + c.liability / 10e6));
+  onSpill(state, company);
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
   st.spills = (st.spills || 0) + 1;
   (state.spills ??= []).push({ lon: pos.lon, lat: pos.lat, t: state.t, tonnes: Math.round(pollutionT), zone: zone?.id || null, company: company.id });

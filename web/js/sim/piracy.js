@@ -9,6 +9,7 @@ import { EQUIPMENT } from '../data/equipment.js';
 import { hasCitadel, hasEquip } from './equipment.js';
 import * as eco from './economy.js';
 import { pirateBoost, PIRATE_BOOST, PIRATE_STRENGTH } from './plots.js';
+import { onRepelled } from './honours.js';
 import { skillDefence } from './crew.js';
 
 const D = HOURS_PER_DAY;
@@ -107,6 +108,7 @@ export function piracyHour(state, rng, ship, pos) {
   st.piracy.attacks++;
   if (repelled) {
     st.piracy.repelled++;
+    onRepelled(companyOf(state, ship));
     report.outcome = 'repelled';
     shipLog(state, ship, `Attaque de pirates repoussée (${z.name})`);
     return report;

@@ -253,6 +253,12 @@ function checkLevels(s) {
     levelUp(co, from, t);
   }
 }
+// Haut fait, record ou méfait : un mot, et (records, méfaits) la scène de la remise puis l'étagère.
+function honourNote(n, scenes, prefix) {
+  const open = () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); };
+  app.audio.play(n.kind === 'evil' ? 'bell' : 'cash');
+  toast(prefix + n.text, { kind: n.kind === 'evil' ? 'warn' : 'money', timeout: 12000, action: 'Trophées', onAction: open });
+}
 function levelUp(co, from, to) {
   const T = OFFICE_TIERS[to], n = OFFICE_TIERS.length;
   const several = app.state.companies.filter((c) => c.human).length > 1; // partie à plusieurs : à qui est le bureau
@@ -539,6 +545,20 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'aid') { toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
+    // Maturité de la compagnie, hauts faits, records, méfaits, approche d'une victoire.
+    if (n.kind === 'level') { const co = app.state.companies[n.company]; if (co && !co.bankrupt) levelUp(co, n.from, n.to); continue; }
+    if (n.kind === 'deed' || n.kind === 'record' || n.kind === 'evil') { honourNote(n, scenes, prefixOf(n)); continue; }
+    if (n.kind === 'recordLost') {
+      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 10000, action: 'Trophées', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); } });
+      continue;
+    }
+    if (n.kind === 'victoryAlert') {
+      const mine = n.about === n.company;
+      app.audio.play(mine ? 'cash' : 'bell');
+      toast(prefixOf(n) + n.text, { kind: mine ? 'money' : 'warn', timeout: 15000, action: 'Victoires', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'victoires'); } });
+      if (!mine && app.state.settings.autoPause) paused = true;
+      continue;
+    }
     // Fin du démarchage : un contrat (ici ou dans un port proche), ou rien.
     if (n.kind === 'prospect') {
       const cid = n.company;

@@ -25,6 +25,7 @@ import { portShadyInfo } from './shady.js';
 import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 import { shipResults } from './shipresults.js';
+import { victoriesTab, trophiesTab } from './victory.js';
 
 const badge = (c, size = 28) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -341,6 +342,8 @@ export function officePanel(app, _id, tab) {
       ['assurance', 'Assurance', () => insuranceTab(app)],
       ['chargeurs', 'Chargeurs', () => clientsTab(app)],
       ['classement', 'Classement', () => rankingTab(app)],
+      ['victoires', 'Victoires', () => victoriesTab(app)],
+      ['trophees', 'Trophées', () => trophiesTab(app)],
     ],
     tab,
   };

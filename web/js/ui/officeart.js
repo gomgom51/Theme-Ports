@@ -1,17 +1,12 @@
 // Le bureau de la compagnie : cinq décors qui s'embellissent avec la valeur nette.
 import { logoMarkup, emblemInk } from './logos.js';
 import { shipSVG } from './shipart.js';
+import { OFFICE_TIERS, officeTier } from '../data/offices.js';
 
 // half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3).
 // Sous LOW (la compagnie a perdu de l'argent depuis ses débuts), thème du niveau 0.
 export const MUSIC_LOW = 5e6;
-export const OFFICE_TIERS = [
-  { min: 0, half: 10e6, name: 'Le cagibi du quai', text: 'Un bureau de fortune au bout du quai. Tout commence ici.' },
-  { min: 15e6, half: 23e6, name: 'Le bureau sur le port', text: 'Une vraie fenêtre sur le port et des dossiers bien rangés.' },
-  { min: 35e6, half: 55e6, name: 'Le siège de la compagnie', text: 'Boiseries, tableaux de navires et maquette sur le bureau.' },
-  { min: 100e6, half: 175e6, name: 'L\'étage de direction', text: 'Une baie vitrée sur tout le port. Les banquiers vous appellent.' },
-  { min: 300e6, half: 600e6, name: 'La tour de verre', text: 'Le sommet d\'une tour. Le port entier à vos pieds.' },
-];
+export { OFFICE_TIERS, officeTier };
 // Morceau de la partie : -1 (niveau 0, la compagnie perd de l'argent), puis 0 à 9 (deux par niveau).
 // level : niveau déjà atteint (company.level). Un niveau atteint est acquis : en repassant
 // sous son seuil, on garde son bureau et sa musique (la première chanson du niveau) ; seul le
@@ -25,11 +20,6 @@ export function musicStep(netWorth, level = 0) {
 export const reachedTier = (company, netWorth) => Math.max(company?.level ?? 0, officeTier(netWorth));
 export const shownTier = (company, netWorth) => (netWorth < MUSIC_LOW ? 0 : reachedTier(company, netWorth));
 
-export function officeTier(netWorth) {
-  let k = 0;
-  OFFICE_TIERS.forEach((t, i) => { if (netWorth >= t.min) k = i; });
-  return k;
-}
 
 const f = (n) => Math.round(n * 10) / 10;
 

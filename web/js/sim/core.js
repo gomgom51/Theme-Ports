@@ -119,7 +119,10 @@ export function interestRate(company) {
   return FLAGS[company.flag].rate + ((100 - company.reputation) / 100) * 0.06;
 }
 // Infamie (affaires noires, sim/dark.js) : une tache définitive qui abaisse le plafond de réputation.
-export const repCap = (company) => 100 - Math.min(80, company.infamy || 0);
+// Plafond de réputation : 95 pour la conduite ordinaire, un point de plus par haut fait (cinq au plus),
+// et l'infamie (affaires noires) l'abaisse pour toujours.
+export const REP_BASE_CAP = 95;
+export const repCap = (company) => Math.min(100 - Math.min(80, company.infamy || 0), REP_BASE_CAP + Math.min(5, Object.keys(company.hon?.deeds || {}).length));
 export function changeReputation(company, delta) {
   company.reputation = Math.max(0, Math.min(repCap(company), company.reputation + delta));
 }
