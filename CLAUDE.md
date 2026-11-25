@@ -116,7 +116,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   gravedigger misdeed reaches a shadow fleet (a bankruptcy is credited to the last rival that attacked within the year).
 - Reputation (owner's design): reputation = the lower of two scores, so nobody can max just one. Trust 🤝 (`confidence`:
   you can be counted on — on-time deliveries, new ports; late or damaged cargo, detentions, running dry, abandoned
-  contracts, wrecks, lost disputes, hijacks) and virtue 🕊 (`virtue`: the greater good — emergency aid, reporting
+  contracts, wrecks, lost disputes, hijacks) and virtue 💚 (`virtue`: the greater good — emergency aid, reporting
   dishonest shippers, a slow monthly gain for clean conduct, `STANDING` in `core.js`; oil spills, smuggling, embargo
   fines, bribes, dark jobs, dirty tricks). Everything that reads reputation reads that minimum (contracts, credit,
   cargo loans, shippers, takeover price, victory); infamy caps virtue only; a smear campaign hits both. `company.trust`

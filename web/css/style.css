@@ -105,6 +105,8 @@ p { margin: 6px 0; }
 .hud-rep-main > span { color: #c9921f; }
 .hud-rep-sub { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hud-rep-sub .low { color: var(--bad); font-weight: 700; }
+.hud-rep-sub > span { display: inline-flex; align-items: center; gap: 1px; }
+.hud-ico { font-size: 14px; line-height: 1; }
 .hud-switch { display: none; color: var(--teal); font-weight: 800; }
 .hud-company.switchable .hud-switch { display: inline; }
 /* Informations du navire sélectionné. */

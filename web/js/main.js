@@ -327,7 +327,7 @@ function updateHud() {
   const R = Math.floor(c.reputation), T = Math.floor(c.confidence), V = Math.floor(c.virtue), lim = repLimit(c);
   $('#hud-rep-val').textContent = R;
   const tr = $('#hud-trust'), vi = $('#hud-virtue');
-  tr.textContent = `🤝 ${T}`; vi.textContent = `🕊 ${V}`;
+  tr.innerHTML = `<span class="hud-ico" aria-hidden="true">🤝</span>${T}`; vi.innerHTML = `<span class="hud-ico" aria-hidden="true">💚</span>${V}`;
   tr.classList.toggle('low', lim === 'trust'); vi.classList.toggle('low', lim === 'virtue');
   tr.title = 'Confiance : on peut compter sur vous'; vi.title = 'Vertu : le bien commun';
   $('#hud-rep').title = lim === 'virtue' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre vertu la retient.`
