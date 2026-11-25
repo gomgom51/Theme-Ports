@@ -334,18 +334,22 @@ export class AudioManager {
     const el = new Audio(track.src);
     el.loop = track.loop;
     el.volume = 0;
+    // Tous les morceaux lancés et pas encore éteints : deux demandes coup sur coup (entrée en
+    // partie, puis niveau de la compagnie) ne doivent pas laisser l'ancien morceau tourner.
+    (this.live ??= new Set()).add(el);
     el.addEventListener('error', () => {
       (this.missing ||= new Set()).add(track.src);
+      this.live.delete(el);
       if (this.music !== el) return;
       if (prev && !prev.paused && prevKind === 'game' && scene === 'game') { this.music = prev; this.musicSrc = prevSrc; this.musicKind = prevKind; return; }
-      if (prev) this.fade(prev, 0, 1200, () => prev.pause());
+      this.stopOthers(null);
       this.music = null; this.musicSrc = null;
       // Fichier absent : on se rabat sur le morceau suivant (première chanson, puis jeu.mp3).
       if (scene === 'game' && name !== 'game') { this.musicScene = null; this.playMusic('game'); }
     });
     el.play().then(() => {
-      if (this.music !== el) { el.pause(); return; }
-      if (prev && prev !== el) this.fade(prev, 0, 1200, () => prev.pause());
+      if (this.music !== el) { el.pause(); this.live.delete(el); return; }
+      this.stopOthers(el); // le nouveau morceau joue : tous les autres s'effacent
       this.fade(el, track.volume, 2500);
       // La musique couvre un peu l'ambiance.
       if (this.ambBus) this.ambBus.gain.setTargetAtTime(0.6, this.ctx.currentTime, 1);
@@ -354,12 +358,19 @@ export class AudioManager {
     this.musicSrc = track.src;
     this.musicKind = scene;
   }
+  // Efface tous les morceaux en cours sauf `keep`.
+  stopOthers(keep) {
+    for (const o of [...(this.live || [])]) {
+      if (o === keep) continue;
+      this.live.delete(o);
+      this.fade(o, 0, 1200, () => o.pause());
+    }
+  }
   fadeOutMusic() {
-    const el = this.music;
     this.music = null;
     this.musicSrc = null;
     if (this.ambBus) this.ambBus.gain.setTargetAtTime(1, this.ctx.currentTime, 1);
-    if (el) this.fade(el, 0, 1200, () => el.pause());
+    this.stopOthers(null);
   }
   fade(el, to, ms, done) {
     const from = el.volume, start = performance.now();
