@@ -191,7 +191,10 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   13.3 years, reputation 1 (the virtuous AI carries oil like everyone, so it rarely gets there; a human chasing that
   victory would avoid oil); strategies tankers 7. With the refinery crisis (2 to 4 weeks): victories 6, median 9.8
   years (legend 3, shadow 2, reputation 1); strategies tankers 7, bulk 5, liners 3, cargos 1, tanker median ×57 → ×50
-  (a short crisis trims tanker income but does not change which strategy tops a market). A shadow fleet that survives wins; its survival hinges on
+  (a short crisis trims tanker income but does not change which strategy tops a market). Then the virtuous AI avoids oil
+  (35 % of an oil job's revenue counted as an image cost, no oil or chemical tankers bought: `VIRTUOUS_OIL_PENALTY` in
+  `ai.js`), as a human chasing that victory would: victories 7 of 16, median 9.5 years, 5 before year 10; reputation 3,
+  legend 3, shadow 1 — no path dominates (reputation was 5–6 before the split). One shadow AI went bankrupt. A shadow fleet that survives wins; its survival hinges on
   `TAKEOVER.dismantleK` (×1 → 2 wins, ×1.5 → 2, ×2 with 6 years → 6, ×2 with 7 years → 3). With leanings: population survivors median
   ×27, bottom 10 % ×10, no bankruptcy; most shadow fleets are bought or dismantled within five years. Strategies over
   16 seeds (neutral leanings, victories off): tankers 5, cargos 4, bulk 4, liners 3. Fleet test OK.
