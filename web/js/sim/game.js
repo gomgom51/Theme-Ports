@@ -208,7 +208,11 @@ function portHour(state, ctx, rng, ship, notes) {
     if (ship.heldBogus) { act.startBusy(state, ship, 'retenue', ship.heldBogus.hours); ship.lawyer = ship.heldBogus.lawyer; ship.heldBogus = null; return; }
     if (ship.plan) {
       const r = act.runPlan(state, ctx, ship);
-      if (!r.ok) note(state, notes, 'idle', ship, `Le ${ship.name} n'a pas pu appareiller : ${r.msg}`);
+      if (!r.ok) {
+        const n0 = notes.length;
+        note(state, notes, 'idle', ship, `Le ${ship.name} n'a pas pu appareiller : ${r.msg}`);
+        if (notes.length > n0 && r.why === 'carburant-fonds') notes[n0].noFuelCash = true; // le son de la tasse vide
+      }
       else note(state, notes, 'depart', ship, `Le ${ship.name} appareille.`);
       return;
     }

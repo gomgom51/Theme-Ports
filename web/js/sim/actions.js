@@ -17,7 +17,8 @@ import { clientRefusal } from './clients.js';
 import { skillSpeed, skillHandling } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 
-const fail = (msg) => ({ ok: false, msg });
+// why : la raison, quand l'interface doit y réagir (« carburant-fonds » : pas de quoi payer le plein).
+const fail = (msg, why = null) => ({ ok: false, msg, why });
 const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
 
 // Chantiers navals : coefficient de prix et délai de livraison (jours).
@@ -58,7 +59,7 @@ export function buyFuel(state, shipId, tonnes) {
   if (qty < 1) return fail('Les soutes sont déjà pleines.');
   const price = eco.fuelPrice(state, ship.port);
   const cost = qty * price;
-  if (cost > company.cash) return fail(`Il faut ${fmtM(cost)} pour ce plein.`);
+  if (cost > company.cash) return fail(`Il faut ${fmtM(cost)} pour ce plein.`, 'carburant-fonds');
   money(state, company, -cost, 'carburant', ship);
   ship.fuel += qty;
   return { ok: true, qty, cost };
@@ -142,7 +143,7 @@ function launch(state, ctx, ship, plan) {
     if (!plan.autoRefuel) return fail(`Carburant insuffisant : ${Math.round(p.needFuel)} t nécessaires, ${Math.round(ship.fuel)} t à bord.`);
     const want = Math.min(T.tank, p.needFuel * 1.12) - ship.fuel;
     const r = buyFuel(state, ship.id, want);
-    if (!r.ok || ship.fuel < p.needFuel) return fail(`Carburant insuffisant et pas assez d'argent pour faire le plein (${Math.round(p.needFuel)} t nécessaires).`);
+    if (!r.ok || ship.fuel < p.needFuel) return fail(`Carburant insuffisant et pas assez d'argent pour faire le plein (${Math.round(p.needFuel)} t nécessaires).`, r.why === 'carburant-fonds' ? r.why : null);
   }
   for (const c of p.canals) {
     const fee = eco.canalFee(T, c);

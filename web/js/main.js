@@ -145,6 +145,7 @@ app.withRng = (fn) => {
 app.act = (fn, opts = {}) => {
   const r = fn();
   if (r && r.ok === false) toast(r.msg, { kind: 'bad' });
+  if (r?.ok === false && r.why === 'carburant-fonds') app.audio.play('nofuel'); // pas de quoi payer le plein
   if (r?.ok && opts.sound) app.audio.play(typeof opts.sound === 'function' ? opts.sound(r) : opts.sound);
   if (opts.close && r?.ok) app.close(); else if (opts.refresh !== false) app.refresh();
   return r;
@@ -552,6 +553,7 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive');
+    if (n.noFuelCash) app.audio.play('nofuel'); // départ programmé impossible : pas de quoi payer le plein
     if (n.kind === 'sunk') app.audio.play('sunk');
     // Scène illustrée : naufrage, marée noire, détention ou saisie, banquier, et tempête quand
     // elle compte : cyclone tropical, force 11 et plus, ou cargaison avariée (un simple coup de

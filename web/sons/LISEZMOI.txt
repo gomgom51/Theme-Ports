@@ -8,6 +8,8 @@ cloche.mp3  trois coups de cloche quand le temps s'arrête (« opening bell », 
             utilisation libre), fourni par l'auteur du jeu
 tic-tac.mp3 tic-tac quand le temps repart, accéléré selon la vitesse (3 premières secondes de
             « clock ticking sound effect », Pixabay : utilisation libre), fourni par l'auteur du jeu
+tasse-vide.mp3  pas de quoi payer le plein d'un navire (« empty cup », freesound_community,
+            Pixabay : utilisation libre), fourni par l'auteur du jeu
 
 Les autres bruitages (mer, mouettes, caisses, corne…) sont synthétisés par le jeu.
 Si un fichier manque, le jeu utilise sa version synthétisée.
