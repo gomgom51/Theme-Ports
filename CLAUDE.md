@@ -60,7 +60,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   dark jobs and pro bono (`DARK`, `DARK_KINDS` pay/infamy, `CHARITY`) in `web/js/sim/dark.js`,
   infamy reputation cap `repCap` in `web/js/sim/core.js`; city tenders (`TENDER`: frequency, premium, quantity,
   duration) and cargo financing (`FINANCE`: share lent and rate per port profile, destination bonus, track record,
-  60-day term, late and early-repayment fees, exposure cap = net worth) in `web/js/sim/trade.js`; AI opportunity
+  60-day term, late and early-repayment fees, exposure cap = half the net worth) in `web/js/sim/trade.js`; AI opportunity
   cost of cash locked in cargo `AI_CAPITAL_COST` in `web/js/sim/ai.js`; prospecting for shippers (`PROSPECT`: duration,
   odds per port size / reputation / loyalty / office / negotiation skill, lead share and range, pay) in
   `web/js/sim/prospect.js`.
@@ -73,7 +73,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   commitments announced with their ETA) and cargo loans that let a small company fill a hold. No guaranteed
   price: trading keeps its risk. A tender's free quantity subtracts every other ship's commitment (own fleet
   included), and a ship commits as soon as its departure is planned, or several ships chase the same lot.
-  Leverage needs a cap (total cargo loans ≤ net worth) and the AI must charge itself the opportunity cost of
+  Leverage needs a cap (total cargo loans ≤ half the net worth) and the AI must charge itself the opportunity cost of
   cash locked in cargo (`AI_CAPITAL_COST`), or it trades instead of buying ships: fleets stall, a few AIs
   become near-zero zombies and the richest snowball. Compare variants on the same seeds: any change to the
   random stream reshuffles single-seed results.

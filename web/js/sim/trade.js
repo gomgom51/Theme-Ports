@@ -25,7 +25,7 @@ const D = HOURS_PER_DAY;
 export const TENDER = {
   chance: 0.14,          // par jour : chance qu'une ville lance un appel d'offres (≈ un par semaine)
   max: 4,                // appels d'offres ouverts en même temps, au plus
-  premium: [1.16, 1.36], // prix offert / prix de vente actuel du port
+  premium: [1.1, 1.26],  // prix offert / prix de vente actuel du port
   days: [24, 42],        // durée
   lots: [0.8, 2.0],      // quantité demandée, en lots typiques de la marchandise…
   minQty: 3000, maxQty: 150000, // … entre ces bornes (une course entre quelques navires, pas un puits sans fond)
@@ -141,9 +141,9 @@ export const FINANCE = {
   destLtv: 0.15,    // les acheteurs à destination prêtent davantage…
   destRate: -0.03,  // … et moins cher, contre la promesse d'y vendre
   trackLtv: 0.03, trackRate: 0.005, trackMax: 5, // par prêt remboursé à ce port (au plus 5)
-  // Encours total des prêts sur cargaison d'une compagnie : au plus sa valeur nette (et au moins
+  // Encours total des prêts sur cargaison d'une compagnie : au plus la moitié de sa valeur nette (et au moins
   // 3 M$ pour une petite compagnie). Sinon l'effet de levier fait des fortunes… ou des faillites.
-  exposure: 1, exposureMin: 3e6,
+  exposure: 0.5, exposureMin: 3e6,
 };
 // Plafond d'encours et ce qu'il reste à emprunter sur des cargaisons.
 export function loanRoom(state, company) {

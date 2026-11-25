@@ -25,6 +25,7 @@ export const PROSPECT = {
   lead: 0.35,                // part des succès qui sont une piste dans un port proche
   leadNm: 1800,
   pay: 0.95,                 // on est venu le chercher : un fret un peu moins payé
+  ai: 0.25,                  // chance qu'un navire IA désœuvré démarche avant de repartir à vide (c'est surtout un outil du joueur)
 };
 
 // Chargeurs qui expédient depuis ce port (marchandises exportées), et le plus fidèle d'entre eux.

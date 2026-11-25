@@ -446,7 +446,7 @@ async function buyDialog(app, ship, g, q, dests) {
       h('h4', 'Paiement'),
       h('div.fin-options', opts),
       mode ? null : h('p.neg', 'Aucun paiement possible pour cette quantité : choisissez-en une plus petite.'),
-      h('p.small.muted', `Vos prêts sur cargaison en cours : ${money(exposure.used)}, pour un plafond de ${money(exposure.cap)} (votre valeur nette).`),
+      h('p.small.muted', `Vos prêts sur cargaison en cours : ${money(exposure.used)}, pour un plafond de ${money(exposure.cap)} (la moitié de votre valeur nette).`),
       h('p.hint', `Un prêt sur cargaison doit être remboursé dans les ${FINANCE.dueDays} jours (par la vente) ; au-delà, il devient une dette bancaire, majorée de ${pct(FINANCE.lateFee * 100)}. Si la cargaison est perdue, le prêt reste dû (l'assurance rembourse sa part de la marchandise).`),
     ].filter(Boolean));
   };
