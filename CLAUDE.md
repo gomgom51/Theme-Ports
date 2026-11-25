@@ -158,7 +158,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 - Victories (16 AI games, 14 years, one company per leaning): 10 games won, median first victory 9.5 years, 7 before
   year 10; reputation 5, shadow fleet 3, legend 2 (owner's call: shadow felt weak, reputation too resilient, fixed with
   the six-month hold, shell companies, 7 years / 16 ships on the blacklist); domination is the hardest (conquerors
-  usually eliminate one rival, never all three). A shadow fleet that survives wins; its survival hinges on
+  usually eliminate one rival, never all three). After the new Clean Seas (no polluting cargo for 4 years) and the rule that a
+  blacklisted buyer can only buy blacklisted companies: 9 won, median 9.5 years, 6 before year 10; reputation 6, shadow 2,
+  legend 1 (same seeds: a shadow fleet that used to win at 9 years is now dismantled first, a legend at 13.5 years slips past 14). A shadow fleet that survives wins; its survival hinges on
   `TAKEOVER.dismantleK` (×1 → 2 wins, ×1.5 → 2, ×2 with 6 years → 6, ×2 with 7 years → 3). With leanings: population survivors median
   ×27, bottom 10 % ×10, no bankruptcy; most shadow fleets are bought or dismantled within five years. Strategies over
   16 seeds (neutral leanings, victories off): tankers 5, cargos 4, bulk 4, liners 3. Fleet test OK.
