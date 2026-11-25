@@ -6,6 +6,7 @@ import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
 import {
   shipsOf, portName, netWorth, fleetValue, creditLimit, interestRate, BOOK_LABELS, bookTotal,
+  standing, repLimit, trustCap, virtueCap, STANDING,
 } from '../sim/core.js';
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
@@ -466,10 +467,21 @@ function companyTab(app) {
     stat('Aide aux navires neufs', F.subsidy ? pct(F.subsidy * 100) : 'aucune'),
     stat('Qualité du registre', `${F.rating}/100`),
   ]));
+  // Réputation = la plus basse des deux notes (core.js).
+  standing(c);
+  const lim = repLimit(c);
   box.append(h('h3', `Réputation : ${num(c.reputation)}/100`));
   box.append(bar(c.reputation / 100, { good: 0.6, warn: 0.35 }));
-  if (c.infamy) box.append(h('p.warn-text', `☠ Infamie : ${num(c.infamy)}. Votre réputation ne pourra plus dépasser ${100 - Math.min(80, c.infamy)}/100 : c'est définitif. L'aide d'urgence la fait remonter jusqu'à ce plafond.`));
-  box.append(h('p.hint', 'Livrer à l\'heure fait monter la réputation ; les retards, contrats abandonnés, naufrages et saisies la font chuter. Elle ouvre l\'accès aux meilleurs contrats et baisse le taux des prêts.'));
+  box.append(h('p.hint', 'Votre réputation est la plus basse de vos deux notes, la confiance et la vertu : impossible de n\'en soigner qu\'une. Elle ouvre l\'accès aux meilleurs contrats et aux chargeurs exigeants, baisse le taux des prêts et fait monter votre prix de rachat.'));
+  const scoreRow = (icon, label, v, cap, low, text) => h('div.standing-row', { class: low ? 'low' : '' }, [
+    h('div.standing-head', [h('b', `${icon} ${label} : ${num(v)}/100`), low ? h('span.tag.warn', 'retient votre réputation') : null, cap < 100 ? h('span.muted.small', `plafond ${num(cap)}`) : null]),
+    bar(v / 100, { good: 0.6, warn: 0.35 }),
+    h('p.small.muted', text),
+  ]);
+  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', 'On peut compter sur vous. Monte à chaque livraison à l\'heure (un peu moins près du haut) et en desservant un nouveau port ; baisse avec les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus et les navires détournés.'));
+  box.append(scoreRow('🕊', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', `Le bien commun. Monte avec l'aide d'urgence livrée à temps et les chargeurs malhonnêtes dénoncés, et doucement chaque mois de conduite propre (aucun commerce sous embargo, colis discret, affaire noire, coup bas ni marée noire depuis ${Math.round(STANDING.cleanDays / 30)} mois) ; baisse avec les marées noires, la contrebande, les amendes d'embargo, les pots-de-vin, les affaires noires et les coups bas.`));
+  if (c.infamy) box.append(h('p.warn-text', `☠ Infamie : ${num(c.infamy)}. Votre vertu ne pourra plus dépasser ${100 - Math.min(80, c.infamy)}/100, ni donc votre réputation : c'est définitif.`));
+  box.append(h('p.small.muted', 'Hauts faits : chacun des cinq premiers relève d\'un point le plafond des deux notes (95 pour la conduite ordinaire).'));
   box.append(h('p', `${c.delivered} livraisons, dont ${c.late} en retard · ${c.portsServed.length} ports desservis.`));
   box.append(h('h3', 'Changer de port d\'attache'));
   const cost = act.relocateCost(state, c.id);
@@ -636,7 +648,7 @@ export function helpPanel() {
       p('Votre équipage évalue les dangers : un équipage de base donne un avis général, un équipage confirmé des fourchettes, un équipage chevronné des chiffres précis voyage par voyage. Les meilleurs équipages coûtent plus cher mais provoquent moins d\'incidents. Choisissez-le à l\'escale.'),
       p('Le marché du fret suit des cycles : des années fastes, puis des années maigres où désarmer un navire (à l\'escale) coûte moins cher que de le faire travailler à perte. Aussi : grèves, fermeture du canal de Suez, sécheresse à Panama, chocs pétroliers… Lisez le Journal 📰.'),
       h('h3', 'Banque et réputation'),
-      p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. La réputation monte avec les livraisons à l\'heure et ouvre les meilleurs contrats.'),
+      p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. La réputation (★ en haut à gauche) est la plus basse de deux notes : la confiance 🤝, qui monte avec les livraisons à l\'heure, et la vertu 🕊, qui monte avec l\'aide d\'urgence, les dénonciations et une conduite propre. Elle ouvre les meilleurs contrats.'),
       h('h3', 'Commandes'),
       p('Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un navire ou un port pour l\'ouvrir. Clavier : Espace = pause, 1 à 3 = vitesse, Échap = fermer.'),
     ]),

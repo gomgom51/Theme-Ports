@@ -12,7 +12,7 @@ import { GOODS } from '../data/goods.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { HOURS_PER_DAY } from './util.js';
-import { news, changeReputation, shipsOf } from './core.js';
+import { news, changeReputation, changeVirtue, standing, shipsOf, STANDING } from './core.js';
 import { pointsEarned, XP_STEPS } from './crew.js';
 import { MAX_LOYALTY } from './clients.js';
 
@@ -81,7 +81,7 @@ export function onDirty(state, company) { hon(company).lastDirty = state.t; }
 export function onAid(company) { hon(company).aid++; }
 export function onDenounce(company) { hon(company).denounced++; }
 export function onRepelled(company) { hon(company).repelled++; }
-export function onSpill(state, company) { onStain(state, company); }
+export function onSpill(state, company) { onStain(state, company); hon(company).lastSpill = state.t; }
 export function onDarkDone(state, company, fromPort) {
   const H = hon(company);
   H.darkDone++;
@@ -232,9 +232,17 @@ function checkRecords(state, notes, kind) {
     if (prev && prev.human && !prev.bankrupt) say(state, notes, prev, 'recordLost', evil ? `${best.c.name} vous ravit le méfait « ${R.name} » (${R.fmt(best.v)}).` : `${best.c.name} vous prend le record « ${R.name} » (${R.fmt(best.v)}).`, { record: id, evil });
   }
 }
+// Conduite propre : sans geste gris ou noir (embargo, colis discret, affaire noire, coup bas) ni marée
+// noire depuis STANDING.cleanDays jours, la vertu monte un peu chaque jour (de moins en moins près du haut).
+function cleanConduct(state, company) {
+  const H = hon(company), last = Math.max(H.lastDirty ?? -Infinity, H.lastSpill ?? -Infinity);
+  if (state.t - last < STANDING.cleanDays * 24) return;
+  changeVirtue(company, (STANDING.cleanMonthly / 30) * (1 - standing(company).virtue / 110));
+}
 export function honoursDaily(state, notes) {
   for (const c of state.companies) {
     if (c.bankrupt) continue;
+    cleanConduct(state, c);
     refreshBest(state, c);
     checkDeeds(state, c, notes);
   }

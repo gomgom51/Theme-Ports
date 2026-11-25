@@ -62,7 +62,7 @@ export function victoryProgress(state, company, kind) {
     const n = deedCount(company), lv = levelOf(company);
     const hold = company.repHold ? (state.t - company.repHold.since) / D : 0;
     parts = [
-      part('Réputation', company.repHold ? 1 : (company.reputation - 80) / 20, company.repHold ? `${Math.floor(company.reputation)} (100 atteint)` : `${Math.floor(company.reputation)} / 100`),
+      part('Réputation', company.repHold ? 1 : (company.reputation - 80) / 20, (company.repHold ? `${Math.floor(company.reputation)} (100 atteint)` : `${Math.floor(company.reputation)} / 100`) + ` · confiance ${Math.floor(company.confidence ?? company.reputation)}, vertu ${Math.floor(company.virtue ?? company.reputation)}`),
       part('Hauts faits', n / VICTORY.repDeeds, `${n} / ${VICTORY.repDeeds}`),
       part('Niveau', (lv + 1) / (VICTORY.repLevel + 1), `${lv + 1} / ${VICTORY.repLevel + 1}`),
       part('Tenue', hold / VICTORY.repHoldDays, company.repHold ? `${Math.floor(hold)} / ${VICTORY.repHoldDays} jours au-dessus de ${VICTORY.repHoldFloor}` : 'pas encore (atteindre 100)'),

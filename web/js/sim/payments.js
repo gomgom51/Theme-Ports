@@ -4,7 +4,7 @@
 // du client et de la réputation de la compagnie.
 import { CLIENTS } from '../data/clients.js';
 import { GOODS } from '../data/goods.js';
-import { money as book, news, changeReputation, portName } from './core.js';
+import { money as book, news, changeTrust, portName } from './core.js';
 import { worldFuelPrice } from './economy.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { stalledBy, PAYMENT_DELAY } from './plots.js';
@@ -162,7 +162,7 @@ export function dailyReceivables(state, notes) {
   for (const r of due) {
     const company = state.companies[r.company];
     book(state, company, r.amount, 'fret');
-    if (r.rep) changeReputation(company, r.rep);
+    if (r.rep) changeTrust(company, r.rep);
     if (company.human) notes.push({ kind: 'paid', company: company.id, text: `${r.label} : ${k$(r.amount)} encaissés.`, amount: r.amount });
   }
 }

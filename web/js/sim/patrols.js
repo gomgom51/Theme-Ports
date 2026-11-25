@@ -5,7 +5,7 @@ import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { ENFORCING, CONCEALMENT } from '../data/sanctions.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { haversineNm } from './routing.js';
-import { money, news, changeReputation, shipLog, companyOf } from './core.js';
+import { money, news, changeVirtue, shipLog, companyOf } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { equipMod, hasEquip } from './equipment.js';
 import { seizureFine, crewDiscretion } from './shady.js';
@@ -77,7 +77,7 @@ export function patrolHour(state, rng, ship, pos) {
   const days = rng.int(10, 25);
   ship.contraband = null;
   money(state, company, -fine, 'sinistres', ship);
-  changeReputation(company, -15);
+  changeVirtue(company, -15);
   ship.voyage.stalledUntil = state.t + days * D;
   report.outcome = 'seized';
   report.fine = fine;

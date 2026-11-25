@@ -6,7 +6,7 @@
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORTS } from '../data/sanctions.js';
-import { money, news, changeReputation, portName, shipLog, shipById, companyOf, costStat } from './core.js';
+import { money, news, changeVirtue, portName, shipLog, shipById, companyOf, costStat } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { equipMod } from './equipment.js';
 import { onDirty, onEmbargoTrade, onStain, onParcel } from './honours.js';
@@ -55,7 +55,7 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   costStat(state, 'sanctions', risk.fine);
   onStain(state, company);
   if (company.ai) company.ai.noEmbargoUntil = state.t + 365 * D; // l'ordinateur retient la leçon un an
-  changeReputation(company, -8);
+  changeVirtue(company, -8);
   ship.taint = null;
   const from = FLAGS[PORTS[risk.taint.port].flag].name;
   const text = `${FLAGS[PORTS[port].flag].name} sanctionne le ${ship.name} pour commerce avec un pays sous embargo (${from}) : amende de ${(risk.fine / 1e6).toFixed(2).replace('.', ',')} M$.`;
@@ -184,7 +184,7 @@ function applySeizure(state, ship, company, port, fine, days, onNote) {
   onStain(state, company);
   money(state, company, -fine, 'sinistres', ship);
   costStat(state, 'douane', fine);
-  changeReputation(company, -15);
+  changeVirtue(company, -15);
   ship.busyWhat = 'saisie';
   ship.busyUntil = Math.max(ship.busyUntil || 0, state.t) + days * D;
   const text = `La douane de ${portName(port)} saisit un colis de contrebande à bord du ${ship.name} (${company.name}) : amende de ${(fine / 1e6).toFixed(2).replace('.', ',')} M$, navire immobilisé ${days} jours.`;
@@ -203,13 +203,13 @@ export function resolveCase(state, rng, caseId, choice) {
   if (choice === 'soudoyer') {
     money(state, company, -c.bribe, 'discret', ship);
     if (rng.chance(c.chance)) {
-      changeReputation(company, -2);
+      changeVirtue(company, -2);
       ship.busyUntil = state.t + 12;
       shipLog(state, ship, `Arrangement avec la douane de ${portName(c.port)}`);
       return { ok: true, bribed: true, cost: c.bribe };
     }
     applySeizure(state, ship, company, c.port, Math.round(c.fine * 1.5), Math.round(c.days * 1.5), null);
-    changeReputation(company, -5);
+    changeVirtue(company, -5);
     return { ok: true, bribed: false, cost: c.bribe + Math.round(c.fine * 1.5) };
   }
   applySeizure(state, ship, company, c.port, c.fine, c.days, null);

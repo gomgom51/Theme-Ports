@@ -9,7 +9,7 @@
 //    (prix, niveau). Le dirigeant peut demander six mois aux actionnaires pour redresser la barre
 //    (chance affichée, selon sa réputation). Tant qu'un concurrent peut le racheter, il est prévenu.
 import { HOURS_PER_DAY, formatDate } from './util.js';
-import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money, removeShip } from './core.js';
+import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money, removeShip, standing } from './core.js';
 import { onEliminated } from './honours.js';
 import { crossesLine, BLACKLIST } from './shadow.js';
 import { victoryProgress, VICTORY } from './victory.js';
@@ -74,7 +74,8 @@ export function takeoverPreview(state, buyerId, targetId) {
   return {
     price: takeoverPrice(state, target), worth: netWorth(state, target.id), ships: shipsOf(state, target.id).length,
     cash: target.cash, debt: target.debt + cargoLoans(state, target.id),
-    rep: buyer.reputation * (1 - w) + target.reputation * w, infamy: (buyer.infamy || 0) + (target.infamy || 0) * w,
+    confidence: standing(buyer).confidence * (1 - w) + standing(target).confidence * w, virtue: buyer.virtue * (1 - w) + target.virtue * w,
+    get rep() { return Math.min(this.confidence, this.virtue); }, infamy: (buyer.infamy || 0) + (target.infamy || 0) * w,
   };
 }
 
@@ -119,8 +120,8 @@ export function executeTakeover(state, buyerId, targetId, notes = null) {
   for (const [p, n] of Object.entries(target.lenders || {})) (buyer.lenders ??= {})[p] = (buyer.lenders[p] || 0) + n;
   // Réputation et infamie : celles de la cible déteignent.
   buyer.infamy = pv.infamy;
-  buyer.reputation = pv.rep;
-  changeReputation(buyer, 0); // applique le plafond
+  buyer.confidence = pv.confidence; buyer.virtue = pv.virtue;
+  changeReputation(buyer, 0); // applique les plafonds, recalcule la réputation
   // Les coups bas de la cible et contre elle s'arrêtent ; l'offre est close.
   for (const p of state.plots || []) if ((p.by === target.id || p.target === target.id) && p.until > state.t) p.until = state.t;
   for (const b of state.bids || []) if ((b.target === target.id || b.by === target.id) && b.status === 'pending') b.status = b.target === target.id ? 'done' : 'void';

@@ -2,7 +2,7 @@
 import { makeContext } from './sim/context.js';
 import { newGame, tick, ranking } from './sim/game.js';
 import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
-import { shipsOf, isIdle, shipById, netWorth } from './sim/core.js';
+import { shipsOf, isIdle, shipById, netWorth, standing, repLimit } from './sim/core.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
 import { h, $, money, toast, dialog, confirmBox } from './ui/dom.js';
@@ -322,6 +322,17 @@ function updateHud() {
   const cash = $('#hud-cash');
   cash.textContent = money(c.cash);
   cash.classList.toggle('neg', c.cash < 0);
+  // Réputation : la plus basse des deux notes, celle qui la retient en rouge.
+  standing(c);
+  const R = Math.floor(c.reputation), T = Math.floor(c.confidence), V = Math.floor(c.virtue), lim = repLimit(c);
+  $('#hud-rep-val').textContent = R;
+  const tr = $('#hud-trust'), vi = $('#hud-virtue');
+  tr.textContent = `🤝 ${T}`; vi.textContent = `🕊 ${V}`;
+  tr.classList.toggle('low', lim === 'trust'); vi.classList.toggle('low', lim === 'virtue');
+  tr.title = 'Confiance : on peut compter sur vous'; vi.title = 'Vertu : le bien commun';
+  $('#hud-rep').title = lim === 'virtue' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre vertu la retient.`
+    : lim === 'trust' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre confiance la retient.`
+    : `Réputation ${R} : confiance et vertu à égalité.`;
   $('#hud-date').textContent = formatDate(s.t);
   document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', +b.dataset.speed === app.speed));
   // Compteurs rouges (comme des courriels non lus), notifications importantes et standing
@@ -413,6 +424,10 @@ $('#hud-company').addEventListener('click', () => {
     switchCompany(humans[(i + 1) % humans.length].id);
   } else app.open('office');
 });
+// La réputation ouvre l'onglet Compagnie du bureau (détail de la confiance et de la vertu).
+const openStanding = (e) => { e.stopPropagation(); app.open('office', null, 'compagnie'); };
+$('#hud-rep').addEventListener('click', openStanding);
+$('#hud-rep').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStanding(e); } });
 $('#hud-menu').addEventListener('click', () => gameMenu());
 document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => {
   const type = b.dataset.panel;

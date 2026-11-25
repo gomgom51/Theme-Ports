@@ -3,7 +3,7 @@
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
 import { haversineNm } from './routing.js';
-import { money, news, changeReputation, shipLog, companyOf, shipById, costStat } from './core.js';
+import { money, news, changeTrust, shipLog, companyOf, shipById, costStat } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { EQUIPMENT } from '../data/equipment.js';
 import { hasCitadel, hasEquip } from './equipment.js';
@@ -138,7 +138,7 @@ export function piracyHour(state, rng, ship, pos) {
   const ransom = Math.round(Math.max(150000, Math.min(9e6, eco.shipValue(state, ship) * 0.1 + cargoValue * 0.02)) / 10000) * 10000;
   ship.voyage.stalledUntil = state.t + 365 * D; // retenu jusqu'au paiement
   ship.hijacked = { ransom, t: state.t, zone: z.name };
-  changeReputation(company, -3);
+  changeTrust(company, -3);
   report.outcome = 'hijacked';
   report.ransom = ransom;
   news(state, `Le ${ship.name} (${company.name}) a été détourné par des pirates (${z.name}). Ils réclament ${(ransom / 1e6).toFixed(1).replace('.', ',')} M$.`, { company: company.id, kind: 'disaster' });
@@ -159,7 +159,7 @@ export function resolveHijack(state, rng, shipId, choice) {
   costStat(state, 'rancons', pay);
   ship.voyage.stalledUntil = state.t + days * D;
   ship.hijacked = null;
-  if (choice === 'negocier') changeReputation(company, -3);
+  if (choice === 'negocier') changeTrust(company, -3);
   shipLog(state, ship, `Rançon versée (${(pay / 1e6).toFixed(2).replace('.', ',')} M$), libération dans ${days} jours`);
   return { ok: true, pay, days };
 }

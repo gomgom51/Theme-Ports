@@ -35,7 +35,7 @@ export function rivalsTab(app) {
         badge(c),
         h('div.grow', [
           h('b', { 'data-no-tr': '' }, c.name), c.human ? null : h('span.muted.small', ' (ordinateur)'),
-          h('div.small.muted', `Niveau ${lv + 1} · ${shipsOf(state, c.id).length} navires · réputation ${Math.floor(c.reputation)} · valeur nette ${money(netWorth(state, c.id))}`),
+          h('div.small.muted', `Niveau ${lv + 1} · ${shipsOf(state, c.id).length} navires · réputation ${Math.floor(c.reputation)} (🤝 ${Math.floor(c.confidence ?? c.reputation)} · 🕊 ${Math.floor(c.virtue ?? c.reputation)}) · valeur nette ${money(netWorth(state, c.id))}`),
         ]),
       ]),
       h('div.rival-buy', [

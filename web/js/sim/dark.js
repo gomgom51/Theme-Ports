@@ -16,7 +16,7 @@
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { SHADY_PORTS } from '../data/sanctions.js';
-import { money, news, changeReputation, portName, shipLog, shipById, companyOf, costStat, removeShip, repCap, lastTrip } from './core.js';
+import { money, news, changeReputation, changeVirtue, portName, shipLog, shipById, companyOf, costStat, removeShip, repCap, lastTrip } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import * as eco from './economy.js';
 import { isEmbargoed, detectionChance } from './shady.js';
@@ -171,12 +171,12 @@ export function resolveSeized(state, ctx, rng, shipId, choice) {
     money(state, company, -hire, 'divers', ship);
     ship.busyWhat = 'recrutement';
     ship.busyUntil = state.t + 7 * D;
-    changeReputation(company, -8); // des marins abandonnés à leur sort : ça se sait
+    changeVirtue(company, -8); // des marins abandonnés à leur sort : ça se sait
     shipLog(state, ship, 'Équipage abandonné aux ravisseurs ; nouvel équipage recruté');
     news(state, `${company.name} refuse de payer pour l'équipage du ${ship.name}, enlevé à ${portName(s.port)}.`, { company: company.id, kind: 'disaster' });
     return { ok: true, abandoned: 'crew' };
   }
-  if (s.by === 'gang') changeReputation(company, -8);
+  if (s.by === 'gang') changeVirtue(company, -8);
   news(state, s.by === 'justice' ? `${company.name} abandonne le ${ship.name}, confisqué à ${portName(s.port)}.` : `${company.name} abandonne le ${ship.name} aux mains d'un gang à ${portName(s.port)}.`, { company: company.id, kind: 'disaster' });
   removeShip(state, ctx, ship, 'abandonné');
   return { ok: true, abandoned: 'ship' };
@@ -200,7 +200,7 @@ export function darkOnArrival(state, ctx, rng, ship, port, notes, note) {
     } else if (rng.chance(darkDetect(ship, port))) {
       ship.dark = null;
       company.infamy = (company.infamy || 0) + DARK.caughtInfamy;
-      changeReputation(company, -25);
+      changeVirtue(company, -25);
       onStain(state, company);
       money(state, company, -Math.round(dk.pay * 0.5), 'sinistres', ship);
       costStat(state, 'douane', Math.round(dk.pay * 0.5));
@@ -333,7 +333,7 @@ export function darkDaily(state, ctx, rng, notes) {
 // Livraison d'une aide d'urgence : réputation (dans la limite du plafond) et bonne presse.
 export function charityDelivered(state, company, ship, c, late) {
   if (!c.charity) return;
-  if (!late) changeReputation(company, c.charity.rep);
+  if (!late) changeVirtue(company, c.charity.rep);
   news(state, `${company.name} achemine l'aide d'urgence de ${c.charity.name} à ${portName(c.to)} avec le ${ship.name}.`, { company: company.id, kind: 'event' });
 }
 

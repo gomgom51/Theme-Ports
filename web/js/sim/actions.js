@@ -6,7 +6,7 @@ import { GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import {
   money, news, shipById, contractById, companyOf, creditLimit, createShip, shipLog, portName,
-  changeReputation, removeShip, shipTrack, lastTrip, TRIPS_KEPT, loanOwedAt,
+  changeReputation, changeTrust, standing, removeShip, shipTrack, lastTrip, TRIPS_KEPT, loanOwedAt,
 } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { CANAL_NAMES } from './context.js';
@@ -256,7 +256,7 @@ export function checkContract(state, ctx, ship, contract) {
   // Le réseau de l'ombre : dans les ports louches, on ne demande pas sa réputation à une compagnie de la liste noire.
   const grey = company.blacklisted && SHADY_PORTS.includes(contract.from);
   if (refusal?.kind === 'exigence' && !grey) return `${refusal.name} ne travaille qu'avec des armateurs réputés (${refusal.rep} exigée) ou avec ses partenaires fidèles.`;
-  if (company.reputation < contract.minRep && !grey) return `Réputation insuffisante (${contract.minRep} exigée).`;
+  if (company.reputation < contract.minRep && !grey) return `Réputation insuffisante : ${contract.minRep} exigée ; ${repShort(company)}.`;
   if (contract.deadline <= state.t) return 'Le délai est déjà dépassé.';
   return null;
 }
@@ -287,6 +287,8 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   return { ok: true };
 }
 
+// « confiance 72, vertu 48 » : la plus basse des deux fait la réputation.
+const repShort = (company) => `confiance ${Math.floor(standing(company).confidence)}, vertu ${Math.floor(company.virtue)}`;
 export function abandonContract(state, shipId) {
   const ship = shipById(state, shipId);
   if (!ship || ship.status !== 'port' || !ship.cargo?.contractId) return fail('Aucun contrat à annuler au port.');
@@ -294,7 +296,7 @@ export function abandonContract(state, shipId) {
   const company = companyOf(state, ship);
   const penalty = c ? Math.round(c.pay * 0.25) : 0;
   money(state, company, -penalty, 'divers', ship);
-  changeReputation(company, -8);
+  changeTrust(company, -8);
   state.contracts = state.contracts.filter((x) => x !== c);
   ship.cargo = null;
   ship.plan = null;

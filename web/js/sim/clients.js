@@ -12,7 +12,7 @@
 import { CLIENTS } from '../data/clients.js';
 import { HOURS_PER_DAY } from './util.js';
 import { onDenounce } from './honours.js';
-import { news, changeReputation, money as book } from './core.js';
+import { news, changeVirtue, money as book } from './core.js';
 
 const D = HOURS_PER_DAY;
 const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
@@ -138,7 +138,7 @@ export function reportClient(state, rng, company, incident, choice) {
     cs.named++;
     r.loyalty = 0;
     r.grudgeUntil = state.t + GRUDGE_DAYS * D;
-    changeReputation(company, DENOUNCE_REP);
+    changeVirtue(company, DENOUNCE_REP);
     onDenounce(company);
     news(state, `${company.name} dénonce publiquement ${C.name} : ${WHAT[incident.kind]}.`, { company: company.id, kind: 'event' });
     return { denounced: true };

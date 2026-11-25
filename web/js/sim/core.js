@@ -122,13 +122,40 @@ export function interestRate(company) {
   return FLAGS[company.flag].rate + ((100 - company.reputation) / 100) * 0.06 + (company.blacklisted ? 0.15 : 0); // banque de l'ombre
 }
 // Infamie (affaires noires, sim/dark.js) : une tache définitive qui abaisse le plafond de réputation.
-// Plafond de réputation : 95 pour la conduite ordinaire, un point de plus par haut fait (cinq au plus),
-// et l'infamie (affaires noires) l'abaisse pour toujours.
+// Réputation = la plus basse de deux notes, pour qu'on ne puisse pas n'en pousser qu'une
+// (champs confidence et virtue ; company.trust est la confiance des gangs, port par port, voir dark.js) :
+//  - la confiance : on peut compter sur vous (livraisons à l'heure, contrats tenus, cargaisons
+//    intactes ; retards, détentions, naufrages, rançons la font baisser) ;
+//  - la vertu : le bien commun (aide d'urgence, dénonciations, conduite propre ; marées noires,
+//    contrebande, affaires noires, coups bas la font baisser).
+// Tout ce qui lit la réputation (contrats, crédit, prêts sur cargaison, chargeurs, prix de rachat,
+// victoire) lit ce minimum. Plafond : 95 pour la conduite ordinaire, un point de plus par haut fait
+// (cinq au plus) ; l'infamie (affaires noires) abaisse pour toujours celui de la vertu.
 export const REP_BASE_CAP = 95;
-export const repCap = (company) => Math.min(100 - Math.min(80, company.infamy || 0), REP_BASE_CAP + Math.min(5, Object.keys(company.hon?.deeds || {}).length));
-export function changeReputation(company, delta) {
-  company.reputation = Math.max(0, Math.min(repCap(company), company.reputation + delta));
+// Conduite propre : la vertu monte doucement chaque mois sans geste gris ou noir ni marée noire
+// depuis cleanDays jours (gain mensuel × (1 − vertu / 110)).
+export const STANDING = { cleanMonthly: 2.5, cleanDays: 180 };
+const deedBonus = (company) => Math.min(5, Object.keys(company.hon?.deeds || {}).length);
+export const trustCap = (company) => REP_BASE_CAP + deedBonus(company);
+export const virtueCap = (company) => Math.min(100 - Math.min(80, company.infamy || 0), REP_BASE_CAP + deedBonus(company));
+export const repCap = (company) => Math.min(trustCap(company), virtueCap(company));
+// Anciennes sauvegardes : les deux notes partent de la réputation d'alors.
+export function standing(company) {
+  company.confidence ??= company.reputation ?? 50;
+  company.virtue ??= company.reputation ?? 50;
+  return company;
 }
+function syncReputation(company) {
+  company.confidence = Math.max(0, Math.min(trustCap(company), company.confidence));
+  company.virtue = Math.max(0, Math.min(virtueCap(company), company.virtue));
+  company.reputation = Math.min(company.confidence, company.virtue);
+}
+export function changeTrust(company, delta) { standing(company); company.confidence += delta; syncReputation(company); }
+export function changeVirtue(company, delta) { standing(company); company.virtue += delta; syncReputation(company); }
+// Les deux à la fois : hauts faits (le plafond monte), campagne de presse, plafond à réappliquer (0).
+export function changeReputation(company, delta) { standing(company); company.confidence += delta; company.virtue += delta; syncReputation(company); }
+// Laquelle des deux retient la réputation (pour l'expliquer au joueur).
+export const repLimit = (company) => (standing(company).virtue < company.confidence ? 'virtue' : company.confidence < company.virtue ? 'trust' : null);
 
 export function pickShipName(state, rng) {
   const used = new Set(state.ships.map((s) => s.name));
