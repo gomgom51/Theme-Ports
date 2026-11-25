@@ -29,6 +29,12 @@ export const GOODS = {
   colis:       { name: 'Colis lourds',       icon: '🏭', price: 9000, holds: ['lourd'],                spread: 0.07, vol: 0.004, depth: 30000, lot: 7000 },
 };
 
+// Vertu : les énergies fossiles et les marchandises polluantes (☣) n'en rapportent jamais ; les
+// marchandises utiles en rapportent un peu sur tout contrat livré à l'heure.
+export const FOSSIL_GOODS = ['brut', 'raffines', 'charbon', 'gpl', 'gnl'];
+export const USEFUL_GOODS = ['cereales', 'cafe_cacao', 'fruits', 'bois'];
+export const isCleanGood = (g) => !FOSSIL_GOODS.includes(g) && (GOODS[g]?.pollution || 0) < 0.2;
+
 export const HOLDS = {
   vrac: 'Vrac sec',
   liquide: 'Vrac liquide',

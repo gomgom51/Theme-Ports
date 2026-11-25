@@ -12,11 +12,11 @@
 // promesse d'y vendre. Le prêt est remboursé à la vente ; chaque prêt remboursé améliore les
 // conditions de ce port. Tout est montré avant l'achat (règle 1).
 import { PORTS, PORT_IDS } from '../data/ports.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, isCleanGood } from '../data/goods.js';
 import { EMBARGOED, SHADY_PORTS } from '../data/sanctions.js';
 import { HOURS_PER_DAY, clamp, formatDate } from './util.js';
 import * as eco from './economy.js';
-import { news, portName, companyOf, shipLog, money, loanOwedAt, cargoLoans, netWorth } from './core.js';
+import { news, portName, companyOf, shipLog, money, loanOwedAt, cargoLoans, netWorth, earnTrust, earnVirtue, VIRTUE_SOURCES, standing } from './core.js';
 import { isSeasonal } from './ice.js';
 
 const D = HOURS_PER_DAY;
@@ -120,10 +120,13 @@ export function tenderShare(state, ship, qty) {
 }
 export function deliverTender(state, ship, share) {
   const t = share.tender;
+  // On a servi la ville : confiance, et vertu si la marchandise n'est ni fossile ni polluante.
+  const co = companyOf(state, ship);
+  earnTrust(co, VIRTUE_SOURCES.tenderTrust);
+  if (isCleanGood(t.good)) earnVirtue(co, VIRTUE_SOURCES.opportunity);
   t.left -= share.qty;
   t.commits = t.commits.filter((c) => c.shipId !== ship.id);
   if (t.left <= 0) { t.left = 0; t.closedAt = state.t; }
-  const co = companyOf(state, ship);
   const text = t.left > 0
     ? `${co.name} a livré ${share.qty.toLocaleString('fr-FR')} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} : il en reste ${t.left.toLocaleString('fr-FR')} t.`
     : `${co.name} a livré ${share.qty.toLocaleString('fr-FR')} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} : l'appel d'offres est complet.`;
@@ -169,10 +172,10 @@ export function financeProfile(port) {
 export function lenderTerms(company, port, dest = false) {
   const key = financeProfile(port), F = FINANCE.profiles[key];
   const track = Math.min(FINANCE.trackMax, company.lenders?.[port] || 0);
-  const repK = clamp(0.75 + company.reputation / 200, 0.75, 1.15);
+  const repK = clamp(0.75 + standing(company).confidence / 200, 0.75, 1.15);
   const ltv = clamp((F.ltv + (dest ? FINANCE.destLtv : 0) + track * FINANCE.trackLtv) * repK, 0.2, 0.95);
   const rate = Math.max(0.03, F.rate + (dest ? FINANCE.destRate : 0) - track * FINANCE.trackRate);
-  const why = company.reputation < F.minRep ? `réputation ${F.minRep} exigée` : null;
+  const why = company.confidence < F.minRep ? `confiance ${F.minRep} exigée` : null;
   return { port, profile: key, label: F.label, ltv, rate, track, why, dest };
 }
 export const loanOwed = loanOwedAt;

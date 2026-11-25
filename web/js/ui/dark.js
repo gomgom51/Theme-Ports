@@ -25,7 +25,7 @@ export function darkLines(state, ship, to) {
     out.push(h(`div.risk-line.${p >= 0.2 ? 'neg' : 'warn-text'}`, [
       `${K.icon} Cargaison noire : ${K.name.toLowerCase()} pour ${portName(ship.dark.to)}, ${money(ship.dark.pay)} à la livraison avant le ${date(ship.dark.deadline, true)}.`,
       to ? (here ? ` Fouille à ${portName(to)}, port de livraison : risque ${riskWords(p, ship.crew || 0)}.` : ` Fouille à ${portName(to)} : risque ${riskWords(p, ship.crew || 0)}.`) : null,
-      ` Si la douane la trouve : navire confisqué (caution ${money(bailOf(state, ship))}), amende de ${money(ship.dark.pay * 0.5)}, scandale (infamie +${DARK.caughtInfamy}, réputation −25).`,
+      ` Si la douane la trouve : navire confisqué (caution ${money(bailOf(state, ship))}), amende de ${money(ship.dark.pay * 0.5)}, scandale (infamie +${DARK.caughtInfamy}, vertu −25).`,
     ]));
   }
   const g = to ? grudgeAt(state, company, to) : 0;
@@ -47,8 +47,8 @@ export async function darkOfferDialog(app, note) {
   const body = h('div', [
     h('p', [h('b', `${K.icon} ${K.name}`), ` — de ${portName(o.from)} à ${portName(o.to)} (${o.nm.toLocaleString('fr-FR')} milles), avant le ${date(o.deadline, true)}.`]),
     h('p', ['Payé ', h('b.pos', money(o.pay)), ' en liquide à la livraison. La marchandise occupe toute la cale : pas d\'autre chargement pendant ce voyage.']),
-    h('p.warn-text', `☠ Point de non-retour : infamie +${K.infamy}. Votre réputation ne pourra plus jamais dépasser ${cap}/100 (aujourd'hui ${Math.round(company.reputation)}). Moins de réputation : moins de bons contrats, des prêts plus chers.`),
-    h('p', `Douane à l'arrivée : risque ${riskWords(p, ship.crew || 0)} à ${portName(o.to)}, et à chaque escale en route. Si elle trouve : navire confisqué (caution de ${money(bailOf(state, ship))} pour le récupérer, ou il est perdu), amende de ${money(o.pay * 0.5)}, équipage arrêté, scandale public (infamie +${DARK.caughtInfamy}, réputation −25).`),
+    h('p.warn-text', `☠ Point de non-retour : infamie +${K.infamy}. Votre confiance et votre vertu ne pourront plus jamais dépasser ${cap}/100 (confiance aujourd'hui : ${Math.round(company.confidence ?? company.reputation)}). Moins de confiance : moins de bons contrats, des prêts plus chers.`),
+    h('p', `Douane à l'arrivée : risque ${riskWords(p, ship.crew || 0)} à ${portName(o.to)}, et à chaque escale en route. Si elle trouve : navire confisqué (caution de ${money(bailOf(state, ship))} pour le récupérer, ou il est perdu), amende de ${money(o.pay * 0.5)}, équipage arrêté, scandale public (infamie +${DARK.caughtInfamy}, vertu −25).`),
     h('p', `En refusant : ${pc(DARK.refuseSeize)} de risque qu'ils s'emparent du navire (rançon ${money(rShip)}) ou de l'équipage (rançon ${money(rCrew)}), puis ce gang vous en voudra ${DARK.grudgeDays} jours (${pc(DARK.grudgeSeize)} de risque de saisie à chaque escale de vos navires à ${portName(o.from)}).`),
     crossesLine(company, K.infamy)
       ? h('p.warn-text', `⛔ Liste noire : cette affaire porterait votre infamie à ${Math.round((company.infamy || 0) + K.infamy)}. À ${BLACKLIST.infamy}, votre compagnie entre sur la liste noire internationale, pour toujours : ports d'Europe, d'Amérique du Nord, du Japon, de Corée et d'Océanie fermés (navires saisis), banques régulières fermées (la banque de l'ombre prête deux fois moins, 15 points plus cher), chargeurs honnêtes perdus. C'est aussi le chemin de la victoire « La flotte fantôme ».`)
@@ -81,8 +81,8 @@ export async function seizedDialog(app, shipId) {
   const text = justice
     ? `La justice de ${portName(s.port)} a confisqué le ${ship.name}. Payer la caution de ${money(s.ransom)} pour le récupérer (10 à 20 jours de procédure), ou l'abandonner : il est perdu.`
     : crew
-      ? `L'équipage du ${ship.name} est aux mains d'un gang à ${portName(s.port)}. Payer ${money(s.ransom)} pour le libérer, ou l'abandonner : un nouvel équipage sera recruté (60 k$, une semaine), sans l'expérience ni les spécialités de l'ancien, et la réputation en souffrira (−8).`
-      : `Le ${ship.name} et son équipage sont aux mains d'un gang à ${portName(s.port)}. Payer ${money(s.ransom)} pour les libérer, ou les abandonner : le navire est perdu, et la réputation en souffrira (−8).`;
+      ? `L'équipage du ${ship.name} est aux mains d'un gang à ${portName(s.port)}. Payer ${money(s.ransom)} pour le libérer, ou l'abandonner : un nouvel équipage sera recruté (60 k$, une semaine), sans l'expérience ni les spécialités de l'ancien, et votre vertu en souffrira (−8).`
+      : `Le ${ship.name} et son équipage sont aux mains d'un gang à ${portName(s.port)}. Payer ${money(s.ransom)} pour les libérer, ou les abandonner : le navire est perdu, et votre vertu en souffrira (−8).`;
   const v = await dialog({ title: justice ? 'Navire confisqué' : crew ? 'Équipage enlevé' : 'Navire aux mains d\'un gang', body: h('p', text), buttons: [
     { label: crew ? 'Abandonner l\'équipage' : 'Abandonner le navire', value: 'abandonner', kind: 'ghost' },
     { label: `${justice ? 'Payer la caution' : 'Payer la rançon'} (${money(s.ransom)})`, value: 'payer', kind: 'primary' },

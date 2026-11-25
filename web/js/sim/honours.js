@@ -203,7 +203,7 @@ function checkDeeds(state, company, notes) {
     const n = deedCount(company);
     if (n <= 5) changeReputation(company, HONOURS.deedRep); // le plafond vient de monter d'un point
     news(state, `${company.name} gagne le haut fait « ${DEEDS[id].name} ».`, { company: company.id, kind: 'event' });
-    say(state, notes, company, 'deed', n <= 5 ? `Haut fait : « ${DEEDS[id].name} ». Votre plafond de réputation monte à ${95 + n}.` : `Haut fait : « ${DEEDS[id].name} ».`, { deed: id });
+    say(state, notes, company, 'deed', n <= 5 ? `Haut fait : « ${DEEDS[id].name} ». Le plafond de votre confiance et de votre vertu monte à ${95 + n}.` : `Haut fait : « ${DEEDS[id].name} ».`, { deed: id });
   }
 }
 function checkRecords(state, notes, kind) {

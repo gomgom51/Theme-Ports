@@ -50,7 +50,7 @@ export async function openRansom(app, shipId, report = null) {
     body: h('div', [
       report ? battleReport(report) : null,
       h('p', `Les pirates réclament ${money(r.ransom)}. L'équipage est retenu à bord.`),
-      h('p', `Payer : le navire est libéré en 3 à 7 jours. Négocier : vous paierez environ ${money(r.ransom * 0.55)}, mais la captivité durera 1 à 2 mois (contrat en retard, réputation entamée).`),
+      h('p', `Payer : le navire est libéré en 3 à 7 jours. Négocier : vous paierez environ ${money(r.ransom * 0.55)}, mais la captivité durera 1 à 2 mois (contrat en retard, confiance entamée).`),
     ]),
     buttons: [
       { label: `Négocier (≈ ${money(r.ransom * 0.55)})`, value: 'negocier', kind: 'ghost' },

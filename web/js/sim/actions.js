@@ -256,7 +256,8 @@ export function checkContract(state, ctx, ship, contract) {
   // Le réseau de l'ombre : dans les ports louches, on ne demande pas sa réputation à une compagnie de la liste noire.
   const grey = company.blacklisted && SHADY_PORTS.includes(contract.from);
   if (refusal?.kind === 'exigence' && !grey) return `${refusal.name} ne travaille qu'avec des armateurs réputés (${refusal.rep} exigée) ou avec ses partenaires fidèles.`;
-  if (company.reputation < contract.minRep && !grey) return `Réputation insuffisante : ${contract.minRep} exigée ; ${repShort(company)}.`;
+  // Les chargeurs regardent la confiance (livrer, tenir parole), pas la vertu.
+  if (standing(company).confidence < contract.minRep && !grey) return `Confiance insuffisante : ${contract.minRep} exigée (la vôtre : ${Math.floor(company.confidence)}).`;
   if (contract.deadline <= state.t) return 'Le délai est déjà dépassé.';
   return null;
 }
@@ -287,8 +288,6 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   return { ok: true };
 }
 
-// « confiance 72, vertu 48 » : la plus basse des deux fait la réputation.
-const repShort = (company) => `confiance ${Math.floor(standing(company).confidence)}, vertu ${Math.floor(company.virtue)}`;
 export function abandonContract(state, shipId) {
   const ship = shipById(state, shipId);
   if (!ship || ship.status !== 'port' || !ship.cargo?.contractId) return fail('Aucun contrat à annuler au port.');
@@ -574,7 +573,10 @@ export function relocate(state, companyId, portId) {
   company.homePort = portId;
   company.flag = PORTS[portId].flag;
   const base = FLAGS[company.flag].rating * 0.5 + 25;
-  company.reputation = Math.round(company.reputation * 0.7 + base * 0.3);
+  standing(company);
+  company.confidence = Math.round(company.confidence * 0.7 + base * 0.3);
+  company.virtue = Math.round(company.virtue * 0.7 + base * 0.3);
+  changeReputation(company, 0); // plafonds, réputation
   news(state, `${company.name} transfère son siège à ${portName(portId)} et passe sous pavillon ${FLAGS[company.flag].name}.`, { company: companyId, kind: 'fleet' });
   return { ok: true, cost };
 }

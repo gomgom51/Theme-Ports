@@ -49,7 +49,7 @@ export function prospectOdds(state, ship, ctx = null) {
   const best = Math.max(0, ...portClients(port).map((id) => relationOf(company, id).loyalty));
   const parts = {
     port: PROSPECT.base + PROSPECT.perSize * PORTS[port].size,
-    rep: (company.reputation - 50) * PROSPECT.rep,
+    rep: ((company.confidence ?? company.reputation) - 50) * PROSPECT.rep,
     loyalty: best * PROSPECT.loyalty,
     office: (company.level ?? 0) * PROSPECT.office,
     talk: rank(ship, 'negociation') * PROSPECT.talk,

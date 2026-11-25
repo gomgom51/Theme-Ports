@@ -3,7 +3,7 @@
 // d'offres des villes). Construites à partir de l'état de la partie : elles survivent à un
 // chargement et montrent toujours les chiffres du moment (prise par un concurrent, date limite…).
 import { PORTS } from '../data/ports.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, isCleanGood } from '../data/goods.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import * as eco from '../sim/economy.js';
 import { portName, shipsOf } from '../sim/core.js';
@@ -94,6 +94,7 @@ function goldenCard(app, o) {
     h('div.opp-head', [h('span.opp-icon', '★'), h('b', `Affaire en or à ${portName(c.from)}`)]),
     h('div.opp-body', [h('span', `${G.icon} ${G.name}`), ` · ${tonnes(c.qty)} → `, h('b', portName(c.to)), ' · ', h('b.pos', money(c.pay))]),
     o.open ? untilLine(state, c.expires) : h('div.opp-until.neg', `Prise par ${state.companies[c.takenCo]?.name || 'un concurrent'}`),
+    o.open ? h('div.opp-gain', isCleanGood(c.good) ? '🤝 Confiance et 💚 vertu si elle arrive à l\'heure (marchandise ni fossile ni polluante).' : '🤝 Confiance si elle arrive à l\'heure.') : null,
     o.open ? (reach.length
       ? h('div.opp-ships', [h('span', 'À temps :'), ' ', ...reach.slice(0, 3).flatMap((r, i) => [i ? ', ' : null, h('b', { 'data-no-tr': '' }, r.ship.name), ' (', h('span', r.days < 0.5 ? 'sur place' : days(r.days)), ')']), reach.length > 3 ? ` +${reach.length - 3}` : null])
       : h('div.opp-ships.muted', 'Plus aucun de vos navires ne peut y arriver à temps.')) : null,
@@ -109,7 +110,7 @@ function aidCard(app, o) {
   const goTo = (p) => { app.open('port', p); app.map.centerOn(PORTS[p].lon, PORTS[p].lat, Math.max(app.map.view.scale, 4)); };
   return [
     h('div.opp-head', [h('span.opp-icon', '❤'), h('b', `Aide d'urgence pour ${portName(o.to)}`)]),
-    h('div.opp-body', [h('span', { 'data-no-tr': '' }, o.charity.name), ' ', h('span', `cherche des navires. Payée à prix coûtant partiel ; réputation +${o.charity.rep} si elle arrive à l'heure.`)]),
+    h('div.opp-body', [h('span', { 'data-no-tr': '' }, o.charity.name), ' ', h('span', `cherche des navires. Payée à prix coûtant partiel ; vertu +${o.charity.rep} si elle arrive à l'heure.`)]),
     untilLine(state, until),
     // Un port de départ par bouton (plusieurs contrats au même port : leurs marchandises côte à côte).
     h('div.opp-from', [h('span', 'Au départ de :'), ...[...new Set(o.list.map((c) => c.from))].map((p) => {
@@ -133,6 +134,7 @@ function tenderCard(app, o) {
     ...t.commits.slice(0, 3).map((c) => h('div.opp-commit', [h('b', { 'data-no-tr': '' }, state.companies[c.company]?.name || '?'), ' ', h('span', `livrera ${tonnes(c.qty)} vers le ${date(c.eta, true)}`)])),
     t.commits.length && o.open ? h('div.opp-commit.muted', `Libre après ces livraisons : ${tonnes(Math.max(0, t.left - committed))}`) : null,
     o.open ? untilLine(state, t.until) : h('div.opp-until.muted', t.left <= 0 ? 'Complet.' : 'Terminé.'),
+    o.open ? h('div.opp-gain', isCleanGood(t.good) ? '🤝 Confiance et 💚 vertu à chaque livraison (marchandise ni fossile ni polluante).' : '🤝 Confiance à chaque livraison.') : null,
     o.open ? h('div.opp-ships.muted', 'Où en acheter : voyez les Marchés.') : null,
     o.open ? shipsLine(able, `Aucun de vos navires ne transporte ce type de marchandise.`) : null,
     o.open ? h('div.opp-actions', [h('button.btn.small', { onclick: look }, 'Marchés')]) : null,

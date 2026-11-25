@@ -68,7 +68,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   odds per port size / reputation / loyalty / office / negotiation skill, lead share and range, pay) in
   `web/js/sim/prospect.js`; victories (`VICTORY`: alert steps, reputation level and deed count, legend record count,
   shadow years and fleet) in `web/js/sim/victory.js`, deed and record thresholds (`HONOURS`) in `web/js/sim/honours.js`,
-  ordinary reputation cap `REP_BASE_CAP` and clean-conduct virtue gain `STANDING` in `core.js`, takeovers (`TAKEOVER`: price = net worth × (1 + reputation / 50),
+  ordinary reputation cap `REP_BASE_CAP`, clean-conduct virtue gain `STANDING` and virtue sources `VIRTUE_SOURCES` in `core.js`, takeovers (`TAKEOVER`: price = net worth × (1 + reputation / 50),
   30-day offer, six-month reprieve odds, AI ratios and margins) in `web/js/sim/takeover.js`, rivalry moves (`ATTACKS`:
   cost, certain reputation loss, scandal odds, effects, parry prices; `AI_ATTACK_CHANCE`) in `web/js/sim/plots.js`,
   blacklist (`BLACKLIST`: infamy line, warning, shadow bank) in `web/js/sim/shadow.js`, AI leanings (`AI_LEANINGS`,
@@ -114,14 +114,18 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   blacklist line is shown before buying. A blacklisted buyer can only buy another blacklisted company (the
   authorities would block the sale); against clean rivals its only road to domination is ruin, which is how the
   gravedigger misdeed reaches a shadow fleet (a bankruptcy is credited to the last rival that attacked within the year).
-- Reputation (owner's design): reputation = the lower of two scores, so nobody can max just one. Trust 🤝 (`confidence`:
-  you can be counted on — on-time deliveries, new ports; late or damaged cargo, detentions, running dry, abandoned
-  contracts, wrecks, lost disputes, hijacks) and virtue 💚 (`virtue`: the greater good — emergency aid, reporting
-  dishonest shippers, a slow monthly gain for clean conduct, `STANDING` in `core.js`; oil spills, smuggling, embargo
-  fines, bribes, dark jobs, dirty tricks). Everything that reads reputation reads that minimum (contracts, credit,
-  cargo loans, shippers, takeover price, victory); infamy caps virtue only; a smear campaign hits both. `company.trust`
-  is something else: the gangs' trust, port by port (`dark.js`). The HUD shows ★ reputation next to the cash with both
-  scores, the limiting one in red (rule 1), and a refused contract names the score that blocks it.
+- Reputation (owner's design): two scores, to make the reputation victory harder. Trust 🤝 (`confidence`): you can be
+  counted on — the whole economy reads it (premium contracts, shippers' requirements, disputes, credit, cargo loans,
+  prospecting, takeover price): on-time deliveries, golden deals and city tenders served, new ports; late or damaged
+  cargo, detentions, running dry, abandoned contracts, wrecks, lost disputes, hijacks. Virtue 💚 (`virtue`): the
+  greater good, or at least the press image ("you cannot win just by being efficient") — emergency aid, reporting
+  dishonest shippers, useful goods (cereals, coffee and cacao, fruit and meat, wood), golden deals and tenders on cargo
+  neither fossil nor polluting, slow steaming (bonus shown under the speed slider), a slow monthly gain for clean
+  conduct and, below 50, forgetting; oil spills, smuggling, embargo fines, bribes, dark jobs, dirty tricks and scandals
+  lower it. Reputation = the lower of the two; it only judges the reputation victory (and shows as ★ next to the cash,
+  the limiting score in red). Infamy caps both scores (the price of dark jobs). A smear campaign hits both.
+  `company.trust` is something else: the gangs' trust, port by port (`dark.js`). Knobs: `STANDING`, `VIRTUE_SOURCES`
+  in `core.js`; `FOSSIL_GOODS`, `USEFUL_GOODS` in `data/goods.js`.
 - Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with
   the parry price; AIs parry when cheap and aim at the rival closest to a victory (conquerors at their cheapest prey).
 - Blacklist (infamy 80): enforcing ports closed, shadow bank only (half the credit, +15 points), but shady ports'

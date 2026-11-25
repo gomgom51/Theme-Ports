@@ -6,7 +6,7 @@ import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
 import {
   shipsOf, portName, netWorth, fleetValue, creditLimit, interestRate, BOOK_LABELS, bookTotal,
-  standing, repLimit, trustCap, virtueCap, STANDING,
+  standing, repLimit, trustCap, virtueCap, STANDING, VIRTUE_SOURCES,
 } from '../sim/core.js';
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
@@ -369,7 +369,7 @@ function clientsTab(app) {
       const tags = [
         clientDown(state, id) ? h('span.tag.bad', `en redressement jusqu'au ${date(cs.downUntil, true)}`) : null,
         r.grudgeUntil > state.t ? h('span.tag.bad', `vous boude jusqu'au ${date(r.grudgeUntil, true)}`) : null,
-        need && c.reputation < need && r.loyalty < LOYAL ? h('span.tag.warn', `exige une réputation de ${need}`) : null,
+        need && standing(c).confidence < need && r.loyalty < LOYAL ? h('span.tag.warn', `exige une confiance de ${need}`) : null,
         cs.named ? h('span.tag', { title: 'Nombre de fois où une compagnie l\'a dénoncé publiquement.' }, `dénoncé ×${cs.named}`) : null,
       ];
       return h('div.row.client-row', [
@@ -412,7 +412,7 @@ function financeTab(app) {
     stat('Plafond de crédit', money(limit)),
     stat('Taux d\'intérêt', `${num1(interestRate(c) * 100)} %/an`),
   ]));
-  box.append(h('p.hint', 'La banque prête jusqu\'à 60 % de la valeur de votre flotte, plus une part selon votre réputation. Un découvert coûte 20 %/an ; trop profond, la banque saisit un navire.'));
+  box.append(h('p.hint', 'La banque prête jusqu\'à 60 % de la valeur de votre flotte, plus une part selon votre confiance. Un découvert coûte 20 %/an ; trop profond, la banque saisit un navire.'));
   box.append(loanTerms(c));
   const pending = pendingList(app);
   if (pending) box.append(pending);
@@ -472,15 +472,15 @@ function companyTab(app) {
   const lim = repLimit(c);
   box.append(h('h3', `Réputation : ${num(c.reputation)}/100`));
   box.append(bar(c.reputation / 100, { good: 0.6, warn: 0.35 }));
-  box.append(h('p.hint', 'Votre réputation est la plus basse de vos deux notes, la confiance et la vertu : impossible de n\'en soigner qu\'une. Elle ouvre l\'accès aux meilleurs contrats et aux chargeurs exigeants, baisse le taux des prêts et fait monter votre prix de rachat.'));
+  box.append(h('p.hint', 'Votre réputation est la plus basse de vos deux notes, la confiance et la vertu : c\'est elle que juge la victoire « La plus respectée », impossible de n\'en soigner qu\'une. Toute l\'économie (chargeurs, banque, prêts sur cargaison, démarchage, prix de rachat) ne regarde que la confiance ; la vertu, c\'est votre image dans la presse.'));
   const scoreRow = (icon, label, v, cap, low, text) => h('div.standing-row', { class: low ? 'low' : '' }, [
     h('div.standing-head', [h('b', `${icon} ${label} : ${num(v)}/100`), low ? h('span.tag.warn', 'retient votre réputation') : null, cap < 100 ? h('span.muted.small', `plafond ${num(cap)}`) : null]),
     bar(v / 100, { good: 0.6, warn: 0.35 }),
     h('p.small.muted', text),
   ]);
-  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', 'On peut compter sur vous. Monte à chaque livraison à l\'heure (un peu moins près du haut) et en desservant un nouveau port ; baisse avec les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus et les navires détournés.'));
-  box.append(scoreRow('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', `Le bien commun. Monte avec l'aide d'urgence livrée à temps et les chargeurs malhonnêtes dénoncés, et doucement chaque mois de conduite propre (aucun commerce sous embargo, colis discret, affaire noire, coup bas ni marée noire depuis ${Math.round(STANDING.cleanDays / 30)} mois) ; sous ${STANDING.forgiveTo}, on finit par oublier et elle y remonte d'elle-même ; baisse avec les marées noires, la contrebande, les amendes d'embargo, les pots-de-vin, les affaires noires et les coups bas.`));
-  if (c.infamy) box.append(h('p.warn-text', `☠ Infamie : ${num(c.infamy)}. Votre vertu ne pourra plus dépasser ${100 - Math.min(80, c.infamy)}/100, ni donc votre réputation : c'est définitif.`));
+  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', 'On peut compter sur vous : c\'est elle que regardent les chargeurs, les banques et les acheteurs. Monte à chaque livraison à l\'heure (un peu moins près du haut), avec les affaires en or et les appels d\'offres servis et en desservant un nouveau port ; baisse avec les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus et les navires détournés.'));
+  box.append(scoreRow('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', `Le bien commun, ou du moins votre image dans la presse. Monte avec l'aide d'urgence livrée à temps, les chargeurs malhonnêtes dénoncés, les contrats de céréales, café et cacao, fruits et viandes ou bois, les affaires en or et appels d'offres sur des marchandises ni fossiles ni polluantes, l'allure économique (sous ${Math.round(VIRTUE_SOURCES.slowStart * 100)} % de la vitesse de service), et doucement chaque mois de conduite propre (aucun commerce sous embargo, colis discret, affaire noire, coup bas ni marée noire depuis ${Math.round(STANDING.cleanDays / 30)} mois) ; sous ${STANDING.forgiveTo}, on finit par oublier et elle y remonte d'elle-même ; baisse avec les marées noires, la contrebande, les amendes d'embargo, les pots-de-vin, les affaires noires et les coups bas.`));
+  if (c.infamy) box.append(h('p.warn-text', `☠ Infamie : ${num(c.infamy)}. Votre confiance et votre vertu ne pourront plus dépasser ${100 - Math.min(80, c.infamy)}/100 : c'est définitif.`));
   box.append(h('p.small.muted', 'Hauts faits : chacun des cinq premiers relève d\'un point le plafond des deux notes (95 pour la conduite ordinaire).'));
   box.append(h('p', `${c.delivered} livraisons, dont ${c.late} en retard · ${c.portsServed.length} ports desservis.`));
   box.append(h('h3', 'Changer de port d\'attache'));
@@ -626,7 +626,7 @@ export function helpPanel() {
       h('h3', 'Gagner de l\'argent'),
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
       p('Négoce : achetez une cargaison dans un port exportateur et revendez-la dans un port importateur. Les estimations donnent le cours attendu à l\'arrivée, mais il peut encore bouger : c\'est le risque, et la chance, du négoce. Les appels d\'offres des villes (📣) achètent une quantité à prix fixe jusqu\'à une date, au premier arrivé : les navires concurrents en route s\'annoncent, avec leur date d\'arrivée. Pour remplir une cale, les négociants du port de chargement ou les acheteurs de la destination avancent une part de la cargaison (prudents dans les grandes places, généreux et chers dans les ports louches et sous embargo) : le prêt est remboursé à la vente, et chaque prêt remboursé améliore les conditions de ce port.'),
-      p('Rien ne convient au port ? « Démarcher les chargeurs » (onglet Contrats) : vos commerciaux proposent le navire pendant un à deux jours. Les chances sont annoncées (taille du port, réputation, chargeurs fidèles, niveau du bureau, beaux parleurs à bord) ; en cas de succès, un contrat taillé pour ce navire, ou une piste dans un port proche, réservée le temps d\'y aller. Une fois par escale.'),
+      p('Rien ne convient au port ? « Démarcher les chargeurs » (onglet Contrats) : vos commerciaux proposent le navire pendant un à deux jours. Les chances sont annoncées (taille du port, confiance, chargeurs fidèles, niveau du bureau, beaux parleurs à bord) ; en cas de succès, un contrat taillé pour ce navire, ou une piste dans un port proche, réservée le temps d\'y aller. Une fois par escale.'),
       p('Affaires en or (★) : un chargeur pressé paie presque le double. Une carte s\'affiche (en bas à gauche) quand l\'un de vos navires peut la prendre à temps, avec sa date limite ; elle reste jusqu\'à ce que vous la fermiez, et vous savez quand un concurrent la prend.'),
       p('Équipage : il apprend en mer et gagne des points de spécialité (combattants, entretien, mécanique, contrebande, logistique, beaux parleurs), à choisir dans l\'onglet Équipage du navire.'),
       p('Affaires noires : livrer des colis embarqués dans un port louche sous embargo (Bandar Abbas, Puerto La Cruz, Novorossiïsk, Nampo) gagne la confiance des gangs. Ils proposent alors de « vraies » affaires : armes pour une milice, drogue en quantité industrielle, passagers clandestins. Énormément payées, mais c\'est un point de non-retour : chaque affaire ajoute de l\'infamie, qui abaisse pour toujours le plafond de votre réputation, et la douane les trouve plus facilement (navire confisqué). Refuser n\'est pas sans risque : le gang peut prendre le navire ou l\'équipage (rançon), puis vous en vouloir quelques mois. Ce que vous livrez finit parfois dans les nouvelles. À l\'inverse, après une catastrophe, des associations cherchent des navires pour l\'aide d\'urgence : contrats à perte, mais qui rendent de la réputation.'),
@@ -647,8 +647,8 @@ export function helpPanel() {
       p('Pirates : dans les zones rouges (golfe d\'Aden, golfe de Guinée, Malacca, mer de Sulu, côtes du Venezuela), un navire peut être attaqué. Le combat se joue en trois phases : approche (la vitesse aide), abordage (barbelés, lances à eau, équipage), combat à bord (gardes armés). Abordé, un navire sans citadelle est détourné : rançon à payer ou à négocier. Le départ indique le risque et vos chances.'),
       p('Votre équipage évalue les dangers : un équipage de base donne un avis général, un équipage confirmé des fourchettes, un équipage chevronné des chiffres précis voyage par voyage. Les meilleurs équipages coûtent plus cher mais provoquent moins d\'incidents. Choisissez-le à l\'escale.'),
       p('Le marché du fret suit des cycles : des années fastes, puis des années maigres où désarmer un navire (à l\'escale) coûte moins cher que de le faire travailler à perte. Aussi : grèves, fermeture du canal de Suez, sécheresse à Panama, chocs pétroliers… Lisez le Journal 📰.'),
-      h('h3', 'Banque et réputation'),
-      p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. La réputation (★ en haut à gauche) est la plus basse de deux notes : la confiance 🤝, qui monte avec les livraisons à l\'heure, et la vertu 💚, qui monte avec l\'aide d\'urgence, les dénonciations et une conduite propre. Elle ouvre les meilleurs contrats.'),
+      h('h3', 'Banque, confiance et vertu'),
+      p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. La réputation (★ en haut à gauche) est la plus basse de deux notes : la confiance 🤝, qui monte avec les livraisons à l\'heure, et la vertu 💚, qui monte avec l\'aide d\'urgence, les marchandises utiles, l\'allure économique et une conduite propre. Toute l\'économie (chargeurs, banque, prix de rachat) regarde la confiance ; la réputation compte pour la victoire « La plus respectée ».'),
       h('h3', 'Commandes'),
       p('Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un navire ou un port pour l\'ouvrir. Clavier : Espace = pause, 1 à 3 = vitesse, Échap = fermer.'),
     ]),

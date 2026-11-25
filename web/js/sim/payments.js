@@ -4,7 +4,7 @@
 // du client et de la réputation de la compagnie.
 import { CLIENTS } from '../data/clients.js';
 import { GOODS } from '../data/goods.js';
-import { money as book, news, changeTrust, portName } from './core.js';
+import { money as book, news, changeTrust, standing, portName } from './core.js';
 import { worldFuelPrice } from './economy.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { stalledBy, PAYMENT_DELAY } from './plots.js';
@@ -132,7 +132,7 @@ export function collect(state, rng, paymentId, choice = 'accepter') {
     if (choice === 'contester') {
       // Arbitrage : on récupère tout (moins les frais) si la réputation l'emporte.
       const fees = Math.round(res.total * 0.03);
-      const win = rng.chance(0.45 + company.reputation / 250 - clientRel(state, p.client) / 500);
+      const win = rng.chance(0.45 + standing(company).confidence / 250 - clientRel(state, p.client) / 500);
       const amount = win ? res.total - fees : res.total - ev.withheld - fees;
       state.receivables.push({
         id: state.nextId++, company: p.company, amount, due: state.t + rng.int(20, 40) * D,

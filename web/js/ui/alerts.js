@@ -163,8 +163,8 @@ export function computeAlerts(state, ctx, companyId) {
   else {
     const buyers = state.companies.filter((o) => o.id !== companyId && !o.bankrupt && canTakeover(state, o.id, companyId).ok);
     if (buyers.length) add('watch', '🤝', buyers.length > 1
-      ? `${buyers.map((o) => o.name).join(', ')} pourraient racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure réputation multiplie votre prix ; un niveau supérieur au leur vous protège.`
-      : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure réputation multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'office' });
+      ? `${buyers.map((o) => o.name).join(', ')} pourraient racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au leur vous protège.`
+      : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'office' });
   }
   const idle = ships.filter(isIdle);
   if (idle.length) add('info', '⚓', idle.length === 1 ? `Le ${idle[0].name} attend vos ordres.` : `${idle.length} navires attendent vos ordres.`, idle.length === 1 ? { ship: idle[0].id } : { panel: 'fleet' });

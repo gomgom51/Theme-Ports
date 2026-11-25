@@ -116,10 +116,10 @@ export function cargoLoans(state, companyId) {
 export function creditLimit(state, company) {
   // Pression d'un concurrent sur sa banque (sim/plots.js) : plafond réduit pour un temps.
   const cut = (company.creditCut && company.creditCut.until > state.t ? company.creditCut.k : 1) * (company.blacklisted ? 0.5 : 1); // liste noire : la banque de l'ombre prête moins
-  return Math.max(0, (0.6 * fleetValue(state, company.id) + company.reputation * 25000) * cut);
+  return Math.max(0, (0.6 * fleetValue(state, company.id) + standing(company).confidence * 25000) * cut); // les banques regardent la confiance
 }
 export function interestRate(company) {
-  return FLAGS[company.flag].rate + ((100 - company.reputation) / 100) * 0.06 + (company.blacklisted ? 0.15 : 0); // banque de l'ombre
+  return FLAGS[company.flag].rate + ((100 - standing(company).confidence) / 100) * 0.06 + (company.blacklisted ? 0.15 : 0); // banque de l'ombre
 }
 // Infamie (affaires noires, sim/dark.js) : une tache définitive qui abaisse le plafond de réputation.
 // Réputation = la plus basse de deux notes, pour qu'on ne puisse pas n'en pousser qu'une
@@ -128,18 +128,27 @@ export function interestRate(company) {
 //    intactes ; retards, détentions, naufrages, rançons la font baisser) ;
 //  - la vertu : le bien commun (aide d'urgence, dénonciations, conduite propre ; marées noires,
 //    contrebande, affaires noires, coups bas la font baisser).
-// Tout ce qui lit la réputation (contrats, crédit, prêts sur cargaison, chargeurs, prix de rachat,
-// victoire) lit ce minimum. Plafond : 95 pour la conduite ordinaire, un point de plus par haut fait
-// (cinq au plus) ; l'infamie (affaires noires) abaisse pour toujours celui de la vertu.
+// L'économie ne regarde que la confiance (contrats, chargeurs, crédit, prêts sur cargaison, démarchage,
+// litiges, prix de rachat) ; la vertu, c'est l'image dans la presse : la réputation (le minimum des deux)
+// compte pour la victoire « La plus respectée ». Plafond : 95 pour la conduite ordinaire, un point de
+// plus par haut fait (cinq au plus) ; l'infamie (affaires noires) abaisse pour toujours les deux.
 export const REP_BASE_CAP = 95;
 // Conduite propre : la vertu monte doucement chaque mois sans geste gris ou noir ni marée noire
 // depuis cleanDays jours (gain mensuel × (1 − vertu / 110)). On oublie : sous forgiveTo, elle
 // remonte d'elle-même vers forgiveTo, même sans conduite propre (forgiveMonthly × l'écart relatif).
 // Sans cet oubli, les compagnies qui prennent des risques (embargo, colis, coups bas) tombaient
 // vers 20 de réputation pour toujours, perdaient contrats et crédit et se faisaient racheter.
-export const STANDING = { cleanMonthly: 5, cleanDays: 180, forgiveTo: 55, forgiveMonthly: 4 };
+export const STANDING = { cleanMonthly: 2.5, cleanDays: 180, forgiveTo: 50, forgiveMonthly: 4 };
+// Petites sources de vertu (et de confiance), toutes dégressives près du haut (× (1 − note / 110)) :
+//  useful      : contrat livré à l'heure de céréales, café et cacao, fruits et viandes ou bois ;
+//  opportunity : affaire en or ou appel d'offres servi, marchandise ni fossile ni polluante ;
+//  tenderTrust : appel d'offres servi (confiance, quelle que soit la marchandise) ;
+//  slow        : allure économique, à l'arrivée — entier sous slowFull × la vitesse de service, rien
+//                au-dessus de slowStart, et proportionnel aux jours de mer jusqu'à slowDays.
+export const VIRTUE_SOURCES = { useful: 0.8, opportunity: 2, tenderTrust: 1.5, slow: 1.2, slowStart: 0.95, slowFull: 0.75, slowDays: 10 };
 const deedBonus = (company) => Math.min(5, Object.keys(company.hon?.deeds || {}).length);
-export const trustCap = (company) => REP_BASE_CAP + deedBonus(company);
+// L'infamie (affaires noires) abaisse pour toujours les deux plafonds : c'est le prix des affaires noires.
+export const trustCap = (company) => Math.min(100 - Math.min(80, company.infamy || 0), REP_BASE_CAP + deedBonus(company));
 export const virtueCap = (company) => Math.min(100 - Math.min(80, company.infamy || 0), REP_BASE_CAP + deedBonus(company));
 export const repCap = (company) => Math.min(trustCap(company), virtueCap(company));
 // Anciennes sauvegardes : les deux notes partent de la réputation d'alors.
@@ -154,6 +163,15 @@ function syncReputation(company) {
   company.reputation = Math.min(company.confidence, company.virtue);
 }
 export function changeTrust(company, delta) { standing(company); company.confidence += delta; syncReputation(company); }
+// Gains dégressifs : de moins en moins près du haut.
+export const earnTrust = (company, base) => changeTrust(company, base * (1 - standing(company).confidence / 110));
+export const earnVirtue = (company, base) => changeVirtue(company, base * (1 - standing(company).virtue / 110));
+// Allure économique : part du bonus (0..1) pour une vitesse donnée, et vertu attendue à l'arrivée.
+export function slowShare(speed, serviceSpeed) {
+  const V = VIRTUE_SOURCES, r = speed / serviceSpeed;
+  return Math.max(0, Math.min(1, (V.slowStart - r) / (V.slowStart - V.slowFull)));
+}
+export const slowVirtue = (company, speed, serviceSpeed, seaDays) => VIRTUE_SOURCES.slow * slowShare(speed, serviceSpeed) * Math.min(1, seaDays / VIRTUE_SOURCES.slowDays) * (1 - standing(company).virtue / 110);
 export function changeVirtue(company, delta) { standing(company); company.virtue += delta; syncReputation(company); }
 // Les deux à la fois : hauts faits (le plafond monte), campagne de presse, plafond à réappliquer (0).
 export function changeReputation(company, delta) { standing(company); company.confidence += delta; company.virtue += delta; syncReputation(company); }

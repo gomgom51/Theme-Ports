@@ -12,7 +12,7 @@
 import { CLIENTS } from '../data/clients.js';
 import { HOURS_PER_DAY } from './util.js';
 import { onDenounce } from './honours.js';
-import { news, changeVirtue, money as book } from './core.js';
+import { news, changeVirtue, standing, money as book } from './core.js';
 
 const D = HOURS_PER_DAY;
 const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
@@ -59,7 +59,7 @@ export function clientDemand(state, id) {
 // avant d'accepter le contrat.
 export function paymentRisk(state, company, id) {
   const C = CLIENTS[id] || { style: 'ponctuel' };
-  const R = clientRel(state, id), rep = company.reputation, L = id ? relationOf(company, id).loyalty : 0;
+  const R = clientRel(state, id), rep = standing(company).confidence, L = id ? relationOf(company, id).loyalty : 0;
   return {
     bankrupt: Math.max(0, (45 - R) / 350) * (C.style === 'fragile' ? 1.6 : 1),
     dispute: Math.max(0.02, 0.03 + (100 - R) / 450 + (60 - rep) / 700) * (C.style === 'pinailleur' ? 1.8 : 1) * (1 - 0.05 * L),
@@ -99,7 +99,7 @@ export function clientRefusal(state, company, contract) {
   const C = CLIENTS[id], r = relationOf(company, id);
   if (r.grudgeUntil > state.t) return { kind: 'rancune', until: r.grudgeUntil, name: C.name };
   if (contract.reservedFor != null && contract.reservedFor !== company.id && contract.reservedUntil > state.t) return { kind: 'reserve', until: contract.reservedUntil, name: C.name };
-  if (contract.clientRep && company.reputation < contract.clientRep && r.loyalty < LOYAL) return { kind: 'exigence', rep: contract.clientRep, name: C.name };
+  if (contract.clientRep && standing(company).confidence < contract.clientRep && r.loyalty < LOYAL) return { kind: 'exigence', rep: contract.clientRep, name: C.name };
   return null;
 }
 

@@ -796,6 +796,10 @@ select.input { width: auto; max-width: 100%; }
 .deed-card .grow, .trophy-card .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .deed-card.got { background: #fbf4dd; border-color: #e0c17a; }
 .deed-card.impossible { opacity: 0.55; }
+/* Allure économique (onglet Appareiller) et gains des opportunités. */
+.eco-line { margin: 2px 0 8px; }
+.eco-line.good { color: var(--good, #2e7d4f); }
+.opp-gain { font-size: 12px; color: var(--muted); margin-top: 2px; }
 /* Bureau → Compagnie : confiance et vertu. */
 .standing-row { margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); }
 .standing-row.low { border-color: var(--bad); }

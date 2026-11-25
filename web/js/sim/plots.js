@@ -114,7 +114,7 @@ function scandal(state, p) {
     crew: () => `d'avoir débauché l'équipage du ${sh?.name || 'navire'} de ${tg.name}`,
   }[p.kind]();
   news(state, `Scandale : ${by.name} est accusé ${what}.`, { company: by.id, kind: 'disaster' });
-  queue(state, by, 'scandal', S.fine ? `Scandale : votre coup contre ${tg.name} a été découvert. Réputation −${S.rep} et amende de ${M$(S.fine)}.` : `Scandale : votre coup contre ${tg.name} a été découvert. Réputation −${S.rep}.`);
+  queue(state, by, 'scandal', S.fine ? `Scandale : votre coup contre ${tg.name} a été découvert. Vertu −${S.rep} et amende de ${M$(S.fine)}.` : `Scandale : votre coup contre ${tg.name} a été découvert. Vertu −${S.rep}.`);
   queue(state, tg, 'info', `On sait désormais qui vous visait : ${by.name}. L'affaire a fait scandale et ses complices ont renoncé.`);
 }
 
@@ -178,7 +178,7 @@ export function poachClient(state, rng, byId, clientId) {
     changeVirtue(by, -SCANDAL.poach.rep);
     news(state, `${by.name} aurait versé des fonds à ${C.name} pour lui faire rompre son partenariat avec ${rival.name}.`, { company: by.id, kind: 'event' });
     queue(state, rival, 'info', `${C.name} rompt son partenariat avec vous : ${by.name} l'a acheté, l'affaire s'est ébruitée.`);
-    queue(state, by, 'scandal', `L'affaire avec ${C.name} s'est ébruitée : réputation −${SCANDAL.poach.rep}.`);
+    queue(state, by, 'scandal', `L'affaire avec ${C.name} s'est ébruitée : vertu −${SCANDAL.poach.rep}.`);
   } else {
     queue(state, rival, 'info', `${C.name} rompt son partenariat avec vous : une offre plus généreuse, dit-on.`);
   }
@@ -253,7 +253,7 @@ export function attackPrice(state, kind, { target, ship, port } = {}) {
   if (kind === 'payments') return 200000;
   if (kind === 'bank') return round10k(Math.max(300000, 0.006 * fleetValue(state, target)));
   if (kind === 'pricewar') return round10k(300000 + 80000 * (PORTS[port]?.size || 3));
-  if (kind === 'smear') return round10k(250000 + 1000 * (tg?.reputation || 50));
+  if (kind === 'smear') return round10k(250000 + 1000 * (tg?.confidence ?? tg?.reputation ?? 50));
   if (kind === 'crew') return round10k(120000 + 60000 * (sh ? pointsEarned(sh) : 1));
   return 0;
 }
@@ -333,7 +333,7 @@ export function attackRumour(state, p) {
   if (p.kind === 'payments') return `Rumeurs : ${CLIENTS[p.client]?.name || 'un chargeur'} aurait promis à un concurrent de faire traîner vos paiements jusqu'au ${until} (${PAYMENT_DELAY[0]} à ${PAYMENT_DELAY[1]} jours de retard). Évitez ses contrats, ou mandatez un cabinet de recouvrement : ${parry}.`;
   if (p.kind === 'bank') return `Votre banque réexamine votre dossier après des pressions : plafond de crédit divisé par deux jusqu'au ${until}. Passer chez une autre banque : ${parry}.`;
   if (p.kind === 'pricewar') return `Guerre des prix à ${portName(p.port)} : un concurrent casse les prix, les chargeurs vous paient ${Math.round(PRICEWAR_CUT * 100)} % de moins jusqu'au ${until}. Riposte commerciale : ${parry}.`;
-  if (p.kind === 'smear') return `Une campagne de presse vous dénigre : environ ${SMEAR_WEEKLY} point de réputation perdu chaque semaine jusqu'au ${until}. Contre-campagne : ${parry}.`;
+  if (p.kind === 'smear') return `Une campagne de presse vous dénigre : environ ${SMEAR_WEEKLY} point de confiance et de vertu perdu chaque semaine jusqu'au ${until}. Contre-campagne : ${parry}.`;
   if (p.kind === 'crew') return `Des recruteurs approchent l'équipage du ${sh?.name || 'navire'} : sans geste de votre part, ses meilleurs éléments partiront d'ici le ${formatDate(p.strikeAt, true)} (un point d'expérience perdu). Prime de fidélité : ${parry}.`;
   return '';
 }
@@ -397,7 +397,7 @@ export const AI_PLOT_CHANCE = 0.05, AI_POACH_CHANCE = 0.04, AI_ATTACK_CHANCE = 0
 // Le concurrent à abattre : celui qui approche d'une victoire, sinon le plus riche.
 function aiTarget(state, company, rivals, netWorthOf) {
   if (company.ai?.leaning === 'conquerant') {
-    const prey = rivals.filter((c) => (c.level ?? 0) <= (company.level ?? 0)).sort((a, b) => netWorthOf(a.id) * (1 + a.reputation / 50) - netWorthOf(b.id) * (1 + b.reputation / 50))[0];
+    const prey = rivals.filter((c) => (c.level ?? 0) <= (company.level ?? 0)).sort((a, b) => netWorthOf(a.id) * (1 + (a.confidence ?? a.reputation) / 50) - netWorthOf(b.id) * (1 + (b.confidence ?? b.reputation) / 50))[0];
     if (prey) return prey;
   }
   let lead = null;
@@ -439,7 +439,7 @@ export function aiPlots(state, rng, company, netWorthOf) {
   if (!rng.chance(bold ? AI_ATTACK_CHANCE * 3 : AI_ATTACK_CHANCE)) return;
   const theirs = shipsOf(state, target.id);
   const options = [];
-  if (target.reputation >= 60) options.push({ kind: 'smear', target: target.id });
+  if ((target.confidence ?? target.reputation) >= 60) options.push({ kind: 'smear', target: target.id });
   const busy = theirs.map((s) => s.voyage?.to || s.port).filter(Boolean);
   if (busy.length) options.push({ kind: 'pricewar', target: target.id, port: rng.pick(busy) });
   options.push({ kind: 'bank', target: target.id });

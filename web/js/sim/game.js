@@ -1,13 +1,13 @@
 // Boucle de simulation : création d'une partie, avancée du temps heure par heure.
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, USEFUL_GOODS, isCleanGood } from '../data/goods.js';
 import { Rng, HOURS_PER_DAY, formatDate, dateOf } from './util.js';
 import * as eco from './economy.js';
 import * as act from './actions.js';
 import {
   money, news, emptyBook, bookTotal, companyOf, shipsOf, isIdle, fleetValue, netWorth, interestRate,
-  changeReputation, changeTrust, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
+  changeReputation, changeTrust, changeVirtue, earnVirtue, slowVirtue, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
   shipTrack, shipBook, lastTrip, activityOf,
 } from './core.js';
 import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
@@ -410,6 +410,9 @@ function arrive(state, ctx, ship, notes, rng) {
   const T = SHIP_TYPES[ship.type];
   const company = companyOf(state, ship);
   const to = ship.voyage.to;
+  // Allure économique : moins d'émissions, un peu de vertu (selon le ralentissement et la longueur du voyage).
+  const sv = slowVirtue(company, ship.voyage.speed, T.speed, (ship.voyage.nm || 0) / (24 * ship.voyage.speed));
+  if (sv > 0) changeVirtue(company, sv);
   ship.status = 'port';
   ship.port = to;
   ship.voyage = null;
@@ -508,7 +511,7 @@ function deliverContract(state, ship, rng, notes) {
   // Le paiement passe par l'encaissement (bouton « Encaisser » pour les joueurs).
   const payment = createPayment(state, ship, c, penalty, damage);
   taintShip(state, ship, c.to, c.pay);
-  if (c.charity) note(state, notes, 'charity', ship, penalty > 0 ? `Le ${ship.name} a livré l'aide d'urgence de ${c.charity.name} à ${portName(c.to)}, mais en retard : pas de gain de réputation.` : `Le ${ship.name} a livré l'aide d'urgence de ${c.charity.name} à ${portName(c.to)}. La population vous remercie : réputation +${c.charity.rep}.`);
+  if (c.charity) note(state, notes, 'charity', ship, penalty > 0 ? `Le ${ship.name} a livré l'aide d'urgence de ${c.charity.name} à ${portName(c.to)}, mais en retard : pas de gain de vertu.` : `Le ${ship.name} a livré l'aide d'urgence de ${c.charity.name} à ${portName(c.to)}. La population vous remercie : vertu +${c.charity.rep}.`);
   if (company.human) {
     note(state, notes, 'payment', ship, `Le ${ship.name} a livré à ${portName(c.to)}. Paiement à encaisser.`);
     notes[notes.length - 1].paymentId = payment.id;
@@ -529,6 +532,8 @@ function deliverContract(state, ship, rng, notes) {
     shipLog(state, ship, `Livraison en retard à ${portName(c.to)} : ${(pay / 1000).toFixed(0)} k$ (pénalité ${Math.round(penalty * 100)} %)`);
   } else {
     changeTrust(company, 1.5 * (1 - standing(company).confidence / 110));
+    if (USEFUL_GOODS.includes(c.good)) earnVirtue(company, VIRTUE_SOURCES.useful); // marchandise utile
+    if (c.golden && isCleanGood(c.good)) earnVirtue(company, VIRTUE_SOURCES.opportunity); // affaire en or propre
     shipLog(state, ship, `Livraison à ${portName(c.to)} : ${(pay / 1000).toFixed(0)} k$`);
   }
   state.contracts = state.contracts.filter((x) => x !== c);

@@ -131,7 +131,7 @@ export function victoryDaily(state, notes) {
           notes.push({ kind: 'victoryAlert', company: h.id, about: c.id, victory: kind, step, text: h.id === c.id
             ? (kind === 'domination' ? `Il ne vous reste qu'un concurrent, et vous aurez bientôt de quoi le racheter : victoire « ${VICTORY_INFO[kind].name} » en vue (${pc} %).` : `Vous approchez de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin.`)
             : lastPrey
-              ? `${c.name} n'a plus que vous en face, et aura bientôt de quoi racheter votre compagnie : victoire « ${VICTORY_INFO[kind].name} » en vue pour lui (${pc} %). Pour lui échapper : une meilleure réputation (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.`
+              ? `${c.name} n'a plus que vous en face, et aura bientôt de quoi racheter votre compagnie : victoire « ${VICTORY_INFO[kind].name} » en vue pour lui (${pc} %). Pour lui échapper : une meilleure confiance (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.`
               : `${c.name} approche de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin. Bureau → Victoires pour voir où il en est.` });
         }
       } else if (step < (marks[kind] || 0) && p.frac < VICTORY.alerts[0] - 0.1) marks[kind] = step; // reparti en arrière : on pourra prévenir de nouveau

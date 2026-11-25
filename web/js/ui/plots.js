@@ -112,8 +112,8 @@ export function underworldSection(app, port) {
     const tg = state.companies[target];
     const S = P.SCANDAL[kind];
     const body = kind === 'pirates'
-      ? `Pendant deux mois, les navires de ${tg.name} dans la zone ${P.zoneById(zoneSel.value).name} seront attaqués environ ${P.PIRATE_BOOST} fois plus souvent, par des pirates mieux armés. ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.pirates)} — réputation −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`
-      : `Pendant trois mois, les navires de ${tg.name} qui feront escale à ${portName(portSel.value)} y seront retenus sans motif (environ ${pc(P.HELD_CHANCE)} des escales, 6 à 14 jours, sauf s'ils paient un avocat). ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.corruption)} — réputation −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`;
+      ? `Pendant deux mois, les navires de ${tg.name} dans la zone ${P.zoneById(zoneSel.value).name} seront attaqués environ ${P.PIRATE_BOOST} fois plus souvent, par des pirates mieux armés. ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.pirates)} — vertu −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`
+      : `Pendant trois mois, les navires de ${tg.name} qui feront escale à ${portName(portSel.value)} y seront retenus sans motif (environ ${pc(P.HELD_CHANCE)} des escales, 6 à 14 jours, sauf s'ils paient un avocat). ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.corruption)} — vertu −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`;
     const price = kind === 'pirates' ? P.piratePrice(P.zoneById(zoneSel.value)) : P.corruptPrice(portSel.value);
     if (!(await confirmBox(kind === 'pirates' ? 'Payer des pirates ?' : 'Acheter des fonctionnaires ?', body, `Payer ${money(price)}`))) return;
     const r = app.act(() => app.withRng((rng) => P.orderPlot(state, rng, me, { kind, target, zone: zoneSel.value, port: portSel.value })), { sound: 'pay' });
@@ -121,7 +121,7 @@ export function underworldSection(app, port) {
   };
   return h('div.underworld', [
     h('h3', '🕴 La zone'),
-    h('p.hint', 'Des intermédiaires peu recommandables proposent leurs services contre vos concurrents. Tout finit par se savoir : chaque affaire peut s\'ébruiter (scandale, réputation, amende).'),
+    h('p.hint', 'Des intermédiaires peu recommandables proposent leurs services contre vos concurrents. Tout finit par se savoir : chaque affaire peut s\'ébruiter (scandale, vertu, amende).'),
     h('div.form-row', [h('b', 'Pirates : '), t1, zoneSel, h('button.btn.small.danger', { onclick: () => order('pirates') }, 'Payer les pirates')]),
     h('div.form-row', [h('b', 'Fonctionnaires : '), t2, portSel, h('button.btn.small.danger', { onclick: () => order('corruption') }, 'Les acheter')]),
     sabotageRow(app, rivals),
@@ -182,7 +182,7 @@ export function partnerInfo(app, clientId) {
     const price = P.poachPrice(state, clientId, tp.loyalty);
     const rival = state.companies[tp.id];
     out.push(' ', h('button.btn.small.ghost', { onclick: async () => {
-      const ok = await confirmBox(`Débaucher ${CLIENTS[clientId].name} ?`, `Pour ${money(price)}, ${CLIENTS[clientId].name} rompt son partenariat avec ${rival.name} : sa fidélité retombe à zéro et ses contrats réservés lui échappent. Votre propre fidélité monte un peu. Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.poach)} — réputation −${P.SCANDAL.poach.rep}, et ${rival.name} saura.`, `Payer ${money(price)}`);
+      const ok = await confirmBox(`Débaucher ${CLIENTS[clientId].name} ?`, `Pour ${money(price)}, ${CLIENTS[clientId].name} rompt son partenariat avec ${rival.name} : sa fidélité retombe à zéro et ses contrats réservés lui échappent. Votre propre fidélité monte un peu. Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.poach)} — vertu −${P.SCANDAL.poach.rep}, et ${rival.name} saura.`, `Payer ${money(price)}`);
       if (!ok) return;
       const r = app.act(() => app.withRng((rng) => P.poachClient(state, rng, me, clientId)), { sound: 'pay' });
       if (r?.ok) toast(r.leaked ? 'Fait… mais l\'affaire s\'est ébruitée.' : `${CLIENTS[clientId].name} rompt avec ${rival.name}.`, { timeout: 4000 });
@@ -201,7 +201,7 @@ function sabotageRow(app, rivals) {
   const go = async () => {
     const ship = Number(sel.value), owner = state.ships.find((x) => x.id === ship)?.owner;
     const A = P.ATTACKS.sabotage, price = P.attackPrice(state, 'sabotage', { target: owner, ship });
-    const ok = await confirmBox('Faire saboter ce navire ?', `À sa prochaine escale, le navire perd ${P.SABOTAGE_DAMAGE[0]} à ${P.SABOTAGE_DAMAGE[1]} points d'état, sauf s'il a des gardes à bord. Réputation −${A.rep} à coup sûr ; risque que l'affaire s'ébruite : ${pc(A.expose)} (réputation −${A.scandal.rep}, amende de ${money(A.scandal.fine)}). Son armateur entendra une rumeur et pourra mettre des gardes.`, `Payer ${money(price)}`);
+    const ok = await confirmBox('Faire saboter ce navire ?', `À sa prochaine escale, le navire perd ${P.SABOTAGE_DAMAGE[0]} à ${P.SABOTAGE_DAMAGE[1]} points d'état, sauf s'il a des gardes à bord. Vertu −${A.rep} à coup sûr ; risque que l'affaire s'ébruite : ${pc(A.expose)} (vertu −${A.scandal.rep}, amende de ${money(A.scandal.fine)}). Son armateur entendra une rumeur et pourra mettre des gardes.`, `Payer ${money(price)}`);
     if (!ok) return;
     const r = app.act(() => app.withRng((rng) => P.orderAttack(state, rng, me, { kind: 'sabotage', target: owner, ship })), { sound: 'pay' });
     if (r?.ok) toast('Un homme montera à bord à la prochaine escale.', { timeout: 4000 });

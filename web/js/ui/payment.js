@@ -107,7 +107,7 @@ export async function openPayment(app, paymentId) {
     h('p', [h('b', `${GOODS[p.good].icon} ${tonnes(p.qty)} de ${GOODS[p.good].name.toLowerCase()}`), ` livrés à ${portName(p.to)} par le ${p.shipName} le ${date(p.deliveredT, true)}.`]),
     C ? h('p', ['Client : ', clientLine(state, co, p.client)]) : null,
     lines, total,
-    ev?.kind === 'contestation' ? h('p.hint', 'Contester lance un arbitrage d\'environ un mois : votre réputation compte, et les frais d\'avocat sont de 3 %.') : null,
+    ev?.kind === 'contestation' ? h('p.hint', 'Contester lance un arbitrage d\'environ un mois : votre confiance compte, et les frais d\'avocat sont de 3 %.') : null,
   ]);
   let buttons;
   if (ev?.kind === 'contestation') {

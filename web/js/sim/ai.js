@@ -141,9 +141,9 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (state.t + (trip.days + 1) * D > c.deadline) continue;
     // (Le risque d'impayé n'est pas déduit : la prime de risque des chargeurs peu fiables le
     // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)
-    // Aide d'urgence : à perte, mais une compagnie à la réputation abîmée y gagne.
+    // Aide d'urgence : à perte ; seule l'IA vertueuse (qui vise la victoire de la réputation) y gagne de la vertu utile.
     const virtuous = company.ai?.leaning === 'vertueux';
-    const repValue = c.charity && (company.reputation < 55 || virtuous) ? c.charity.rep * (virtuous ? 300000 : 150000) : 0;
+    const repValue = c.charity && virtuous ? c.charity.rep * (virtuous ? 300000 : 150000) : 0;
     const pay = c.pay * payCut(state, company.id, c.from); // guerre des prix contre elle dans ce port
     const profit = pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue;
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });

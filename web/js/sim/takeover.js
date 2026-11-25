@@ -39,12 +39,12 @@ export const netCash = (state, c) => c.cash - c.debt - cargoLoans(state, c.id);
 // partent à la casse) : au prix de ses actifs, sans prime de réputation.
 export const dismantleOnly = (buyer, target) => !!target.blacklisted && !buyer?.blacklisted;
 export function takeoverPrice(state, target, buyer = null) {
-  const k = dismantleOnly(buyer, target) ? TAKEOVER.dismantleK : 1 + target.reputation / TAKEOVER.repK;
+  const k = dismantleOnly(buyer, target) ? TAKEOVER.dismantleK : 1 + standing(target).confidence / TAKEOVER.repK; // la confiance fait la valeur
   return Math.round(Math.max(TAKEOVER.minWorth, netWorth(state, target.id)) * k / 10000) * 10000;
 }
 export const reprieveOf = (state, c) => (c.reprieve && c.reprieve.until > state.t ? c.reprieve : null);
 export const pendingBid = (state, targetId) => (state.bids || []).find((b) => b.target === targetId && b.status === 'pending') || null;
-export const reprieveChance = (c) => Math.max(0.05, Math.min(0.95, TAKEOVER.reprieveBase + (c.blacklisted ? Math.min(0.6, (c.infamy || 0) * TAKEOVER.reprieveInfamy) : c.reputation * TAKEOVER.reprieveRep) - (c.reprieve?.n || 0) * TAKEOVER.reprieveRepeat));
+export const reprieveChance = (c) => Math.max(0.05, Math.min(0.95, TAKEOVER.reprieveBase + (c.blacklisted ? Math.min(0.6, (c.infamy || 0) * TAKEOVER.reprieveInfamy) : standing(c).confidence * TAKEOVER.reprieveRep) - (c.reprieve?.n || 0) * TAKEOVER.reprieveRepeat));
 
 // Peut-on racheter cette compagnie ? (raison sinon, et de quoi l'afficher)
 export function canTakeover(state, buyerId, targetId, { ignoreBid = null } = {}) {
@@ -193,7 +193,7 @@ export function takeoverDaily(state, notes) {
     const before = c.buyersSeen || [];
     for (const id of able) if (!before.includes(id)) {
       const o = state.companies[id];
-      notes.push({ kind: 'takeoverRisk', company: c.id, other: id, text: `${o.name} a désormais les moyens de racheter votre compagnie (${M$(takeoverPrice(state, c))}). Pour vous protéger : une meilleure réputation (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.` });
+      notes.push({ kind: 'takeoverRisk', company: c.id, other: id, text: `${o.name} a désormais les moyens de racheter votre compagnie (${M$(takeoverPrice(state, c))}). Pour vous protéger : une meilleure confiance (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.` });
     }
     c.buyersSeen = able;
   }

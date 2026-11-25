@@ -20,7 +20,7 @@ export function rivalsTab(app) {
   const { state } = app;
   const me = state.companies[app.ui.activeCompany];
   const box = h('div.rivals');
-  box.append(h('p.small.muted', `Racheter un concurrent : prix = sa valeur nette × (1 + réputation ÷ ${TK.TAKEOVER.repK}), payé comptant avec votre trésorerie nette (liquidités moins dettes et prêts sur cargaison), sans emprunt, et seulement s'il n'est pas d'un niveau supérieur au vôtre. Une compagnie de l'ordinateur accepte aussitôt ; un joueur a ${TK.TAKEOVER.bidDays} jours pour réagir. Chaque coup contre un concurrent vous coûte de la réputation, peut faire scandale, et la victime en entend parler.`));
+  box.append(h('p.small.muted', `Racheter un concurrent : prix = sa valeur nette × (1 + confiance ÷ ${TK.TAKEOVER.repK}), payé comptant avec votre trésorerie nette (liquidités moins dettes et prêts sur cargaison), sans emprunt, et seulement s'il n'est pas d'un niveau supérieur au vôtre. Une compagnie de l'ordinateur accepte aussitôt ; un joueur a ${TK.TAKEOVER.bidDays} jours pour réagir. Chaque coup contre un concurrent vous coûte de la vertu, peut faire scandale, et la victime en entend parler.`));
   const mine = TK.reprieveOf(state, me);
   if (mine) box.append(h('p.vic-claimed', `Vos actionnaires vous ont donné jusqu'au ${date(mine.until, true)} : aucun rachat de votre compagnie possible d'ici là.`));
   const bid = TK.pendingBid(state, me.id);
@@ -62,7 +62,7 @@ function plotsByMeAgainst(app, c) {
   return h('div.small.muted', mine.map((p) => `${P.ATTACKS[p.kind].name} en cours jusqu'au ${date(p.until, true)}. `));
 }
 const ATTACK_TEXT = {
-  smear: () => `Une campagne de presse : environ ${P.SMEAR_WEEKLY} point de réputation perdu chaque semaine pendant huit semaines. Sa réputation baisse, son prix de rachat aussi.`,
+  smear: () => `Une campagne de presse : environ ${P.SMEAR_WEEKLY} point de confiance et de vertu perdu chaque semaine pendant huit semaines. Sa confiance baisse, son prix de rachat aussi.`,
   pricewar: () => `Dans un port de votre choix, pendant deux mois, les chargeurs lui paient le fret ${Math.round(P.PRICEWAR_CUT * 100)} % moins cher.`,
   payments: () => `Un chargeur dont vous êtes le partenaire fidèle fait traîner ses paiements pendant trois mois (${P.PAYMENT_DELAY[0]} à ${P.PAYMENT_DELAY[1]} jours de retard).`,
   bank: () => `Vos relations font pression sur sa banque : son plafond de crédit est divisé par deux pendant six mois.`,
@@ -90,9 +90,9 @@ export async function takeoverDialog(app, targetId) {
     return;
   }
   const ok = await confirmBox(`Racheter ${c.name} ?`, h('div', [
-    h('p', `Prix : ${money(pv.price)} payés comptant (valeur nette ${money(pv.worth)} × ${(1 + c.reputation / TK.TAKEOVER.repK).toFixed(2).replace('.', ',')} pour sa réputation).`),
+    h('p', `Prix : ${money(pv.price)} payés comptant (valeur nette ${money(pv.worth)} × ${(1 + (c.confidence ?? c.reputation) / TK.TAKEOVER.repK).toFixed(2).replace('.', ',')} pour sa confiance).`),
     h('p', `Vous reprenez ${pv.ships} navire(s), ses commandes et ses contrats, ${money(pv.cash)} de liquidités et ${money(pv.debt)} de dettes.`),
-    h('p', [`Votre réputation passerait de ${Math.floor(state.companies[me].reputation)} à environ ${Math.floor(pv.rep)}.`, pv.infamy > (state.companies[me].infamy || 0) + 0.5 ? ' Vous hériteriez aussi d\'une part de son infamie.' : null]),
+    h('p', [`Votre confiance passerait de ${Math.floor(state.companies[me].confidence ?? 0)} à environ ${Math.floor(pv.confidence)}, votre vertu de ${Math.floor(state.companies[me].virtue ?? 0)} à environ ${Math.floor(pv.virtue)}.`, pv.infamy > (state.companies[me].infamy || 0) + 0.5 ? ' Vous hériteriez aussi d\'une part de son infamie.' : null]),
     crossesLine(state.companies[me], pv.infamy - (state.companies[me].infamy || 0)) ? h('p.warn-text', `⛔ Son infamie porterait la vôtre à ${Math.round(pv.infamy)} : à ${BLACKLIST.infamy}, votre compagnie entrerait sur la liste noire internationale, pour toujours.`) : null,
     c.human ? h('p.warn-text', `${c.name} est dirigée par un joueur : il aura ${TK.TAKEOVER.bidDays} jours pour réagir (demander un délai à ses actionnaires).`) : null,
   ]), c.human ? 'Faire l\'offre' : `Racheter · ${money(pv.price)}`);
@@ -141,8 +141,8 @@ async function attackDialog(app, targetId, kind) {
     body: h('div', [
       h('p', ATTACK_TEXT[kind]()),
       picker,
-      h('p', ['Coût : ', priceEl, ` · réputation −${A.rep} à coup sûr (le milieu jase).`]),
-      h('p.small.muted', [`${c.name} en entendra parler (une rumeur, sans votre nom) et pourra parer le coup en payant. Risque que l'affaire s'ébruite : ${pct(A.expose * 100)}.`, A.scandal.fine ? ` Scandale : réputation −${A.scandal.rep} et amende de ${money(A.scandal.fine)}.` : ` Scandale : réputation −${A.scandal.rep}.`]),
+      h('p', ['Coût : ', priceEl, ` · vertu −${A.rep} à coup sûr (le milieu jase).`]),
+      h('p.small.muted', [`${c.name} en entendra parler (une rumeur, sans votre nom) et pourra parer le coup en payant. Risque que l'affaire s'ébruite : ${pct(A.expose * 100)}.`, A.scandal.fine ? ` Scandale : vertu −${A.scandal.rep} et amende de ${money(A.scandal.fine)}.` : ` Scandale : vertu −${A.scandal.rep}.`]),
       whyEl,
     ]),
     buttons: [{ label: 'Annuler', value: null, kind: 'ghost' }, { label: 'Lancer', value: 'go', kind: 'danger' }],
@@ -164,10 +164,10 @@ export async function bidDialog(app, bidId) {
     title: `${buyer.name} veut racheter ${me.name}`,
     body: h('div', [
       h('p', `${buyer.name} propose ${money(bid.price)} à vos actionnaires. Sans réaction, la vente se fera le ${date(bid.until, true)} si l'offre tient toujours : la partie serait alors finie pour ${me.name}.`),
-      h('p', `L'offre tombe d'elle-même si, d'ici là, votre prix dépasse sa trésorerie nette (votre réputation le multiplie : 1 + réputation ÷ ${TK.TAKEOVER.repK}) ou si vous passez à un niveau supérieur au sien.`),
+      h('p', `L'offre tombe d'elle-même si, d'ici là, votre prix dépasse sa trésorerie nette (votre confiance le multiplie : 1 + confiance ÷ ${TK.TAKEOVER.repK}) ou si vous passez à un niveau supérieur au sien.`),
       bid.asked ? h('p.muted', 'Vous avez déjà demandé un délai pour cette offre.') : h('p', me.blacklisted
         ? `Vos actionnaires de l'ombre ne vendent pas au premier venu : demandez-leur six mois, ${pct(chance * 100)} de chances qu'ils acceptent (selon votre infamie ; moins à chaque nouvelle demande). Ils vous protégeraient alors de tout rachat pendant six mois.`
-        : `Vous pouvez demander six mois à vos actionnaires pour redresser la barre : ${pct(chance * 100)} de chances qu'ils acceptent (selon votre réputation ; moins à chaque nouvelle demande). Ils vous protégeraient alors de tout rachat pendant six mois.`),
+        : `Vous pouvez demander six mois à vos actionnaires pour redresser la barre : ${pct(chance * 100)} de chances qu'ils acceptent (selon votre confiance ; moins à chaque nouvelle demande). Ils vous protégeraient alors de tout rachat pendant six mois.`),
     ]),
     buttons: [
       { label: 'Vendre maintenant', value: 'sell', kind: 'ghost' },

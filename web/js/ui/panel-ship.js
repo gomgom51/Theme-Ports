@@ -1,7 +1,7 @@
 // Fiche d'un navire : contrats, négoce, escale, départ, voyage en cours, journal.
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
-import { GOODS, HOLDS } from '../data/goods.js';
+import { GOODS, HOLDS, USEFUL_GOODS, isCleanGood } from '../data/goods.js';
 import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
 import { shipById, contractById, portName, creditLimit, interestRate, loanOwedAt } from '../sim/core.js';
@@ -27,7 +27,7 @@ import { darkLines, seizedDialog } from './dark.js';
 import { routeChip } from './route.js';
 import { prospectOdds, canProspect, startProspect } from '../sim/prospect.js';
 import { grudgeAt } from '../sim/dark.js';
-import { repCap } from '../sim/core.js';
+import { repCap, slowShare, slowVirtue, VIRTUE_SOURCES } from '../sim/core.js';
 
 // Commercer avec un pays sous embargo marque le navire un an : on demande avant, si le
 // navire est encore « propre ». Renvoie true pour continuer.
@@ -214,7 +214,7 @@ function prospectCard(app, ship) {
       h('div.card-title', ['📞 ', h('span', 'Démarcher les chargeurs')]),
       h('div.card-sub', `Vos commerciaux proposent le ${ship.name} aux chargeurs : 1 à 2 jours à quai. Résultat : un contrat taillé pour ce navire, une piste dans un port proche (réservée le temps d'y aller), ou rien.`),
       o.why ? null : h('div.card-sub', [h('span', 'Chances estimées :'), ' ', h('b', pct(o.p * 100)), ' ', h('span.muted', '('),
-        ...[part('port', o.parts.port), part('réputation', o.parts.rep), part('chargeurs fidèles', o.parts.loyalty), part('bureau', o.parts.office), part('beaux parleurs à bord', o.parts.talk)].filter(Boolean).flatMap((x, i) => (i ? [', ', x] : [x])),
+        ...[part('port', o.parts.port), part('confiance', o.parts.rep), part('chargeurs fidèles', o.parts.loyalty), part('bureau', o.parts.office), part('beaux parleurs à bord', o.parts.talk)].filter(Boolean).flatMap((x, i) => (i ? [', ', x] : [x])),
         h('span.muted', ')')]),
       !o.why && !o.here ? h('div.card-sub.muted', 'Rien à charger ici pour ce navire : en cas de succès, ce sera une piste dans un port proche.') : null,
       why ? h('div.card-why', why) : null,
@@ -249,7 +249,7 @@ function contractsBase(app, ship) {
     const reserved = c.reservedFor === ship.owner && c.reservedUntil > state.t;
     return h('div.card.contract', { class: (why ? 'disabled ' : '') + (c.golden ? 'golden' : ''), onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la réputation.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to), ...attackTags(state, ship.owner, c)]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', { title: `Le chargeur exige une confiance de ${c.minRep}.` }, 'contrat premium') : null, USEFUL_GOODS.includes(c.good) || (c.golden && isCleanGood(c.good)) ? h('span.tag.good', { title: c.golden && isCleanGood(c.good) ? 'Affaire en or sur une marchandise ni fossile ni polluante : livrée à l\'heure, elle rapporte aussi de la vertu.' : 'Marchandise utile (céréales, café et cacao, fruits et viandes, bois) : livrée à l\'heure, elle rapporte aussi un peu de vertu.' }, '💚 vertu') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la réputation.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to), ...attackTags(state, ship.owner, c)]),
         routeChip(c.to, { eta: est && !est.why ? state.t + est.totalDays * 24 : null, estimate: true, deadline: c.deadline, late: lateRisk }),
         h('div.card-sub.muted', `${num(c.nm)} milles · délai ${days(daysLeft)}`),
         ...(isSeasonal(c.to) || est?.canals?.includes('nsr') ? iceLines(state, ship, c.to, est && !est.why ? est : null) : []),
@@ -678,9 +678,24 @@ function departTab(app, ship) {
   const box = h('div');
   const speedOut = h('b', `${num1(speed)} nœuds`);
   const slider = h('input.range', { type: 'range', min: Math.max(6, Math.round(T.speed * 0.6)), max: T.maxSpeed, step: 0.5, value: speed, 'aria-label': 'Vitesse' });
-  slider.addEventListener('input', () => { speedOut.textContent = `${num1(+slider.value)} nœuds`; });
+  // Allure économique : moins d'émissions, un peu de vertu à l'arrivée (affiché en direct).
+  const destNm = dest ? (ctx.distanceInfo(ship.port, dest, ctx.closedCanals(state, T.draft, ship))?.nm || 0) : 0;
+  const ecoLine = h('p.eco-line.small');
+  const showEco = (v) => {
+    const share = slowShare(v, T.speed);
+    if (share <= 0) { ecoLine.className = 'eco-line small muted'; ecoLine.textContent = `💚 Sous ${num1(T.speed * VIRTUE_SOURCES.slowStart)} nœuds, l'allure économique rapporte un peu de vertu : moins d'émissions.`; return; }
+    const cut = Math.round((1 - (v / T.speed) ** 2) * 100);
+    const sv = slowVirtue(company, v, T.speed, dest ? destNm / (24 * v) : VIRTUE_SOURCES.slowDays);
+    ecoLine.className = 'eco-line small good';
+    ecoLine.textContent = dest
+      ? `💚 Allure économique : environ ${cut} % d'émissions en moins par mille ; vertu +${num1(sv)} à l'arrivée.`
+      : `💚 Allure économique : environ ${cut} % d'émissions en moins par mille ; vertu jusqu'à +${num1(sv)} à l'arrivée (voyage de ${VIRTUE_SOURCES.slowDays} jours de mer ou plus).`;
+  };
+  showEco(speed);
+  slider.addEventListener('input', () => { speedOut.textContent = `${num1(+slider.value)} nœuds`; showEco(+slider.value); });
   slider.addEventListener('change', () => { app.form.speed[ship.id] = +slider.value; app.refresh(); });
   box.append(h('div.speed-row', [h('span', 'Vitesse : '), speedOut, slider, h('span.muted.small', `service ${num1(T.speed)} · max ${num1(T.maxSpeed)}`)]));
+  box.append(ecoLine);
   box.append(h('p.hint', 'Ralentir économise beaucoup de carburant (consommation ∝ vitesse³) mais allonge le voyage et les frais fixes.'));
 
   if (dest) {

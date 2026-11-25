@@ -329,7 +329,7 @@ function updateHud() {
   const tr = $('#hud-trust'), vi = $('#hud-virtue');
   tr.innerHTML = `<span class="hud-ico" aria-hidden="true">🤝</span>${T}`; vi.innerHTML = `<span class="hud-ico" aria-hidden="true">💚</span>${V}`;
   tr.classList.toggle('low', lim === 'trust'); vi.classList.toggle('low', lim === 'virtue');
-  tr.title = 'Confiance : on peut compter sur vous'; vi.title = 'Vertu : le bien commun';
+  tr.title = 'Confiance : on peut compter sur vous (chargeurs, banques, acheteurs)'; vi.title = 'Vertu : votre image dans la presse';
   $('#hud-rep').title = lim === 'virtue' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre vertu la retient.`
     : lim === 'trust' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre confiance la retient.`
     : `Réputation ${R} : confiance et vertu à égalité.`;
