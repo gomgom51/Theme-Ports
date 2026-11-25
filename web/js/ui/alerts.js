@@ -3,7 +3,7 @@
 // pour ne pas avoir à ouvrir chaque navire et chaque port.
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS } from '../data/ports.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, OIL_GOODS } from '../data/goods.js';
 import { shipsOf, fleetValue, creditLimit, contractById, isIdle } from '../sim/core.js';
 import { isStrict, inspectionThreshold, SEAWORTHY } from '../sim/incidents.js';
 import * as eco from '../sim/economy.js';
@@ -68,6 +68,11 @@ export function computeAlerts(state, ctx, companyId) {
   const out = [];
   const add = (level, icon, text, target = null) => out.push({ level: LEVELS[level], icon, text, target, key: alertKey(LEVELS[level], icon, text, target) });
   if (!company || company.bankrupt) return out;
+
+  // Crise mondiale du raffinage : les pétroliers n'ont plus de contrats hors des pays sous embargo.
+  if (eco.oilCrisis(state) && shipsOf(state, companyId).some((s) => OIL_GOODS.some((g) => eco.holdFor(s.type, g)))) {
+    add('watch', '🛢', `Crise mondiale du raffinage : plus aucun contrat ni appel d'offres de pétrole hors des pays sous embargo jusqu'au ${date(state.oilCrisis.until, true)}. Les contrats signés sont honorés ; désarmer un pétrolier coûte moins cher que l'attente.`, { panel: 'fleet' });
+  }
 
   // Trésorerie.
   const limit = seizureLimit(state, company);

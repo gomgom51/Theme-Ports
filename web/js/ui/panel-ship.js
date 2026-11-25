@@ -202,7 +202,13 @@ export function shipPanel(app, id, tab) {
 // ---------- Contrats ----------
 // Contrats du port, puis propositions discrètes s'il y en a.
 function contractsTab(app, ship) {
-  return h('div', [prospectCard(app, ship), contractsBase(app, ship), offersSection(app, ship)]);
+  return h('div', [oilCrisisLine(app, ship), prospectCard(app, ship), contractsBase(app, ship), offersSection(app, ship)]);
+}
+// Crise mondiale du raffinage : dite là où elle se voit (règle n° 1).
+function oilCrisisLine(app, ship) {
+  const { state } = app;
+  if (!eco.oilCrisis(state) || !OIL_GOODS.some((g) => eco.holdFor(ship.type, g))) return null;
+  return h('div.card.warn-card', [h('div.card-main', [h('div.card-sub', `🛢 Crise mondiale du raffinage : plus aucun contrat ni appel d'offres de pétrole hors des pays sous embargo jusqu'au ${date(state.oilCrisis.until, true)}. Les contrats déjà signés sont honorés.`)])]);
 }
 // Démarcher les chargeurs : vos commerciaux proposent le navire (1 à 2 jours), chances annoncées.
 function prospectCard(app, ship) {

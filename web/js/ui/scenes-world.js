@@ -514,7 +514,7 @@ export const WORLD_SCENES = {
 
 // Quelle scène pour quel événement mondial (identifiants de sim/events.js).
 export const EVENT_SCENES = {
-  petrole_hausse: 'oilUp', petrole_baisse: 'oilDown', raffinerie: 'refinery',
+  petrole_hausse: 'oilUp', petrole_baisse: 'oilDown', raffinerie: 'refinery', crise_raffinage: 'refinery',
   recolte_record: 'harvest', secheresse: 'drought',
   chine_relance: 'steelBoom', chine_ralenti: 'steelDown', acier: 'steelPrice',
   boom_conteneurs: 'containers', recession: 'recession', surcapacite: 'overcapacity', reprise: 'recovery',

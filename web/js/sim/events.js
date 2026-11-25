@@ -1,11 +1,15 @@
 // Événements mondiaux et météo.
 import { PORTS, PORT_IDS } from '../data/ports.js';
-import { HOURS_PER_DAY, monthOf, clamp } from './util.js';
+import { HOURS_PER_DAY, monthOf, clamp, formatDate } from './util.js';
+import { OIL_GOODS } from '../data/goods.js';
 import { news, portName } from './core.js';
 import { haversineNm } from './routing.js';
 import { HOLD_TYPES, FREIGHT_MIN, FREIGHT_MAX } from './economy.js';
 
 const D = HOURS_PER_DAY;
+
+// Crise mondiale du raffinage : durée (jours) ; sa fréquence est son poids dans EVENTS.
+export const OIL_CRISIS = { days: [14, 28] };
 
 // Chaque événement modifie l'économie ; certains durent (canal fermé, grève).
 const EVENTS = [
@@ -30,6 +34,21 @@ const EVENTS = [
     run(state, rng) {
       state.market.fuelPremium *= rng.range(1.12, 1.25);
       return { title: 'Panne de raffineries', text: 'Plusieurs raffineries à l\'arrêt : le fuel marine se raréfie et son prix grimpe.' };
+    },
+  },
+  {
+    // Crise mondiale du raffinage : pendant deux à quatre semaines, plus aucun contrat ni appel d'offres
+    // de pétrole brut ou de produits raffinés hors des pays sous embargo ; les contrats signés sont
+    // honorés. Annoncée avec sa date de fin (règle n° 1) ; les pétroliers peuvent désarmer, négocier à
+    // leurs risques, ou tenter les pays sous embargo.
+    id: 'crise_raffinage', weight: 1.5,
+    possible: (state) => !((state.oilCrisis?.until || 0) > state.t),
+    run(state, rng) {
+      const until = Math.round(state.t + rng.int(OIL_CRISIS.days[0], OIL_CRISIS.days[1]) * D);
+      state.oilCrisis = { since: state.t, until };
+      state.market.fuelPremium *= rng.range(1.08, 1.15);
+      state.contracts = state.contracts.filter((c) => c.takenBy !== null || !OIL_GOODS.includes(c.good) || c.embargo);
+      return { title: 'Crise mondiale du raffinage', text: `Pannes et accidents en série : les raffineries sont à l'arrêt. Plus aucun contrat de pétrole brut ni de produits raffinés hors des pays sous embargo jusqu'au ${formatDate(until, true)}. Les contrats déjà signés sont honorés ; le fuel marine renchérit.` };
     },
   },
   {
@@ -148,6 +167,11 @@ export function dailyEvents(state, rng) {
   }
   for (const [p, until] of Object.entries(state.strikes)) {
     if (until <= state.t) { delete state.strikes[p]; news(state, `Fin de la grève à ${portName(p)}.`, { kind: 'event' }); }
+  }
+  // Fin de la crise du raffinage.
+  if (state.oilCrisis && !state.oilCrisis.ended && state.oilCrisis.until <= state.t) {
+    state.oilCrisis.ended = true;
+    news(state, 'Fin de la crise du raffinage : les raffineries redémarrent, les contrats de pétrole reviennent.', { kind: 'event' });
   }
   // Un nouvel événement environ toutes les cinq semaines.
   if (rng.chance(1 / 35)) {

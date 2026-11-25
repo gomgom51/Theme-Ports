@@ -12,7 +12,7 @@
 // promesse d'y vendre. Le prêt est remboursé à la vente ; chaque prêt remboursé améliore les
 // conditions de ce port. Tout est montré avant l'achat (règle 1).
 import { PORTS, PORT_IDS } from '../data/ports.js';
-import { GOODS, isCleanGood } from '../data/goods.js';
+import { GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
 import { EMBARGOED, SHADY_PORTS } from '../data/sanctions.js';
 import { HOURS_PER_DAY, clamp, formatDate } from './util.js';
 import * as eco from './economy.js';
@@ -59,7 +59,7 @@ function newTender(state, ctx, rng) {
     const port = rng.pick(PORT_IDS);
     const P = PORTS[port];
     if (EMBARGOED[P.flag] || isSeasonal(port)) continue; // sous embargo : le négoce y paie déjà cher
-    const goods = Object.entries(P.imp).filter(([g, w]) => w > 0 && !open.some((t) => t.port === port && t.good === g)
+    const goods = Object.entries(P.imp).filter(([g, w]) => w > 0 && !open.some((t) => t.port === port && t.good === g) && !(OIL_GOODS.includes(g) && eco.oilCrisis(state))
       && PORT_IDS.some((q) => q !== port && eco.exportsGood(q, g) && !EMBARGOED[PORTS[q].flag]));
     if (!goods.length) continue;
     const good = rng.weighted(goods);

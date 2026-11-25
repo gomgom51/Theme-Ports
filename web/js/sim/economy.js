@@ -1,6 +1,6 @@
 // Moteur économique : cours mondiaux, marchés locaux (offre et demande),
 // carburant, réparations, valeur des navires, contrats de fret.
-import { GOODS, GOOD_IDS } from '../data/goods.js';
+import { GOODS, GOOD_IDS, OIL_GOODS } from '../data/goods.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_DAY_COST, CREW_LEVELS } from '../data/ships.js';
 import { CLIENTS } from '../data/clients.js';
@@ -319,6 +319,9 @@ export function bigTarget(p) {
 // forType : impose un type de navire de référence (contrats garantis en début de partie).
 // regional : contrat de cabotage (petit navire, destination proche).
 // big : grand volume (navire de plus de BIG_DWT tonnes).
+// Crise mondiale du raffinage en cours (events.js) : jusqu'à state.oilCrisis.until.
+export const oilCrisis = (state) => (state.oilCrisis?.until || 0) > state.t;
+
 export function makeContract(state, ctx, rng, from, forType = null, { regional = false, big = false } = {}) {
   const P = PORTS[from];
   // Port saisonnier : des offres seulement s'il est libre de glace pour quelques jours encore.
@@ -373,6 +376,8 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const reservedFor = reserveFor(state, rng, client, from);
   // Commerce avec un pays sous embargo : peu d'armateurs acceptent, le fret se paie cher.
   const embargo = isEmbargoedPort(from) || isEmbargoedPort(to);
+  // Crise mondiale du raffinage (events.js) : plus de contrat de pétrole, sauf avec les pays sous embargo.
+  if (OIL_GOODS.includes(good) && oilCrisis(state) && !embargo) return null;
   // La prime de retour à vide s'ajoute au taux de base (elle ne le multiplie pas).
   const ballast = TUNING.ballast + ((BALLAST_HOLD[hold] || 1) - 1) * 1.5;
   // Affaire en or (rare) : un chargeur pressé paie bien plus, mais l'offre ne dure pas.
