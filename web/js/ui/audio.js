@@ -42,9 +42,9 @@ const MOOD_FALLBACK = { blacklistb: 'blacklist' };
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
 const SAMPLES = {
   fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3', nofuel: 'sons/tasse-vide.mp3',
-  // Confiance : deux battements de cœur quand elle monte (la baisse garde sa synthèse tant qu'il n'y a pas
-  // de fichier). Vertu : harpe qui monte / qui retombe.
-  trustUp: 'sons/confiance-plus.mp3', virtueUp: 'sons/vertu-plus.mp3', virtueDown: 'sons/vertu-moins.mp3',
+  // Confiance : deux battements de cœur quand elle monte, une porte qui claque quand elle baisse.
+  // Vertu : harpe qui monte / qui retombe.
+  trustUp: 'sons/confiance-plus.mp3', trustDown: 'sons/confiance-moins.mp3', virtueUp: 'sons/vertu-plus.mp3', virtueDown: 'sons/vertu-moins.mp3',
 };
 // Corne de départ : un son par famille de navires (même fonction), joué plus grave pour un
 // gros navire et plus aigu pour un petit (hauteur selon le port en lourd, par rapport au navire
@@ -302,8 +302,8 @@ export class AudioManager {
     } else if (name === 'cash' || name === 'pay') {
       if (!this.playSample('cash', { gain: 0.8 })) S.cashRegister(c, out, t, { gain: 0.42 });
     } else if (name === 'trustUp' || name === 'trustDown' || name === 'virtueUp' || name === 'virtueDown') {
-      // Confiance et vertu : fichiers facultatifs (sons/confiance-plus.mp3… à ajouter dans SAMPLES), sinon synthèse.
-      if (!this.playSample(name, { gain: name.startsWith('virtue') ? 0.5 : 0.6, fadeOut: 0.3 })) S.standingCue(c, out, t, { kind: name.startsWith('trust') ? 'trust' : 'virtue', up: name.endsWith('Up') });
+      // Confiance et vertu : fichiers de SAMPLES (sons/confiance-plus.mp3…) ; synthèse si l'un manque.
+      if (!this.playSample(name, { gain: name === 'trustUp' ? 0.6 : 0.5, fadeOut: 0.3 })) S.standingCue(c, out, t, { kind: name.startsWith('trust') ? 'trust' : 'virtue', up: name.endsWith('Up') });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     }
