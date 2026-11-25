@@ -296,6 +296,9 @@ export class AudioManager {
       this.playSample('nofuel', { gain: 0.85, fadeOut: 0.3 });
     } else if (name === 'cash' || name === 'pay') {
       if (!this.playSample('cash', { gain: 0.8 })) S.cashRegister(c, out, t, { gain: 0.42 });
+    } else if (name === 'trustUp' || name === 'trustDown' || name === 'virtueUp' || name === 'virtueDown') {
+      // Confiance et vertu : fichiers facultatifs (sons/confiance-plus.mp3… à ajouter dans SAMPLES), sinon synthèse.
+      if (!this.playSample(name, { gain: 0.6, fadeOut: 0.1 })) S.standingCue(c, out, t, { kind: name.startsWith('trust') ? 'trust' : 'virtue', up: name.endsWith('Up') });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     }

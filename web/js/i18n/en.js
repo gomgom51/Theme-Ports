@@ -2423,4 +2423,5 @@ export default {
   "Il vous manque : {0}": "You are still missing: {0}",
   "Jamais desservi par votre compagnie : y faire escale compte pour le record « Toutes les escales », et donne un peu de confiance.": "Never served by your company: calling there counts towards the \"Every Port of Call\" record, and gives a little trust.",
   "✚ nouveau port": "✚ new port",
+  "Scandale !": "Scandal!",
 };

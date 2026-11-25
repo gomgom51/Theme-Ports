@@ -429,3 +429,35 @@ export function scheduleScene(ctx, out, reverb, scene, state, from, to) {
     }
   }
 }
+
+// Confiance et vertu : un petit signal (≈ 0,3 s) quand la note bouge d'un point ou plus.
+// Confiance : bois et laiton (deux notes de marimba) ; vertu : verre (carillon léger, avec un
+// harmonique qui scintille). En hausse les notes montent ; en baisse elles descendent sur un
+// petit coup sourd.
+export function standingCue(ctx, out, t, { kind = 'trust', up = true, gain = 0.16 } = {}) {
+  const trust = kind === 'trust';
+  const notes = trust ? (up ? [523.25, 783.99] : [392, 293.66]) : (up ? [1318.5, 1975.5] : [659.25, 587.33]);
+  notes.forEach((f, i) => {
+    const t0 = t + i * (trust ? 0.09 : 0.075), dur = trust ? 0.22 : 0.36;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = trust ? 'triangle' : 'sine';
+    o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(out); o.start(t0); o.stop(t0 + dur + 0.02);
+    if (!trust && up) {
+      const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+      o2.type = 'sine'; o2.frequency.setValueAtTime(f * 2.01, t0);
+      g2.gain.setValueAtTime(0.0001, t0); g2.gain.exponentialRampToValueAtTime(gain * 0.3, t0 + 0.01); g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.8);
+      o2.connect(g2).connect(out); o2.start(t0); o2.stop(t0 + dur);
+    }
+  });
+  if (!up) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(62, t + 0.18);
+    g.gain.setValueAtTime(gain * 0.9, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    o.connect(g).connect(out); o.start(t); o.stop(t + 0.22);
+  }
+}
+

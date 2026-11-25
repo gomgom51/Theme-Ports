@@ -99,6 +99,13 @@ p { margin: 6px 0; }
 .hud-company-name { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hud-cash { font-weight: 800; font-variant-numeric: tabular-nums; }
 .hud-cash.neg { color: var(--bad); }
+/* Variation de confiance ou de vertu : un chiffre qui s'envole au-dessus de la note. */
+.float-delta { position: fixed; z-index: 60; transform: translate(-50%, 0); font-weight: 800; font-size: 13px; pointer-events: none; white-space: nowrap;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; box-shadow: 0 2px 6px rgba(28, 42, 51, 0.18);
+  animation: float-delta 1.6s ease-out forwards; }
+.float-delta.pos { color: var(--good); }
+.float-delta.neg { color: var(--bad); }
+@keyframes float-delta { 0% { opacity: 0; transform: translate(-50%, -6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 16px); } }
 /* Réputation (la plus basse de la confiance 🤝 et de la vertu 🕊), à côté de la trésorerie. */
 .hud-rep { display: flex; flex-direction: column; flex: none; line-height: 1.15; padding-left: 9px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
 .hud-rep-main { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }

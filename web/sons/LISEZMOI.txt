@@ -76,3 +76,19 @@ Incidents
   scene-suez.mp3          canal de Suez fermé
   scene-panama.mp3        sécheresse à Panama
   scene-strike.mp3        grève sur les quais
+
+Confiance et vertu (facultatifs)
+--------------------------------
+Quand la confiance ou la vertu bouge d'un point ou plus, un petit chiffre s'envole sous la note
+(en haut à gauche) avec un son. Sans fichier, le jeu synthétise un signal (marimba pour la
+confiance, carillon de verre pour la vertu ; notes qui montent ou qui descendent). Pour utiliser
+vos propres sons, déposer ces fichiers puis les ajouter à SAMPLES dans web/js/ui/audio.js
+(trustUp, trustDown, virtueUp, virtueDown) :
+
+  confiance-plus.mp3    la confiance monte   (0,2 à 0,6 s, net et chaleureux)
+  confiance-moins.mp3   la confiance baisse  (0,2 à 0,6 s, sourd, sans être alarmant)
+  vertu-plus.mp3        la vertu monte       (0,3 à 0,8 s, léger et lumineux)
+  vertu-moins.mp3       la vertu baisse      (0,3 à 0,8 s, « gênant » plutôt que dramatique)
+
+Scène du scandale (facultatif) : scene-scandal.mp3 (rotatives, flashes, brouhaha), puis ajouter
+« scandal » à SCENE_SOUNDS dans web/js/ui/audio.js.

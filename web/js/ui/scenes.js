@@ -8,6 +8,37 @@ import { WORLD_SCENES } from './scenes-world.js';
 import { HONOUR_SCENES } from './scenes-honours.js';
 const sea_ = (...a) => sea(...a); // (la variable « sea » sert aussi de drapeau dans les scènes des glaces)
 import { SHIP_TYPES } from '../data/ships.js';
+import { getLang } from '../i18n.js';
+
+// Lettres de pixels (5 × 7) pour les gros titres des journaux.
+const GLYPHS = {
+  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'], C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
+  D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'], L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'], '!': ['00100', '00100', '00100', '00100', '00100', '00000', '00100'],
+};
+function pixelWord(g, word, x, y, k, c) {
+  [...word].forEach((ch, i) => (GLYPHS[ch] || []).forEach((row, ry) => [...row].forEach((b, rx) => { if (b === '1') R(g, x + (i * 6 + rx) * k, y + ry * k, k, k, c); })));
+}
+// La une d'un journal (centrée sur 0, 0 ; 124 × 84) : la photo est aux couleurs de la compagnie.
+function newspaper(g, color, word) {
+  R(g, -59, -39, 124, 84, 'rgba(0,0,0,0.45)');
+  R(g, -62, -42, 124, 84, '#f2eee2');
+  R(g, -58, -38, 116, 9, '#1d1d1d');
+  for (let i = 0; i < 12; i++) R(g, -50 + i * 8.5, -35, 5, 3, '#f2eee2'); // le titre du journal
+  R(g, -58, -28, 116, 1, '#1d1d1d'); R(g, -58, -26, 116, 0.6, '#1d1d1d');
+  const k = 2, w = word.length * 6 * k - k;
+  pixelWord(g, word, -w / 2, -23, k, '#b8322a');
+  // La photo : un dirigeant qui se cache derrière sa mallette, bandeau noir sur les yeux.
+  R(g, -58, -6, 46, 36, '#cfc9ba'); R(g, -58, -6, 46, 5, color);
+  disc(g, -35, 8, 5, '#6e6a62'); R(g, -44, 14, 18, 16, '#4a4842'); R(g, -40, 6, 10, 2, '#111');
+  R(g, -50, 15, 10, 8, '#7a5232'); R(g, -46, 14, 2, 1, '#5a3a22');
+  // Les colonnes de texte.
+  for (let col = 0; col < 2; col++) for (let r = 0; r < 12; r++) {
+    const x = -6 + col * 33, len = r % 5 === 4 ? 18 : 29;
+    R(g, x, -6 + r * 3, len, 1.3, '#7a7468');
+  }
+}
 
 // Silhouette d'un modèle pour les scènes : pétrolier, vraquier ou cargo / porte-conteneurs.
 export function shipKind(type) {
@@ -447,6 +478,28 @@ export const SCENES = {
   },
   // Le banquier : rouge de colère, il tape du poing ; le compte plonge au tableau.
   // Variante « seize » : il abat son tampon sur le dossier du navire saisi.
+  // Scandale : un coup bas éventé. La une d'un journal tournoie comme au cinéma, s'arrête, et les
+  // flashes des photographes crépitent. Le texte sous la scène nomme la compagnie et le prix payé.
+  scandal: {
+    title: 'Scandale !', mood: 'bad', loop: [1.4, 3.4],
+    draw(g, t, o) {
+      R(g, 0, 0, W, H, '#16161c');
+      for (let k = 0; k < 6; k++) { g.globalAlpha = 0.05; disc(g, W / 2, H / 2, 70 - k * 10, '#fff3c8'); } // un projecteur
+      g.globalAlpha = 1;
+      const e = ease(clamp01(t / 1.1));
+      g.save(); g.translate(W / 2, H / 2 + 2); g.rotate((1 - e) * Math.PI * 6); g.scale(0.08 + 0.92 * e, 0.08 + 0.92 * e);
+      newspaper(g, o.color || '#b8322a', getLang() === 'en' ? 'SCANDAL!' : 'SCANDALE!');
+      g.restore();
+      if (t > 1.1) { // les flashes : un éclair blanc de temps en temps, des appareils au premier rang
+        if (hash(Math.floor(t * 8), 77) % 5 === 0) { g.globalAlpha = 0.45; R(g, 0, 0, W, H, '#ffffff'); g.globalAlpha = 1; }
+        for (let i = 0; i < 4; i++) {
+          const ph = (t * 1.6 + i * 0.29) % 1, x = 18 + i * 54;
+          R(g, x - 5, 101, 10, 7, '#2a2a30'); R(g, x - 2, 99, 4, 2, '#2a2a30'); disc(g, x, 104, 2, '#5a6070');
+          if (ph < 0.14) { g.globalAlpha = 1 - ph / 0.14; disc(g, x, 99, 7, '#fffbe6'); g.globalAlpha = 1; }
+        }
+      }
+    },
+  },
   banker: {
     title: 'Votre banquier s\'impatiente', mood: 'bad', loop: [2.4, 4.8],
     draw(g, t, o) {

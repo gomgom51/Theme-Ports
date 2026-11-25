@@ -6,7 +6,7 @@ import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
 import { shipsOf, isIdle, shipById, netWorth, standing, repLimit } from './sim/core.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
-import { h, $, money, toast, dialog, confirmBox } from './ui/dom.js';
+import { h, $, money, toast, dialog, confirmBox, num1 } from './ui/dom.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
@@ -318,6 +318,25 @@ function levelUp(co, from, to) {
   playScene('office', { title: several ? `Un nouveau bureau pour ${co.name} !` : 'Un nouveau bureau !', text: `Niveau ${to + 1}/${n} atteint : ${T.name}. ${T.text}`, color: co.color, variant: { from: img(from), to: img(to), level: to + 1 } });
 }
 
+// Confiance et vertu : quand une note bouge d'un point ou plus (cumulé depuis le dernier affichage),
+// un petit chiffre s'envole au-dessus d'elle, avec un son (hausse ou baisse, confiance ou vertu).
+const standingSeen = new WeakMap();
+function standingFloats(c, trEl, viEl) {
+  const prev = standingSeen.get(c);
+  if (!prev) { standingSeen.set(c, { t: c.confidence, v: c.virtue }); return; }
+  let delay = 0;
+  for (const [k, el, icon, up, down] of [['t', trEl, '🤝', 'trustUp', 'trustDown'], ['v', viEl, '💚', 'virtueUp', 'virtueDown']]) {
+    const d = (k === 't' ? c.confidence : c.virtue) - prev[k];
+    if (Math.abs(d) < 1) continue;
+    prev[k] += d;
+    const r = el.getBoundingClientRect();
+    const f = h('span.float-delta', { class: d > 0 ? 'pos' : 'neg', style: { left: `${Math.round(r.left + r.width / 2)}px`, top: `${Math.round(r.bottom + 6 + (delay / 180) * 24)}px` } }, `${d > 0 ? '+' : '−'}${num1(Math.abs(d))} ${icon}`);
+    document.body.append(f);
+    setTimeout(() => f.remove(), 1700);
+    setTimeout(() => app.audio.play(d > 0 ? up : down), delay);
+    delay += 180;
+  }
+}
 function updateHud() {
   if (app.mode !== 'game') return;
   const s = app.state, c = app.company();
@@ -337,6 +356,7 @@ function updateHud() {
   tr.innerHTML = `<span class="hud-ico" aria-hidden="true">🤝</span>${T}`; vi.innerHTML = `<span class="hud-ico" aria-hidden="true">💚</span>${V}`;
   tr.classList.toggle('low', lim === 'trust'); vi.classList.toggle('low', lim === 'virtue');
   tr.title = 'Confiance : on peut compter sur vous (chargeurs, banques, acheteurs)'; vi.title = 'Vertu : votre image dans la presse';
+  standingFloats(c, tr, vi);
   $('#hud-rep').title = lim === 'virtue' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre vertu la retient.`
     : lim === 'trust' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre confiance la retient.`
     : `Réputation ${R} : confiance et vertu à égalité.`;
@@ -693,7 +713,7 @@ function handleNotes(notes) {
       : incScene && incShip ? [incScene, { variant: shipKind(incShip.type) }]
       : n.kind === 'detention' ? [n.seizure ? 'customs' : 'detention']
       : bigStorm ? ['storm', { variant: n.lost === 'boxes' ? 'boxes' : n.lost ? 'cargo' : null, force: n.force }]
-      : n.kind === 'banker' ? ['banker'] : n.kind === 'bank' ? ['banker', { variant: 'seize', title: 'La banque saisit un navire' }]
+      : n.kind === 'scandal' ? ['scandal'] : n.kind === 'banker' ? ['banker'] : n.kind === 'bank' ? ['banker', { variant: 'seize', title: 'La banque saisit un navire' }]
       : n.newbuild && shipById(app.state, n.shipId) ? ['newbuild', { variant: shipKind(shipById(app.state, n.shipId).type) }] : [null];
     if (scene) playScene(scene, sceneOpts(n, extra));
     const company = n.company != null ? app.state.companies[n.company] : null;
