@@ -12,6 +12,7 @@ import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js
 import { playIntro } from './ui/intro.js';
 import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { AudioManager } from './ui/audio.js';
+import { renderOpps, pruneDismissed, goldenReach } from './ui/opps.js';
 import { guideTick, startGuide, guideMenuLabel, toggleGuide } from './ui/guide.js';
 import { logoBadge } from './ui/logos.js';
 import { flagSVG } from './ui/flags.js';
@@ -296,6 +297,7 @@ function updateHud() {
     ab.hidden = !u.alerts;
     ab.classList.toggle('urgent', u.urgent);
     checkLevels(s);
+    renderOpps(app); // cartes d'opportunité (affaires en or, aide d'urgence)
     app.audio.setMusicTier(musicStep(netWorth(s, c.id), c.level ?? 0));
     updateStandings(s, c.id);
   }
@@ -519,11 +521,24 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'golden') {
-      // Affaire en or dans un port où vous avez un navire : on la signale, sans arrêter le jeu.
+      // Affaire en or qu'un de vos navires peut prendre à temps : on la signale sans arrêter le
+      // jeu ; sa carte reste à l'écran jusqu'à fermeture. Les autres passent inaperçues.
+      const gc = app.state.contracts.find((c) => c.id === n.contractId);
+      if (!gc || !goldenReach(app.state, ctx, n.company, gc).length) continue;
       app.audio.play('cash');
-      toast(prefixOf(n) + n.text, { kind: 'money', timeout: 12000, action: 'Voir', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('ship', n.shipId, 'contrats'); app.focusShip(n.shipId); } });
+      toast(prefixOf(n) + n.text, { kind: 'money', timeout: 9000, action: 'Voir', onAction: () => {
+        if (n.company !== app.ui.activeCompany) switchCompany(n.company);
+        if (n.shipId != null && shipById(app.state, n.shipId)?.port === n.port) { app.open('ship', n.shipId, 'contrats'); app.focusShip(n.shipId); } else if (n.port) app.open('port', n.port);
+      } });
       continue;
     }
+    // Une affaire en or prise par un concurrent : la concurrence se voit.
+    if (n.kind === 'goldenTaken') {
+      const viewer = app.state.companies[app.ui.activeCompany];
+      if (n.by !== app.ui.activeCompany && viewer?.human && viewer.seenOpps?.[`golden:${n.contractId}`] != null) toast(n.text, { kind: 'warn', timeout: 8000 });
+      continue;
+    }
+    if (n.kind === 'aid') { toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
     if (n.kind === 'held') {
       // Retenue abusive : attendre ou payer l'avocat (la fenêtre s'ouvre d'elle-même).
       toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Décider', onAction: () => heldDialog(app, n.shipId) });
@@ -661,6 +676,7 @@ function loop(now) {
 // ---------- Démarrage d'une partie ----------
 function enterGame(state) {
   document.querySelectorAll('.scene-wrap').forEach((w) => w.remove()); // scènes de la partie précédente
+  pruneDismissed(state);
   app.state = state;
   app.mode = 'game';
   app.speed = 0;

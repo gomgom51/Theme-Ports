@@ -262,6 +262,9 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   if (p.error) return fail(p.error);
   const hold = eco.holdFor(ship.type, c.good);
   c.takenBy = ship.id;
+  c.takenAt = state.t; c.takenCo = ship.owner; // pour les cartes d'opportunité (« prise par … »)
+  // Affaire en or prise : les joueurs humains le savent (la concurrence se voit).
+  if (c.golden) (state.queuedNotes ??= []).push({ kind: 'goldenTaken', contractId: c.id, by: ship.owner, text: `${companyOf(state, ship).name} a pris l'affaire en or de ${portName(c.from)} (${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)}).` });
   ship.cargo = { good: c.good, qty: c.qty, hold, contractId: c.id };
   taintShip(state, ship, c.from, c.pay);
   startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, c.qty));

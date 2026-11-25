@@ -23,6 +23,7 @@ import { isEmbargoed, taintActive, TAINT_DAYS } from '../sim/shady.js';
 import * as crew from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
 import { darkLines, seizedDialog } from './dark.js';
+import { routeChip } from './route.js';
 import { grudgeAt } from '../sim/dark.js';
 import { repCap } from '../sim/core.js';
 
@@ -59,10 +60,20 @@ export function shipStatusText(state, ctx, ship) {
   const v = ship.voyage;
   if (v.waitCanal) return `Bloqué devant le ${CANAL_NAMES[v.waitCanal]} (cap sur ${portName(v.to)})`;
   if (v.stalledUntil > state.t) return `Avarie en mer, réparation en cours (cap sur ${portName(v.to)})`;
-  return `En mer vers ${portName(v.to)} — arrivée prévue le ${date(etaOf(state, ctx, ship), true)}`;
+  return 'En mer'; // la destination et l'arrivée s'affichent à part, bien en vue (shipRoute)
 }
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// Destination, arrivée et date limite du contrat d'un navire (en mer, ou départ programmé).
+export function shipRoute(state, ctx, ship, compact = false) {
+  const contract = ship.cargo?.contractId ? contractById(state, ship.cargo.contractId) : null;
+  if (ship.status === 'sea') {
+    const eta = etaOf(state, ctx, ship);
+    return routeChip(ship.voyage.to, { eta, deadline: contract?.deadline ?? null, late: !!contract && eta > contract.deadline, compact });
+  }
+  if (ship.plan) return routeChip(ship.plan.to, { deadline: contract?.deadline ?? null, compact });
+  return null;
+}
 export function etaOf(state, ctx, ship) {
   const route = ctx.shipRoute(ship);
   if (!route) return state.t;
@@ -125,6 +136,7 @@ export function shipPanel(app, id, tab) {
       stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).map((id) => EQUIPMENT[id].icon).join(' ') : 'aucun'),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
+    shipRoute(state, ctx, ship), // destination et dates bien en vue
     mine ? portServicesLink(app, ship) : null, // services du port (la zone, l'informateur) : un clic mène à la fiche du port
     mine ? h('div.risk-box', [...riskLines(state, ship, { route: ship.status === 'sea' ? ctx.shipRoute(ship) : null }), ...shadyLines(state, ship, ship.status === 'sea' ? ship.voyage.to : null),
       ship.contraband ? h('div.risk-line', `📦 Colis discret à bord pour ${portName(ship.contraband.to)} : ${money(ship.contraband.pay)} à la livraison, avant le ${date(ship.contraband.deadline, true)}.`) : null,
@@ -212,7 +224,8 @@ function contractsBase(app, ship) {
     return h('div.card.contract', { class: (why ? 'disabled ' : '') + (c.golden ? 'golden' : ''), onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la réputation.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to)]),
-        h('div.card-sub', `→ ${portName(c.to)} · ${num(c.nm)} milles · avant le ${date(c.deadline, true)} (${days(daysLeft)})`),
+        routeChip(c.to, { eta: est && !est.why ? state.t + est.totalDays * 24 : null, estimate: true, deadline: c.deadline, late: lateRisk }),
+        h('div.card-sub.muted', `${num(c.nm)} milles · délai ${days(daysLeft)}`),
         ...(isSeasonal(c.to) || est?.canals?.includes('nsr') ? iceLines(state, ship, c.to, est && !est.why ? est : null) : []),
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(state, company, c.client)]) : null,
         c.charity ? h('div.card-sub', [`❤ ${c.charity.name} : aide d'urgence, payée à prix coûtant partiel. Réputation +${c.charity.rep} si elle arrive à l'heure.`, repCap(company) < 100 ? ` Plafond de votre réputation : ${repCap(company)}.` : null]) : null,
@@ -591,8 +604,9 @@ function departTab(app, ship) {
     box.append(h('div.card.highlight', [
       h('div.card-main', [
         h('div.card-title', `Cap sur ${portName(dest)}`),
+        est.error ? null : routeChip(dest, { eta: est.eta, deadline: contract?.deadline ?? null, late: !!contract && est.eta > contract.deadline }),
         est.error ? h('div.card-why', est.error) : h('div.card-sub', [
-          `${num(est.nm)} milles · ${days(est.seaDays)} de mer · arrivée le ${date(est.eta, true)}`,
+          `${num(est.nm)} milles · ${days(est.seaDays)} de mer`,
           h('br'),
           `Fuel nécessaire ${num(est.needFuel)} t (à bord ${num(ship.fuel)} t${toBuy > 1 ? `, à acheter ≈ ${num(toBuy)} t pour ${money(toBuy * eco.fuelPrice(state, ship.port))}` : ''})`,
           h('br'),
@@ -631,9 +645,13 @@ function departTab(app, ship) {
     const need = eco.burnPerDay(T, speed, eco.ageYears(state, ship)) * seaDays * 1.08;
     if (!why && need > T.tank) why = 'autonomie insuffisante';
     const exp = Object.keys(PORTS[p].exp).filter((g) => eco.holdFor(ship.type, g)).length;
-    const contracts = state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good)).length;
+    const here = state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good));
+    const contracts = here.length;
+    // Ceux que ce navire pourrait prendre (capacité, tirant d'eau, vitesse, terminaux) : les autres
+    // restent affichés, ils donnent envie d'un autre navire.
+    const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
     const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
-    return { p, nm, seaDays, why, contracts, exp, ice, nsr: info?.canals?.includes('nsr') };
+    return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr') };
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);
   box.append(h('div.list.compact', rows.map((r) => h('button.row.selectable', {
     class: (r.p === dest ? 'selected ' : '') + (r.why ? 'disabled' : ''),
@@ -650,7 +668,7 @@ function departTab(app, ship) {
     !r.why && r.nsr ? h('span.tag', { title: 'Route par le passage du Nord-Est, ouvert l\'été.' }, '🧊 Nord-Est') : null,
     grudgeAt(state, company, r.p) ? h('span.tag.bad', { title: 'Un gang de ce port en veut à votre compagnie : risque de saisie à l\'escale.' }, '⚠ gang') : null,
     ship.dark?.to === r.p ? h('span.tag.bad', 'livraison noire') : null,
-    !r.why && r.contracts ? h('span.tag', `${r.contracts} contrat${r.contracts > 1 ? 's' : ''}`) : null,
+    !r.why && r.contracts ? h('span.tag', { class: r.fit ? 'good' : '' }, [h('span', r.contracts > 1 ? `${r.contracts} contrats` : `${r.contracts} contrat`), r.fit ? ' · ' : null, r.fit ? h('span', `${r.fit} pour ce navire`) : null]) : null,
   ]))));
   return box;
 }

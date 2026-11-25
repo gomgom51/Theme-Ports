@@ -9,7 +9,7 @@ import {
 } from '../sim/core.js';
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
-import { shipStatusText } from './panel-ship.js';
+import { shipStatusText, shipRoute } from './panel-ship.js';
 import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog } from './dom.js';
 import { shipSVG, artForShip, SHIP_ART } from './shipart.js';
 import { shipStats, radarSVG, AXES } from './radar.js';
@@ -89,7 +89,7 @@ export function fleetPanel(app) {
       const T = SHIP_TYPES[s.type];
       return h('button.row.selectable.with-thumb', { onclick: () => { app.open('ship', s.id); app.focusShip(s.id); } }, [
         h('span.thumb', { html: artForShip(state, s, { sky: false }) }),
-        h('span.grow', [h('b', s.name), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s))]),
+        h('span.grow', [h('b', s.name), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s)), shipRoute(state, ctx, s, true)]),
         h('span.mini', [h('span.muted.small', 'état'), bar(s.condition / 100, { good: 0.7, warn: 0.45 })]),
         h('span.mini', [h('span.muted.small', 'fuel'), bar(s.fuel / T.tank, { good: 0.4, warn: 0.15 })]),
       ]);

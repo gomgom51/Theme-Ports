@@ -6,7 +6,7 @@ import { SHIP_TYPES, CREW_DAY_COST, CREW_LEVELS } from '../data/ships.js';
 import { CLIENTS } from '../data/clients.js';
 import { clientRel, clientDown, clientDemand, reserveFor, RESERVE_DAYS, RESERVE_BONUS } from './clients.js';
 import { EMBARGOED } from '../data/sanctions.js';
-import { clamp, HOURS_PER_DAY } from './util.js';
+import { clamp, HOURS_PER_DAY, formatDate } from './util.js';
 import { isSeasonal, iceOpen, iceRisk, ICE, ICE_SHIP } from './ice.js';
 
 export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffinés est à 1
@@ -407,12 +407,13 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
 }
 
 export const GOLDEN_CHANCE = 0.03;
-// Une affaire en or s'annonce aux compagnies (humaines) qui ont un navire dans ce port.
+// Une affaire en or s'annonce à toutes les compagnies humaines, avec sa date limite : on peut y
+// envoyer un navire d'ailleurs, à condition d'arriver avant qu'elle expire ou qu'un autre la prenne.
 function announceGolden(state, c) {
   for (const co of state.companies) {
     if (!co.human || co.bankrupt) continue;
     const ship = state.ships.find((s) => s.owner === co.id && s.status === 'port' && s.port === c.from);
-    if (ship) (state.queuedNotes ??= []).push({ kind: 'golden', company: co.id, shipId: ship.id, text: `Affaire en or à ${PORTS[c.from].name} : ${Math.round(c.pay / 1000).toLocaleString('fr-FR')} k$ pour ${c.qty.toLocaleString('fr-FR')} t vers ${PORTS[c.to].name}. L'offre ne durera pas.` });
+    (state.queuedNotes ??= []).push({ kind: 'golden', company: co.id, shipId: ship?.id ?? null, contractId: c.id, port: c.from, text: `Affaire en or à ${PORTS[c.from].name} : ${Math.round(c.pay / 1000).toLocaleString('fr-FR')} k$ pour ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} vers ${PORTS[c.to].name}. Offre valable jusqu'au ${formatDate(c.expires, true)}.` });
   }
 }
 export function refreshContracts(state, ctx, rng, fill = false) {
@@ -432,7 +433,7 @@ export function refreshContracts(state, ctx, rng, fill = false) {
       for (let k = 0; k < target - open; k++) {
         if (!fill && k > 0 && !rng.chance(0.6)) break;
         const c = makeContract(state, ctx, rng, p, null, { regional: kind === 'regional', big: kind === 'big' });
-        if (c) { state.contracts.push(c); if (c.golden && !fill) announceGolden(state, c); }
+        if (c) { if (c.golden && !fill) c.announced = true; state.contracts.push(c); if (c.announced) announceGolden(state, c); }
       }
     }
   }

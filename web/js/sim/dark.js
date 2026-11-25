@@ -281,7 +281,7 @@ function charityContract(state, ctx, rng, to, charity) {
       id: state.nextId++, from, to, good, qty, hold: eco.holdFor(typeId, good),
       pay: Math.round((est.total * CHARITY.payShare) / 1000) * 1000, urgent: true, minRep: 0, client: null,
       regional: false, big: false, minSpeed: 0, embargo: false, ice: false, golden: false, clientRep: 0,
-      reservedFor: null, reservedUntil: 0, charity: { name: charity, rep: CHARITY.rep },
+      reservedFor: null, reservedUntil: 0, charity: { name: charity, rep: CHARITY.rep, t: state.t },
       fuelAtStart: Math.round(eco.worldFuelPrice(state)), priceAtStart: state.market.world[good],
       nm: Math.round(info.nm), deadline: Math.round(state.t + (est.days * 1.15 + 3) * D),
       expires: Math.round(state.t + CHARITY.expires * D), takenBy: null,
@@ -289,14 +289,22 @@ function charityContract(state, ctx, rng, to, charity) {
   }
   return null;
 }
-function disaster(state, ctx, rng, port, cause) {
+export function disaster(state, ctx, rng, port, cause) {
   state.disasters ??= {};
   if (state.t - (state.disasters[port] ?? -1e9) < CHARITY.cooldown * D) return;
   state.disasters[port] = state.t;
   const charity = rng.pick(CHARITIES);
   let n = 0;
   for (let i = 0; i < rng.int(2, 3); i++) { const c = charityContract(state, ctx, rng, port, charity); if (c) { state.contracts.push(c); n++; } }
-  if (n) news(state, `${cause} à ${portName(port)} : ${charity} cherche des navires pour l'aide d'urgence (contrats à prix coûtant, partiels).`, { kind: 'event' });
+  if (!n) return;
+  // L'aide part d'autres ports que le port sinistré : on dit lesquels, et jusqu'à quand.
+  const aid = state.contracts.filter((c) => c.charity?.t === state.t && c.to === port);
+  const froms = [...new Set(aid.map((c) => c.from))];
+  const until = Math.max(...aid.map((c) => c.expires));
+  news(state, `${cause} à ${portName(port)} : ${charity} cherche des navires pour l'aide d'urgence, au départ de ${froms.map(portName).join(', ')}, jusqu'au ${formatDate(until, true)} (contrats à prix coûtant, partiels).`, { kind: 'event' });
+  for (const co of state.companies) {
+    if (co.human && !co.bankrupt) (state.queuedNotes ??= []).push({ kind: 'aid', company: co.id, port, froms, until, text: `${cause} à ${portName(port)} : ${charity} cherche des navires au départ de ${froms.map(portName).join(', ')}, jusqu'au ${formatDate(until, true)}.` });
+  }
 }
 // Une fois par jour : conséquences dans les nouvelles, catastrophes et contrats d'aide.
 export function darkDaily(state, ctx, rng, notes) {
