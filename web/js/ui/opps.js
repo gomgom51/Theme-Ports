@@ -57,6 +57,13 @@ export function opportunities(state, ctx, cid) {
     aid.get(key).list.push(c);
   }
   out.push(...aid.values());
+  // Pistes de démarchage : un contrat réservé dans un port (souvent proche), le temps d'y aller.
+  for (const c of state.contracts) {
+    if (!c.prospect || c.reservedFor !== cid || c.takenBy !== null || !(c.reservedUntil > state.t)) continue;
+    const key = `lead:${c.id}`;
+    if (dismissed[key] != null) continue;
+    out.push({ key, kind: 'lead', c, open: true });
+  }
   // Appels d'offres des villes : tous (ils sont rares), et quelques jours encore une fois complets.
   for (const t of state.tenders || []) {
     const key = `tender:${t.id}`;
@@ -121,6 +128,26 @@ function aidCard(app, o) {
   ];
 }
 
+function leadCard(app, o) {
+  const { state } = app;
+  const c = o.c, G = GOODS[c.good];
+  const ship = c.prospectShip != null ? state.ships.find((s) => s.id === c.prospectShip && s.owner === app.ui.activeCompany) : null;
+  const here = ship && ship.status === 'port' && ship.port === c.from;
+  const go = () => {
+    if (here) app.open('ship', ship.id, 'contrats');
+    else if (ship && ship.status === 'port') { app.form.dest[ship.id] = c.from; app.open('ship', ship.id, 'depart'); }
+    else app.open('port', c.from);
+    if (ship) app.focusShip(ship.id); else app.map.centerOn(PORTS[c.from].lon, PORTS[c.from].lat, Math.max(app.map.view.scale, 4));
+  };
+  return [
+    h('div.opp-head', [h('span.opp-icon', '📋'), h('b', `Piste de démarchage à ${portName(c.from)}`)]),
+    h('div.opp-body', [h('span', `${G.icon} ${G.name}`), ` · ${tonnes(c.qty)} → `, h('b', portName(c.to)), ' · ', h('b.pos', money(c.pay))]),
+    ship ? h('div.opp-ships', [h('span', 'Réservée pour le'), ' ', h('b', { 'data-no-tr': '' }, ship.name), here ? h('span', ' (sur place)') : null]) : null,
+    untilLine(state, c.reservedUntil),
+    h('div.opp-actions', [h('button.btn.small', { onclick: go }, here ? 'Voir le contrat' : ship && ship.status === 'port' ? 'Y aller' : 'Voir le port')]),
+  ];
+}
+
 function tenderCard(app, o) {
   const { state } = app;
   const t = o.t, G = GOODS[t.good], cid = app.ui.activeCompany;
@@ -169,7 +196,7 @@ export function renderOpps(app) {
     h('button.opps-toggle', { type: 'button', 'aria-expanded': collapsed ? 'false' : 'true', onclick: toggle }, [h('span', `Opportunités (${list.length})`), ' ', h('span', collapsed ? '▴' : '▾')]),
     ...(collapsed ? [] : list.map((o) => h('div.opp', { class: `${o.kind}${o.open === false ? ' gone' : ''}` }, [
       h('button.opp-close', { type: 'button', 'aria-label': 'Fermer', title: 'Fermer', onclick: () => dismiss(o.key) }, '×'),
-      ...(o.kind === 'golden' ? goldenCard(app, o) : o.kind === 'tender' ? tenderCard(app, o) : aidCard(app, o)),
+      ...(o.kind === 'golden' ? goldenCard(app, o) : o.kind === 'tender' ? tenderCard(app, o) : o.kind === 'lead' ? leadCard(app, o) : aidCard(app, o)),
     ]))),
   );
 }

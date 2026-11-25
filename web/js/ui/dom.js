@@ -151,3 +151,20 @@ export function lineChart(series, { width = 520, height = 180, yFormat = (v) => 
   }
   return svg;
 }
+
+// Champ de recherche : quelques lettres filtrent les lignes marquées data-search (sans accents ni
+// majuscules). Le texte tapé est gardé (app.form) et le curseur survit aux rafraîchissements du panneau.
+const norm = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export function searchBox(form, key, placeholder = 'Rechercher un port…') {
+  const input = h('input.input.search-box', { type: 'search', placeholder, value: form[key] || '', 'data-focus-key': key, 'aria-label': placeholder, autocomplete: 'off' });
+  let scope = null;
+  const apply = () => {
+    form[key] = input.value;
+    const q = norm(input.value.trim());
+    for (const el of (scope || document).querySelectorAll('[data-search]')) el.hidden = !!q && !norm(el.dataset.search).includes(q);
+  };
+  input.addEventListener('input', apply);
+  // à appeler une fois les lignes en place (scope : le conteneur des lignes)
+  return { input, apply: (container) => { scope = container; apply(); } };
+}
+

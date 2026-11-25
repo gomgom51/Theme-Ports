@@ -10,6 +10,8 @@ tic-tac.mp3 tic-tac quand le temps repart, accéléré selon la vitesse (3 premi
             « clock ticking sound effect », Pixabay : utilisation libre), fourni par l'auteur du jeu
 tasse-vide.mp3  pas de quoi payer le plein d'un navire (« empty cup », freesound_community,
             Pixabay : utilisation libre), fourni par l'auteur du jeu
+vertu-plus.mp3 / vertu-moins.mp3  la vertu monte / baisse (« harp transition music cue »,
+            freesound_community, Pixabay : utilisation libre, coupé en deux), fourni par l'auteur du jeu
 
 Les autres bruitages (mer, mouettes, caisses, corne…) sont synthétisés par le jeu.
 Si un fichier manque, le jeu utilise sa version synthétisée.
@@ -87,8 +89,9 @@ vos propres sons, déposer ces fichiers puis les ajouter à SAMPLES dans web/js/
 
   confiance-plus.mp3    la confiance monte   (0,2 à 0,6 s, net et chaleureux)
   confiance-moins.mp3   la confiance baisse  (0,2 à 0,6 s, sourd, sans être alarmant)
-  vertu-plus.mp3        la vertu monte       (0,3 à 0,8 s, léger et lumineux)
-  vertu-moins.mp3       la vertu baisse      (0,3 à 0,8 s, « gênant » plutôt que dramatique)
+  vertu-plus.mp3        la vertu monte       (fourni : harpe qui monte, 3,3 s)
+  vertu-moins.mp3       la vertu baisse      (fourni : harpe qui retombe, 4,2 s)
+  (les deux viennent d'un même effet de harpe, « harp transition music cue », coupé en deux)
 
 Scène du scandale (facultatif) : scene-scandal.mp3 (rotatives, flashes, brouhaha), puis ajouter
 « scandal » à SCENE_SOUNDS dans web/js/ui/audio.js.

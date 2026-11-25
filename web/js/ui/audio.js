@@ -40,7 +40,11 @@ const TRACKS = {
 const MOOD_FALLBACK = { blacklistb: 'blacklist' };
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
-const SAMPLES = { fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3', nofuel: 'sons/tasse-vide.mp3' };
+const SAMPLES = {
+  fuel: 'sons/pompe.mp3', cash: 'sons/caisse.mp3', bell: 'sons/cloche.mp3', tick: 'sons/tic-tac.mp3', nofuel: 'sons/tasse-vide.mp3',
+  // Vertu : harpe qui monte / qui retombe (la confiance garde sa synthèse tant qu'il n'y a pas de fichier).
+  virtueUp: 'sons/vertu-plus.mp3', virtueDown: 'sons/vertu-moins.mp3',
+};
 // Corne de départ : un son par famille de navires (même fonction), joué plus grave pour un
 // gros navire et plus aigu pour un petit (hauteur selon le port en lourd, par rapport au navire
 // de référence de la famille), et chaque navire garde sa nuance (± 3 %).
@@ -298,7 +302,7 @@ export class AudioManager {
       if (!this.playSample('cash', { gain: 0.8 })) S.cashRegister(c, out, t, { gain: 0.42 });
     } else if (name === 'trustUp' || name === 'trustDown' || name === 'virtueUp' || name === 'virtueDown') {
       // Confiance et vertu : fichiers facultatifs (sons/confiance-plus.mp3… à ajouter dans SAMPLES), sinon synthèse.
-      if (!this.playSample(name, { gain: 0.6, fadeOut: 0.1 })) S.standingCue(c, out, t, { kind: name.startsWith('trust') ? 'trust' : 'virtue', up: name.endsWith('Up') });
+      if (!this.playSample(name, { gain: name.startsWith('virtue') ? 0.5 : 0.6, fadeOut: 0.3 })) S.standingCue(c, out, t, { kind: name.startsWith('trust') ? 'trust' : 'virtue', up: name.endsWith('Up') });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     }

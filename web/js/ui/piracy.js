@@ -12,10 +12,11 @@ const pctTxt = (p) => `${Math.round(p * 100)} %`;
 export function piracyLine(ship, route, speed, state = null) {
   const r = piracyRisk(ship, route, speed, state);
   if (!r) return null;
-  const names = r.zones.map((x) => `${x.zone.name} (piraterie ${x.zone.level})`).join(', ');
+  // Une zone par morceau de texte : la traduction anglaise les reconnaît une à une.
+  const names = r.zones.flatMap((x, i) => [i ? ', ' : null, h('span', `${x.zone.name} (piraterie ${x.zone.level})`)]);
   const cls = r.attack * (1 - r.repel) > 0.05 ? 'neg' : r.attack > 0.03 ? 'warn-text' : '';
   const equip = (ship.equipment || []).filter((id) => EQUIPMENT[id].defence || EQUIPMENT[id].citadel).map((id) => EQUIPMENT[id].icon).join(' ');
-  return h(`div.risk-line${cls ? '.' + cls : ''}`, `☠ Votre route traverse : ${names}. Risque d'attaque ≈ ${pctTxt(r.attack)}. Défense ${Math.round(defence(ship) * 10) / 10}${equip ? ` (${equip})` : ''} : chance de repousser une attaque ordinaire ${pctTxt(r.repel)}, les plus dangereuses ${pctTxt(r.repelWorst)}. Sans citadelle, un navire abordé est détourné contre rançon. Ralentir allonge le passage ; aller vite aide à semer les pirates.${r.targeted ? ' ⚠ Des pirates seraient payés pour viser vos navires sur cette route : le risque affiché en tient compte.' : ''}`);
+  return h(`div.risk-line${cls ? '.' + cls : ''}`, [h('span', '☠ Votre route traverse :'), ' ', ...names, '. ', h('span', `Risque d'attaque ≈ ${pctTxt(r.attack)}. Défense ${Math.round(defence(ship) * 10) / 10}${equip ? ` (${equip})` : ''} : chance de repousser une attaque ordinaire ${pctTxt(r.repel)}, les plus dangereuses ${pctTxt(r.repelWorst)}. Sans citadelle, un navire abordé est détourné contre rançon. Ralentir allonge le passage ; aller vite aide à semer les pirates.${r.targeted ? ' ⚠ Des pirates seraient payés pour viser vos navires sur cette route : le risque affiché en tient compte.' : ''}`)]);
 }
 
 // Rapport de combat (auto battler) : défense, assaillants, phases, résultat.

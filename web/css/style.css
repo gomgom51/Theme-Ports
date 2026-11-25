@@ -807,6 +807,8 @@ select.input { width: auto; max-width: 100%; }
 .deed-card .grow, .trophy-card .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .deed-card.got { background: #fbf4dd; border-color: #e0c17a; }
 .deed-card.impossible { opacity: 0.55; }
+/* Recherche de ports. */
+.search-box { width: 100%; margin: 6px 0 8px; }
 /* Capitaine (onglet Équipage). */
 .captain-line { margin: 4px 0 8px; }
 .captain-card { margin-bottom: 10px; }

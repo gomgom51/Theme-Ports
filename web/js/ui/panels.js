@@ -1,4 +1,5 @@
 // Panneaux : flotte, port, courtier, bureau, marchés, journal, aide.
+import { tr } from '../i18n.js';
 import { codexPanel } from './codex.js';
 import { standingDetail } from './standing.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
@@ -13,7 +14,7 @@ import {
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
 import { shipStatusText, shipRoute } from './panel-ship.js';
-import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog } from './dom.js';
+import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog, searchBox } from './dom.js';
 import { shipSVG, artForShip, SHIP_ART } from './shipart.js';
 import { shipStats, radarSVG, AXES } from './radar.js';
 import { LOGO_IDS, logoBadge } from './logos.js';
@@ -575,19 +576,26 @@ function indicesTab(app) {
   return box;
 }
 
+// Texte de recherche d'un port : son nom (français et traduit) et son pays.
+export function searchText(p) {
+  const name = portName(p), country = FLAGS[PORTS[p].flag]?.name || '';
+  return `${name} ${tr(name)} ${country} ${tr(country)}`;
+}
 function goodsTab(app) {
   const { state } = app;
   const g = app.form.good || 'cereales';
   const G = GOODS[g];
   const box = h('div');
   box.append(h('div.chips', GOOD_IDS.map((id) => h('button.chip', { class: id === g ? 'active' : '', onclick: () => { app.form.good = id; app.refresh(); } }, `${GOODS[id].icon} ${GOODS[id].name}`))));
-  box.append(h('p', [`Cours mondial : `, h('b', `${money(G.price * state.market.world[g])}/t`), ` · transport : ${G.holds.map((x) => HOLDS[x].toLowerCase()).join(' ou ')}`]));
+  box.append(h('p', [h('span', 'Cours mondial :'), ' ', h('b', `${money(G.price * state.market.world[g])}/t`), ' · ', h('span', 'transport :'), ' ', ...G.holds.flatMap((x, i) => [i ? ' ' : null, i ? h('span', 'ou') : null, i ? ' ' : null, h('span', HOLDS[x])])]));
+  const search = searchBox(app.form, 'marketSearch');
+  box.append(search.input);
   const rows = PORT_IDS.map((p) => ({ p, role: eco.role(p, g), exp: eco.exportsGood(p, g), buy: eco.buyPrice(state, p, g), sell: eco.sellPrice(state, p, g), stock: eco.availableStock(state, p, g) }))
     .filter((r) => r.exp || (PORTS[r.p].imp[g] > 0))
     .sort((a, b) => a.buy - b.buy);
   box.append(h('table.table', [
     h('thead', h('tr', [h('th', 'Port'), h('th', 'Rôle'), h('th', 'Achat'), h('th', 'Vente'), h('th', 'Stock')])),
-    h('tbody', rows.map((r) => h('tr', [
+    h('tbody', rows.map((r) => h('tr', { 'data-search': searchText(r.p) }, [
       h('td', portName(r.p)),
       h('td', r.exp ? h('span.tag.good', 'exporte') : h('span.tag', 'importe')),
       h('td', r.exp ? `${money(r.buy)}` : '—'),
@@ -596,6 +604,7 @@ function goodsTab(app) {
     ]))),
   ]));
   box.append(h('p.hint', 'On ne peut acheter que dans les ports exportateurs. Vendre en masse fait baisser le prix local, acheter beaucoup le fait monter : les marchés se reconstituent en quelques semaines.'));
+  search.apply(box);
   return box;
 }
 

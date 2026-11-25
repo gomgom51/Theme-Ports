@@ -30,6 +30,9 @@ const C = {
   port: '#c4362c', portHl: '#0f6f76', ocean: 'rgba(30,58,85,0.5)', country: 'rgba(110,92,60,0.55)',
 };
 
+// Tempêtes tournantes des tropiques : dessinées avec un œil.
+const TROPICAL = new Set(['Ouragan', 'Typhon', 'Cyclone']);
+
 // Noms des océans et des mers, en italique comme sur une carte marine.
 const SEAS = [
   ['Océan Atlantique', -38, 30, 0], ['Océan Atlantique', -18, -24, 0], ['Océan Pacifique', -145, 12, 0],
@@ -590,28 +593,13 @@ export class MapView {
       g.fill();
     }
 
-    // Tempêtes.
+    // Tempêtes : vues du ciel, elles tournent doucement (même à l'arrêt, pour l'œil).
+    const spin = performance.now() / 1000;
     for (const s of state.storms) {
       const [x, y] = this.toScreen(s.lon, s.lat);
       const r = Math.max(10, s.radius * kmToPx);
       if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
-      const hue = s.force >= 11 ? '214,58,50' : s.force >= 9 ? '230,126,20' : '214,170,30';
-      const rg = g.createRadialGradient(x, y, 0, x, y, r);
-      rg.addColorStop(0, `rgba(${hue},0.42)`);
-      rg.addColorStop(0.6, `rgba(${hue},0.18)`);
-      rg.addColorStop(1, `rgba(${hue},0)`);
-      g.fillStyle = rg;
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-      // Spirale stylisée.
-      g.strokeStyle = `rgba(${hue},0.55)`;
-      g.lineWidth = 1.5;
-      const rot = (state.t / 6) % (Math.PI * 2) * (s.lat >= 0 ? -1 : 1);
-      for (let k = 0; k < 3; k++) {
-        g.beginPath();
-        g.arc(x, y, r * 0.55, rot + (k * Math.PI * 2) / 3, rot + (k * Math.PI * 2) / 3 + 1.2);
-        g.stroke();
-      }
-      this.badge(g, x, y, String(s.force), `rgb(${hue})`);
+      this.drawStorm(g, x, y, r, s, spin);
     }
 
     // Épaves.
@@ -856,6 +844,89 @@ export class MapView {
     else if (S.icon === 'cycle') { g.beginPath(); g.arc(0, 0, 2.8, Math.PI * 0.2, Math.PI * 1.75); g.stroke(); g.beginPath(); g.moveTo(2.8, -2.6); g.lineTo(2.2, 0.2); g.lineTo(-0.3, -1.2); g.stroke(); }
     else if (S.icon === 'zzz') { g.font = '800 8px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('z', 0, 0.5); }
     g.restore();
+  }
+
+  // Tempête : bandes nuageuses en spirale autour du centre (sens inverse des aiguilles d'une montre
+  // au nord, dans le sens au sud), œil et mur de l'œil pour les cyclones tropicaux, halo teinté selon
+  // la force (jaune 7-8, orange 9-10, rouge 11-12). Petite à l'écran : le symbole météo du cyclone.
+  drawStorm(g, x, y, r, s, now) {
+    const TAU = Math.PI * 2;
+    const hue = s.force >= 11 ? '214,58,50' : s.force >= 9 ? '230,126,20' : '214,170,30';
+    const tropical = TROPICAL.has(s.name);
+    const dir = s.lat >= 0 ? -1 : 1;
+    const rot = dir * now * (tropical ? 0.45 : 0.25) + (s.lon * 7.3 % TAU);
+    const rg = g.createRadialGradient(x, y, 0, x, y, r * 1.1);
+    rg.addColorStop(0, `rgba(${hue},0.36)`);
+    rg.addColorStop(0.55, `rgba(${hue},0.16)`);
+    rg.addColorStop(1, `rgba(${hue},0)`);
+    g.fillStyle = rg;
+    g.beginPath(); g.arc(x, y, r * 1.1, 0, TAU); g.fill();
+
+    if (r < 22) {
+      // Symbole : deux crochets autour d'un rond (cyclone), ou deux arcs (tempête).
+      g.save();
+      g.strokeStyle = `rgb(${hue})`; g.lineCap = 'round';
+      g.lineWidth = tropical ? 2.6 : 1.8;
+      for (let k = 0; k < 2; k++) {
+        g.beginPath();
+        for (let i = 0; i <= 10; i++) {
+          const u = i / 10, rho = 7 + u * (tropical ? 8 : 6), th = rot + k * Math.PI - dir * u * 1.7;
+          const px = x + rho * Math.cos(th), py = y + rho * Math.sin(th);
+          if (i) g.lineTo(px, py); else g.moveTo(px, py);
+        }
+        g.stroke();
+      }
+      g.restore();
+      this.badge(g, x, y, String(s.force), `rgb(${hue})`);
+      return;
+    }
+
+    // Bandes nuageuses : des chapelets de nuages ronds le long de spirales, ombrés pour le relief.
+    const arms = tropical ? 4 : 2, sweep = tropical ? 2.7 : 3.3;
+    const r0 = r * (tropical ? 0.17 : 0.08);
+    const n = Math.max(10, Math.min(40, Math.round(r / 2.2)));
+    const puffs = (dx, dy, grow) => {
+      g.beginPath();
+      for (let k = 0; k < arms; k++) {
+        const len = tropical ? 1 : k ? 0.55 : 1; // dépression : une longue virgule et un bras court
+        for (let i = 0; i < n * len; i++) {
+          const u = i / (n - 1);
+          const rho = r0 + u * (r * 0.95 - r0);
+          const th = rot + (k * TAU) / arms - dir * u * sweep;
+          const size = Math.max(0.6, grow + r * (tropical ? 0.16 : 0.14) * (1 - 0.72 * u) * (0.82 + 0.18 * Math.sin(i * 2.3 + k * 1.9)));
+          const px = x + rho * Math.cos(th) + dx, py = y + rho * Math.sin(th) + dy;
+          g.moveTo(px + size, py); g.arc(px, py, size, 0, TAU);
+        }
+      }
+    };
+    const off = Math.max(1.5, r * 0.035);
+    puffs(off, off * 1.3, 0); g.fillStyle = 'rgba(28,50,70,0.2)'; g.fill();
+    puffs(0, 0, 0); g.fillStyle = 'rgba(255,255,255,0.8)'; g.fill();
+    puffs(-off * 0.4, -off * 0.5, -Math.max(1, r * 0.03)); g.fillStyle = 'rgba(255,255,255,0.75)'; g.fill();
+
+    // Masse nuageuse centrale.
+    const core = r * (tropical ? 0.32 : 0.2);
+    const cg = g.createRadialGradient(x, y, 0, x, y, core);
+    cg.addColorStop(0, 'rgba(255,255,255,0.98)');
+    cg.addColorStop(0.7, 'rgba(255,255,255,0.9)');
+    cg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = cg;
+    g.beginPath(); g.arc(x, y, core, 0, TAU); g.fill();
+
+    if (tropical) {
+      // L'œil : la mer à nu, cerclée d'un mur de nuages, liseré à la couleur de la force.
+      const eye = Math.max(2.5, r * 0.07);
+      g.fillStyle = '#6f97ad';
+      g.beginPath(); g.arc(x, y, eye, 0, TAU); g.fill();
+      g.strokeStyle = `rgba(${hue},0.95)`; g.lineWidth = Math.max(1.2, r * 0.018);
+      g.stroke();
+      g.strokeStyle = 'rgba(28,50,70,0.25)'; g.lineWidth = 1;
+      g.beginPath(); g.arc(x + 0.6, y + 0.8, eye + Math.max(1.5, r * 0.03), 0, TAU); g.stroke();
+    }
+
+    // Force (et nom quand la place le permet), sous le centre pour laisser voir l'œil.
+    const text = r >= 46 ? `${tr(s.name)} · ${s.force}` : String(s.force);
+    this.badge(g, x, y + Math.min(r * 0.6, core + 16), text, `rgb(${hue})`);
   }
 
   badge(g, x, y, text, color, size = 11) {

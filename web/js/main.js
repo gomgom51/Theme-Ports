@@ -182,6 +182,8 @@ function renderPanel() {
   if (tabs && !tabs.some((t) => t[0] === tabId)) tabId = tabs[0][0];
   p.shownTab = tabId; // pour revenir sur le même onglet
   const key = `${p.type}:${p.id}:${tabId}`;
+  // Champ en cours de saisie (recherche) : on le retrouve après le rafraîchissement, curseur compris.
+  const typing = document.activeElement?.closest?.('#panel') && document.activeElement.dataset?.focusKey ? { k: document.activeElement.dataset.focusKey, a: document.activeElement.selectionStart, b: document.activeElement.selectionEnd } : null;
   const oldBody = panelEl.querySelector('.panel-body');
   if (oldBody && panelEl.dataset.key) scrollMemory.set(panelEl.dataset.key, oldBody.scrollTop);
 
@@ -209,6 +211,7 @@ function renderPanel() {
   panelEl.hidden = false;
   document.body.classList.add('panel-open');
   if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
+  if (typing) { const el = body.querySelector(`[data-focus-key="${typing.k}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(typing.a, typing.b); } catch { /* champ sans sélection */ } } }
   // Section demandée (ex. « La zone » depuis la fiche d'un navire) : on y va, elle s'illumine.
   // Plusieurs classes : on défile jusqu'à la première trouvée, toutes s'illuminent.
   if (p.focus) {

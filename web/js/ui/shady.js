@@ -3,7 +3,7 @@
 import { PORTS, FLAGS } from '../data/ports.js';
 import { EMBARGOED, ENFORCING, SHADY_PORTS, customsLevel, corruption } from '../data/sanctions.js';
 import { portName } from '../sim/core.js';
-import { detectionChance, seizureFine, sanctionRisk, isEmbargoed, acceptOffer, resolveCase, TAINT_DAYS, proposeParcel, acceptProposal } from '../sim/shady.js';
+import { detectionChance, seizureFine, sanctionRisk, sanctionPreview, taintActive, isEmbargoed, acceptOffer, resolveCase, TAINT_DAYS, proposeParcel, acceptProposal } from '../sim/shady.js';
 import { h, money, date, dialog, toast } from './dom.js';
 import { flagEl } from './flags.js';
 import { showScene, scenesOn } from './scenes.js';
@@ -19,16 +19,26 @@ const levelClass = (p) => (p >= 0.2 ? 'neg' : p >= 0.1 ? 'warn-text' : '');
 export const customsWord = (flag) => { const c = customsLevel(flag); return c >= 0.3 ? 'stricte' : c >= 0.2 ? 'sérieuse' : c >= 0.12 ? 'moyenne' : 'laxiste'; };
 
 // Lignes de risque (colis caché à bord, navire marqué par un embargo) pour un départ vers `to`.
-export function shadyLines(state, ship, to) {
+// `general` : dire aussi le marquage quand la destination n'applique pas les sanctions (fiche du navire).
+export function shadyLines(state, ship, to, { general = true } = {}) {
   const out = [];
   if (ship.contraband && to) {
     const p = detectionChance(ship, to);
     const dest = ship.contraband.to === to;
     out.push(h(`div.risk-line.${levelClass(p) || 'x'}`, `📦 Colis caché à bord${dest ? ' (livraison ici)' : ` (pour ${portName(ship.contraband.to)})`} : risque de fouille à ${portName(to)} ${riskWords(p, ship.crew || 0)}. Si la douane le trouve : amende de ${money(seizureFine(ship.contraband.pay))} et 10 à 25 jours d'immobilisation${corruption(PORTS[to].flag) > 0.15 ? ' (un arrangement sera peut-être possible)' : ''}.`));
   }
+  // Navire marqué par un embargo : dit en permanence sur sa fiche, avec la date de fin (règle n° 1).
+  const taint = taintActive(state, ship);
+  if (taint) {
+    const r = to ? sanctionRisk(state, ship, to) : null;
+    const where = `⚖ Le ${ship.name} a commercé avec un pays sous embargo (${FLAGS[PORTS[taint.port].flag].name}, le ${date(taint.t, true)}) : sanctionnable jusqu'au ${date(taint.t + TAINT_DAYS * 24, true)}.`;
+    if (r) out.push(h('div.risk-line.warn-text', [h('span', where), ' ', h('span', `${FLAGS[PORTS[to].flag].name} applique les sanctions : risque d'amende ${riskWords(r.odds, 2)} (${money(r.fine)}).`)]));
+    else if (general) {
+      const p = sanctionPreview(state, ship, 0);
+      out.push(h('div.risk-line.warn-text', [h('span', where), ' ', h('span', `Chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie : risque d'amende ${riskWords(p.odds, 2)} (${money(p.fine)}).`)]));
+    }
+  }
   if (to) {
-    const r = sanctionRisk(state, ship, to);
-    if (r) out.push(h('div.risk-line.warn-text', `⚖ Le ${ship.name} a commercé avec un pays sous embargo (${FLAGS[PORTS[r.taint.port].flag].name}, le ${date(r.taint.t, true)}) : ${FLAGS[PORTS[to].flag].name} applique les sanctions. Risque d'amende ${riskWords(r.odds, 2)} (${money(r.fine)}).`));
     if (isEmbargoed(to)) out.push(h('div.risk-line.warn-text', `⚖ ${FLAGS[PORTS[to].flag].name} est sous embargo : y commercer marquera le navire pendant ${Math.round(TAINT_DAYS / 30)} mois. Pendant ce temps, chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie peut coûter une amende.`));
   }
   return out;

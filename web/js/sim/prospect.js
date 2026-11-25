@@ -119,6 +119,7 @@ export function resolveProspect(state, ctx, rng, ship, notes) {
       const arrive = state.t + nm / T.speed;
       const c = tailored(state, ctx, rng, ship, q, arrive + 3 * D);
       if (!c) continue;
+      c.prospectShip = ship.id; // la carte « piste » et la liste des destinations s'en souviennent
       state.contracts.push(c);
       say(`Démarchage réussi : ${CLIENTS[c.client]?.name || 'un chargeur'} chargera ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} à ${portName(q)} pour ${portName(c.to)}, réservé au ${ship.name} jusqu'au ${formatDate(c.reservedUntil, true)}.`, { contractId: c.id, port: q });
       return c;
@@ -126,6 +127,7 @@ export function resolveProspect(state, ctx, rng, ship, notes) {
   }
   const c = tailored(state, ctx, rng, ship, port, state.t + 2 * D);
   if (!c) { say(`Démarchage à ${portName(port)} : vos commerciaux n'ont rien trouvé pour le ${ship.name} cette fois.`); return null; }
+  c.prospectShip = ship.id;
   state.contracts.push(c);
   say(`Démarchage réussi à ${portName(port)} : ${CLIENTS[c.client]?.name || 'un chargeur'} confie au ${ship.name} ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} (réservé jusqu'au ${formatDate(c.reservedUntil, true)}).`, { contractId: c.id, port });
   return c;

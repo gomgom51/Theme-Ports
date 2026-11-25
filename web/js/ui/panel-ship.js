@@ -1,4 +1,5 @@
 // Fiche d'un navire : contrats, négoce, escale, départ, voyage en cours, journal.
+import { searchText } from './panels.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, HOLDS, USEFUL_GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
@@ -9,7 +10,7 @@ import { quoteSellAt, tenderRoom, lenderTerms, FINANCE, financedShare, loanRoom 
 import { weatherAt } from '../sim/events.js';
 import { pointAlong } from '../sim/routing.js';
 import { CANAL_NAMES } from '../sim/context.js';
-import { h, money, tonnes, num, num1, pct, date, duration, days, bar, confirmBox, promptBox, dialog } from './dom.js';
+import { h, money, tonnes, num, num1, pct, date, duration, days, bar, confirmBox, promptBox, dialog, searchBox } from './dom.js';
 import { artForShip, SHIP_ART } from './shipart.js';
 import { shipStats, radarEl } from './radar.js';
 import { flagEl } from './flags.js';
@@ -762,7 +763,7 @@ function departTab(app, ship) {
           contract ? h('br') : null,
           contract ? h('span', { class: est.eta > contract.deadline ? 'neg' : 'pos' }, est.eta > contract.deadline ? `Attention : arrivée après le délai du ${date(contract.deadline, true)}` : `Dans les délais (avant le ${date(contract.deadline, true)})`) : null,
         ]),
-        est.error ? null : h('div.risk-box.compact', [...darkLines(state, ship, dest), ...iceLines(state, ship, dest, est), ...riskLines(state, ship, { seaDays: est.seaDays, to: dest, route: est.route }).slice(ship.condition >= 40 ? 1 : 0), piracyLine(ship, est.route, speed, state), patrolLine(ship, est.route, speed), hostileLine(state, ship, dest), ...shadyLines(state, ship, dest)]),
+        est.error ? null : h('div.risk-box.compact', [...darkLines(state, ship, dest), ...iceLines(state, ship, dest, est), ...riskLines(state, ship, { seaDays: est.seaDays, to: dest, route: est.route }).slice(ship.condition >= 40 ? 1 : 0), piracyLine(ship, est.route, speed, state), patrolLine(ship, est.route, speed), hostileLine(state, ship, dest), ...shadyLines(state, ship, dest, { general: false })]),
         h('label.check', [
           h('input', { type: 'checkbox', checked: autoRefuel, onchange: (e) => { app.form.autoRefuel[ship.id] = e.target.checked; } }),
           ' Faire le plein automatiquement si nécessaire',
@@ -811,10 +812,15 @@ function departTab(app, ship) {
     if (route && app.hoverPreview === route) return; // déjà affichée (mousemove)
     app.hoverRoute(route);
   }; };
-  box.append(h('div.list.compact', rows.map((r) => { const hover = hoverOf(r); return h('button.row.selectable', {
+  const searchKey = `destSearch${ship.id}`; // propre à chaque navire, effacée une fois la destination choisie
+  const search = searchBox(app.form, searchKey);
+  box.append(search.input);
+  const lead = (p) => state.contracts.find((c) => c.prospect && c.reservedFor === ship.owner && c.takenBy === null && c.reservedUntil > state.t && c.from === p);
+  const destList = h('div.list.compact', rows.map((r) => { const hover = hoverOf(r); return h('button.row.selectable', {
+    'data-search': searchText(r.p),
     class: (r.p === dest ? 'selected ' : '') + (r.why ? 'disabled' : ''),
     disabled: !!r.why, 'data-guide': !r.why && r.contracts > 0 ? 'dest' : null, // visite guidée : un port qui a des contrats
-    onclick: (e) => { destClick = { x: e.clientX, y: e.clientY }; app.form.dest[ship.id] = r.p; app.hoverRoute(null); app.refresh(); },
+    onclick: (e) => { destClick = { x: e.clientX, y: e.clientY }; app.form.dest[ship.id] = r.p; app.form[searchKey] = ''; app.hoverRoute(null); app.refresh(); },
     onmouseenter: hover, onmousemove: hover, onmouseleave: () => app.hoverRoute(null),
   }, [
     flagEl(PORTS[r.p].flag),
@@ -827,9 +833,12 @@ function departTab(app, ship) {
     !r.why && r.nsr ? h('span.tag', { title: 'Route par le passage du Nord-Est, ouvert l\'été.' }, '🧊 Nord-Est') : null,
     grudgeAt(state, company, r.p) ? h('span.tag.bad', { title: 'Un gang de ce port en veut à votre compagnie : risque de saisie à l\'escale.' }, '⚠ gang') : null,
     ship.dark?.to === r.p ? h('span.tag.bad', 'livraison noire') : null,
+    lead(r.p) ? h('span.tag.good', { title: `Piste de démarchage : un contrat vous y est réservé jusqu'au ${date(lead(r.p).reservedUntil, true)}.` }, '📋 piste') : null,
     !r.why && !(company.portsServed || []).includes(r.p) ? h('span.tag.good', { title: 'Jamais desservi par votre compagnie : y faire escale compte pour le record « Toutes les escales », et donne un peu de confiance.' }, '✚ nouveau port') : null,
     !r.why && r.contracts ? h('span.tag', { class: r.fit ? 'good' : '' }, [h('span', r.contracts > 1 ? `${r.contracts} contrats` : `${r.contracts} contrat`), r.fit ? ' · ' : null, r.fit ? h('span', `${r.fit} pour ce navire`) : null]) : null,
-  ]); })));
+  ]); }));
+  box.append(destList);
+  search.apply(destList);
   return box;
 }
 
