@@ -234,10 +234,12 @@ function checkRecords(state, notes, kind) {
 }
 // Conduite propre : sans geste gris ou noir (embargo, colis discret, affaire noire, coup bas) ni marée
 // noire depuis STANDING.cleanDays jours, la vertu monte un peu chaque jour (de moins en moins près du haut).
+// Et l'on oublie : sous STANDING.forgiveTo, elle y remonte doucement quoi qu'on fasse.
 function cleanConduct(state, company) {
-  const H = hon(company), last = Math.max(H.lastDirty ?? -Infinity, H.lastSpill ?? -Infinity);
-  if (state.t - last < STANDING.cleanDays * 24) return;
-  changeVirtue(company, (STANDING.cleanMonthly / 30) * (1 - standing(company).virtue / 110));
+  const H = hon(company), V = standing(company).virtue, last = Math.max(H.lastDirty ?? -Infinity, H.lastSpill ?? -Infinity);
+  let gain = V < STANDING.forgiveTo ? (STANDING.forgiveMonthly / 30) * (1 - V / STANDING.forgiveTo) : 0;
+  if (state.t - last >= STANDING.cleanDays * 24) gain = Math.max(gain, (STANDING.cleanMonthly / 30) * (1 - V / 110));
+  if (gain > 0) changeVirtue(company, gain);
 }
 export function honoursDaily(state, notes) {
   for (const c of state.companies) {

@@ -133,8 +133,11 @@ export function interestRate(company) {
 // (cinq au plus) ; l'infamie (affaires noires) abaisse pour toujours celui de la vertu.
 export const REP_BASE_CAP = 95;
 // Conduite propre : la vertu monte doucement chaque mois sans geste gris ou noir ni marée noire
-// depuis cleanDays jours (gain mensuel × (1 − vertu / 110)).
-export const STANDING = { cleanMonthly: 2.5, cleanDays: 180 };
+// depuis cleanDays jours (gain mensuel × (1 − vertu / 110)). On oublie : sous forgiveTo, elle
+// remonte d'elle-même vers forgiveTo, même sans conduite propre (forgiveMonthly × l'écart relatif).
+// Sans cet oubli, les compagnies qui prennent des risques (embargo, colis, coups bas) tombaient
+// vers 20 de réputation pour toujours, perdaient contrats et crédit et se faisaient racheter.
+export const STANDING = { cleanMonthly: 2.5, cleanDays: 180, forgiveTo: 50, forgiveMonthly: 4 };
 const deedBonus = (company) => Math.min(5, Object.keys(company.hon?.deeds || {}).length);
 export const trustCap = (company) => REP_BASE_CAP + deedBonus(company);
 export const virtueCap = (company) => Math.min(100 - Math.min(80, company.infamy || 0), REP_BASE_CAP + deedBonus(company));
