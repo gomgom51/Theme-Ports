@@ -6,7 +6,7 @@ import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from
 import { DEEDS, DEED_IDS, RECORDS, RECORD_IDS, EVIL, EVIL_IDS, deedCount, recordHolder, hon } from '../sim/honours.js';
 import { repCap } from '../sim/core.js';
 import { OFFICE_TIERS } from '../data/offices.js';
-import { honourSVG } from './trophyart.js';
+import { honourSVG, deedIcon } from './trophyart.js';
 import * as TK from '../sim/takeover.js';
 
 const D = 24;
@@ -90,7 +90,7 @@ export function trophiesTab(app) {
     const Dd = DEEDS[id], got = H.deeds[id];
     const p = got ? null : Dd.progress(state, me);
     return h('div.deed-card', { class: got ? 'got' : p?.impossible ? 'impossible' : '' }, [
-      h('span.deed-medal', [h('span.deed-ribbon'), h('span.deed-disc', Dd.icon)]),
+      h('span.deed-medal', [h('span.deed-ribbon'), h('span.deed-disc', { html: deedIcon(id, Dd.icon) })]),
       h('div.grow', [
         h('b', Dd.name),
         h('div.small', Dd.text),

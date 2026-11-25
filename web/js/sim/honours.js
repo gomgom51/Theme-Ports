@@ -128,7 +128,7 @@ export const DEEDS = {
     progress: (s, c) => { const v = hon(c).denounced; return { frac: frac(v, HONOURS.denounce), text: `${v} / ${HONOURS.denounce} dénonciations` }; },
   },
   mainspropres: {
-    name: 'Mains propres', icon: '🕊', get text() { return `${HONOURS.handsYears} ans sans commerce sous embargo, colis discret, affaire noire ni coup bas, et jamais d'infamie.`; },
+    name: 'Le Juste', icon: '⚖️', get text() { return `${HONOURS.handsYears} ans sans commerce sous embargo, colis discret, affaire noire ni coup bas, et jamais d'infamie.`; },
     progress: (s, c) => {
       if (c.infamy > 0) return { frac: 0, text: 'Impossible : votre compagnie porte une infamie.', impossible: true };
       const y = (s.t - hon(c).lastDirty) / YEAR;
@@ -136,7 +136,7 @@ export const DEEDS = {
     },
   },
   ecole: {
-    name: 'École de la mer', icon: '⚓', get text() { return `${HONOURS.school} navires aux équipages pleinement formés.`; },
+    name: 'École de la mer', icon: '🎖', get text() { return `${HONOURS.school} navires aux équipages pleinement formés.`; },
     progress: (s, c) => { const v = shipsOf(s, c.id).filter((sh) => pointsEarned(sh) >= XP_STEPS.length).length; return { frac: frac(v, HONOURS.school), text: `${v} / ${HONOURS.school} équipages` }; },
   },
   merspropres: {

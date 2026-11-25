@@ -2231,4 +2231,6 @@ export default {
   "Le plus de concurrents rachetés ou ruinés (une faillite revient au dernier concurrent qui l'a attaquée dans l'année)": "The most rivals bought out or ruined (a bankruptcy is credited to the last rival that attacked the company within the year)",
   "Sur la liste noire, votre compagnie ne peut racheter qu'une autre compagnie de la liste noire : les autorités bloqueraient la vente. Il reste à la ruiner.": "While on the blacklist, your company can only buy another blacklisted company: the authorities would block the sale. Ruining it is the only way left.",
   "démantelé": "dismantled",
+  "Le Juste": "The Righteous",
+  "{0} Mt": "{0} Mt",
 };

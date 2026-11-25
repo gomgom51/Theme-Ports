@@ -42,7 +42,7 @@ function prow(cx, top, w, h) {
     <path d="M${f(cx - w * 0.9)} ${f(keel - h * 0.12)} l${f(-w * 0.2)} ${f(-h * 0.12)} M${f(cx + w * 0.9)} ${f(keel - h * 0.12)} l${f(w * 0.2)} ${f(-h * 0.12)}" stroke="#ffffff" stroke-width="${f(w * 0.06)}" stroke-linecap="round"/>`;
 }
 export const TROPHY_ART = {
-  // L'Armada : un médaillon en explosion de vitesse, trois proues qui en jaillissent.
+  // L'Armada : un médaillon en explosion de vitesse, cinq proues qui en jaillissent.
   armada: (u) => `${plinth(u)}
     <rect x="21" y="42" width="6" height="8" fill="${GV(u)}"/>
     <clipPath id="${u}c"><circle cx="24" cy="23" r="17.2"/></clipPath>
@@ -51,7 +51,7 @@ export const TROPHY_ART = {
       <rect x="0" y="0" width="48" height="48" fill="#1b3a5c"/>
       ${Array.from({ length: 20 }, (_, k) => { const a = (k / 20) * Math.PI * 2, b = a + Math.PI / 30; return `<path d="M24 21 L${f(24 + Math.cos(a) * 30)} ${f(21 + Math.sin(a) * 30)} L${f(24 + Math.cos(b) * 30)} ${f(21 + Math.sin(b) * 30)} Z" fill="#cfeaff" opacity=".42"/>`; }).join('')}
       <circle cx="24" cy="21" r="12" fill="url(#${u}glow)"/>
-      ${prow(12.5, 24, 5.6, 9.8)}${prow(35.5, 24, 5.6, 9.8)}${prow(24, 27, 8.6, 14)}
+      ${prow(9, 23, 2.6, 4.4)}${prow(39, 23, 2.6, 4.4)}${prow(14, 24.5, 4.6, 8)}${prow(34, 24.5, 4.6, 8)}${prow(24, 27, 8.4, 13.5)}
       <rect x="0" y="38.6" width="48" height="10" fill="#14304e" opacity=".55"/>
     </g>
     <circle cx="24" cy="23" r="17.2" fill="none" stroke="#fff4b8" stroke-width=".8" opacity=".7"/>
@@ -65,19 +65,15 @@ export const TROPHY_ART = {
     <path d="M10.4 46.6 h27.2" stroke="#7d5410" stroke-width="1" opacity=".7"/>
     <text x="24" y="40" font-family="Georgia, 'Times New Roman', serif" font-size="13" font-weight="700" text-anchor="middle" fill="#7d5410">30</text>
     <text x="24" y="39.4" font-family="Georgia, 'Times New Roman', serif" font-size="13" font-weight="700" text-anchor="middle" fill="#fff0a8" opacity=".35">30</text>`,
-  // Le géant du fret : un autel doré où l'on a déposé un conteneur, dans une lueur sacrée.
-  tonnes: (u) => `
-    <path d="M24 16 L4 2 M24 16 L44 2 M24 16 L24 0 M24 16 L12 0 M24 16 L36 0" stroke="#fff3b0" stroke-width="2.4" opacity=".35"/>
-    <circle cx="24" cy="16" r="12" fill="url(#${u}glow)"/>
-    <rect x="6" y="57" width="36" height="6" rx=".8" fill="${GV(u)}"/><rect x="8.5" y="53" width="31" height="4.5" rx=".6" fill="${G(u)}"/>
-    <rect x="11" y="31" width="26" height="22" fill="${G(u)}"/>
-    <rect x="13" y="33" width="3.4" height="18" fill="#fff0a8" opacity=".5"/><rect x="31.6" y="33" width="3.4" height="18" fill="#7d5410" opacity=".45"/>
-    <rect x="12.4" y="32" width="5" height="2" fill="#7d5410" opacity=".5"/><rect x="30.6" y="32" width="5" height="2" fill="#7d5410" opacity=".5"/>
-    <rect x="19" y="36" width="10" height="12" rx="1" fill="#a87818"/><path d="M24 38.4 v7 M21.4 40.2 h5.2 M20.8 43 q3.2 3.6 6.4 0" stroke="#fff0a8" stroke-width="1" fill="none"/>
-    <rect x="8.5" y="27.5" width="31" height="4" rx=".8" fill="${GV(u)}"/>
-    <rect x="13.5" y="16.5" width="21" height="11" fill="#c0392b"/><rect x="13.5" y="16.5" width="21" height="1.4" fill="#e8705f"/>
-    ${[16, 19, 22, 25, 28, 31].map((x) => `<rect x="${x}" y="17.8" width=".9" height="9" fill="#8c2a1f"/>`).join('')}
-    <rect x="13.5" y="16.5" width="21" height="11" fill="none" stroke="#7d5410" stroke-width=".8"/>`,
+  // Le géant du fret : une barre d'haltérophile en or, posée au sol sur ses disques.
+  tonnes: (u) => `${plinth(u)}
+    <ellipse cx="24" cy="49.2" rx="21" ry="1.3" fill="#000" opacity=".22"/>
+    <rect x="1" y="30.4" width="46" height="3.2" rx="1.2" fill="${SV(u)}" stroke="#4a5058" stroke-width=".4"/>
+    <rect x="18" y="31.1" width="12" height="1.8" fill="#9aa3ae"/>
+    ${Array.from({ length: 8 }, (_, k) => `<path d="M${f(18.8 + k * 1.4)} 31.1 l.8 1.8" stroke="#5c6470" stroke-width=".35"/>`).join('')}
+    ${[[4.2, 10.8, 15, 34, 2.2], [10.8, 14.8, 20.5, 23, 1.6], [14.8, 17, 26, 12, 1], [17, 18.4, 29.4, 5.2, .6]].map(([a, b, y, hh, r]) => [a, 48 - b].map((x) => `<rect x="${f(x)}" y="${y}" width="${f(b - a)}" height="${hh}" rx="${r}" fill="${G(u)}" stroke="#7d5410" stroke-width=".6"/><rect x="${f(x + (b - a) * 0.18)}" y="${f(y + 1.4)}" width="${f((b - a) * 0.28)}" height="${f(hh - 2.8)}" rx="${f(r * 0.5)}" fill="#fff4b8" opacity=".5"/>`).join('')).join('')}
+    <path d="M7.5 17 v30 M40.5 17 v30" stroke="#7d5410" stroke-width=".5" opacity=".6"/>
+    <path d="M5.8 17.6 a3 3 0 0 1 3 -1.8" stroke="#fff" stroke-width=".9" fill="none" opacity=".6" stroke-linecap="round"/>`,
   // Réglé comme une horloge : une montre de gousset ouvragée, sur des branches de laurier.
   ponctuel: (u) => `${plinth(u)}
     <path d="M24 49 v-9" stroke="${GV(u)}" stroke-width="3"/>
@@ -90,14 +86,14 @@ export const TROPHY_ART = {
     <path d="M24 24 L24 16" stroke="#1d1d1d" stroke-width="1.4" stroke-linecap="round"/><path d="M24 24 L30 27.5" stroke="#1d1d1d" stroke-width="1.1" stroke-linecap="round"/>
     <path d="M24 26 L24 14.5" stroke="#c4362c" stroke-width=".5"/><circle cx="24" cy="24" r="1.1" fill="#1d1d1d"/>
     <path d="M15.5 17 a11 11 0 0 1 9 -4.6" stroke="#fff" stroke-width="1.6" fill="none" opacity=".6" stroke-linecap="round"/>`,
-  // Les loups de mer : une casquette de capitaine en or, insigne à l'ancre, sur un coussin de velours.
+  // Les loups de mer : une casquette de capitaine en or à visière bleu marine, insigne à l'ancre, sur un coussin de velours.
   equipages: (u) => `${plinth(u)}
     <ellipse cx="24" cy="46" rx="15" ry="4.6" fill="#8c1f2a"/><ellipse cx="24" cy="44.6" rx="14" ry="3.6" fill="#b5303e"/>
     <path d="M10 46 l-1.6 3 M38 46 l1.6 3" stroke="${G(u)}" stroke-width="1.2"/><circle cx="8.2" cy="49.4" r="1" fill="${G(u)}"/><circle cx="39.8" cy="49.4" r="1" fill="${G(u)}"/>
     <path d="M6 22 q18 -14 36 0 q-2 6 -6 8 h-24 q-4 -2 -6 -8 z" fill="${G(u)}"/>
     <path d="M9 21 q15 -10 30 0" stroke="#fff4b8" stroke-width="1.2" fill="none" opacity=".7"/>
     <rect x="12" y="29" width="24" height="7" fill="#5c3e0c"/><rect x="12" y="29" width="24" height="1.2" fill="#e2b23a"/><rect x="12" y="34.8" width="24" height="1.2" fill="#e2b23a"/>
-    <path d="M11 36 q13 9 26 0 q-2 6 -13 6.4 q-11 -.4 -13 -6.4 z" fill="#1b1b1b"/><path d="M14 38.6 q10 5 20 0" stroke="#e2b23a" stroke-width=".9" fill="none"/>
+    <path d="M11 36 q13 9 26 0 q-2 6 -13 6.4 q-11 -.4 -13 -6.4 z" fill="#1f3a6e" stroke="#0e1f3f" stroke-width=".5"/><path d="M13.6 40 q10.4 4.6 20.8 0" stroke="#5f82c0" stroke-width="1.1" fill="none" opacity=".75" stroke-linecap="round"/><path d="M14 38.6 q10 5 20 0" stroke="#e2b23a" stroke-width=".9" fill="none"/>
     ${[16, 19.5, 23, 26.5, 30].map((x, k) => `<ellipse cx="${x}" cy="${f(39.6 + (k === 2 ? 0.8 : k === 1 || k === 3 ? 0.5 : 0))}" rx="1.5" ry=".8" fill="#f3c94a"/>`).join('')}
     <circle cx="24" cy="25" r="5.2" fill="#5c3e0c"/><circle cx="24" cy="25" r="4.6" fill="none" stroke="#f3c94a" stroke-width=".7"/>
     <path d="M24 21.6 v7 M21.6 23.2 h4.8 M21 26.4 q3 3.2 6 0" stroke="#fff0a8" stroke-width=".9" fill="none" stroke-linecap="round"/><circle cx="24" cy="21.2" r=".8" fill="none" stroke="#fff0a8" stroke-width=".6"/>
@@ -207,6 +203,28 @@ export const GRIM_ART = {
 };
 
 // Un dessin seul (SVG complet), pour les fiches et les scènes.
+// ---------- Hauts faits : icônes dessinées (dans le disque de la médaille, boîte 24 × 24) ----------
+// Gravées en relief : un reflet clair décalé sous le trait sombre.
+const emboss = (d) => `<g transform="translate(.4 .45)" opacity=".55">${d.replace(/#4a3208/g, '#fff1b0')}</g>${d}`;
+export const DEED_ART = {
+  // Le Juste (identifiant historique « mainspropres », gardé pour les sauvegardes) : une balance à plateaux.
+  mainspropres: () => emboss(`<circle cx="12" cy="3" r="1.5" fill="none" stroke="#4a3208" stroke-width="1"/>
+    <rect x="11.25" y="4.4" width="1.5" height="15" fill="#4a3208"/><rect x="3.4" y="6.2" width="17.2" height="1.4" rx=".4" fill="#4a3208"/>
+    <path d="M6 7.6 L3.1 13.4 M6 7.6 L8.9 13.4 M18 7.6 L15.1 13.4 M18 7.6 L20.9 13.4" stroke="#4a3208" stroke-width=".7" fill="none"/>
+    <path d="M2.4 13.4 h7.2 a3.6 2.7 0 0 1 -7.2 0 z M14.4 13.4 h7.2 a3.6 2.7 0 0 1 -7.2 0 z" fill="#4a3208"/>
+    <rect x="7.4" y="19.2" width="9.2" height="1.4" fill="#4a3208"/><rect x="5.6" y="21" width="12.8" height="1.6" rx=".3" fill="#4a3208"/>`),
+  // École de la mer : la patte d'épaule d'un capitaine (US Navy), étoile et quatre galons.
+  ecole: () => `<g transform="rotate(-14 12 12)">
+    <path d="M7.4 5 L12 1.4 L16.6 5 V22.8 H7.4 Z" fill="#1c2c55" stroke="#0c1530" stroke-width=".5"/>
+    <path d="M8.2 5.4 L12 2.4 L15.8 5.4 V22 H8.2 Z" fill="none" stroke="#c9a23a" stroke-width=".45"/>
+    <circle cx="12" cy="4.6" r="1.3" fill="#e9c75a" stroke="#7d5410" stroke-width=".35"/>
+    <path d="${Array.from({ length: 10 }, (_, k) => { const a = -Math.PI / 2 + (k * Math.PI) / 5, r = k % 2 ? 1.05 : 2.5; return `${k ? 'L' : 'M'}${f(12 + Math.cos(a) * r)} ${f(9.6 + Math.sin(a) * r)}`; }).join(' ')} Z" fill="#f3d266" stroke="#9a6e14" stroke-width=".3"/>
+    ${[14.2, 16.2, 18.2, 20.2].map((y) => `<rect x="7.4" y="${y}" width="9.2" height="1.15" fill="#e9c75a"/><rect x="7.4" y="${y}" width="9.2" height=".35" fill="#fff4b8" opacity=".7"/>`).join('')}
+    <path d="M8.6 6 v15.6" stroke="#3a4f86" stroke-width=".5" opacity=".6"/></g>`,
+};
+// Contenu du disque d'une médaille : le dessin s'il existe, sinon l'émoji du haut fait.
+export const deedIcon = (id, emoji) => (Object.hasOwn(DEED_ART, id) ? `<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">${DEED_ART[id]()}</svg>` : emoji);
+
 export function honourSVG(kind, id, { size = 64, dim = false } = {}) {
   const art = (kind === 'evil' ? GRIM_ART : TROPHY_ART)[id];
   const u = uid();
