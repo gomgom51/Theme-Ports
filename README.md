@@ -93,6 +93,10 @@ riche de la planète.
   vrais boutons montrent les premiers gestes au moment où ils servent (acheter, prendre un
   contrat, lancer le temps, encaisser, ordres, plein, bureau, négoce) ; on peut la passer à
   tout moment et la reprendre depuis le menu.
+* **Négoce** : appels d'offres des villes (prix fixe jusqu'à une date, au premier arrivé, avec les
+  navires concurrents en route annoncés) et financement des cargaisons par les négociants du port
+  de chargement ou les acheteurs de la destination (conditions selon la place, meilleures à chaque
+  prêt remboursé). Cartes d'opportunité à l'écran : affaires en or, aide d'urgence, appels d'offres.
 * **Résultats par navire** (Bureau > Résultats > Par navire) : bénéfice par jour, rentabilité
   du prix payé, d'où vient l'argent et où il part, emploi du temps, derniers voyages, comparaison
   avec les autres navires du même modèle, et le bilan des navires vendus ou perdus.

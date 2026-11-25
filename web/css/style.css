@@ -713,6 +713,8 @@ select.input { width: auto; max-width: 100%; }
 .opps-toggle { align-self: flex-start; border: 1px solid var(--line); background: rgba(251, 248, 241, 0.97); border-radius: 999px; padding: 3px 12px; font-size: 12.5px; font-weight: 800; color: var(--ink-2); box-shadow: var(--shadow); }
 .opp { position: relative; background: var(--paper); border: 1px solid var(--line); border-left: 5px solid #e0b84a; border-radius: 10px; padding: 8px 28px 8px 11px; font-size: 13px; line-height: 1.35; box-shadow: var(--shadow); }
 .opp.aid { border-left-color: #d0607a; }
+.opp.tender { border-left-color: var(--teal); }
+.opp-commit { margin-top: 2px; font-size: 12.5px; }
 .opp.gone { opacity: 0.75; border-left-color: var(--muted); }
 .opp-head { display: flex; align-items: center; gap: 6px; font-size: 14px; }
 .opp-icon { color: #c9971f; font-size: 15px; }
@@ -723,3 +725,13 @@ select.input { width: auto; max-width: 100%; }
 .opp-port:hover { border-color: var(--teal); }
 .opp-actions { margin-top: 5px; }
 .opp-close { position: absolute; top: 4px; right: 6px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: var(--cursor-click); }
+
+/* ---------- Achat d'une cargaison : financement ---------- */
+.fin-options { display: grid; gap: 6px; }
+.fin-option { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); cursor: var(--cursor-click); }
+.fin-option:has(input:checked) { border-color: var(--teal); background: #e7f0ef; }
+.fin-option.disabled { opacity: 0.55; cursor: default; }
+.fin-option .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fin-figure { display: flex; flex-direction: column; align-items: flex-end; flex: none; font-variant-numeric: tabular-nums; }
+.buy-dialog .form-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.buy-dialog h4 { margin: 12px 0 6px; }

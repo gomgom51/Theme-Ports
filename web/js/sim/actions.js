@@ -6,14 +6,15 @@ import { GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import {
   money, news, shipById, contractById, companyOf, creditLimit, createShip, shipLog, portName,
-  changeReputation, removeShip, shipTrack, lastTrip, TRIPS_KEPT,
+  changeReputation, removeShip, shipTrack, lastTrip, TRIPS_KEPT, loanOwedAt,
 } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { CANAL_NAMES } from './context.js';
 import { bannedUntil } from './pollution.js';
-import { taintShip } from './shady.js';
+import { taintShip, isEmbargoed } from './shady.js';
 import { equipMod } from './equipment.js';
 import { clientRefusal } from './clients.js';
+import { lenderTerms, openLoan, settleLoan, tenderShare, deliverTender, commitOnDeparture, FINANCE, financedShare } from './trade.js';
 import { skillSpeed, skillHandling } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 
@@ -169,6 +170,7 @@ function launch(state, ctx, ship, plan) {
   if (st.trips.length > TRIPS_KEPT) st.trips.shift();
   st.n++;
   if (ship.cargo || ship.dark) st.nmL += p.nm; else st.nmB += p.nm;
+  commitOnDeparture(state, ship, plan.to, p.eta); // appel d'offres à destination : l'engagement s'annonce
   shipLog(state, ship, `Départ de ${portName(ship.port)} pour ${portName(plan.to)} (${Math.round(p.nm)} milles, ${p.speed} nœuds)`);
   ship.status = 'sea';
   ship.port = null;
@@ -185,6 +187,7 @@ export function depart(state, ctx, shipId, to, speed, autoRefuel = true) {
   const plan = { to, speed: p.speed, autoRefuel };
   if (ship.busyWhat) {
     ship.plan = plan;
+    commitOnDeparture(state, ship, to, p.eta + Math.max(0, (ship.busyUntil || state.t) - state.t)); // s'engage dès la décision
     return { ok: true, queued: true, plan: p };
   }
   return launch(state, ctx, ship, plan);
@@ -297,7 +300,9 @@ export function quoteBuy(state, ship, good, qty) {
   return { ...q, handling, total: q.total + handling, hold };
 }
 
-export function buyCargo(state, ctx, shipId, good, qty) {
+// finance : { source: 'origin' } (négociants du port de chargement) ou { source: 'dest', dest }
+// (acheteurs du port de destination, contre la promesse d'y vendre). Sans : comptant.
+export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
   const ship = shipById(state, shipId);
   const err = notReady(ship);
   if (err) return fail(err);
@@ -313,10 +318,25 @@ export function buyCargo(state, ctx, shipId, good, qty) {
   qty = Math.floor(Math.min(qty, T.dwt - onboard, eco.availableStock(state, ship.port, good)) / 100) * 100;
   if (qty <= 0) return fail('Plus de place à bord ou plus de stock disponible.');
   const q = quoteBuy(state, ship, good, qty);
-  if (q.total > company.cash) return fail(`Il faut ${fmtM(q.total)} pour cet achat.`);
+  let terms = null;
+  if (finance) {
+    if (ship.cargo) return fail('Le financement ne porte que sur une cale vide.');
+    const lender = finance.source === 'dest' ? finance.dest : ship.port;
+    if (!PORTS[lender]) return fail('Prêteur inconnu.');
+    terms = { ...lenderTerms(company, lender, finance.source === 'dest'), destPort: finance.source === 'dest' ? lender : null };
+    if (terms.why) return fail(`Les prêteurs de ${portName(lender)} refusent : ${terms.why}.`);
+    terms.share = financedShare(state, company, terms, q.total);
+    if (terms.share < 0.1) return fail('Plafond de vos prêts sur cargaison atteint : vendez d\'abord une cargaison financée.');
+  }
+  const down = terms ? q.total - Math.round((q.total * terms.share) / 1000) * 1000 : q.total;
+  if (down > company.cash) return fail(terms ? `Il faut ${fmtM(down)} d'apport pour cet achat.` : `Il faut ${fmtM(q.total)} pour cet achat.`);
   eco.applyTrade(state, ship.port, good, qty, 'buy');
   money(state, company, -q.total, 'achats', ship);
-  ship.cargo = { good, qty: onboard + qty, hold, cost: (ship.cargo?.cost || 0) + q.total, boughtAt: ship.port };
+  ship.cargo = { good, qty: onboard + qty, hold, cost: (ship.cargo?.cost || 0) + q.total, boughtAt: ship.port, loan: ship.cargo?.loan || null };
+  if (terms) {
+    ship.cargo.loan = openLoan(state, company, ship, terms, q.total);
+    if (isEmbargoed(terms.port)) taintShip(state, ship, terms.port, ship.cargo.loan.amount); // argent d'un pays sous embargo
+  }
   taintShip(state, ship, ship.port, q.total);
   startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty));
   shipLog(state, ship, `Achat de ${qty.toLocaleString('fr-FR')} t de ${GOODS[good].name.toLowerCase()} à ${portName(ship.port)} (${fmtM(q.total)})`);
@@ -327,13 +347,25 @@ export function quoteSale(state, ship) {
   if (!ship.cargo || ship.cargo.contractId || !ship.port) return null;
   // Une cargaison avariée se vend moins : la part perdue ou abîmée ne vaut plus rien.
   const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
-  let q = eco.quoteTrade(state, ship.port, ship.cargo.good, sound, 'sell');
-  // Prix garanti à ce port (prime payée à l'achat) : jamais moins que le cours promis.
+  // Appel d'offres de ce port pour cette marchandise : sa part est payée au prix promis.
+  const share = tenderShare(state, ship, sound);
+  const marketQty = sound - (share?.qty || 0);
+  let q = marketQty > 0 ? eco.quoteTrade(state, ship.port, ship.cargo.good, marketQty, 'sell') : { avg: 0, total: 0, delta: 0 };
+  // Prix garanti à ce port (anciennes parties) : jamais moins que le cours promis.
   const fl = ship.cargo.floor;
-  if (fl && fl.port === ship.port && state.t <= fl.until && fl.unit * sound > q.total) q = { ...q, avg: fl.unit, total: fl.unit * sound, guaranteed: true };
+  if (fl && fl.port === ship.port && state.t <= fl.until && fl.unit * marketQty > q.total) q = { ...q, avg: fl.unit, total: fl.unit * marketQty, guaranteed: true };
+  const total = q.total + (share ? share.qty * share.tender.unit : 0);
   const handling = ship.cargo.qty * (eco.HANDLING_COST[ship.cargo.hold] || 0);
-  const net = q.total - handling;
-  return { ...q, handling, net, profit: net - ship.cargo.cost, possible: eco.portHandles(ship.port, ship.cargo.hold) };
+  const net = total - handling;
+  // Prêt sur la cargaison : remboursé sur la vente (intérêts, et frais si ce n'est pas le port promis).
+  const loan = ship.cargo.loan;
+  const interest = loan ? loanOwedAt(loan, state.t) - loan.amount : 0;
+  const fee = loan?.dest && loan.dest !== ship.port ? loan.amount * FINANCE.destFee : 0;
+  return {
+    ...q, avg: sound ? total / sound : 0, total, handling, net, marketQty, tender: share,
+    loan: loan ? { amount: loan.amount, interest, fee, lender: loan.lender, dest: loan.dest } : null,
+    profit: net - ship.cargo.cost - interest - fee, possible: eco.portHandles(ship.port, ship.cargo.hold),
+  };
 }
 
 // Prix garanti : contre une prime (1 à 5 % selon la volatilité de la marchandise et la
@@ -361,8 +393,10 @@ export function sellCargo(state, ctx, shipId) {
   const q = quoteSale(state, ship);
   if (!q.possible) return fail(`${portName(ship.port)} ne peut pas décharger cette cargaison.`);
   const company = companyOf(state, ship);
-  eco.applyTrade(state, ship.port, ship.cargo.good, ship.cargo.qty * (1 - (ship.cargo.damage || 0)), 'sell');
+  if (q.marketQty > 0) eco.applyTrade(state, ship.port, ship.cargo.good, q.marketQty, 'sell');
   money(state, company, q.net, 'negoce', ship);
+  if (q.tender) deliverTender(state, ship, q.tender);
+  settleLoan(state, company, ship, ship.port); // remboursement du prêt sur la cargaison
   const tr = lastTrip(state, ship);
   if (tr && tr.rev == null && tr.to === ship.port) tr.rev = Math.round(q.net - (ship.cargo.cost || 0)); // marge du négoce
   taintShip(state, ship, ship.port, q.net);

@@ -539,6 +539,13 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'aid') { toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
+    // Appels d'offres : l'annonce, puis les engagements et livraisons des concurrents.
+    if (n.kind === 'tender') { app.audio.play('bell'); toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
+    if (n.kind === 'tenderCommit' || n.kind === 'tenderDelivered') {
+      const viewer = app.state.companies[app.ui.activeCompany];
+      if (n.by !== app.ui.activeCompany && viewer?.human) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
+      continue;
+    }
     if (n.kind === 'held') {
       // Retenue abusive : attendre ou payer l'avocat (la fenêtre s'ouvre d'elle-même).
       toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Décider', onAction: () => heldDialog(app, n.shipId) });

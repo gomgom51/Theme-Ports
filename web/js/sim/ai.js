@@ -16,8 +16,10 @@ import { hostilePort, pirateBoost } from './plots.js';
 import { piracyAlong } from './piracy.js';
 import { isSeasonal } from './ice.js';
 import { grudgeAt } from './dark.js';
+import { lenderTerms, quoteSellAt, loanRoom } from './trade.js';
 
 const D = HOURS_PER_DAY;
+export const AI_CAPITAL_COST = 0.4; // par an : rendement attendu d'un navire, coût de l'argent bloqué dans une cargaison
 
 function noisy(rng, value, skill) {
   return value * (1 + rng.normal() * 0.12 / skill);
@@ -129,24 +131,41 @@ export function aiShipIdle(state, ctx, rng, ship) {
       if (!hold || !eco.portHandles(here, hold)) continue;
       const stock = eco.availableStock(state, here, g);
       const unit = eco.buyPrice(state, here, g);
-      const qty = Math.floor(Math.min(T.dwt, stock, tradeBudget / (unit * 1.05)) / 100) * 100;
+      // Financement par les négociants du port : une cale plus pleine, contre des intérêts.
+      const terms = lenderTerms(company, here);
+      const plans = [[tradeBudget, null]];
+      if (!terms.why) {
+        // Dans la limite de l'encours autorisé : apport + ce qu'il reste à emprunter.
+        const room = loanRoom(state, company).room;
+        const cap = Math.min(tradeBudget / (1 - terms.ltv), tradeBudget + room);
+        if (cap > tradeBudget * 1.2) plans.push([cap, { ...terms, ltv: Math.min(terms.ltv, room / cap) }]);
+      }
+      for (const [budget, fin] of plans) {
+      const qty = Math.floor(Math.min(T.dwt, stock, budget / (unit * 1.05)) / 100) * 100;
       if (qty < T.dwt * 0.4) continue;
       const buy = act.quoteBuy(state, ship, g, qty);
+      const loan = fin ? buy.total * fin.ltv : 0;
       for (const p of PORT_IDS) {
         if (eco.isEmbargoedPort(p) && avoidsEmbargo(state, company)) continue;
         if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type)) continue;
         const loadH = eco.handlingHours(here, hold, qty) + eco.handlingHours(p, hold, qty);
         const trip = tripCost(state, ctx, ship, p, loadH);
         if (!trip || trip.plan.error) continue;
-        // Cours attendu à l'arrivée (les prix momentanément hauts retombent pendant le voyage).
-        const sell = eco.quoteTradeAt(state, p, g, qty, 'sell', trip.days).total - qty * eco.HANDLING_COST[hold];
+        // Cours attendu à l'arrivée (les prix momentanément hauts retombent pendant le voyage),
+        // appel d'offres compris (sa part encore libre, si l'on arrive avant la date limite).
+        const sell = quoteSellAt(state, p, g, qty, trip.days, ship.id).total - qty * eco.HANDLING_COST[hold];
+        const interest = fin ? (loan * fin.rate * Math.max(1, trip.days)) / 365 : 0;
+        // Coût d'opportunité de l'argent immobilisé dans la cargaison (il aurait pu acheter des
+        // navires) : sans lui, l'IA négocie trop, sa flotte grandit moins et elle devient fragile.
+        const locked = ((buy.total - loan) * AI_CAPITAL_COST * Math.max(1, trip.days)) / 365;
         // Prudence : on retire une marge de risque proportionnelle à la durée et à la volatilité.
         const risk = buy.total * GOODS[g].vol * Math.sqrt(trip.days) * 1.2;
         // Le bruit porte sur le cours de revente (quelques %), pas sur toute la valeur :
         // sinon l'IA choisit systématiquement les erreurs d'estimation les plus optimistes.
         const tainted = (eco.isEmbargoedPort(here) ? buy.total : 0) + (eco.isEmbargoedPort(p) ? sell : 0);
-        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk - (tainted ? embargoCost(state, company, ship, tainted) : 0);
-        options.push({ kind: 'trade', good: g, qty, to: p, profit, perDay: profit / Math.max(1, trip.days) });
+        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk - interest - locked - (tainted ? embargoCost(state, company, ship, tainted) : 0);
+        options.push({ kind: 'trade', good: g, qty, to: p, finance: fin ? { source: 'origin' } : null, profit, perDay: profit / Math.max(1, trip.days) });
+      }
       }
     }
   }
@@ -164,7 +183,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
       }
       if (act.acceptContract(state, ctx, ship.id, best.c.id, { speed: T.speed, autoRefuel: true }).ok) takeParcel(state, ctx, company, ship, best.c.to);
     } else {
-      const r = act.buyCargo(state, ctx, ship.id, best.good, best.qty);
+      const r = act.buyCargo(state, ctx, ship.id, best.good, best.qty, best.finance);
       if (r.ok) { takeParcel(state, ctx, company, ship, best.to); act.depart(state, ctx, ship.id, best.to, T.speed, true); }
     }
     return;

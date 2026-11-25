@@ -100,7 +100,15 @@ export function pendingValue(state, companyId) {
 }
 export function netWorth(state, companyId) {
   const c = state.companies[companyId];
-  return c.cash + fleetValue(state, companyId) + cargoValue(state, companyId) + ordersValue(state, companyId) + pendingValue(state, companyId) - c.debt;
+  return c.cash + fleetValue(state, companyId) + cargoValue(state, companyId) + ordersValue(state, companyId) + pendingValue(state, companyId) - c.debt - cargoLoans(state, companyId);
+}
+// Prêt sur cargaison : ce qui est dû à l'instant t (intérêts simples, au jour, un jour au moins).
+export const loanOwedAt = (loan, t) => loan.amount * (1 + (loan.rate * Math.max(1, (t - loan.t0) / HOURS_PER_DAY)) / 365);
+// Ce que la compagnie doit sur ses cargaisons.
+export function cargoLoans(state, companyId) {
+  let v = 0;
+  for (const s of state.ships) if (s.owner === companyId && s.cargo?.loan) v += loanOwedAt(s.cargo.loan, state.t);
+  return v;
 }
 
 export function creditLimit(state, company) {
@@ -144,6 +152,7 @@ export function shipLog(state, ship, text) {
 // `why` : vendu, naufrage, saisi par la banque, abandonné… (gardé dans les comptes de la compagnie).
 export function removeShip(state, ctx, ship, why = 'retiré', price = 0) {
   const company = state.companies[ship.owner];
+  if (company && ship.cargo?.loan) { company.debt += loanOwedAt(ship.cargo.loan, state.t); ship.cargo.loan = null; } // cargaison perdue : le prêt reste dû
   if (company) {
     const s = shipTrack(state, ship);
     (company.pastShips ??= []).unshift({

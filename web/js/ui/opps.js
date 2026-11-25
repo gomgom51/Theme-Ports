@@ -57,6 +57,13 @@ export function opportunities(state, ctx, cid) {
     aid.get(key).list.push(c);
   }
   out.push(...aid.values());
+  // Appels d'offres des villes : tous (ils sont rares), et quelques jours encore une fois complets.
+  for (const t of state.tenders || []) {
+    const key = `tender:${t.id}`;
+    if (dismissed[key] != null) continue;
+    const open = t.left > 0 && t.until > state.t;
+    if (open || co.seenOpps?.[key] != null) out.push({ key, kind: 'tender', t, open });
+  }
   return out;
 }
 
@@ -113,6 +120,25 @@ function aidCard(app, o) {
   ];
 }
 
+function tenderCard(app, o) {
+  const { state } = app;
+  const t = o.t, G = GOODS[t.good], cid = app.ui.activeCompany;
+  const market = eco.sellPrice(state, t.port, t.good);
+  const committed = t.commits.reduce((s, c) => s + c.qty, 0);
+  const able = shipsOf(state, cid).filter((s) => eco.holdFor(s.type, t.good)).map((s) => s.name);
+  const look = () => { app.form.good = t.good; app.open('markets', null, 'produits'); };
+  return [
+    h('div.opp-head', [h('span.opp-icon', '📣'), h('b', `${portName(t.port)} achète : ${G.name.toLowerCase()}`)]),
+    h('div.opp-body', [h('b.pos', `${money(t.unit)}/t`), ' ', h('span.muted', `(cours ${money(market)}/t)`), ' · ', h('span', `${tonnes(t.left)} restantes sur ${tonnes(t.qty)}`)]),
+    ...t.commits.slice(0, 3).map((c) => h('div.opp-commit', [h('b', { 'data-no-tr': '' }, state.companies[c.company]?.name || '?'), ' ', h('span', `livrera ${tonnes(c.qty)} vers le ${date(c.eta, true)}`)])),
+    t.commits.length && o.open ? h('div.opp-commit.muted', `Libre après ces livraisons : ${tonnes(Math.max(0, t.left - committed))}`) : null,
+    o.open ? untilLine(state, t.until) : h('div.opp-until.muted', t.left <= 0 ? 'Complet.' : 'Terminé.'),
+    o.open ? h('div.opp-ships.muted', 'Où en acheter : voyez les Marchés.') : null,
+    o.open ? shipsLine(able, `Aucun de vos navires ne transporte ce type de marchandise.`) : null,
+    o.open ? h('div.opp-actions', [h('button.btn.small', { onclick: look }, 'Marchés')]) : null,
+  ];
+}
+
 let lastKey = '';
 export function renderOpps(app) {
   let root = document.getElementById('opps');
@@ -130,7 +156,7 @@ export function renderOpps(app) {
   root.style.bottom = `${r && r.height ? Math.round(innerHeight - r.top + 8) : 46}px`;
   let collapsed = false;
   try { collapsed = (localStorage.getItem(COLLAPSE_KEY) ?? (innerWidth < 600 ? '1' : '0')) === '1'; } catch { /* stockage indisponible */ }
-  const key = `${cid}|${collapsed}|${Math.floor(state.t / 6)}|` + list.map((o) => `${o.key}:${o.open ?? ''}:${o.c?.takenBy ?? ''}:${o.list?.length ?? ''}`).join(',');
+  const key = `${cid}|${collapsed}|${Math.floor(state.t / 6)}|` + list.map((o) => `${o.key}:${o.open ?? ''}:${o.c?.takenBy ?? ''}:${o.list?.length ?? ''}:${o.t ? `${o.t.left}/${o.t.commits.length}` : ''}`).join(',');
   root.hidden = !list.length;
   if (key === lastKey) return;
   lastKey = key;
@@ -141,7 +167,7 @@ export function renderOpps(app) {
     h('button.opps-toggle', { type: 'button', 'aria-expanded': collapsed ? 'false' : 'true', onclick: toggle }, [h('span', `Opportunités (${list.length})`), ' ', h('span', collapsed ? '▴' : '▾')]),
     ...(collapsed ? [] : list.map((o) => h('div.opp', { class: `${o.kind}${o.open === false ? ' gone' : ''}` }, [
       h('button.opp-close', { type: 'button', 'aria-label': 'Fermer', title: 'Fermer', onclick: () => dismiss(o.key) }, '×'),
-      ...(o.kind === 'golden' ? goldenCard(app, o) : aidCard(app, o)),
+      ...(o.kind === 'golden' ? goldenCard(app, o) : o.kind === 'tender' ? tenderCard(app, o) : aidCard(app, o)),
     ]))),
   );
 }

@@ -58,11 +58,23 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   Northern Sea Route safety horizon) in `web/js/sim/ice.js`, seasonal windows (`ice` on
   ports in `web/js/data/ports.js`, `ICE_PASSAGES`), Arctic fee `CANAL_FEE.nsr` in `economy.js`;
   dark jobs and pro bono (`DARK`, `DARK_KINDS` pay/infamy, `CHARITY`) in `web/js/sim/dark.js`,
-  infamy reputation cap `repCap` in `web/js/sim/core.js`.
+  infamy reputation cap `repCap` in `web/js/sim/core.js`; city tenders (`TENDER`: frequency, premium, quantity,
+  duration) and cargo financing (`FINANCE`: share lent and rate per port profile, destination bonus, track record,
+  60-day term, late and early-repayment fees, exposure cap = net worth) in `web/js/sim/trade.js`; AI opportunity
+  cost of cash locked in cargo `AI_CAPITAL_COST` in `web/js/sim/ai.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
   (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
   margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads
   are compressed per goods, with liquid bulk kept narrow (huge volumes).
+- Lesson (trade, owner's playtest): plain arbitrage between exporters and importers barely pays at a realistic
+  budget, outside embargoed countries. Trade lives on city tenders (fixed price, first come first served, rival
+  commitments announced with their ETA) and cargo loans that let a small company fill a hold. No guaranteed
+  price: trading keeps its risk. A tender's free quantity subtracts every other ship's commitment (own fleet
+  included), and a ship commits as soon as its departure is planned, or several ships chase the same lot.
+  Leverage needs a cap (total cargo loans ≤ net worth) and the AI must charge itself the opportunity cost of
+  cash locked in cargo (`AI_CAPITAL_COST`), or it trades instead of buying ships: fleets stall, a few AIs
+  become near-zero zombies and the richest snowball. Compare variants on the same seeds: any change to the
+  random stream reshuffles single-seed results.
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 - Ice (rule 1): freeze/thaw dates are random each year but the window is always shown,

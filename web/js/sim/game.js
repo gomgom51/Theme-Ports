@@ -22,6 +22,7 @@ import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 import { equipMod, equipUpkeep } from './equipment.js';
 import { piracyHour } from './piracy.js';
+import { tradeDaily, loansDaily } from './trade.js';
 import { coverage, premiumPerDay } from './insurance.js';
 import { patrolHour } from './patrols.js';
 import { gainXp, aiTrain, skillSpeed, skillWear } from './crew.js';
@@ -593,6 +594,8 @@ function daily(state, ctx, rng, notes) {
   plotsDaily(state, notes);
   iceDaily(state, notes);
   darkDaily(state, ctx, rng, notes);
+  tradeDaily(state, ctx, rng, notes); // appels d'offres des villes
+  loansDaily(state, notes); // prêts sur cargaison échus
 
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];

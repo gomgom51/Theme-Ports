@@ -4,7 +4,8 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, HOLDS } from '../data/goods.js';
 import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
-import { shipById, contractById, portName, creditLimit, interestRate } from '../sim/core.js';
+import { shipById, contractById, portName, creditLimit, interestRate, loanOwedAt } from '../sim/core.js';
+import { quoteSellAt, tenderRoom, lenderTerms, FINANCE, financedShare, loanRoom } from '../sim/trade.js';
 import { weatherAt } from '../sim/events.js';
 import { pointAlong } from '../sim/routing.js';
 import { CANAL_NAMES } from '../sim/context.js';
@@ -266,6 +267,7 @@ function tradeTab(app, ship) {
   if (ship.cargo) {
     const G = GOODS[ship.cargo.good];
     const q = act.quoteSale(state, ship);
+    const loan = ship.cargo.loan;
     box.append(h('div.card.highlight', [
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(ship.cargo.qty)} à bord`]),
@@ -276,6 +278,12 @@ function tradeTab(app, ship) {
           q.possible ? stat('Vente ici', `${money(q.net / ship.cargo.qty)}/t`, h('div.stat-sub', `${money(q.net)} net, manutention déduite`)) : null,
           q.possible ? stat('Résultat', h('span', { class: q.profit >= 0 ? 'pos' : 'neg' }, `${money(q.profit, true)}`), h('div.stat-sub', q.profit >= 0 ? `bénéfice de ${pct(q.profit / ship.cargo.cost * 100)}` : `perte de ${pct(-q.profit / ship.cargo.cost * 100)}`)) : null,
         ]),
+        q.possible && q.tender ? h('div.card-sub', [h('span.tag.good', '📣 appel d\'offres'), ` ${tonnes(q.tender.qty)} payées ${money(q.tender.tender.unit)}/t ici, le reste au cours.`]) : null,
+        loan ? h('div.card-sub', [
+          h('span.tag', 'prêt'),
+          ` ${money(loan.amount)} prêtés par ${portName(loan.lender)} à ${pct(loan.rate * 100)}/an : remboursés à la vente, avec les intérêts (${money(q.loan.interest)} à ce jour). À vendre avant le ${date(loan.due, true)}, sinon le prêt devient une dette bancaire (+${pct(FINANCE.lateFee * 100)}).`,
+          loan.dest ? ` Promis à ${portName(loan.dest)} : vendre ailleurs coûte ${pct(FINANCE.destFee * 100)} du prêt.` : null,
+        ]) : null,
         q.possible ? null : h('div.card-why', `${portName(here)} ne peut pas décharger ce type de cargaison.`),
         ship.cargo.floor ? h('div.card-sub', ship.cargo.floor.until >= state.t
           ? [h('span.tag.good', 'prix garanti'), ` À ${portName(ship.cargo.floor.port)} : au moins ${money(ship.cargo.floor.unit)}/t si vous y vendez avant le ${date(ship.cargo.floor.until, true)}.`]
@@ -287,23 +295,24 @@ function tradeTab(app, ship) {
         app.act(() => act.sellCargo(state, ctx, ship.id), { sound: 'cash' });
       } }, `Vendre ici · ${money(q.profit, true)}`) : null]),
     ]));
-    // Meilleurs débouchés.
+    // Meilleurs débouchés (appels d'offres compris, intérêts du prêt déduits).
     const outlets = [];
+    const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
     for (const p of PORT_IDS) {
       if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
       const est = tripEstimate(app, ship, p, T.speed);
       if (est.error || !est.nm) continue;
-      const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
-      const fq = eco.quoteTradeAt(state, p, ship.cargo.good, sound, 'sell', est.totalDays);
+      const fq = quoteSellAt(state, p, ship.cargo.good, sound, est.totalDays, ship.id);
       const fl = ship.cargo.floor, floorOk = fl && fl.port === p && state.t + est.totalDays * 24 <= fl.until;
       const unit = floorOk ? Math.max(fq.avg, fl.unit) : fq.avg;
       const sale = unit * sound - ship.cargo.qty * eco.HANDLING_COST[ship.cargo.hold];
-      outlets.push({ p, net: sale - est.cost - ship.cargo.cost, est, unit, floorOk });
+      const fin = loan ? loanOwedAt(loan, state.t + est.totalDays * 24) - loan.amount + (loan.dest && loan.dest !== p ? loan.amount * FINANCE.destFee : 0) : 0;
+      outlets.push({ p, net: sale - est.cost - ship.cargo.cost - fin, est, unit, floorOk, tender: fq.tenderQty });
     }
     outlets.sort((a, b) => b.net - a.net);
     box.append(h('h3', 'Meilleurs débouchés (après frais de voyage, au cours attendu à l\'arrivée)'));
     box.append(h('div.list.compact', outlets.slice(0, 6).map((o) => h('div.row', { onmouseenter: () => app.hoverRoute(o.est.route || null), onmouseleave: () => app.hoverRoute(null) }, [
-      h('span.grow', [portName(o.p), isEmbargoed(o.p) ? [' ', EMBARGO_TAG()] : null].flat().filter(Boolean)),
+      h('span.grow', [portName(o.p), isEmbargoed(o.p) ? [' ', EMBARGO_TAG()] : null, o.tender ? [' ', h('span.tag.good', { title: `Appel d'offres : ${tonnes(o.tender)} payées au prix promis.` }, '📣')] : null].flat().filter(Boolean)),
       h('span.muted', `${money(o.unit)}/t · ${days(o.est.totalDays)}`),
       o.floorOk ? h('span.tag.good', 'garanti') : null,
       h('b', { class: o.net >= 0 ? 'pos' : 'neg' }, money(o.net, true)),
@@ -317,75 +326,124 @@ function tradeTab(app, ship) {
     box.append(h('p.muted', `${portName(here)} n'exporte rien que ce navire puisse charger (${T.holds.map((x) => HOLDS[x].toLowerCase()).join(', ')}).`));
     return box;
   }
-  box.append(h('p.hint', 'Achetez une cargaison ici et revendez-la plus cher ailleurs. Les estimations tiennent compte des prix qui retombent pendant le voyage ; il reste un risque de marché, que vous pouvez couvrir en garantissant votre prix de revente (une prime à l\'achat). Plus risqué qu\'un contrat, mais souvent plus rentable.'));
+  box.append(h('p.hint', 'Achetez une cargaison ici et revendez-la plus cher ailleurs. Les estimations tiennent compte des prix qui retombent pendant le voyage, mais le cours peut encore bouger : c\'est le risque, et la chance, du négoce. Les appels d\'offres des villes (📣) paient un prix fixé d\'avance au premier arrivé. Pas assez de trésorerie ? Les négociants ou les acheteurs avancent une part de la cargaison.'));
   for (const g of goods) {
     const G = GOODS[g];
+    const hold = eco.holdFor(ship.type, g);
     const unit = eco.buyPrice(state, here, g);
     const stock = eco.availableStock(state, here, g);
-    const cashCap = company.cash / (unit * 1.05);
-    const maxQty = Math.floor(Math.min(T.dwt, stock, cashCap) / 100) * 100;
-    // L'estimation porte sur ce que vous pouvez réellement acheter (cale, stock du port et
-    // trésorerie), pas sur une cale pleine hors de portée : les frais du voyage, eux, ne
-    // dépendent guère de la quantité.
-    const planQty = maxQty > 0 ? maxQty : Math.max(100, Math.floor(Math.min(T.dwt, stock) / 100) * 100);
-    const full = Math.floor(T.dwt / 100) * 100;
-    const limit = maxQty > 0 && maxQty < full ? (cashCap < stock ? 'cash' : 'stock') : null;
-    // Meilleures destinations pour cette marchandise.
+    const full = Math.floor(Math.min(T.dwt, stock) / 100) * 100;
+    // Meilleures destinations pour une cale pleine (appels d'offres compris).
     const dests = [];
     for (const p of PORT_IDS) {
-      if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type)) continue;
-      const hold = eco.holdFor(ship.type, g);
-      if (!eco.portHandles(p, hold)) continue;
-      const qty = planQty;
+      if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type) || !eco.portHandles(p, hold)) continue;
+      const qty = Math.max(100, full);
       const est = tripEstimate(app, ship, p, T.speed, qty, hold);
       if (est.error || !est.nm) continue;
       const buy = act.quoteBuy(state, ship, g, qty).total;
-      const fq = eco.quoteTradeAt(state, p, g, qty, 'sell', est.totalDays); // cours attendu à l'arrivée
+      const fq = quoteSellAt(state, p, g, qty, est.totalDays, ship.id);
       const sell = fq.total - qty * eco.HANDLING_COST[hold];
-      dests.push({ p, net: sell - buy - est.cost, unit: fq.avg, est, qty });
+      dests.push({ p, net: sell - buy - est.cost, unit: fq.avg, est, qty, tender: fq.tender });
     }
     dests.sort((a, b) => b.net - a.net);
-    const choices = [0.25, 0.5, 0.75, 1].map((f) => Math.floor((T.dwt * f) / 100) * 100).filter((q) => q <= maxQty && q > 0);
-    if (maxQty > 0 && !choices.includes(maxQty)) choices.push(maxQty);
-    // Trésorerie trop courte : emprunter le complément à la banque, en un clic.
-    const fullBuy = Math.floor(Math.min(T.dwt, stock) / 100) * 100;
-    const borrowNeed = fullBuy > maxQty ? Math.ceil((act.quoteBuy(state, ship, g, fullBuy).total * 1.02 - company.cash) / 10000) * 10000 : 0;
-    const borrowQty = borrowNeed > 0 && creditLimit(state, company) - company.debt >= borrowNeed ? fullBuy : 0;
-    // Achat : quantité, éventuel emprunt, et prix de revente garanti à la meilleure destination.
-    const buyFlow = async (q, loan = 0) => {
-      if (!(await embargoOk(app, ship, here))) return;
-      const quote = act.quoteBuy(state, ship, g, q);
-      const best = dests[0];
-      const gq = best ? eco.quoteTradeAt(state, best.p, g, q, 'sell', best.est.totalDays) : null;
-      const rate = best ? act.guaranteeRate(g, best.est.totalDays) : 0;
-      const premium = gq ? Math.round(rate * gq.avg * q / 1000) * 1000 : 0;
-      const lines = [h('p', `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`)];
-      if (loan) lines.push(h('p', `La banque vous prête ${money(loan)} (prêt « intérêts seuls » : environ ${money(loan * interestRate(company) / 12)} par mois, remboursable quand vous voulez).`));
-      if (gq) lines.push(h('p.hint', `Prix garanti (facultatif) : pour ${money(premium)} (${pct(rate * 100)}), la revente à ${portName(best.p)} vous rapportera au moins ${money(gq.avg)}/t, le cours attendu à l'arrivée, si vous y vendez avant le ${date(state.t + (best.est.totalDays * 1.5 + 5) * 24, true)}. Si le cours monte, vous gardez la hausse.`));
-      const choice = await dialog({
-        title: `Acheter ${tonnes(q)} de ${G.name.toLowerCase()} ?`, body: h('div', lines),
-        buttons: [{ label: 'Annuler', value: null, kind: 'ghost' }, ...(gq ? [{ label: `Acheter + prix garanti (${money(premium)})`, value: 'garantie' }] : []), { label: loan ? 'Emprunter et acheter' : 'Acheter', value: 'acheter', kind: 'primary' }],
-      });
-      if (!choice) return;
-      if (loan && !app.act(() => act.borrow(state, company.id, loan))?.ok) return;
-      const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q), { sound: 'pay' });
-      if (!r?.ok) return;
-      if (best) app.form.dest[ship.id] = best.p;
-      if (choice === 'garantie') app.act(() => act.guaranteePrice(state, ship.id, best.p, gq.avg, best.est.totalDays));
-    };
+    const tender = (state.tenders || []).find((t) => t.good === g && t.left > 0 && t.until > state.t);
+    const choices = [0.25, 0.5, 0.75, 1].map((f) => Math.floor((full * f) / 100) * 100).filter((q, i, a) => q > 0 && a.indexOf(q) === i);
     box.append(h('div.card', [
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), G.name, h('span.price-inline', `${money(unit)}/t`)]),
         h('div.card-sub', `Stock disponible : ${tonnes(stock)} · cours mondial ${money(G.price * state.market.world[g])}/t`),
-        limit ? h('div.card-why', limit === 'cash' ? `Votre trésorerie limite l'achat à ${tonnes(maxQty)} (cale : ${tonnes(full)}).` : `Le stock du port limite l'achat à ${tonnes(maxQty)} (cale : ${tonnes(full)}).`) : null,
-        dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), isEmbargoed(dests[0].p) ? ' ' : null, isEmbargoed(dests[0].p) ? EMBARGO_TAG() : null, ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, maxQty > 0 ? `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}` : `${money(dests[0].net, true)} pour une cale pleine (${tonnes(dests[0].qty)})`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
-        choices.length ? h('div.chips', choices.sort((a, b) => a - b).map((q) => h('button.chip', { onclick: () => buyFlow(q) }, tonnes(q)))) : null,
-        borrowQty ? h('div.chips', [h('button.chip', { onclick: () => buyFlow(borrowQty, borrowNeed) }, `Emprunter et acheter ${tonnes(borrowQty)}`)]) : null,
-        !choices.length && !borrowQty ? h('div.card-why', stock <= 0 ? 'Stock épuisé, revenez plus tard.' : 'Trésorerie insuffisante.') : null,
+        tender ? h('div.card-sub', [h('span.tag.good', '📣 appel d\'offres'), ` ${portName(tender.port)} achète à ${money(tender.unit)}/t jusqu'au ${date(tender.until, true)} (${tonnes(tenderRoom(tender, ship.id))} encore libres).`]) : null,
+        dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), isEmbargoed(dests[0].p) ? ' ' : null, isEmbargoed(dests[0].p) ? EMBARGO_TAG() : null, dests[0].tender ? ' 📣' : null, ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
+        choices.length && dests.length ? h('div.chips', choices.map((q) => h('button.chip', { onclick: () => buyDialog(app, ship, g, q, dests) }, tonnes(q)))) : null,
+        !choices.length ? h('div.card-why', 'Stock épuisé, revenez plus tard.') : null,
       ]),
     ]));
   }
   return box;
+}
+
+// Achat d'une cargaison : destination visée (pour l'estimation et le financement par ses
+// acheteurs), puis mode de paiement : comptant, négociants du port, acheteurs de la destination,
+// ou emprunt à votre banque. Tout ce que coûte chaque option est dit avant d'acheter.
+async function buyDialog(app, ship, g, q, dests) {
+  const { state, ctx } = app;
+  const company = state.companies[ship.owner];
+  const G = GOODS[g];
+  if (!(await embargoOk(app, ship, ship.port))) return;
+  const quote = act.quoteBuy(state, ship, g, q);
+  const est = (p) => {
+    const d = dests.find((x) => x.p === p);
+    const fq = quoteSellAt(state, p, g, q, d.est.totalDays, ship.id);
+    return { d, sell: fq.total - q * eco.HANDLING_COST[quote.hold], tender: fq.tenderQty };
+  };
+  let dest = dests[0].p, mode = null, buyBtn = null;
+  const body = h('div.buy-dialog');
+  const render = () => {
+    const e = est(dest), days0 = e.d.est.totalDays;
+    // Part financée : celle du prêteur, dans la limite de votre encours de prêts sur cargaison.
+    const withShare = (t) => ({ ...t, share: financedShare(state, company, t, quote.total) });
+    const origin = withShare(lenderTerms(company, ship.port)), buyer = withShare(lenderTerms(company, dest, true));
+    const exposure = loanRoom(state, company);
+    const room = creditLimit(state, company) - company.debt;
+    const option = (id, title, lines, terms, enabled, why) => {
+      const loanAmt = terms ? Math.round((quote.total * terms.share) / 1000) * 1000 : 0;
+      return h('label.fin-option', { class: enabled ? '' : 'disabled' }, [
+        h('input', { type: 'radio', name: 'fin', value: id, disabled: !enabled, checked: mode === id, onchange: () => { mode = id; render(); } }),
+        h('span.grow', [h('b', title), ...lines.map((l) => h('div.small', l)), !enabled && why ? h('div.small.neg', why) : null]),
+        terms ? h('span.fin-figure', [h('span.small.muted', 'apport'), h('b', money(quote.total - loanAmt))]) : null,
+      ]);
+    };
+    const finLine = (terms) => {
+      const loanAmt = Math.round((quote.total * terms.share) / 1000) * 1000;
+      return terms.share < terms.ltv - 0.005
+        ? `Prêteraient ${pct(terms.ltv * 100)}, limités à ${pct(terms.share * 100)} (${money(loanAmt)}) par votre plafond d'encours, à ${pct(terms.rate * 100)}/an : environ ${money((loanAmt * terms.rate * days0) / 365)} d'intérêts pour ce voyage. Remboursé à la vente.`
+        : `Prêtent ${pct(terms.ltv * 100)} (${money(loanAmt)}) à ${pct(terms.rate * 100)}/an : environ ${money((loanAmt * terms.rate * days0) / 365)} d'intérêts pour ce voyage. Remboursé à la vente.`;
+    };
+    const downOk = (terms) => terms.share >= 0.1 && quote.total - Math.round((quote.total * terms.share) / 1000) * 1000 <= company.cash;
+    const finWhy = (terms) => (terms.why ? `Ils refusent : ${terms.why}.` : terms.share < 0.1 ? 'Plafond de vos prêts sur cargaison atteint : vendez d\'abord une cargaison financée.' : 'Apport supérieur à votre trésorerie.');
+    const bankNeed = Math.max(0, Math.ceil((quote.total * 1.01 - company.cash) / 10000) * 10000);
+    const opts = [
+      option('cash', 'Comptant', [`Vous payez ${money(quote.total)} maintenant.`], null, quote.total <= company.cash, `Trésorerie insuffisante (${money(company.cash)}).`),
+      option('origin', `Négociants de ${portName(ship.port)} (${origin.label})`, [finLine(origin), 'Vous vendez où vous voulez.'], origin, !origin.why && downOk(origin), finWhy(origin)),
+      option('dest', `Acheteurs de ${portName(dest)} (${buyer.label})`, [finLine(buyer), `À condition de vendre à ${portName(dest)} avant le ${date(state.t + FINANCE.dueDays * 24, true)} : ailleurs, ${pct(FINANCE.destFee * 100)} du prêt en frais.`], buyer, !buyer.why && downOk(buyer), finWhy(buyer)),
+      bankNeed > 0 ? option('bank', 'Votre banque', [`Emprunt de ${money(bankNeed)} à ${pct(interestRate(company) * 100)}/an (intérêts seuls, remboursable quand vous voulez).`], null, room >= bankNeed, `Plafond de crédit atteint (marge : ${money(Math.max(0, room))}).`) : null,
+    ].filter(Boolean);
+    if (!mode || !opts.some((o) => o.querySelector('input:not(:disabled)')?.value === mode)) {
+      const first = opts.map((o) => o.querySelector('input:not(:disabled)')).find(Boolean);
+      mode = first?.value || null;
+      if (first) first.checked = true;
+    }
+    const sel = h('select.input', { 'aria-label': 'Destination visée', onchange: (ev) => { dest = ev.target.value; render(); } }, dests.slice(0, 8).map((d) => h('option', { value: d.p, selected: d.p === dest }, `${portName(d.p)}${d.tender ? ' 📣' : ''}${isEmbargoed(d.p) ? ' ⚖' : ''} — ${money(d.net, true)}`)));
+    body.replaceChildren(...[
+      h('p', `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`),
+      h('div.form-row', [h('b', 'Destination visée : '), sel]),
+      h('p.small', [
+        `Vente attendue à ${portName(dest)} : ${money(e.sell)}${e.tender ? ` (dont ${tonnes(e.tender)} au prix de l'appel d'offres)` : ''}, voyage ≈ ${money(e.d.est.cost)} (${days(days0)}). Résultat avant financement : `,
+        h('b', { class: e.d.net >= 0 ? 'pos' : 'neg' }, money(e.sell - quote.total - e.d.est.cost, true)),
+        '. Le cours peut encore bouger d\'ici l\'arrivée.',
+      ]),
+      h('h4', 'Paiement'),
+      h('div.fin-options', opts),
+      mode ? null : h('p.neg', 'Aucun paiement possible pour cette quantité : choisissez-en une plus petite.'),
+      h('p.small.muted', `Vos prêts sur cargaison en cours : ${money(exposure.used)}, pour un plafond de ${money(exposure.cap)} (votre valeur nette).`),
+      h('p.hint', `Un prêt sur cargaison doit être remboursé dans les ${FINANCE.dueDays} jours (par la vente) ; au-delà, il devient une dette bancaire, majorée de ${pct(FINANCE.lateFee * 100)}. Si la cargaison est perdue, le prêt reste dû (l'assurance rembourse sa part de la marchandise).`),
+    ].filter(Boolean));
+  };
+  render();
+  const pending = dialog({ title: `Acheter ${tonnes(q)} de ${G.name.toLowerCase()} ?`, body, wide: true, buttons: [{ label: 'Annuler', value: null, kind: 'ghost' }, { label: 'Acheter', value: 'buy', kind: 'primary', attrs: { 'data-buy': '' } }] });
+  buyBtn = document.querySelector('#dialogs .dialog-wrap:last-child [data-buy]');
+  const sync = () => { if (buyBtn) buyBtn.disabled = !mode; };
+  sync();
+  body.addEventListener('change', sync);
+  const v = await pending;
+  if (v !== 'buy' || !mode) return;
+  if (mode === 'bank') {
+    const need = Math.max(0, Math.ceil((quote.total * 1.01 - company.cash) / 10000) * 10000);
+    if (!app.act(() => act.borrow(state, company.id, need))?.ok) return;
+  }
+  const finance = mode === 'origin' ? { source: 'origin' } : mode === 'dest' ? { source: 'dest', dest } : null;
+  const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q, finance), { sound: 'pay' });
+  if (r?.ok) app.form.dest[ship.id] = dest;
 }
 
 // ---------- Équipage : expérience et spécialités ----------
