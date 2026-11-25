@@ -19,7 +19,7 @@ import { flagEl } from './flags.js';
 import { officeSVG, OFFICE_TIERS, shownTier, MUSIC_LOW } from './officeart.js';
 import { pendingList, clientLine, loyaltyDots } from './payment.js';
 import { CLIENTS } from '../data/clients.js';
-import { clientRel, clientDown, relationOf, clientDemand, clientState, LOYAL, RESERVE_LOYALTY } from '../sim/clients.js';
+import { clientRel, clientDown, relationOf, clientDemand, clientState, LOYAL, RESERVE_LOYALTY, imageFactor } from '../sim/clients.js';
 import { surveyTag, isStrict } from './risk.js';
 import { alertsPanel } from './alerts.js';
 import { portShadyInfo } from './shady.js';
@@ -371,6 +371,7 @@ function clientsTab(app) {
         r.grudgeUntil > state.t ? h('span.tag.bad', `vous boude jusqu'au ${date(r.grudgeUntil, true)}`) : null,
         need && standing(c).confidence < need && r.loyalty < LOYAL ? h('span.tag.warn', `exige une confiance de ${need}`) : null,
         cs.named ? h('span.tag', { title: 'Nombre de fois où une compagnie l\'a dénoncé publiquement.' }, `dénoncé ×${cs.named}`) : null,
+        CLIENTS[id].image ? h('span.tag', { class: imageFactor(c, id) > 1 ? 'good' : imageFactor(c, id) < 1 ? 'warn' : '', title: 'Soigne son image : son fret suit votre vertu (−6 % à vertu 0, +12 % à vertu 100).' }, `💚 soigne son image : fret ${imageFactor(c, id) >= 1 ? '+' : '−'}${Math.abs(Math.round((imageFactor(c, id) - 1) * 100))} %`) : null,
       ];
       return h('div.row.client-row', [
         h('span.grow', [clientLine(state, c, id), partnerInfo(app, id), h('div.small.muted', [`${goods} · `, r.deliveries > 1 ? `${r.deliveries} livraisons pour lui` : r.deliveries === 1 ? '1 livraison pour lui' : 'jamais travaillé ensemble', ...tags.filter(Boolean).flatMap((t) => [' ', t])])]),

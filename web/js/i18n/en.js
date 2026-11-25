@@ -2320,4 +2320,13 @@ export default {
   "{0} a désormais les moyens de racheter votre compagnie ({1}). Pour vous protéger : une meilleure confiance (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.": "{0} can now afford to buy your company ({1}). To protect yourself: better trust (it multiplies your price), a level above theirs, or a net worth that grows faster than their cash.",
   "confiance {0} exigée": "trust {0} required",
   "{0} n'a plus que vous en face, et aura bientôt de quoi racheter votre compagnie : victoire « {1} » en vue pour lui ({2} %). Pour lui échapper : une meilleure confiance (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.": "{0} has only you left to face, and will soon be able to buy your company: \"{1}\" victory in sight for them ({2}%). To escape: better trust (it multiplies your price), a level above theirs, or a net worth that grows faster than their cash.",
+  "💚 {0} soigne son image : votre vertu ({1}) y réduit les inspections de {2} %.": "💚 {0} cares about its image: your virtue ({1}) cuts inspections there by {2}%.",
+  "💚 {0} soigne son image : votre vertu ({1}) y attire {2} % d'inspections en plus.": "💚 {0} cares about its image: your virtue ({1}) draws {2}% more inspections there.",
+  "{0} soigne son image : son fret suit votre vertu, de −{1} % à vertu 0 à +{2} % à vertu 100. Compris dans le prix affiché, fixé à la signature.": "{0} cares about its image: its freight follows your virtue, from −{1}% at virtue 0 to +{2}% at virtue 100. Included in the price shown, fixed when you sign.",
+  "💚 image +{0} %": "💚 image +{0}%",
+  "💚 image −{0} %": "💚 image −{0}%",
+  "💚 image": "💚 image",
+  "Soigne son image : son fret suit votre vertu (−6 % à vertu 0, +12 % à vertu 100).": "Cares about its image: its freight follows your virtue (−6% at virtue 0, +12% at virtue 100).",
+  "💚 soigne son image : fret +{0} %": "💚 cares about its image: freight +{0}%",
+  "💚 soigne son image : fret −{0} %": "💚 cares about its image: freight −{0}%",
 };

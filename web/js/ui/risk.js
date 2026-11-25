@@ -4,7 +4,7 @@
 // selon son expérience.
 import { CREW_LEVELS } from '../data/ships.js';
 import { PORTS } from '../data/ports.js';
-import { riskProfile, voyageRisk, inspectionOdds, inspectionThreshold, isStrict, SEAWORTHY } from '../sim/incidents.js';
+import { riskProfile, voyageRisk, inspectionOdds, inspectionThreshold, isStrict, isImagePort, inspectVirtueK, SEAWORTHY } from '../sim/incidents.js';
 import { ageYears } from '../sim/economy.js';
 import { worstCase, isPolluting } from '../sim/pollution.js';
 import { planOf } from '../sim/insurance.js';
@@ -65,12 +65,16 @@ export function riskLines(state, ship, { seaDays = null, to = null, route = null
   const age = ageYears(state, ship);
   const threshold = inspectionThreshold(age);
   if (to) {
-    const odds = inspectionOdds(ship.condition, to, age);
+    const V = company.virtue ?? company.reputation ?? 50;
+    const odds = inspectionOdds(ship.condition, to, age, V);
     const name = PORTS[to].name;
     if (odds.detain > 0) {
       const cls = odds.detain > 0.3 ? 'neg' : 'warn-text';
       const how = crew.info === 2 ? `≈ ${pctTxt(odds.detain)}` : crew.info === 1 ? `≈ ${fr(Math.max(10, Math.round(odds.detain * 10) * 10))} %` : odds.detain > 0.3 ? 'élevé' : 'possible';
       out.push(h(`div.risk-line.${cls}`, `⚠ ${isStrict(to) ? `${name} inspecte sévèrement les navires usés` : `${name} contrôle parfois les navires usés`} : risque de détention ${how} (amende et remise en état à ${'65'} % à vos frais, que vous ayez l'argent ou non). Réparez au-dessus de ${threshold} % pour l'éviter.`));
+      // Port attentif à l'image : la vertu y change la probabilité d'être inspecté.
+      const k = inspectVirtueK(to, V);
+      if (isImagePort(to) && Math.abs(k - 1) >= 0.02) out.push(h('div.risk-line.small', k < 1 ? `💚 ${name} soigne son image : votre vertu (${Math.floor(V)}) y réduit les inspections de ${Math.round((1 - k) * 100)} %.` : `💚 ${name} soigne son image : votre vertu (${Math.floor(V)}) y attire ${Math.round((k - 1) * 100)} % d'inspections en plus.`));
     }
   } else if (ship.condition < threshold) {
     out.push(h('div.risk-line.warn-text', `⚠ Sous ${threshold} %, les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) peuvent retenir ce navire.`));

@@ -13,7 +13,7 @@ import { CANAL_NAMES } from './context.js';
 import { bannedUntil } from './pollution.js';
 import { taintShip, isEmbargoed } from './shady.js';
 import { equipMod } from './equipment.js';
-import { clientRefusal } from './clients.js';
+import { clientRefusal, imageFactor } from './clients.js';
 import { lenderTerms, openLoan, settleLoan, tenderShare, deliverTender, commitOnDeparture, FINANCE, financedShare } from './trade.js';
 import { skillSpeed, skillHandling } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
@@ -278,6 +278,9 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   // Guerre des prix menée par un concurrent dans ce port : le chargeur paie moins (affiché avant).
   const cut = payCut(state, ship.owner, c.from);
   if (cut < 1) { c.pay = Math.round((c.pay * cut) / 1000) * 1000; c.priceWar = true; }
+  // Chargeur soucieux de son image : le fret suit la vertu du transporteur (affiché avant).
+  const img = imageFactor(companyOf(state, ship), c.client);
+  if (img !== 1) { c.pay = Math.round((c.pay * img) / 1000) * 1000; c.imageK = img; }
   // Affaire en or prise : les joueurs humains le savent (la concurrence se voit).
   if (c.golden) (state.queuedNotes ??= []).push({ kind: 'goldenTaken', contractId: c.id, by: ship.owner, text: `${companyOf(state, ship).name} a pris l'affaire en or de ${portName(c.from)} (${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)}).` });
   ship.cargo = { good: c.good, qty: c.qty, hold, contractId: c.id };

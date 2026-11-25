@@ -1,5 +1,6 @@
 // Compagnies gérées par l'ordinateur. Elles jouent avec les mêmes règles et
 // les mêmes actions que les joueurs humains.
+import { imageFactor } from './clients.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
@@ -144,7 +145,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
     // Aide d'urgence : à perte ; seule l'IA vertueuse (qui vise la victoire de la réputation) y gagne de la vertu utile.
     const virtuous = company.ai?.leaning === 'vertueux';
     const repValue = c.charity && virtuous ? c.charity.rep * (virtuous ? 300000 : 150000) : 0;
-    const pay = c.pay * payCut(state, company.id, c.from); // guerre des prix contre elle dans ce port
+    const pay = c.pay * payCut(state, company.id, c.from) * imageFactor(company, c.client); // guerre des prix contre elle ; chargeur soucieux de son image
     const profit = pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue;
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
   }

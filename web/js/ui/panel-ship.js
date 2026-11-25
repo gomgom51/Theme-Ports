@@ -28,6 +28,8 @@ import { routeChip } from './route.js';
 import { prospectOdds, canProspect, startProspect } from '../sim/prospect.js';
 import { grudgeAt } from '../sim/dark.js';
 import { repCap, slowShare, slowVirtue, VIRTUE_SOURCES } from '../sim/core.js';
+import { imageFactor, IMAGE_PAY } from '../sim/clients.js';
+import { CLIENTS } from '../data/clients.js';
 
 // Commercer avec un pays sous embargo marque le navire un an : on demande avant, si le
 // navire est encore « propre ». Renvoie true pour continuer.
@@ -235,7 +237,7 @@ function contractsBase(app, ship) {
       est = tripEstimate(app, ship, c.to, T.speed, c.qty, c.hold);
       if (est.error) est = { ...est, why: est.error };
     }
-    const profit = est && !est.why ? c.pay - est.cost : null;
+    const profit = est && !est.why ? c.pay * imageFactor(state.companies[ship.owner], c.client) - est.cost : null;
     const lateRisk = est && !est.why && state.t + est.totalDays * 24 > c.deadline;
     return { c, why: why || est?.why, est, profit, perDay: profit != null ? profit / Math.max(1, est.totalDays) : -Infinity, lateRisk };
   }).sort((a, b) => (!!a.why - !!b.why) || b.perDay - a.perDay);
@@ -249,7 +251,7 @@ function contractsBase(app, ship) {
     const reserved = c.reservedFor === ship.owner && c.reservedUntil > state.t;
     return h('div.card.contract', { class: (why ? 'disabled ' : '') + (c.golden ? 'golden' : ''), onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', { title: `Le chargeur exige une confiance de ${c.minRep}.` }, 'contrat premium') : null, USEFUL_GOODS.includes(c.good) || (c.golden && isCleanGood(c.good)) ? h('span.tag.good', { title: c.golden && isCleanGood(c.good) ? 'Affaire en or sur une marchandise ni fossile ni polluante : livrée à l\'heure, elle rapporte aussi de la vertu.' : 'Marchandise utile (céréales, café et cacao, fruits et viandes, bois) : livrée à l\'heure, elle rapporte aussi un peu de vertu.' }, '💚 vertu') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la réputation.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to), ...attackTags(state, ship.owner, c)]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', { title: `Le chargeur exige une confiance de ${c.minRep}.` }, 'contrat premium') : null, imageTag(company, c.client), USEFUL_GOODS.includes(c.good) || (c.golden && isCleanGood(c.good)) ? h('span.tag.good', { title: c.golden && isCleanGood(c.good) ? 'Affaire en or sur une marchandise ni fossile ni polluante : livrée à l\'heure, elle rapporte aussi de la vertu.' : 'Marchandise utile (céréales, café et cacao, fruits et viandes, bois) : livrée à l\'heure, elle rapporte aussi un peu de vertu.' }, '💚 vertu') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la réputation.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to), ...attackTags(state, ship.owner, c)]),
         routeChip(c.to, { eta: est && !est.why ? state.t + est.totalDays * 24 : null, estimate: true, deadline: c.deadline, late: lateRisk }),
         h('div.card-sub.muted', `${num(c.nm)} milles · délai ${days(daysLeft)}`),
         ...(isSeasonal(c.to) || est?.canals?.includes('nsr') ? iceLines(state, ship, c.to, est && !est.why ? est : null) : []),
@@ -264,7 +266,7 @@ function contractsBase(app, ship) {
         ]),
       ]),
       h('div.card-side', [
-        h('div.price', money(c.pay * payCut(state, ship.owner, c.from))),
+        h('div.price', money(c.pay * payCut(state, ship.owner, c.from) * imageFactor(company, c.client))),
         why ? null : h('button.btn.primary.small', { 'data-guide': 'accept', onclick: async () => {
           if (c.embargo && !(await embargoOk(app, ship, isEmbargoed(c.from) ? c.from : c.to, c.pay))) return;
           const r = app.act(() => act.acceptContract(state, ctx, ship.id, c.id, { speed: T.speed, autoRefuel: true }), { sound: 'crates' });
@@ -661,6 +663,14 @@ function busyTab(app, ship) {
     box.append(h('p.muted', 'Aucun départ programmé : donnez vos ordres à la fin de l\'opération, ou programmez le départ dès maintenant dans l\'onglet suivant.'));
   }
   return box;
+}
+
+// Chargeur soucieux de son image : son fret suit votre vertu (déjà compris dans le prix affiché).
+function imageTag(company, clientId) {
+  if (!clientId || !CLIENTS[clientId]?.image) return null;
+  const k = imageFactor(company, clientId), d = Math.round((k - 1) * 100);
+  const title = `${CLIENTS[clientId].name} soigne son image : son fret suit votre vertu, de −${Math.round(IMAGE_PAY.down * 100)} % à vertu 0 à +${Math.round(IMAGE_PAY.up * 100)} % à vertu 100. Compris dans le prix affiché, fixé à la signature.`;
+  return h('span.tag', { class: d > 0 ? 'good' : d < 0 ? 'warn' : '', title }, d ? `💚 image ${d > 0 ? '+' : '−'}${Math.abs(d)} %` : '💚 image');
 }
 
 // ---------- Appareiller ----------

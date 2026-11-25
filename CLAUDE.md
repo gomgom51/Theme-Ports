@@ -124,6 +124,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   conduct and, below 50, forgetting; oil spills, smuggling, embargo fines, bribes, dark jobs, dirty tricks and scandals
   lower it. Reputation = the lower of the two; it only judges the reputation victory (and shows as ★ next to the cash,
   the limiting score in red). Infamy caps both scores (the price of dark jobs). A smear campaign hits both.
+  Virtue does reach the economy through a few image-minded actors only: six customers (`CLIENTS.image`, one of
+  them an oil major polishing its window) pay from −6 % at virtue 0 to +12 % at 100 (`IMAGE_PAY` in `clients.js`,
+  shown on the contract, fixed at signing), and image-minded ports (`IMAGE_PORT_FLAGS`: NL, DE, FR, CA, AU, SG, JP)
+  scale the chance of inspecting a worn ship from ×1.3 at virtue 0 to ×0.6 at 100 (`INSPECT_VIRTUE` in
+  `incidents.js`, shown in the departure risks); detention once inspected still depends only on the ship.
   `company.trust` is something else: the gangs' trust, port by port (`dark.js`). Knobs: `STANDING`, `VIRTUE_SOURCES`
   in `core.js`; `FOSSIL_GOODS`, `USEFUL_GOODS` in `data/goods.js`.
 - Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with

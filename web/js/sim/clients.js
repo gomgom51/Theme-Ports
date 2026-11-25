@@ -50,6 +50,14 @@ function relation(company, id) {
 }
 
 // Réputation exigée par les meilleurs payeurs (leurs partenaires fidèles en sont dispensés).
+// Chargeurs soucieux de leur image (CLIENTS.image) : le fret qu'ils offrent suit la vertu du
+// transporteur, de −down à vertu 0 à +up à vertu 100 (rien à 50). Fixé à la signature.
+export const IMAGE_PAY = { up: 0.12, down: 0.06 };
+export function imageFactor(company, id) {
+  if (!id || !CLIENTS[id]?.image || !company) return 1;
+  const V = company.virtue ?? company.reputation ?? 50;
+  return V >= 50 ? 1 + IMAGE_PAY.up * (V - 50) / 50 : 1 - IMAGE_PAY.down * (50 - V) / 50;
+}
 export function clientDemand(state, id) {
   const r = clientRel(state, id);
   return r >= 85 ? 50 : r >= 75 ? 40 : 0;

@@ -122,20 +122,29 @@ export const STRICT_FLAGS = new Set(['NL', 'DE', 'FR', 'GR', 'US', 'CA', 'JP', '
 export const DETENTION_REPAIR = 65;
 
 export const inspectionThreshold = (age) => (age > 20 ? 62 : 55);
+// Ports attentifs à l'image : la vertu de l'armateur y module la probabilité d'inspection d'un navire
+// usé (× low à vertu 0, × 1 à 50, × high à 100). La détention, elle, ne dépend que de l'état du navire.
+export const IMAGE_PORT_FLAGS = new Set(['NL', 'DE', 'FR', 'CA', 'AU', 'SG', 'JP']);
+export const INSPECT_VIRTUE = { low: 1.3, high: 0.6 };
+export const isImagePort = (port) => IMAGE_PORT_FLAGS.has(PORTS[port].flag);
+export function inspectVirtueK(port, virtue = 50) {
+  if (!isImagePort(port)) return 1;
+  return virtue >= 50 ? 1 + (INSPECT_VIRTUE.high - 1) * (virtue - 50) / 50 : 1 + (INSPECT_VIRTUE.low - 1) * (50 - virtue) / 50;
+}
 export const isStrict = (port) => STRICT_FLAGS.has(PORTS[port].flag);
 // Probabilités d'inspection et de détention à l'arrivée (affichées au joueur avant le départ).
-export function inspectionOdds(condition, port, age) {
+export function inspectionOdds(condition, port, age, virtue = 50) {
   const threshold = inspectionThreshold(age);
   if (condition >= threshold) return { inspect: 0, detain: 0 };
   const gap = threshold - condition;
-  const inspect = RISK.inspections * (isStrict(port) ? Math.min(0.95, 0.3 + gap / 50) : Math.min(0.5, 0.06 + gap / 150));
+  const inspect = Math.min(0.95, RISK.inspections * (isStrict(port) ? Math.min(0.95, 0.3 + gap / 50) : Math.min(0.5, 0.06 + gap / 150)) * inspectVirtueK(port, virtue));
   const detainIfInspected = Math.min(0.95, Math.max(0.08, gap / 35));
   return { inspect, detain: inspect * detainIfInspected, detainIfInspected };
 }
 
 export function inspection(state, rng, ship, port, age) {
   const strict = isStrict(port);
-  const odds = inspectionOdds(ship.condition, port, age);
+  const odds = inspectionOdds(ship.condition, port, age, state.companies[ship.owner]?.virtue ?? 50);
   if (!odds.inspect || !rng.chance(odds.inspect)) return null;
   if (!rng.chance(odds.detainIfInspected)) return { kind: 'remarques', strict };
   const T = SHIP_TYPES[ship.type];
