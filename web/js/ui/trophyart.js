@@ -92,9 +92,14 @@ export const TROPHY_ART = {
     <path d="M10 46 l-1.6 3 M38 46 l1.6 3" stroke="${G(u)}" stroke-width="1.2"/><circle cx="8.2" cy="49.4" r="1" fill="${G(u)}"/><circle cx="39.8" cy="49.4" r="1" fill="${G(u)}"/>
     <path d="M6 22 q18 -14 36 0 q-2 6 -6 8 h-24 q-4 -2 -6 -8 z" fill="${G(u)}"/>
     <path d="M9 21 q15 -10 30 0" stroke="#fff4b8" stroke-width="1.2" fill="none" opacity=".7"/>
-    <rect x="12" y="29" width="24" height="7" fill="#5c3e0c"/><rect x="12" y="29" width="24" height="1.2" fill="#e2b23a"/><rect x="12" y="34.8" width="24" height="1.2" fill="#e2b23a"/>
-    <path d="M11 36 q13 9 26 0 q-2 6 -13 6.4 q-11 -.4 -13 -6.4 z" fill="#1f3a6e" stroke="#0e1f3f" stroke-width=".5"/><path d="M13.6 40 q10.4 4.6 20.8 0" stroke="#5f82c0" stroke-width="1.1" fill="none" opacity=".75" stroke-linecap="round"/><path d="M14 38.6 q10 5 20 0" stroke="#e2b23a" stroke-width=".9" fill="none"/>
-    ${[16, 19.5, 23, 26.5, 30].map((x, k) => `<ellipse cx="${x}" cy="${f(39.6 + (k === 2 ? 0.8 : k === 1 || k === 3 ? 0.5 : 0))}" rx="1.5" ry=".8" fill="#f3c94a"/>`).join('')}
+    <path d="M11.2 35.2 Q24 40.2 36.8 35.2 Q38 43.4 24 45 Q10 43.4 11.2 35.2 Z" fill="#1f3a6e" stroke="#0e1f3f" stroke-width=".5"/>
+    <path d="M13.4 40.4 Q24 44.6 34.6 40.4" stroke="#5f82c0" stroke-width="1.1" fill="none" opacity=".7" stroke-linecap="round"/>
+    <path d="M11.6 36.6 Q24 41.6 36.4 36.6" stroke="#0e1f3f" stroke-width=".9" fill="none" opacity=".55"/>
+    ${Array.from({ length: 7 }, (_, k) => { const t = (k + 0.5) / 7, x = (1 - t) ** 2 * 14 + 2 * (1 - t) * t * 24 + t * t * 34, y = (1 - t) ** 2 * 39.4 + 2 * (1 - t) * t * 44 + t * t * 39.4, a = Math.atan2(2 * (1 - t) * (44 - 39.4) + 2 * t * (39.4 - 44), 2 * (1 - t) * 10 + 2 * t * 10) * 180 / Math.PI; return `<ellipse cx="${f(x)}" cy="${f(y)}" rx="1.45" ry=".72" transform="rotate(${f(a + (k % 2 ? 22 : -22))} ${f(x)} ${f(y)})" fill="#f3c94a" stroke="#9a6e14" stroke-width=".2"/>`; }).join('')}
+    <path d="M12 29 H36 V35.4 Q24 40 12 35.4 Z" fill="#5c3e0c"/><rect x="12" y="29" width="24" height="1.2" fill="#e2b23a"/>
+    <path d="M12 35.1 Q24 39.7 36 35.1" stroke="#e2b23a" stroke-width="1.2" fill="none"/>
+    <path d="M12.8 33 Q24 35.8 35.2 33" stroke="#f3c94a" stroke-width=".9" fill="none"/><path d="M12.8 33.6 Q24 36.4 35.2 33.6" stroke="#c9921f" stroke-width=".5" fill="none"/>
+    <circle cx="12.9" cy="33.2" r="1.1" fill="${G(u)}" stroke="#7d5410" stroke-width=".3"/><circle cx="35.1" cy="33.2" r="1.1" fill="${G(u)}" stroke="#7d5410" stroke-width=".3"/>
     <circle cx="24" cy="25" r="5.2" fill="#5c3e0c"/><circle cx="24" cy="25" r="4.6" fill="none" stroke="#f3c94a" stroke-width=".7"/>
     <path d="M24 21.6 v7 M21.6 23.2 h4.8 M21 26.4 q3 3.2 6 0" stroke="#fff0a8" stroke-width=".9" fill="none" stroke-linecap="round"/><circle cx="24" cy="21.2" r=".8" fill="none" stroke="#fff0a8" stroke-width=".6"/>
     <path d="M17 27 q-2 -3 0 -6 M31 27 q2 -3 0 -6" stroke="#7da24a" stroke-width="1.1" fill="none"/>`,
