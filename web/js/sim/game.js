@@ -33,6 +33,7 @@ import { honoursDaily, onDelivered, onStain, onEliminated, onAid } from './honou
 import { levelsDaily, victoryDaily } from './victory.js';
 import { takeoverDaily, aiTakeover } from './takeover.js';
 import { shadowDaily } from './shadow.js';
+import { AI_LEANINGS } from './ai.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 3;
@@ -65,7 +66,13 @@ export function newGame(opts, ctx) {
     storms: [], canals: {}, strikes: {}, news: [], over: null, payments: [], receivables: [],
   };
   const diff = DIFFICULTIES[state.settings.difficulty];
+  // Tempérament de chaque IA : le chemin de victoire qu'elle poursuit (variés dans une même partie).
+  const leanings = [...AI_LEANINGS];
+  for (let i = leanings.length - 1; i > 0; i--) { const j = rng.int(0, i); [leanings[i], leanings[j]] = [leanings[j], leanings[i]]; }
+  let nextLeaning = 0;
   opts.companies.forEach((c, i) => {
+    // c.leaning : imposé (tests) ; 'neutre' : aucun chemin particulier.
+    const leaning = c.human ? null : c.leaning === 'neutre' ? null : (c.leaning || leanings[nextLeaning++ % leanings.length]);
     const flag = PORTS[c.homePort].flag;
     state.companies.push({
       id: i, name: c.name, captain: c.captain || '', color: c.color || COMPANY_COLORS[i], logo: c.logo || COMPANY_LOGOS[i], human: !!c.human,
@@ -74,7 +81,7 @@ export function newGame(opts, ctx) {
       portsServed: [c.homePort], delivered: 0, late: 0, bankrupt: false, lowCashDays: 0,
       month: emptyBook(), lastMonth: emptyBook(), total: emptyBook(), history: [],
       // Certaines compagnies de l'ordinateur sont « audacieuses » : elles prennent des colis discrets.
-      ai: c.human ? null : { skill: diff.aiSkill, nextFleet: rng.int(1, 5) * D, daring: rng.chance(0.5) },
+      ai: c.human ? null : { skill: diff.aiSkill, nextFleet: rng.int(1, 5) * D, daring: leaning === 'ombre' || (leaning !== 'vertueux' && rng.chance(0.5)), leaning },
     });
   });
   for (let d = 0; d < 3; d++) eco.dailyMarketUpdate(state, rng);
@@ -104,7 +111,7 @@ export function migrateState(state) {
   state.spills ??= [];
   state.offers ??= [];
   state.cases ??= [];
-  for (const c of state.companies) { c.bans ??= {}; c.insurance ??= 'complete'; }
+  for (const c of state.companies) { c.bans ??= {}; c.insurance ??= 'complete'; if (c.ai && !c.ai.leaning) c.ai.leaning = AI_LEANINGS[c.id % AI_LEANINGS.length]; }
   for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
   for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
   for (const p of PORT_IDS) {

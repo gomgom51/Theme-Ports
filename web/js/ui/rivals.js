@@ -39,8 +39,8 @@ export function rivalsTab(app) {
         ]),
       ]),
       h('div.rival-buy', [
-        h('div.grow', [h('span', 'Prix de rachat : '), h('b', money(chk.price ?? TK.takeoverPrice(state, c))), chk.ok ? null : h('div.small.muted', chk.why)]),
-        h('button.btn.small.primary', { disabled: !chk.ok, onclick: () => takeoverDialog(app, c.id) }, 'Racheter'),
+        h('div.grow', [h('span', chk.dismantle ? 'Prix pour la démanteler : ' : 'Prix de rachat : '), h('b', money(chk.price ?? TK.takeoverPrice(state, c, me))), chk.dismantle ? h('div.small.muted', 'Sur la liste noire : ses navires sanctionnés ne peuvent pas changer de main. On ne peut que racheter la compagnie pour la démanteler (sa valeur nette, sans prime ; sa flotte part à la casse).') : null, chk.ok ? null : h('div.small.muted', chk.why)]),
+        h('button.btn.small.primary', { disabled: !chk.ok, onclick: () => takeoverDialog(app, c.id) }, chk.dismantle ? 'Démanteler' : 'Racheter'),
       ]),
       h('div.rival-attacks', [
         attackButton(app, c, 'smear'),
@@ -83,6 +83,12 @@ export async function takeoverDialog(app, targetId) {
   const chk = TK.canTakeover(state, me, targetId);
   if (!chk.ok) { toast(chk.why, { kind: 'warn' }); return; }
   const pv = TK.takeoverPreview(state, me, targetId);
+  if (chk.dismantle) {
+    if (!(await confirmBox(`Démanteler ${c.name} ?`, h('div', [h('p', `Vous payez ${money(chk.price)} à ses actionnaires (sa valeur nette, sans prime). Sur la liste noire, ses navires ne peuvent pas changer de main : toute sa flotte part à la casse, et vous n'en reprenez rien.`), h('p', `${c.name} disparaît : un concurrent de moins.`), c.human ? h('p.warn-text', `${c.name} est dirigée par un joueur : il aura ${TK.TAKEOVER.bidDays} jours pour réagir.`) : null]), `Démanteler · ${money(chk.price)}`))) return;
+    const r = app.act(() => TK.makeBid(state, me, targetId, state.queuedNotes ??= []), { sound: 'cash' });
+    if (r?.ok) toast(r.bid ? `Offre déposée : ${c.name} a ${TK.TAKEOVER.bidDays} jours pour réagir.` : `${c.name} est démantelée.`, { kind: 'money', timeout: 6000 });
+    return;
+  }
   const ok = await confirmBox(`Racheter ${c.name} ?`, h('div', [
     h('p', `Prix : ${money(pv.price)} payés comptant (valeur nette ${money(pv.worth)} × ${(1 + c.reputation / TK.TAKEOVER.repK).toFixed(2).replace('.', ',')} pour sa réputation).`),
     h('p', `Vous reprenez ${pv.ships} navire(s), ses commandes et ses contrats, ${money(pv.cash)} de liquidités et ${money(pv.debt)} de dettes.`),

@@ -44,6 +44,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   one wins in some markets.
 - `node tests/sim.test.mjs 3 12345` and a 10-year run — no NaN, AI neither
   runaway nor wiped out.
+- `node tests/victories.test.mjs 13 1,2,…` — AI-only games (one company per leaning) stopped at the first
+  victory: when it comes and which path wins (target below).
 - Tuning knobs: `BALLAST` / `BALLAST_HOLD` / `FREIGHT_*`, `SPREAD` (trade
   margins), `CYCLE` (freight cycle amplitude), `AGING` (used-ship depreciation,
   ageing costs), `AI_FLEET` (AI fleet cap) in `web/js/sim/economy.js` (all
@@ -64,7 +66,13 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   cost of cash locked in cargo `AI_CAPITAL_COST` and the largest possible embargo fine it accepts `EMBARGO_FINE_MAX`
   (share of net worth) in `web/js/sim/ai.js`; prospecting for shippers (`PROSPECT`: duration,
   odds per port size / reputation / loyalty / office / negotiation skill, lead share and range, pay) in
-  `web/js/sim/prospect.js`.
+  `web/js/sim/prospect.js`; victories (`VICTORY`: alert steps, reputation level and deed count, legend record count,
+  shadow years and fleet) in `web/js/sim/victory.js`, deed and record thresholds (`HONOURS`) in `web/js/sim/honours.js`,
+  ordinary reputation cap `REP_BASE_CAP` in `core.js`, takeovers (`TAKEOVER`: price = net worth × (1 + reputation / 50),
+  30-day offer, six-month reprieve odds, AI ratios and margins) in `web/js/sim/takeover.js`, rivalry moves (`ATTACKS`:
+  cost, certain reputation loss, scandal odds, effects, parry prices; `AI_ATTACK_CHANCE`) in `web/js/sim/plots.js`,
+  blacklist (`BLACKLIST`: infamy line, warning, shadow bank) in `web/js/sim/shadow.js`, AI leanings (`AI_LEANINGS`,
+  `AI_BUILDER_FLEET`) in `web/js/sim/ai.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
   (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
   margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads
@@ -87,6 +95,28 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   than `EMBARGO_FINE_MAX` × net worth is refused. Laid-up ships must come back when freight recovers, even for a
   company with little cash (reactivation needs only its cost plus a small buffer), and a ship laid up for over a year
   is sold while the company is in debt, or small fleets die at the quay.
+- Victories (owner's design, "civilization approach"): the time limit still decides if nobody wins.
+  Sole master on board (every rival ruined or bought), the most respected (reputation 100: ordinary gains stop at 95,
+  each of the first five of eight deeds raises the cap by one; level 4), legendary (hold 5 of 8 exclusive records;
+  numbered records can be broken, "complete" ones stay with the first), shadow fleet (years on the international
+  blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (Office →
+  Victories) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
+  (award scene), misdeeds are grim proofs on a dark side table. Office levels are sticky (company maturity) and gate
+  takeovers (buy only a company of your level or below), the reputation victory, and bank pressure.
+- Takeovers: paid from net cash (cash − debt − cargo loans), never borrowed. A human target gets a 30-day offer, can
+  ask for six months (odds from reputation) and is warned whenever a rival can afford it. A blacklisted company can only
+  be bought to be dismantled (net worth, no premium, fleet scrapped): otherwise a pariah's near-zero reputation makes
+  it the cheapest buy and every shadow fleet is absorbed within three years. Inherited infamy that would cross the
+  blacklist line is shown before buying.
+- Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with
+  the parry price; AIs parry when cheap and aim at the rival closest to a victory (conquerors at their cheapest prey).
+- Blacklist (infamy 80): enforcing ports closed, shadow bank only (half the credit, +15 points), but shady ports'
+  shippers ignore reputation (the shadow network) — without it a blacklisted company starves. Warned at 60, and before
+  any dark job that would cross the line (including the +10 if customs find the cargo).
+- Lessons (victory tuning): non-exclusive deeds are the easiest path (nobody can take them from you), so their
+  thresholds sit high; a shadow AI must ignore its flag's embargo stance, seek dark ports, avoid gang grudges and refuse
+  jobs over 22 % customs risk, or it either never gets dark jobs or loses its fleet to seizures; an AI with no ship
+  must be allowed to buy one despite its debt, or it idles forever.
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 - Ice (rule 1): freeze/thaw dates are random each year but the window is always shown,
@@ -119,6 +149,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   slows it much (tender premium, loan share, exposure cap, `SPREAD` each move it by less than the seed noise);
   `BALLAST` 1.6 gives ×26 but drops the bottom 10 % to ×3. Strategies over 16 seeds: tankers 7, liners 5,
   cargos 2, bulk 2, medians ×36–61. Fleet test OK. 10 years: all AIs survive, linear growth once capped.
+- Victories (16 AI games, 13 years, one company per leaning): 11–13 games won, median first victory ≈ 9–10 years,
+  about half before year 10; wins by reputation (most), shadow fleet and legend; domination is the hardest (conquerors
+  usually eliminate one rival, often the shadow fleet, never all three). With leanings: population survivors median
+  ×27, bottom 10 % ×10, no bankruptcy; most shadow fleets are bought or dismantled within five years. Strategies over
+  16 seeds (neutral leanings, victories off): tankers 5, cargos 4, bulk 4, liners 3. Fleet test OK.
 - Lessons: used-ship prices must follow earning power (slow `AGING.dep`),
   otherwise cheap old hulls give runaway returns; the AI must price expected
   embargo fines (it now does, `embargoCost` in `ai.js`) or it bleeds billions.

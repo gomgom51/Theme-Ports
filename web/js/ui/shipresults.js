@@ -21,7 +21,7 @@ const ACTIVITY = [
   ['desarme', 'Désarmé', '#6e7a82'],
 ];
 const KIND = { contrat: 'Contrat', negoce: 'Négoce', lest: 'À vide', noir: 'Cargaison noire', aide: 'Aide d\'urgence' };
-const WHY = { vendu: 'Vendu', naufrage: 'Naufrage', 'saisi par la banque': 'Saisi par la banque', abandonné: 'Abandonné', retiré: 'Retiré' };
+const WHY = { vendu: 'Vendu', naufrage: 'Naufrage', 'saisi par la banque': 'Saisi par la banque', abandonné: 'Abandonné', démantelé: 'Démantelé', retiré: 'Retiré' };
 
 const median = (xs) => {
   if (!xs.length) return null;

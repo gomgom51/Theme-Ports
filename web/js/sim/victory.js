@@ -19,7 +19,7 @@ export const VICTORY = {
   repLevel: 3,          // niveau 4 (index 3) : « L'étage de direction »
   repDeeds: 5,
   legendRecords: 5,
-  shadowYears: 3, shadowShips: 12,
+  shadowYears: 5, shadowShips: 14,
   alerts: [0.75, 0.9],
 };
 export const VICTORY_KINDS = ['domination', 'reputation', 'legend', 'shadow'];
@@ -27,7 +27,7 @@ export const VICTORY_INFO = {
   domination: { name: 'Seul maître à bord', icon: '⚓', text: 'Tous vos concurrents ruinés ou rachetés.' },
   reputation: { name: 'La plus respectée', icon: '🎖', text: 'Une réputation parfaite (100), au moins cinq hauts faits et le niveau 4.' },
   legend: { name: 'Compagnie légendaire', icon: '🏆', text: 'Détenir en même temps cinq des huit records.' },
-  shadow: { name: 'La flotte fantôme', icon: '🗡', text: 'Trois ans sur la liste noire internationale avec au moins douze navires, et une affaire noire menée à bien dans chaque pays sous embargo.' },
+  shadow: { name: 'La flotte fantôme', icon: '🗡', get text() { return `${VICTORY.shadowYears} ans sur la liste noire internationale avec au moins ${VICTORY.shadowShips} navires, et une affaire noire menée à bien dans chaque pays sous embargo.`; } },
 };
 
 // Victoires activées pour cette partie (toutes par défaut, anciennes sauvegardes comprises).

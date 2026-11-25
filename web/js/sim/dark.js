@@ -21,7 +21,7 @@ import { HOURS_PER_DAY, formatDate } from './util.js';
 import * as eco from './economy.js';
 import { isEmbargoed, detectionChance } from './shady.js';
 import { onDarkDone, onStain, onDirty } from './honours.js';
-import { closedPort } from './shadow.js';
+import { closedPort, crossesLine } from './shadow.js';
 
 const D = HOURS_PER_DAY;
 const fail = (msg) => ({ ok: false, msg });
@@ -38,6 +38,8 @@ export const DARK = {
   detect: 1.7,       // une cargaison entière se cache moins bien qu'un colis
   caughtInfamy: 10,  // scandale public quand la douane trouve la cargaison
   aiAccept: 0.45,    // compagnie IA audacieuse : chance d'accepter
+  aiAcceptShadow: 0.75, // compagnie IA de l'ombre (elle vise la flotte fantôme)
+  aiMaxDetect: 0.22, // une IA refuse une affaire trop exposée à la douane
 };
 export const DARK_KINDS = {
   armes: {
@@ -92,7 +94,9 @@ export function maybeDarkOffer(state, ctx, rng, ship, port, notes, note) {
     return o;
   }
   // L'ordinateur : une compagnie audacieuse accepte parfois, les autres refusent (à leurs risques).
-  if (company.ai?.daring && rng.chance(DARK.aiAccept)) acceptDark(state, ship.id, o);
+  const shadow = company.ai?.leaning === 'ombre';
+  const wary = (!shadow && crossesLine(company, DARK_KINDS[o.kind].infamy + DARK.caughtInfamy)) || darkDetect(ship, o.to) > DARK.aiMaxDetect; // trop risqué pour la douane
+  if (company.ai?.daring && !wary && rng.chance(shadow ? DARK.aiAcceptShadow : DARK.aiAccept)) acceptDark(state, ship.id, o);
   else refuseDark(state, rng, ship.id, o, notes, note);
   return o;
 }

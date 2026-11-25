@@ -22,7 +22,7 @@ const wins = Object.fromEntries(names.map((n) => [n, 0]));
 const results = Object.fromEntries(names.map((n) => [n, []]));
 for (const seed of seeds) {
   const home = seed % 2 ? 'rotterdam' : 'singapour';
-  const state = newGame({ seed, duration: 0, difficulty: 'normal', companies: names.map((n) => ({ name: n, human: false, homePort: home })) }, ctx);
+  const state = newGame({ seed, duration: 0, difficulty: 'normal', victories: { domination: false, reputation: false, legend: false, shadow: false }, companies: names.map((n) => ({ name: n, human: false, homePort: home, leaning: 'neutre' })) }, ctx);
   const rng = new Rng(seed * 7919);
   state.companies.forEach((c, i) => {
     c.ai.pool = STRATEGIES[names[i]];

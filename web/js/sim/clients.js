@@ -29,7 +29,7 @@ const FLOOR = 15; // note plancher d'un chargeur
 export const DENOUNCE_HIT = { faillite: 12, contestation: 10, differe: 4 };
 // Les IA dénoncent surtout les fautes graves, et seulement un chargeur avec qui elles n'ont pas de lien.
 export const AI_DENOUNCE = { faillite: 0.4, contestation: 0.2, differe: 0.05 };
-export const aiDenounces = (rng, company, incident) => relationOf(company, incident.client).loyalty < 2 && rng.chance(AI_DENOUNCE[incident.kind] || 0);
+export const aiDenounces = (rng, company, incident) => (company.ai?.leaning === 'vertueux' ? rng.chance(Math.min(0.9, (AI_DENOUNCE[incident.kind] || 0) * 1.5)) : relationOf(company, incident.client).loyalty < 2 && rng.chance(AI_DENOUNCE[incident.kind] || 0));
 // Chance qu'un chargeur resté anonyme vous dédommage, selon son tempérament.
 export const GRATITUDE = { ponctuel: 0.7, lent: 0.5, fragile: 0.45, pinailleur: 0.2 };
 

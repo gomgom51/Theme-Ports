@@ -396,6 +396,10 @@ export function plotsDaily(state, notes, rng = null) {
 export const AI_PLOT_CHANCE = 0.05, AI_POACH_CHANCE = 0.04, AI_ATTACK_CHANCE = 0.06, AI_COUNTER = 8;
 // Le concurrent à abattre : celui qui approche d'une victoire, sinon le plus riche.
 function aiTarget(state, company, rivals, netWorthOf) {
+  if (company.ai?.leaning === 'conquerant') {
+    const prey = rivals.filter((c) => (c.level ?? 0) <= (company.level ?? 0)).sort((a, b) => netWorthOf(a.id) * (1 + a.reputation / 50) - netWorthOf(b.id) * (1 + b.reputation / 50))[0];
+    if (prey) return prey;
+  }
   let lead = null;
   for (const c of rivals) for (const k of VICTORY_KINDS) {
     if (!victoryOn(state, k)) continue;
@@ -412,7 +416,7 @@ export function aiPlots(state, rng, company, netWorthOf) {
   for (const p of plotsAgainst(state, company.id)) {
     if (p.counter && !p.countered && company.cash > p.counter * AI_COUNTER && rng.chance(0.6)) counterPlot(state, company.id, p.id);
   }
-  if (company.cash < 2.5e6) return;
+  if (company.cash < 2.5e6 || company.ai?.leaning === 'vertueux') return; // un vertueux pare, mais n'attaque pas
   const rivals = state.companies.filter((c) => c.id !== company.id && !c.bankrupt);
   if (!rivals.length) return;
   const target = aiTarget(state, company, rivals, netWorthOf);
@@ -432,7 +436,7 @@ export function aiPlots(state, rng, company, netWorthOf) {
     if (ids.length) poachClient(state, rng, company.id, rng.pick(ids));
   }
   // Coups de concurrence : un au plus par mois, choisi selon ce qui est possible.
-  if (!rng.chance(bold ? AI_ATTACK_CHANCE * 2 : AI_ATTACK_CHANCE)) return;
+  if (!rng.chance(bold ? AI_ATTACK_CHANCE * 3 : AI_ATTACK_CHANCE)) return;
   const theirs = shipsOf(state, target.id);
   const options = [];
   if (target.reputation >= 60) options.push({ kind: 'smear', target: target.id });

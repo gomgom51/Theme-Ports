@@ -19,6 +19,7 @@ import { skillSpeed, skillHandling } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 import { onTradeSale } from './honours.js';
 import { payCut } from './plots.js';
+import { SHADY_PORTS } from '../data/sanctions.js';
 import { closedPort } from './shadow.js';
 
 // why : la raison, quand l'interface doit y réagir (« carburant-fonds » : pas de quoi payer le plein).
@@ -245,14 +246,17 @@ export function checkContract(state, ctx, ship, contract) {
   if (!eco.portHandles(contract.from, hold) || !eco.portHandles(contract.to, hold)) return 'Un des ports ne peut pas manutentionner ce chargement.';
   if (contract.qty > T.dwt) return `Capacité insuffisante (${T.dwt.toLocaleString('fr-FR')} t).`;
   if (bannedUntil(companyOf(state, ship), PORTS[contract.to].flag) > state.t) return `${FLAGS[PORTS[contract.to].flag].name} interdit ses ports à votre compagnie (pollution).`;
+  if (closedPort(companyOf(state, ship), contract.to)) return `Liste noire : ${FLAGS[PORTS[contract.to].flag].name} saisirait le navire à son arrivée.`;
   if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
   if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
   if (contract.ice && !iceClass(ship)) return `Fin de saison à ${portName(contract.to)} : le chargeur exige un navire de classe glace.`;
   const refusal = clientRefusal(state, company, contract);
   if (refusal?.kind === 'rancune') return `${refusal.name} ne travaille plus avec vous depuis que vous l'avez dénoncé (jusqu'au ${formatDate(refusal.until)}).`;
   if (refusal?.kind === 'reserve') return `${refusal.name} réserve ce contrat à son partenaire le plus fidèle jusqu'au ${formatDate(refusal.until)}.`;
-  if (refusal?.kind === 'exigence') return `${refusal.name} ne travaille qu'avec des armateurs réputés (${refusal.rep} exigée) ou avec ses partenaires fidèles.`;
-  if (company.reputation < contract.minRep) return `Réputation insuffisante (${contract.minRep} exigée).`;
+  // Le réseau de l'ombre : dans les ports louches, on ne demande pas sa réputation à une compagnie de la liste noire.
+  const grey = company.blacklisted && SHADY_PORTS.includes(contract.from);
+  if (refusal?.kind === 'exigence' && !grey) return `${refusal.name} ne travaille qu'avec des armateurs réputés (${refusal.rep} exigée) ou avec ses partenaires fidèles.`;
+  if (company.reputation < contract.minRep && !grey) return `Réputation insuffisante (${contract.minRep} exigée).`;
   if (contract.deadline <= state.t) return 'Le délai est déjà dépassé.';
   return null;
 }

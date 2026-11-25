@@ -21,7 +21,7 @@ function run(typeId, trade) {
     // Port de départ : le plus grand exportateur d'une marchandise que le navire sait porter.
     const home = PORT_IDS.filter((p) => eco.servesType(p, typeId) && Object.keys(PORTS[p].exp).some((g) => eco.holdFor(typeId, g) && eco.portHandles(p, eco.holdFor(typeId, g))))
       .sort((a, b) => PORTS[b].size - PORTS[a].size)[0];
-    const state = newGame({ seed, duration: 0, difficulty: 'normal', companies: [{ name: 'Test', human: false, homePort: home }] }, ctx);
+    const state = newGame({ seed, duration: 0, difficulty: 'normal', companies: [{ name: 'Test', human: false, homePort: home, leaning: 'neutre' }] }, ctx);
     const company = state.companies[0];
     company.cash = trade ? 400e6 : 30e6;
     company.ai.nextFleet = Infinity; // pas d'achats

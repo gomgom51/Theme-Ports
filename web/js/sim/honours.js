@@ -31,12 +31,12 @@ export const DARK_COUNTRIES = Object.keys(EMBARGOED);
 // Réglages (équilibrage : une victoire difficile mais atteignable vers dix ans).
 export const HONOURS = {
   deedRep: 1,            // réputation gagnée (et plafond relevé) par haut fait, jusqu'à cinq
-  aid: 5, denounce: 3, repelled: 3, loyal: 5, school: 5,
-  cleanDays: 365, cleanShips: 8, cleanDeliveries: 60,
-  handsYears: 3,
-  seasT: 1e6,            // tonnes polluantes livrées depuis la dernière marée noire
-  armada: 30, month: 1.5e6, tons: 30e6, streak: 300, crew: 60,
-  dark: 8, parcels: 15, embargo: 300e6, hostile: 10, eliminated: 2,
+  aid: 10, denounce: 14, repelled: 12, loyal: 14, school: 16,
+  cleanDays: 540, cleanShips: 12, cleanDeliveries: 150,
+  handsYears: 8,
+  seasT: 3e6,            // tonnes polluantes livrées depuis la dernière marée noire
+  armada: 26, month: 1.1e6, tons: 45e6, streak: 320, crew: 130, families: 7, goods: 15,
+  dark: 30, parcels: 60, embargo: 300e6, hostile: 25, eliminated: 2,
 };
 
 // Compteurs de la compagnie (créés à la demande, anciennes sauvegardes comprises).
@@ -105,26 +105,26 @@ export function onEliminated(state, victim, byId = null) {
 const frac = (v, goal) => Math.max(0, Math.min(1, goal ? v / goal : 0));
 export const DEEDS = {
   aide: {
-    name: 'Main tendue', icon: '❤', text: 'Livrer à temps cinq aides d\'urgence après une catastrophe.',
+    name: 'Main tendue', icon: '❤', get text() { return `Livrer à temps ${HONOURS.aid} aides d'urgence après une catastrophe.`; },
     progress: (s, c) => { const v = hon(c).aid; return { frac: frac(v, HONOURS.aid), text: `${v} / ${HONOURS.aid} aides livrées` }; },
   },
   sanstache: {
-    name: 'Année sans tache', icon: '✨', text: 'Un an sans retard, détention, marée noire, amende ni saisie, avec au moins huit navires et soixante livraisons.',
+    name: 'Sans tache', icon: '✨', get text() { return `${Math.round(HONOURS.cleanDays / 30)} mois sans retard, détention, marée noire, amende ni saisie, avec au moins ${HONOURS.cleanShips} navires et ${HONOURS.cleanDeliveries} livraisons.`; },
     progress: (s, c) => {
       const H = hon(c), days = (s.t - H.cleanSince) / D, n = shipsOf(s, c.id).length;
       return { frac: Math.min(frac(days, HONOURS.cleanDays), frac(H.cleanDeliveries, HONOURS.cleanDeliveries), frac(n, HONOURS.cleanShips)), text: `${num(Math.min(days, HONOURS.cleanDays))} / ${HONOURS.cleanDays} jours · ${H.cleanDeliveries} / ${HONOURS.cleanDeliveries} livraisons · ${n} / ${HONOURS.cleanShips} navires` };
     },
   },
   fideles: {
-    name: 'Partenaires fidèles', icon: '🤝', text: 'Cinq chargeurs à la fidélité maximale en même temps.',
+    name: 'Partenaires fidèles', icon: '🤝', get text() { return `${HONOURS.loyal} chargeurs à la fidélité maximale en même temps.`; },
     progress: (s, c) => { const v = Object.values(c.clients || {}).filter((r) => r.loyalty >= MAX_LOYALTY).length; return { frac: frac(v, HONOURS.loyal), text: `${v} / ${HONOURS.loyal} chargeurs` }; },
   },
   alerte: {
-    name: 'Lanceur d\'alerte', icon: '📣', text: 'Dénoncer publiquement trois chargeurs malhonnêtes.',
+    name: 'Lanceur d\'alerte', icon: '📣', get text() { return `Dénoncer publiquement ${HONOURS.denounce} chargeurs malhonnêtes.`; },
     progress: (s, c) => { const v = hon(c).denounced; return { frac: frac(v, HONOURS.denounce), text: `${v} / ${HONOURS.denounce} dénonciations` }; },
   },
   mainspropres: {
-    name: 'Mains propres', icon: '🕊', text: 'Trois ans sans commerce sous embargo, colis discret, affaire noire ni coup bas, et jamais d\'infamie.',
+    name: 'Mains propres', icon: '🕊', get text() { return `${HONOURS.handsYears} ans sans commerce sous embargo, colis discret, affaire noire ni coup bas, et jamais d'infamie.`; },
     progress: (s, c) => {
       if (c.infamy > 0) return { frac: 0, text: 'Impossible : votre compagnie porte une infamie.', impossible: true };
       const y = (s.t - hon(c).lastDirty) / YEAR;
@@ -132,15 +132,15 @@ export const DEEDS = {
     },
   },
   ecole: {
-    name: 'École de la mer', icon: '⚓', text: 'Cinq navires aux équipages pleinement formés.',
+    name: 'École de la mer', icon: '⚓', get text() { return `${HONOURS.school} navires aux équipages pleinement formés.`; },
     progress: (s, c) => { const v = shipsOf(s, c.id).filter((sh) => pointsEarned(sh) >= XP_STEPS.length).length; return { frac: frac(v, HONOURS.school), text: `${v} / ${HONOURS.school} équipages` }; },
   },
   merspropres: {
-    name: 'Mers propres', icon: '🌊', text: 'Livrer un million de tonnes de cargaisons polluantes sans la moindre marée noire.',
+    name: 'Mers propres', icon: '🌊', get text() { return `Livrer ${Mt(HONOURS.seasT)} de cargaisons polluantes sans la moindre marée noire.`; },
     progress: (s, c) => { const v = hon(c).pollutingT; return { frac: frac(v, HONOURS.seasT), text: `${Mt(v)} / ${Mt(HONOURS.seasT)} depuis votre dernière marée noire` }; },
   },
   pirates: {
-    name: 'Bouclier des mers', icon: '🛡', text: 'Repousser trois attaques de pirates.',
+    name: 'Bouclier des mers', icon: '🛡', get text() { return `Repousser ${HONOURS.repelled} attaques de pirates.`; },
     progress: (s, c) => { const v = hon(c).repelled; return { frac: frac(v, HONOURS.repelled), text: `${v} / ${HONOURS.repelled} attaques repoussées` }; },
   },
 };
@@ -154,9 +154,9 @@ export const RECORDS = {
   tonnes: { name: 'Le géant du fret', text: 'Le plus de tonnes livrées depuis la création', min: () => HONOURS.tons, value: (s, c) => hon(c).tons, fmt: Mt },
   ponctuel: { name: 'Réglé comme une horloge', text: 'La plus longue série de livraisons à l\'heure', min: () => HONOURS.streak, value: (s, c) => hon(c).best.streak, fmt: (v) => `${num(v)} livraisons` },
   equipages: { name: 'Les loups de mer', text: 'Le plus d\'expérience d\'équipage réunie dans une flotte', min: () => HONOURS.crew, value: (s, c) => hon(c).best.crew, fmt: (v) => `${num(v)} points` },
-  produits: { name: 'Tout ce qui flotte', text: 'Avoir transporté toutes les marchandises légales', binary: true, min: () => LEGAL_GOODS.length, value: (s, c) => LEGAL_GOODS.filter((g) => hon(c).goods[g]).length, fmt: (v) => `${v} / ${LEGAL_GOODS.length} marchandises` },
+  produits: { name: 'Tout ce qui flotte', get text() { return `Avoir transporté ${HONOURS.goods} des ${LEGAL_GOODS.length} marchandises légales`; }, binary: true, min: () => HONOURS.goods, value: (s, c) => LEGAL_GOODS.filter((g) => hon(c).goods[g]).length, fmt: (v) => `${v} / ${LEGAL_GOODS.length} marchandises` },
   ports: { name: 'Toutes les escales', text: 'Avoir desservi tous les ports du monde', binary: true, min: () => PORT_IDS.length, value: (s, c) => (c.portsServed || []).length, fmt: (v) => `${v} / ${PORT_IDS.length} ports` },
-  familles: { name: 'La flotte complète', text: 'Un navire de chaque famille en même temps', binary: true, min: () => FAMILIES.length, value: (s, c) => new Set(shipsOf(s, c.id).map((sh) => SHIP_TYPES[sh.type].holds[0])).size, fmt: (v) => `${v} / ${FAMILIES.length} familles` },
+  familles: { name: 'La flotte complète', get text() { return `${HONOURS.families} familles de navires sur les ${FAMILIES.length} en même temps`; }, binary: true, min: () => HONOURS.families, value: (s, c) => new Set(shipsOf(s, c.id).map((sh) => SHIP_TYPES[sh.type].holds[0])).size, fmt: (v) => `${v} / ${FAMILIES.length} familles` },
 };
 export const EVIL = {
   couteau: { name: 'Le couteau dans le bureau', text: 'Le plus d\'affaires noires menées à bien', min: () => HONOURS.dark, value: (s, c) => hon(c).darkDone, fmt: (v) => `${v} affaires` },

@@ -18,8 +18,14 @@ import { isSeasonal } from './ice.js';
 import { grudgeAt } from './dark.js';
 import { lenderTerms, quoteSellAt, loanRoom } from './trade.js';
 import { canProspect, startProspect, PROSPECT } from './prospect.js';
+import { darkPort, darkCapable } from './dark.js';
+import { closedPort } from './shadow.js';
 
 const D = HOURS_PER_DAY;
+// Tempérament : bâtisseur (records), vertueux (hauts faits, réputation), conquérant (rachats, coups),
+// ombre (affaires noires, liste noire).
+export const AI_LEANINGS = ['batisseur', 'vertueux', 'conquerant', 'ombre'];
+export const AI_BUILDER_FLEET = 1.35; // un bâtisseur vise une flotte plus grande
 export const AI_CAPITAL_COST = 0.4; // par an : rendement attendu d'un navire, coût de l'argent bloqué dans une cargaison
 
 function noisy(rng, value, skill) {
@@ -84,6 +90,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
       // et sinon l'amende possible est comptée (sans quoi l'IA y vend dès que le cours y est meilleur).
       const emb = eco.isEmbargoedPort(p);
       if (emb && avoidsEmbargo(state, company)) continue;
+      if (grudgeAt(state, company, p)) continue; // un gang nous y attend
       const trip = tripCost(state, ctx, ship, p);
       if (!trip) continue;
       const gross = quoteSellAt(state, p, ship.cargo.good, ship.cargo.qty, trip.days, ship.id).total;
@@ -135,7 +142,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
     // (Le risque d'impayé n'est pas déduit : la prime de risque des chargeurs peu fiables le
     // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)
     // Aide d'urgence : à perte, mais une compagnie à la réputation abîmée y gagne.
-    const repValue = c.charity && company.reputation < 55 ? c.charity.rep * 150000 : 0;
+    const virtuous = company.ai?.leaning === 'vertueux';
+    const repValue = c.charity && (company.reputation < 55 || virtuous) ? c.charity.rep * (virtuous ? 300000 : 150000) : 0;
     const pay = c.pay * payCut(state, company.id, c.from); // guerre des prix contre elle dans ce port
     const profit = pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue;
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
@@ -165,6 +173,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
       const loan = fin ? buy.total * fin.ltv : 0;
       for (const p of PORT_IDS) {
         if (eco.isEmbargoedPort(p) && avoidsEmbargo(state, company)) continue;
+        if (grudgeAt(state, company, p)) continue; // un gang nous y attend
         if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type)) continue;
         const loadH = eco.handlingHours(here, hold, qty) + eco.handlingHours(p, hold, qty);
         const trip = tripCost(state, ctx, ship, p, loadH);
@@ -221,6 +230,15 @@ export function aiShipIdle(state, ctx, rng, ship) {
     }
   }
 
+  // 3 quater. Compagnie de l'ombre : aller chercher les affaires noires dans les ports louches sous
+  // embargo (la confiance des gangs, puis une affaire dans chaque pays).
+  if (company.ai?.leaning === 'ombre' && darkCapable(ship) && !ship.cargo && rng.chance(0.4)) {
+    const H = company.hon || {};
+    const dark = PORT_IDS.filter((p) => p !== here && darkPort(p) && !grudgeAt(state, company, p) && eco.fitsPort(p, ship.type) && !closedPort(company, p) && ctx.distanceInfo(here, p))
+      .map((p) => [p, (H.darkFrom?.[PORTS[p].flag] ? 1 : 3) / (ctx.distanceInfo(here, p).nm + 1500)]);
+    if (dark.length && act.depart(state, ctx, ship.id, rng.weighted(dark), T.speed, true).ok) return;
+  }
+
   // 4. Rien d'intéressant ici : se repositionner vers un port qui exporte ce que
   //    le navire sait transporter (même loin s'il n'y a rien à proximité), ou attendre.
   const candidates = [];
@@ -251,7 +269,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
 
 // Pas de commerce avec les pays sous embargo : pavillon qui applique les sanctions,
 // ou compagnie mise à l'amende il y a moins d'un an.
-const avoidsEmbargo = (state, company) => ENFORCING.has(company.flag) || (company.ai?.noEmbargoUntil || 0) > state.t;
+// (Une compagnie de l'ombre passe outre : elle vise la flotte fantôme, et compte les amendes.)
+const avoidsEmbargo = (state, company) => company.ai?.leaning !== 'ombre' && (ENFORCING.has(company.flag) || company.ai?.leaning === 'vertueux' || (company.ai?.noEmbargoUntil || 0) > state.t);
 // Amende attendue pour un commerce sous embargo (le navire finira presque toujours
 // par faire escale dans un pays qui applique les sanctions dans l'année).
 function embargoCost(state, company, ship, value) {
@@ -274,7 +293,7 @@ function takeParcel(state, ctx, company, ship, to) {
   const route = ctx.route(ship.port, to, ctx.closedCanals(state, SHIP_TYPES[ship.type].draft, ship));
   const pr = patrolRisk({ ...ship, contraband: o }, route, SHIP_TYPES[ship.type].speed);
   const caught = 1 - (1 - detectionChance(ship, to)) * (1 - (pr?.caught || 0));
-  if (caught < 0.08) acceptOffer(state, ship.id, o.id);
+  if (caught < (company.ai?.leaning === 'ombre' ? 0.1 : 0.08)) acceptOffer(state, ship.id, o.id);
 }
 
 // Coût par tonne et par mille d'un navire d'occasion, comparé au navire moderne
@@ -317,6 +336,7 @@ export function aiDaily(state, ctx, rng, company) {
   for (const sh of ships) {
     if (sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'barbeles') && company.cash > 3e6) installEquipment(state, sh.id, 'barbeles');
     else if (sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'citadelle') && company.cash > 8e6) installEquipment(state, sh.id, 'citadelle');
+    else if (company.ai.leaning === 'ombre' && darkCapable(sh) && sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'cachettes') && company.cash > 1e6) installEquipment(state, sh.id, 'cachettes');
   }
   // Réarmer les navires désarmés quand le fret repart. Une petite compagnie n'attend pas d'avoir
   // 1 M$ en caisse : sinon elle s'éteint, navires à quai, pendant que sa dette grossit.
@@ -339,10 +359,10 @@ export function aiDaily(state, ctx, rng, company) {
   if (state.t < (company.ai.nextFleet || 0)) return;
   company.ai.nextFleet = state.t + rng.int(30, 60) * D;
   const value = fleetValue(state, company.id);
-  if (company.debt > value * 0.5) return;
+  if (company.debt > value * 0.5 && ships.length) return; // sans navire, on rachète de quoi repartir (sinon la compagnie reste à quai pour toujours)
   // Taille de flotte en « points » : un petit cargo compte moins qu'un géant.
   const points = ships.reduce((s, sh) => s + Math.max(0.4, Math.sqrt(SHIP_TYPES[sh.type].dwt / 50000)), 0);
-  const cap = eco.TUNING.aiFleet * (0.5 + 0.5 * (company.ai.skill || 1));
+  const cap = eco.TUNING.aiFleet * (0.5 + 0.5 * (company.ai.skill || 1)) * (company.ai.leaning === 'batisseur' ? AI_BUILDER_FLEET : 1);
   if (points >= cap) return;
   // En marché déprimé ou après un mois déficitaire : pas d'emprunt, et une réserve de trois mois.
   const avgFreight = eco.HOLD_TYPES.reduce((x, h) => x + state.market.freight[h], 0) / eco.HOLD_TYPES.length / eco.FREIGHT_NORMAL;
@@ -355,7 +375,8 @@ export function aiDaily(state, ctx, rng, company) {
     const yard = 'shanghai';
     const options = Object.entries(SHIP_TYPES).filter(([id, T]) => !T.vintage && (!company.ai.pool || company.ai.pool.includes(id))
       && act.newBuildPrice(state, company, id, yard) < company.cash * 0.6)
-      .map(([id, T]) => [id, Math.sqrt(T.dwt) / Math.sqrt(T.price) * Math.sqrt(PORT_IDS.filter((p) => eco.servesType(p, id)).length / 12)]);
+      .map(([id, T]) => [id, Math.sqrt(T.dwt) / Math.sqrt(T.price) * Math.sqrt(PORT_IDS.filter((p) => eco.servesType(p, id)).length / 12)
+        * (company.ai.leaning === 'batisseur' && !ships.some((s) => SHIP_TYPES[s.type].holds[0] === T.holds[0]) ? 4 : 1)]);
     if (options.length) {
       const typeId = rng.weighted(options);
       if (act.orderNewShip(state, company.id, typeId, yard).ok) return;
@@ -383,8 +404,11 @@ function buyOne(state, ctx, rng, company, budget) {
     const T = SHIP_TYPES[l.type];
     return Math.max(0, 85 - l.condition) * T.price * 1e6 * 0.0011 * (1 + (100 - l.condition) / 120) * eco.repairIndex(state);
   };
+  // Un bâtisseur veut un navire de chaque famille (record « La flotte complète »).
+  const have = new Set(shipsOf(state, company.id).map((s) => SHIP_TYPES[s.type].holds[0]));
+  const novelty = (l) => (company.ai.leaning === 'batisseur' && !have.has(SHIP_TYPES[l.type].holds[0]) ? 3 : 1);
   const pick = rng.weighted(affordable.map((l) => [l, Math.pow(SHIP_TYPES[l.type].dwt, 0.65) / Math.sqrt(l.price + fix(l))
-    * reach(l.type) * Math.pow(efficiency(state, company, l), 3)]));
+    * reach(l.type) * Math.pow(efficiency(state, company, l), 3) * novelty(l)]));
   if (pick.price > company.cash) act.borrow(state, company.id, pick.price - company.cash + 300000);
   return act.buyUsedShip(state, ctx, rng, company.id, pick.id).ok ? { price: pick.price, type: pick.type } : null;
 }

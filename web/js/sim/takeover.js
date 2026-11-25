@@ -9,9 +9,10 @@
 //    (prix, niveau). Le dirigeant peut demander six mois aux actionnaires pour redresser la barre
 //    (chance affichée, selon sa réputation). Tant qu'un concurrent peut le racheter, il est prévenu.
 import { HOURS_PER_DAY, formatDate } from './util.js';
-import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money } from './core.js';
+import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money, removeShip } from './core.js';
 import { onEliminated } from './honours.js';
 import { crossesLine, BLACKLIST } from './shadow.js';
+import { victoryProgress } from './victory.js';
 import { OFFICE_TIERS } from '../data/offices.js';
 
 const D = HOURS_PER_DAY;
@@ -25,13 +26,19 @@ export const TAKEOVER = {
   repBlend: 0.5,         // poids de la réputation de la cible (pondérée par la taille des flottes)
   aiChance: 0.3,         // chaque mois, chance qu'une IA qui le peut tente un rachat
   aiMaxRatio: 1.8,       // l'IA ne paie pas plus de 1,8 fois la valeur nette
+  aiMaxRatioBold: 2.9,   // une conquérante paie jusqu'à 2,9 fois (presque toute réputation)
   aiReserve: 1.3,        // et garde 30 % de marge de trésorerie nette
+  aiReserveBold: 1.1,    // une conquérante, 10 %
 };
 
 export const levelOf = (c) => c.level ?? 0;
 export const netCash = (state, c) => c.cash - c.debt - cargoLoans(state, c.id);
-export function takeoverPrice(state, target) {
-  return Math.round(Math.max(TAKEOVER.minWorth, netWorth(state, target.id)) * (1 + target.reputation / TAKEOVER.repK) / 10000) * 10000;
+// Une compagnie sur la liste noire ne se rachète que pour être démantelée (ses navires sanctionnés
+// partent à la casse) : au prix de ses actifs, sans prime de réputation.
+export const dismantleOnly = (buyer, target) => !!target.blacklisted && !buyer?.blacklisted;
+export function takeoverPrice(state, target, buyer = null) {
+  const k = dismantleOnly(buyer, target) ? 1 : 1 + target.reputation / TAKEOVER.repK;
+  return Math.round(Math.max(TAKEOVER.minWorth, netWorth(state, target.id)) * k / 10000) * 10000;
 }
 export const reprieveOf = (state, c) => (c.reprieve && c.reprieve.until > state.t ? c.reprieve : null);
 export const pendingBid = (state, targetId) => (state.bids || []).find((b) => b.target === targetId && b.status === 'pending') || null;
@@ -42,8 +49,8 @@ export function canTakeover(state, buyerId, targetId, { ignoreBid = null } = {})
   const buyer = state.companies[buyerId], target = state.companies[targetId];
   if (!buyer || !target || buyer === target || buyer.bankrupt) return { ok: false, why: 'Rachat impossible.' };
   if (target.bankrupt) return { ok: false, why: target.absorbed ? 'Cette compagnie a déjà été rachetée.' : 'Cette compagnie a fait faillite.' };
-  const price = takeoverPrice(state, target), cash = netCash(state, buyer);
-  const base = { price, cash, ok: false };
+  const price = takeoverPrice(state, target, buyer), cash = netCash(state, buyer);
+  const base = { price, cash, ok: false, dismantle: dismantleOnly(buyer, target) };
   if (levelOf(buyer) < levelOf(target)) return { ...base, why: `Il faut être au moins au niveau ${levelOf(target) + 1} (${OFFICE_TIERS[levelOf(target)].name.toLowerCase()}) pour racheter une compagnie de ce niveau.` };
   const rp = reprieveOf(state, target);
   if (rp) return { ...base, why: `Ses actionnaires ont accordé six mois à son dirigeant : aucun rachat avant le ${formatDate(rp.until, true)}.`, reprieve: rp };
@@ -52,6 +59,7 @@ export function canTakeover(state, buyerId, targetId, { ignoreBid = null } = {})
   if (cash < price) return { ...base, why: `Il faut ${M$(price)} de trésorerie nette (liquidités moins dettes et prêts sur cargaison) : un rachat se paie comptant, sans emprunt. Vous en avez ${M$(Math.max(0, cash))}.` };
   return { ...base, ok: true };
 }
+// Démanteler : on paie, ses navires partent à la casse, la compagnie disparaît ; rien d'autre.
 
 // Ce que le rachat change pour le racheteur (aperçu avant de confirmer).
 export function takeoverPreview(state, buyerId, targetId) {
@@ -71,6 +79,21 @@ export function executeTakeover(state, buyerId, targetId, notes = null) {
   if (!chk.ok) return { ok: false, msg: chk.why };
   const buyer = state.companies[buyerId], target = state.companies[targetId];
   const pv = takeoverPreview(state, buyerId, targetId);
+  if (chk.dismantle) {
+    money(state, buyer, -chk.price, 'rachats');
+    for (const s of state.ships.filter((x) => x.owner === target.id)) removeShip(state, null, s, 'démantelé', 0);
+    for (const o of state.orders || []) if (o.owner === target.id) o.owner = -1;
+    state.orders = (state.orders || []).filter((o) => o.owner !== -1);
+    for (const p of state.plots || []) if ((p.by === target.id || p.target === target.id) && p.until > state.t) p.until = state.t;
+    for (const b of state.bids || []) if ((b.target === target.id || b.by === target.id) && b.status === 'pending') b.status = 'void';
+    target.cash = 0; target.debt = 0; target.bankrupt = true;
+    target.absorbed = { by: buyer.id, t: state.t, price: chk.price, dismantled: true };
+    onEliminated(state, target, buyer.id);
+    news(state, `${buyer.name} rachète ${target.name}, sur la liste noire, pour la démanteler : sa flotte part à la casse.`, { company: buyer.id, kind: 'event' });
+    if (notes && target.human) notes.push({ kind: 'absorbed', company: target.id, other: buyer.id, text: `${buyer.name} a racheté votre compagnie pour ${M$(chk.price)} et la démantèle : vos navires partent à la casse. La partie est finie pour ${target.name}.` });
+    if (notes && buyer.human) notes.push({ kind: 'takeover', company: buyer.id, other: target.id, text: `${target.name} est démantelée : sa flotte part à la casse.` });
+    return { ok: true, price: chk.price, ships: 0, dismantled: true };
+  }
   // Argent : le prix aux actionnaires ; les liquidités et les dettes de la cible passent au racheteur.
   money(state, buyer, -chk.price, 'rachats');
   money(state, buyer, target.cash, 'rachats');
@@ -182,11 +205,17 @@ export function aiTakeover(state, rng, company, notes = null) {
   for (const t of state.companies) {
     if (t === company || t.bankrupt) continue;
     const chk = canTakeover(state, company.id, t.id);
-    if (!chk.ok || cash < chk.price * TAKEOVER.aiReserve) continue;
+    if (!chk.ok || cash < chk.price * (bold ? TAKEOVER.aiReserveBold : TAKEOVER.aiReserve)) continue;
     const ratio = chk.price / Math.max(TAKEOVER.minWorth, netWorth(state, t.id));
+    if (chk.dismantle) {
+      const threat = victoryProgress(state, t, 'shadow').frac >= 0.6;
+      if (!(threat || bold)) continue;
+      if (!best || chk.price < best.price) best = { t, ratio: 0, price: chk.price };
+      continue;
+    }
     const pv = takeoverPreview(state, company.id, t.id);
     if (company.ai?.leaning !== 'ombre' && crossesLine(company, pv.infamy - (company.infamy || 0))) continue; // son infamie la mettrait sur la liste noire
-    if (ratio > (bold ? TAKEOVER.aiMaxRatio * 1.4 : TAKEOVER.aiMaxRatio)) continue;
+    if (ratio > (bold ? TAKEOVER.aiMaxRatioBold : TAKEOVER.aiMaxRatio)) continue;
     if (!best || ratio < best.ratio) best = { t, ratio };
   }
   if (best) makeBid(state, company.id, best.t.id, notes);
