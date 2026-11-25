@@ -297,7 +297,7 @@ function officeHero(app) {
   const model = best ? { typeId: best.type, color: c.color, logo: c.logo, name: best.name } : null;
   const next = OFFICE_TIERS[tier + 1];
   return h('div', [
-    h('div.office-hero', { html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id, honours: { record: recordsHeld(state, c.id), evil: recordsHeld(state, c.id, 'evil') } }) }),
+    h('div.office-hero', { html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id, honours: { record: recordsHeld(state, c.id), evil: recordsHeld(state, c.id, 'evil') }, shadow: !!c.blacklisted }) }),
     h('div.office-caption', [
       h('span', [h('b', OFFICE_TIERS[tier].name), ' — ', OFFICE_TIERS[tier].text]),
       h('span.office-next', [

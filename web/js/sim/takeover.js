@@ -53,6 +53,9 @@ export function canTakeover(state, buyerId, targetId, { ignoreBid = null } = {})
   if (target.bankrupt) return { ok: false, why: target.absorbed ? 'Cette compagnie a déjà été rachetée.' : 'Cette compagnie a fait faillite.' };
   const price = takeoverPrice(state, target, buyer), cash = netCash(state, buyer);
   const base = { price, cash, ok: false, dismantle: dismantleOnly(buyer, target) };
+  // Une compagnie de la liste noire ne peut pas racheter une compagnie en règle : les autorités
+  // bloqueraient la vente. Pour elle, le « fossoyeur » passe par la ruine (coups bas, faillite).
+  if (buyer.blacklisted && !target.blacklisted) return { ...base, why: 'Sur la liste noire, votre compagnie ne peut racheter qu\'une autre compagnie de la liste noire : les autorités bloqueraient la vente. Il reste à la ruiner.' };
   if (levelOf(buyer) < levelOf(target)) return { ...base, why: `Il faut être au moins au niveau ${levelOf(target) + 1} (${OFFICE_TIERS[levelOf(target)].name.toLowerCase()}) pour racheter une compagnie de ce niveau.` };
   const rp = reprieveOf(state, target);
   if (rp) return { ...base, why: `Ses actionnaires ont accordé six mois à son dirigeant : aucun rachat avant le ${formatDate(rp.until, true)}.`, reprieve: rp };

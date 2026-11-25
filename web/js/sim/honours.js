@@ -34,7 +34,7 @@ export const HONOURS = {
   aid: 10, denounce: 14, repelled: 12, loyal: 14, school: 16,
   cleanDays: 540, cleanShips: 12, cleanDeliveries: 150,
   handsYears: 8,
-  seasT: 3e6,            // tonnes polluantes livrées depuis la dernière marée noire
+  seasYears: 4, seasDeliveries: 100, // des années sans transporter de cargaison polluante (avec de l'activité)
   armada: 26, month: 1.1e6, tons: 45e6, streak: 320, crew: 130, families: 7, goods: 15,
   dark: 30, parcels: 60, embargo: 300e6, hostile: 25, eliminated: 2,
 };
@@ -43,7 +43,7 @@ export const HONOURS = {
 export function hon(company) {
   return (company.hon ??= {
     tons: 0, tonsLog: [], streak: 0, goods: {}, aid: 0, denounced: 0, repelled: 0,
-    pollutingT: 0, cleanSince: 0, cleanDeliveries: 0, lastDirty: 0,
+    lastPolluting: 0, seasDeliveries: 0, cleanSince: 0, cleanDeliveries: 0, lastDirty: 0,
     darkDone: 0, darkFrom: {}, parcels: 0, embargoValue: 0, hostile: 0, eliminated: 0,
     best: { fleet: 0, month: 0, streak: 0, crew: 0 }, deeds: {},
   });
@@ -58,7 +58,7 @@ export function onDelivered(state, company, { qty, good, late }) {
   H.goods[good] = true;
   if (late) { H.streak = 0; onStain(state, company); } else { H.streak++; H.cleanDeliveries++; }
   H.best.streak = Math.max(H.best.streak, H.streak);
-  if ((GOODS[good]?.pollution || 0) >= 0.5) H.pollutingT += qty;
+  seasCount(state, H, good);
 }
 export function onTradeSale(state, company, { qty, good, value, embargo }) {
   const H = hon(company);
@@ -66,7 +66,11 @@ export function onTradeSale(state, company, { qty, good, value, embargo }) {
   H.tonsLog.push([state.t, qty]);
   H.goods[good] = true;
   if (embargo) H.embargoValue += value;
-  if ((GOODS[good]?.pollution || 0) >= 0.5) H.pollutingT += qty;
+  seasCount(state, H, good);
+}
+// « Mers propres » : une cargaison polluante remet le compteur à zéro, les autres le font avancer.
+function seasCount(state, H, good) {
+  if ((GOODS[good]?.pollution || 0) >= 0.2) { H.lastPolluting = state.t; H.seasDeliveries = 0; } else H.seasDeliveries = (H.seasDeliveries || 0) + 1; // comme l'étiquette « ☣ polluant » des contrats
 }
 // Contrat avec un pays sous embargo, achat dans un port sous embargo : la valeur compte au « briseur d'embargo ».
 export function onEmbargoTrade(company, value) { hon(company).embargoValue += value; }
@@ -77,7 +81,7 @@ export function onDirty(state, company) { hon(company).lastDirty = state.t; }
 export function onAid(company) { hon(company).aid++; }
 export function onDenounce(company) { hon(company).denounced++; }
 export function onRepelled(company) { hon(company).repelled++; }
-export function onSpill(state, company) { hon(company).pollutingT = 0; onStain(state, company); }
+export function onSpill(state, company) { onStain(state, company); }
 export function onDarkDone(state, company, fromPort) {
   const H = hon(company);
   H.darkDone++;
@@ -105,7 +109,7 @@ export function onEliminated(state, victim, byId = null) {
 const frac = (v, goal) => Math.max(0, Math.min(1, goal ? v / goal : 0));
 export const DEEDS = {
   aide: {
-    name: 'Main tendue', icon: '❤', get text() { return `Livrer à temps ${HONOURS.aid} aides d'urgence après une catastrophe.`; },
+    name: 'Main tendue', icon: '❤️', get text() { return `Livrer à temps ${HONOURS.aid} aides d'urgence après une catastrophe.`; },
     progress: (s, c) => { const v = hon(c).aid; return { frac: frac(v, HONOURS.aid), text: `${v} / ${HONOURS.aid} aides livrées` }; },
   },
   sanstache: {
@@ -136,11 +140,16 @@ export const DEEDS = {
     progress: (s, c) => { const v = shipsOf(s, c.id).filter((sh) => pointsEarned(sh) >= XP_STEPS.length).length; return { frac: frac(v, HONOURS.school), text: `${v} / ${HONOURS.school} équipages` }; },
   },
   merspropres: {
-    name: 'Mers propres', icon: '🌊', get text() { return `Livrer ${Mt(HONOURS.seasT)} de cargaisons polluantes sans la moindre marée noire.`; },
-    progress: (s, c) => { const v = hon(c).pollutingT; return { frac: frac(v, HONOURS.seasT), text: `${Mt(v)} / ${Mt(HONOURS.seasT)} depuis votre dernière marée noire` }; },
+    name: 'Mers propres', icon: '🌊', get text() { return `${HONOURS.seasYears} ans sans transporter la moindre cargaison polluante (☣ : pétrole brut, produits raffinés, chimie, engrais), avec au moins ${HONOURS.seasDeliveries} livraisons.`; },
+    progress: (s, c) => {
+      const H = hon(c);
+      H.lastPolluting ??= s.t; // ancienne sauvegarde : on compte à partir d'aujourd'hui
+      const y = (s.t - H.lastPolluting) / YEAR, n = H.seasDeliveries || 0;
+      return { frac: Math.min(frac(y, HONOURS.seasYears), frac(n, HONOURS.seasDeliveries)), text: `${Math.min(y, HONOURS.seasYears).toFixed(1).replace('.', ',')} / ${HONOURS.seasYears} ans sans cargaison polluante · ${n} / ${HONOURS.seasDeliveries} livraisons` };
+    },
   },
   pirates: {
-    name: 'Bouclier des mers', icon: '🛡', get text() { return `Repousser ${HONOURS.repelled} attaques de pirates.`; },
+    name: 'Corsaire', icon: '⚔️', get text() { return `Repousser ${HONOURS.repelled} attaques de pirates.`; },
     progress: (s, c) => { const v = hon(c).repelled; return { frac: frac(v, HONOURS.repelled), text: `${v} / ${HONOURS.repelled} attaques repoussées` }; },
   },
 };
@@ -164,7 +173,7 @@ export const EVIL = {
   embargo: { name: 'Briseur d\'embargo', text: 'Le plus de commerce avec les pays sous embargo', min: () => HONOURS.embargo, value: (s, c) => hon(c).embargoValue, fmt: M$ },
   marionnettiste: { name: 'Le marionnettiste', text: 'Le plus de coups bas contre les concurrents', min: () => HONOURS.hostile, value: (s, c) => hon(c).hostile, fmt: (v) => `${v} coups bas` },
   ennemi: { name: 'Ennemi public numéro un', text: 'La première compagnie sur la liste noire internationale', binary: true, min: () => 1, value: (s, c) => (c.blacklisted ? 1 : 0), fmt: (v) => (v ? 'sur la liste noire' : 'pas encore') },
-  fossoyeur: { name: 'Le fossoyeur', text: 'Le plus de concurrents ruinés ou rachetés', min: () => HONOURS.eliminated, value: (s, c) => hon(c).eliminated, fmt: (v) => `${v} compagnies` },
+  fossoyeur: { name: 'Le fossoyeur', text: 'Le plus de concurrents rachetés ou ruinés (une faillite revient au dernier concurrent qui l\'a attaquée dans l\'année)', min: () => HONOURS.eliminated, value: (s, c) => hon(c).eliminated, fmt: (v) => `${v} compagnies` },
 };
 export const RECORD_IDS = Object.keys(RECORDS);
 export const EVIL_IDS = Object.keys(EVIL);

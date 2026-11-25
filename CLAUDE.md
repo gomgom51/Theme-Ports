@@ -103,14 +103,17 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   numbered records can be broken, "complete" ones stay with the first), shadow fleet (years on the international
   blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (Office →
   Victories) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
-  (award scene), misdeeds are grim proofs on a dark side table. Office levels are sticky (company maturity) and gate
+  (award scene), misdeeds are grim proofs on a dark side table; a blacklisted company's office turns ostentatious
+  (night outside, velvet, chandelier, gold bust, full safe: `officeSVG` option `shadow`). Office levels are sticky (company maturity) and gate
   takeovers (buy only a company of your level or below), the reputation victory, and bank pressure.
 - Takeovers: paid from net cash (cash − debt − cargo loans), never borrowed. A human target gets a 30-day offer, can
   ask for six months (odds from reputation) and is warned whenever a rival can afford it. A blacklisted company can only
   be bought to be dismantled (fleet scrapped) at twice its net worth (shell companies), its reprieve odds follow its
   infamy, and AIs only move against it after the official 75 % warning: at net worth with no premium, a pariah was the
   cheapest buy and every shadow fleet was absorbed within three years. Inherited infamy that would cross the
-  blacklist line is shown before buying.
+  blacklist line is shown before buying. A blacklisted buyer can only buy another blacklisted company (the
+  authorities would block the sale); against clean rivals its only road to domination is ruin, which is how the
+  gravedigger misdeed reaches a shadow fleet (a bankruptcy is credited to the last rival that attacked within the year).
 - Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with
   the parry price; AIs parry when cheap and aim at the rival closest to a victory (conquerors at their cheapest prey).
 - Blacklist (infamy 80): enforcing ports closed, shadow bank only (half the credit, +15 points), but shady ports'

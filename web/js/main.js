@@ -289,7 +289,7 @@ function honourNote(n, scenes, prefix) {
   const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0];
   const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
   const toImg = (svg, w, h) => { const i = new Image(); i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" `)); return i; };
-  const office = toImg(officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `hon${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, hide: { kind, id: n.record } }), 960, 400);
+  const office = toImg(officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `hon${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, hide: { kind, id: n.record }, shadow: !!co.blacklisted }), 960, 400);
   const item = new Image(); item.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(honourSVG(kind, n.record, { size: 192 }));
   const logo = new Image(); logo.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(logoBadge(co.logo, co.color, 96).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
   const name = (kind === 'evil' ? EVIL : RECORDS)[n.record]?.name || '';
@@ -303,7 +303,7 @@ function levelUp(co, from, to) {
   const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0]; // la maquette du bureau
   const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
   const img = (tier) => {
-    const svg = officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `lvl${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') } }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200" ');
+    const svg = officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `lvl${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, shadow: !!co.blacklisted }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200" ');
     const i = new Image();
     i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     return i;
