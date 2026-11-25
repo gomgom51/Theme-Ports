@@ -814,6 +814,8 @@ select.input { width: auto; max-width: 100%; }
 .opp-gain { font-size: 12px; color: var(--muted); margin-top: 2px; }
 /* Guide des victoires, hauts faits, trophées et méfaits. */
 .rec-progress { margin-top: 3px; }
+.rec-missing summary { cursor: pointer; color: var(--teal); }
+.rec-missing div { margin-top: 3px; line-height: 1.5; }
 .rec-bar { display: block; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; margin: 3px 0 2px; }
 .rec-bar > span { display: block; height: 100%; background: var(--teal); }
 .codex-link { margin: 4px 0 10px; }

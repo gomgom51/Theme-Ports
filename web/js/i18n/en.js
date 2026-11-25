@@ -2420,4 +2420,7 @@ export default {
   "Vous : {0} · à battre : plus de {1}": "You: {0} · to beat: more than {1}",
   "Vous : {0} / {1}": "You: {0} / {1}",
   "Vous : {0} % du chemin": "You: {0}% of the way",
+  "Il vous manque : {0}": "You are still missing: {0}",
+  "Jamais desservi par votre compagnie : y faire escale compte pour le record « Toutes les escales », et donne un peu de confiance.": "Never served by your company: calling there counts towards the \"Every Port of Call\" record, and gives a little trust.",
+  "✚ nouveau port": "✚ new port",
 };

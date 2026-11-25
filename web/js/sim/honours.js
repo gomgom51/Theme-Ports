@@ -8,7 +8,7 @@
 //  Méfaits (6 preuves sinistres) : les records de l'ombre, mêmes règles, exposés sur le bureau.
 // Les compteurs sont tenus ici (crochets appelés par la simulation) et vérifiés chaque jour.
 import { PORT_IDS, PORTS } from '../data/ports.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, HOLDS } from '../data/goods.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { HOURS_PER_DAY } from './util.js';
@@ -156,16 +156,17 @@ export const DEEDS = {
 export const DEED_IDS = Object.keys(DEEDS);
 
 // ---------- Records (trophées) et méfaits (preuves) ----------
-// value : meilleure valeur de la compagnie ; binary : premier arrivé, pour toujours.
+// value : meilleure valeur de la compagnie ; binary : premier arrivé, pour toujours ;
+// missing : ce qui manque encore à la compagnie (liste affichée, pour ne pas avoir à s'en souvenir).
 export const RECORDS = {
   armada: { name: 'L\'Armada', text: 'La plus grande flotte jamais réunie', unit: 'navires', min: () => HONOURS.armada, value: (s, c) => hon(c).best.fleet, fmt: (v) => `${v} navires` },
   mois: { name: 'Le mois du siècle', text: 'Le plus de tonnes livrées en trente jours', min: () => HONOURS.month, value: (s, c) => hon(c).best.month, fmt: Mt },
   tonnes: { name: 'Le géant du fret', text: 'Le plus de tonnes livrées depuis la création', min: () => HONOURS.tons, value: (s, c) => hon(c).tons, fmt: Mt },
   ponctuel: { name: 'Réglé comme une horloge', text: 'La plus longue série de livraisons à l\'heure', min: () => HONOURS.streak, value: (s, c) => hon(c).best.streak, fmt: (v) => `${num(v)} livraisons` },
   equipages: { name: 'Les loups de mer', text: 'Le plus d\'expérience d\'équipage réunie dans une flotte', min: () => HONOURS.crew, value: (s, c) => hon(c).best.crew, fmt: (v) => `${num(v)} points` },
-  produits: { name: 'Tout ce qui flotte', get text() { return `Avoir transporté ${HONOURS.goods} des ${LEGAL_GOODS.length} marchandises légales`; }, binary: true, min: () => HONOURS.goods, value: (s, c) => LEGAL_GOODS.filter((g) => hon(c).goods[g]).length, fmt: (v) => `${v} / ${LEGAL_GOODS.length} marchandises` },
-  ports: { name: 'Toutes les escales', text: 'Avoir desservi tous les ports du monde', binary: true, min: () => PORT_IDS.length, value: (s, c) => (c.portsServed || []).length, fmt: (v) => `${v} / ${PORT_IDS.length} ports` },
-  familles: { name: 'La flotte complète', get text() { return `${HONOURS.families} familles de navires sur les ${FAMILIES.length} en même temps`; }, binary: true, min: () => HONOURS.families, value: (s, c) => new Set(shipsOf(s, c.id).map((sh) => SHIP_TYPES[sh.type].holds[0])).size, fmt: (v) => `${v} / ${FAMILIES.length} familles` },
+  produits: { missing: (s, c) => LEGAL_GOODS.filter((g) => !hon(c).goods[g]).map((g) => GOODS[g].name),  name: 'Tout ce qui flotte', get text() { return `Avoir transporté ${HONOURS.goods} des ${LEGAL_GOODS.length} marchandises légales`; }, binary: true, min: () => HONOURS.goods, value: (s, c) => LEGAL_GOODS.filter((g) => hon(c).goods[g]).length, fmt: (v) => `${v} / ${LEGAL_GOODS.length} marchandises` },
+  ports: { missing: (s, c) => PORT_IDS.filter((p) => !(c.portsServed || []).includes(p)).map((p) => PORTS[p].name).sort((a, b) => a.localeCompare(b, 'fr')),  name: 'Toutes les escales', text: 'Avoir desservi tous les ports du monde', binary: true, min: () => PORT_IDS.length, value: (s, c) => (c.portsServed || []).length, fmt: (v) => `${v} / ${PORT_IDS.length} ports` },
+  familles: { missing: (s, c) => { const have = new Set(shipsOf(s, c.id).map((sh) => SHIP_TYPES[sh.type].holds[0])); return FAMILIES.filter((f) => !have.has(f)).map((f) => HOLDS[f] || f); },  name: 'La flotte complète', get text() { return `${HONOURS.families} familles de navires sur les ${FAMILIES.length} en même temps`; }, binary: true, min: () => HONOURS.families, value: (s, c) => new Set(shipsOf(s, c.id).map((sh) => SHIP_TYPES[sh.type].holds[0])).size, fmt: (v) => `${v} / ${FAMILIES.length} familles` },
 };
 export const EVIL = {
   couteau: { name: 'Le couteau dans le bureau', text: 'Le plus d\'affaires noires menées à bien', min: () => HONOURS.dark, value: (s, c) => hon(c).darkDone, fmt: (v) => `${v} affaires` },

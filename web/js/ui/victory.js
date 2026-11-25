@@ -71,7 +71,9 @@ export function recordProgress(state, me, kind, id) {
   if (rec?.holder === me.id) return h('div.small.good', `À vous : ${R.fmt(rec.value)}${R.binary ? ' (pour toujours)' : ''}`);
   if (rec && R.binary) return h('div.small.muted', [`Vous : ${R.fmt(v)} · déjà pris, il reste au premier.`]);
   const target = rec ? rec.value : R.min();
-  return h('div.rec-progress', [bar(v / Math.max(1e-9, target)), h('div.small.muted', rec ? `Vous : ${R.fmt(v)} · à battre : plus de ${R.fmt(rec.value)}` : `Vous : ${R.fmt(v)} / ${R.fmt(target)}`)]);
+  const miss = R.missing ? R.missing(state, me) : null;
+  return h('div.rec-progress', [bar(v / Math.max(1e-9, target)), h('div.small.muted', rec ? `Vous : ${R.fmt(v)} · à battre : plus de ${R.fmt(rec.value)}` : `Vous : ${R.fmt(v)} / ${R.fmt(target)}`),
+    miss && miss.length ? h('details.rec-missing', [h('summary.small', `Il vous manque : ${miss.length}`), h('div.small', miss.flatMap((m, i) => [i ? ', ' : null, h('span', m)]))]) : null]);
 }
 function recordCards(app, kind) {
   const { state } = app;

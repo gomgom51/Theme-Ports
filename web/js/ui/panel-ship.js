@@ -827,6 +827,7 @@ function departTab(app, ship) {
     !r.why && r.nsr ? h('span.tag', { title: 'Route par le passage du Nord-Est, ouvert l\'été.' }, '🧊 Nord-Est') : null,
     grudgeAt(state, company, r.p) ? h('span.tag.bad', { title: 'Un gang de ce port en veut à votre compagnie : risque de saisie à l\'escale.' }, '⚠ gang') : null,
     ship.dark?.to === r.p ? h('span.tag.bad', 'livraison noire') : null,
+    !r.why && !(company.portsServed || []).includes(r.p) ? h('span.tag.good', { title: 'Jamais desservi par votre compagnie : y faire escale compte pour le record « Toutes les escales », et donne un peu de confiance.' }, '✚ nouveau port') : null,
     !r.why && r.contracts ? h('span.tag', { class: r.fit ? 'good' : '' }, [h('span', r.contracts > 1 ? `${r.contracts} contrats` : `${r.contracts} contrat`), r.fit ? ' · ' : null, r.fit ? h('span', `${r.fit} pour ce navire`) : null]) : null,
   ]); })));
   return box;
