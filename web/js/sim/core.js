@@ -145,7 +145,10 @@ export const STANDING = { cleanMonthly: 2.5, cleanDays: 180, forgiveTo: 50, forg
 //  tenderTrust : appel d'offres servi (confiance, quelle que soit la marchandise) ;
 //  slow        : allure économique, à l'arrivée — entier sous slowFull × la vitesse de service, rien
 //                au-dessus de slowStart, et proportionnel aux jours de mer jusqu'à slowDays.
-export const VIRTUE_SOURCES = { useful: 0.8, opportunity: 2, tenderTrust: 1.5, slow: 1.2, slowStart: 0.95, slowFull: 0.75, slowDays: 10 };
+//  oil         : perte par livraison de pétrole (contrat ou vente), × (oilFloor + vertu / 100) : elle mord
+//                tant que l'image est bonne, moins quand on est déjà connu comme transporteur de pétrole.
+export const VIRTUE_SOURCES = { useful: 0.8, opportunity: 2, tenderTrust: 1.5, slow: 1.2, slowStart: 0.95, slowFull: 0.75, slowDays: 10, oil: 1, oilFloor: 0.2 };
+export const oilVirtueLoss = (company) => VIRTUE_SOURCES.oil * (VIRTUE_SOURCES.oilFloor + standing(company).virtue / 100);
 const deedBonus = (company) => Math.min(5, Object.keys(company.hon?.deeds || {}).length);
 // L'infamie (affaires noires) abaisse pour toujours les deux plafonds : c'est le prix des affaires noires.
 export const trustCap = (company) => Math.min(100 - Math.min(80, company.infamy || 0), REP_BASE_CAP + deedBonus(company));

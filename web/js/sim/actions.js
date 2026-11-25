@@ -2,11 +2,10 @@
 // ou { ok: false, msg } avec un message lisible par le joueur.
 import { PORTS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
-import { GOODS } from '../data/goods.js';
+import { GOODS, OIL_GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import {
-  money, news, shipById, contractById, companyOf, creditLimit, createShip, shipLog, portName,
-  changeReputation, changeTrust, standing, removeShip, shipTrack, lastTrip, TRIPS_KEPT, loanOwedAt,
+  money, news, shipById, contractById, companyOf, creditLimit, createShip, shipLog, portName, changeReputation, changeTrust, standing, removeShip, shipTrack, lastTrip, TRIPS_KEPT, loanOwedAt, changeVirtue, oilVirtueLoss,
 } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { CANAL_NAMES } from './context.js';
@@ -416,6 +415,7 @@ export function sellCargo(state, ctx, shipId) {
   if (tr && tr.rev == null && tr.to === ship.port) tr.rev = Math.round(q.net - (ship.cargo.cost || 0)); // marge du négoce
   taintShip(state, ship, ship.port, q.net);
   onTradeSale(state, company, { qty: ship.cargo.qty, good: ship.cargo.good, value: q.net });
+  if (OIL_GOODS.includes(ship.cargo.good)) changeVirtue(company, -oilVirtueLoss(company), 'pétrole'); // l'image d'un transporteur de pétrole
   shipLog(state, ship, `Vente de ${ship.cargo.qty.toLocaleString('fr-FR')} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${fmtM(Math.abs(q.profit))}`);
   const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty);
   ship.cargo = null;
