@@ -29,7 +29,7 @@ Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms 
   respect.mp3      victoire « La plus respectée » en vue : thème noble et lumineux
   legende.mp3      victoire « Compagnie légendaire » en vue : épopée maritime en 6/8
   ombre.mp3        victoire « La flotte fantôme » en vue : thème du méchant
-  liste-noire.mp3  la compagnie est sur la liste noire internationale : polar enfumé
+  liste-noire.mp3  la compagnie est sur la liste noire internationale : saga solennelle (valse lente, trompette seule)
   menace.mp3       un concurrent est à 90 % d'une victoire : compte à rebours
   Sans ces fichiers, la musique du niveau continue.
 

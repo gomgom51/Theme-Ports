@@ -306,15 +306,57 @@ vocals, singing, lyrics, jingle, advertisement, EDM drop, dubstep, lo-fi hip hop
 
 La compagnie est devenue un paria : ses navires ne peuvent plus entrer dans les ports
 qui appliquent les sanctions, les banques ont fermé la porte, on ne commerce plus
-qu'avec l'ombre. Un port la nuit, sous la pluie : élégant, enfumé, menaçant, comme un
-polar. L'accordéon du premier niveau revient, mais en mineur et un peu désaccordé,
-joué par quelqu'un qui n'a plus rien à perdre.
+qu'avec l'ombre. Ce n'est pas un casse réussi : c'est une saga, solennelle et tragique.
+Le pouvoir, la solitude, une famille qui ne reculera plus. On veut de grands moments :
+une trompette seule qui tient de longues notes dans le silence, une valse lente qui
+prend son temps, des cordes qui s'ouvrent sur un accord tenu, et de l'espace entre les
+phrases pour sentir que c'est grand. L'accordéon du vieux port revient au milieu,
+comme un souvenir d'avant.
+
+Suno refuse les noms de films et de compositeurs : le style décrit le son sans les
+nommer. Pas de jazz, pas de batterie, pas de tango (c'est ce qui donnait l'air de casse).
+
+Mode **Custom**, case **Instrumental** décochée : la structure ci-dessous, mise dans le
+champ des paroles, impose les longues notes et les silences (les indications entre
+crochets ne sont pas chantées).
+
+**Style of Music** :
 
 ```
-instrumental, dark noir jazz, slow 78 bpm, minor key, smoky and menacing but elegant, muted trumpet, upright bass pizzicato, brushed snare, low tremolo strings, a lone slightly detuned accordion playing an old harbour waltz motif in minor, distant foghorn, rain on a night harbour, smuggler's tango undertone, cinematic crime film, no vocals, seamless loop
+instrumental, solemn tragic orchestral waltz, 1970s crime saga film score, slow 3/4 at 60 bpm, minor key, rubato, a lone trumpet holding long sustained notes over silence, mandolin tremolo, lush string section with long held chords, warm oboe and clarinet, soft low brass swells, Mediterranean melancholy, grand and spacious, long pauses between phrases, power, loneliness and inevitability, no drums, no vocals
+```
+
+**Exclude Styles** :
+
+```
+jazz, swing, tango, heist, caper, upbeat, drums, percussion, drum kit, electronic, synth, vocals, singing, choir, jingle
 ```
 
 **Titre** : Pavillon noir
+
+**Paroles** (structure seulement) :
+
+```
+[Intro: solo trumpet alone in silence, long sustained notes, a pause after each phrase]
+
+[Theme: slow waltz, mandolin tremolo, strings enter softly, the trumpet melody]
+
+[Swell: full strings rise to one long held chord, then silence]
+
+[Interlude: a lone accordion plays the old harbour waltz in minor, like a memory]
+
+[Grand Theme: full orchestra, slow and broad, long notes, solemn and powerful]
+
+[Outro: solo trumpet returns, fading, the last note held long]
+
+[End]
+```
+
+Gardez la version dont l'introduction laisse la trompette vraiment seule, et dont les
+accords tenus durent (si Suno remplit les silences, régénérez). Si une batterie s'invite
+malgré tout, cochez **Instrumental** en gardant le style, ou baissez le tempo à 54 bpm.
+Si le morceau est trop court, allongez le meilleur essai avec **Extend** depuis la fin
+(« continue the slow waltz, solo trumpet, long held notes ») jusqu'à 3 minutes environ.
 
 ### `ombre.mp3` — La flotte fantôme approche de la victoire
 
