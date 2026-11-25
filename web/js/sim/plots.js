@@ -13,7 +13,11 @@ import { PORTS, PORT_IDS } from '../data/ports.js';
 import { CLIENTS } from '../data/clients.js';
 import { corruption, SHADY_PORTS } from '../data/sanctions.js';
 import { HOURS_PER_DAY } from './util.js';
-import { money, news, changeReputation, shipLog, shipsOf, portName } from './core.js';
+import { money, news, changeReputation, shipLog, shipsOf, portName, shipById, fleetValue } from './core.js';
+import { formatDate } from './util.js';
+import { pointsEarned, pointsSpent, XP_STEPS, SKILL_IDS } from './crew.js';
+import * as eco from './economy.js';
+import { VICTORY_KINDS, victoryOn, victoryProgress } from './victory.js';
 import { relationOf, clientRel, LOYAL } from './clients.js';
 import { PIRACY_ZONES, piracyZoneAt } from './piracy.js';
 import { onHostile } from './honours.js';
@@ -91,13 +95,24 @@ export function orderPlot(state, rng, byId, { kind, target, zone, port }) {
 // Scandal : l'affaire s'ébruite.
 function scandal(state, p) {
   const by = state.companies[p.by], tg = state.companies[p.target];
-  const S = SCANDAL[p.kind];
+  const S = SCANDAL[p.kind] || ATTACKS[p.kind].scandal;
   p.exposed = true;
   p.until = state.t; // les complices lâchent l'affaire
   if (!p.known.includes(p.target)) p.known.push(p.target);
   changeReputation(by, -S.rep);
   if (S.fine) money(state, by, -S.fine, 'sinistres');
-  const what = p.kind === 'pirates' ? `d'avoir payé des pirates contre les navires de ${tg.name} (${zoneById(p.zone).name})` : `d'avoir acheté les autorités de ${portName(p.port)} contre ${tg.name}`;
+  if (p.kind === 'bank' && tg.creditCut?.plot === p.id) tg.creditCut = null;
+  const sh = p.ship != null ? shipById(state, p.ship) : null;
+  const what = {
+    pirates: () => `d'avoir payé des pirates contre les navires de ${tg.name} (${zoneById(p.zone).name})`,
+    corruption: () => `d'avoir acheté les autorités de ${portName(p.port)} contre ${tg.name}`,
+    sabotage: () => `d'avoir fait saboter le ${sh?.name || 'navire'} de ${tg.name}`,
+    payments: () => `d'avoir demandé à ${CLIENTS[p.client]?.name || 'un chargeur'} de retarder les paiements de ${tg.name}`,
+    bank: () => `d'avoir fait pression sur la banque de ${tg.name}`,
+    pricewar: () => `de casser les prix à ${portName(p.port)} pour ruiner ${tg.name}`,
+    smear: () => `d'avoir payé une campagne de dénigrement contre ${tg.name}`,
+    crew: () => `d'avoir débauché l'équipage du ${sh?.name || 'navire'} de ${tg.name}`,
+  }[p.kind]();
   news(state, `Scandale : ${by.name} est accusé ${what}.`, { company: by.id, kind: 'disaster' });
   queue(state, by, 'scandal', S.fine ? `Scandale : votre coup contre ${tg.name} a été découvert. Réputation −${S.rep} et amende de ${M$(S.fine)}.` : `Scandale : votre coup contre ${tg.name} a été découvert. Réputation −${S.rep}.`);
   queue(state, tg, 'info', `On sait désormais qui vous visait : ${by.name}. L'affaire a fait scandale et ses complices ont renoncé.`);
@@ -212,16 +227,165 @@ export function jettison(state, shipId) {
   return { ok: true };
 }
 
+// ---------- Coups de concurrence (Bureau → Concurrents) et sabotage (la zone) ----------
+// Chacun coûte de la réputation à coup sûr (le milieu jase), peut s'ébruiter (scandale), et laisse
+// filtrer une rumeur chez la victime : ce qui la menace, jusqu'à quand, et comment parer (règle n° 1).
+export const ATTACKS = {
+  sabotage: { name: 'Sabotage d\'un navire', days: 45, rep: 3, expose: 0.25, scandal: { rep: 12, fine: 600000 }, minLevel: 0 },
+  payments: { name: 'Paiements retardés', days: 90, rep: 2, expose: 0.2, scandal: { rep: 8, fine: 0 }, minLevel: 1 },
+  bank: { name: 'Pression sur sa banque', days: 180, rep: 4, expose: 0.3, scandal: { rep: 12, fine: 1000000 }, minLevel: 2 },
+  pricewar: { name: 'Guerre des prix', days: 60, rep: 2, expose: 0.15, scandal: { rep: 6, fine: 0 }, minLevel: 1 },
+  smear: { name: 'Campagne de dénigrement', days: 56, rep: 3, expose: 0.3, scandal: { rep: 10, fine: 0 }, minLevel: 1 },
+  crew: { name: 'Débauchage d\'équipage', days: 14, rep: 2, expose: 0.2, scandal: { rep: 6, fine: 0 }, minLevel: 0 },
+};
+export const SABOTAGE_DAMAGE = [12, 22]; // points d'état perdus
+export const SABOTAGE_DELAY = [2, 6];    // jours avant le coup (à la prochaine escale si le navire est en mer)
+export const PRICEWAR_CUT = 0.2;         // fret 20 % moins payé pour la victime dans ce port
+export const BANK_CUT = 0.5;             // plafond de crédit divisé par deux
+export const SMEAR_WEEKLY = 1;           // réputation perdue chaque semaine
+export const PAYMENT_DELAY = [40, 75];   // jours de retard imposés par le chargeur
+export const CREW_DELAY = 7;
+const round10k = (v) => Math.round(v / 10000) * 10000;
+export function attackPrice(state, kind, { target, ship, port } = {}) {
+  const tg = state.companies[target];
+  const sh = ship != null ? shipById(state, ship) : null;
+  if (kind === 'sabotage') return round10k(250000 + 0.015 * (sh ? eco.shipValue(state, sh) : 0));
+  if (kind === 'payments') return 200000;
+  if (kind === 'bank') return round10k(Math.max(300000, 0.006 * fleetValue(state, target)));
+  if (kind === 'pricewar') return round10k(300000 + 80000 * (PORTS[port]?.size || 3));
+  if (kind === 'smear') return round10k(250000 + 1000 * (tg?.reputation || 50));
+  if (kind === 'crew') return round10k(120000 + 60000 * (sh ? pointsEarned(sh) : 1));
+  return 0;
+}
+export function counterPrice(state, p) {
+  if (p.kind === 'sabotage') { const sh = shipById(state, p.ship); return round10k(Math.max(40000, 0.008 * (sh ? eco.shipValue(state, sh) : 0))); }
+  if (p.kind === 'payments') return 100000;
+  if (p.kind === 'bank') return round10k(100000 + 0.01 * (state.companies[p.target]?.debt || 0));
+  if (p.kind === 'pricewar') return round10k(p.price * 0.5);
+  if (p.kind === 'smear') return 150000;
+  if (p.kind === 'crew') { const sh = shipById(state, p.ship); return round10k(80000 * Math.max(1, sh ? pointsEarned(sh) : 1)); }
+  return 0;
+}
+export const ATTACK_KINDS = Object.keys(ATTACKS);
+// Effets en cours, lus par la simulation.
+export function payCut(state, cid, port) {
+  return activePlots(state).some((p) => p.kind === 'pricewar' && p.target === cid && p.port === port && !p.countered) ? 1 - PRICEWAR_CUT : 1;
+}
+export const priceWarAt = (state, cid, port) => activePlots(state).find((p) => p.kind === 'pricewar' && p.target === cid && p.port === port && !p.countered) || null;
+export function stalledBy(state, cid, client) {
+  return activePlots(state).find((p) => p.kind === 'payments' && p.target === cid && p.client === client && !p.countered) || null;
+}
+// Peut-on lancer ce coup ? (raison sinon)
+export function attackCheck(state, byId, kind, { target, ship, client, port, toShip } = {}) {
+  const by = state.companies[byId], tg = state.companies[target], A = ATTACKS[kind];
+  if (!A || !by || !tg || tg.bankrupt || target === byId) return 'Cible invalide.';
+  if ((by.level ?? 0) < A.minLevel) return `Il faut être au niveau ${A.minLevel + 1} pour cela.`;
+  if (kind === 'bank' && (by.level ?? 0) < (tg.level ?? 0)) return 'Sa banque ne vous écoutera pas : sa compagnie est d\'un niveau supérieur au vôtre.';
+  if (kind === 'sabotage' || kind === 'crew') { const sh = shipById(state, ship); if (!sh || sh.owner !== target) return 'Navire introuvable.'; }
+  if (kind === 'sabotage' && !shipsOf(state, byId).some((s) => s.status === 'port' && canPlotFrom(s.port))) return 'Il faut un navire à quai dans un port où opère la zone.';
+  if (kind === 'crew') { const sh = shipById(state, ship), mine = shipById(state, toShip); if (!pointsEarned(sh)) return 'Cet équipage n\'a pas encore d\'expérience à débaucher.'; if (!mine || mine.owner !== byId) return 'Choisissez un de vos navires pour les accueillir.'; if (pointsEarned(mine) >= XP_STEPS.length) return 'Votre équipage est déjà au sommet.'; }
+  if (kind === 'payments' && relationOf(by, client).loyalty < LOYAL) return 'Seul un chargeur dont vous êtes le partenaire fidèle acceptera de vous rendre ce service.';
+  if (kind === 'pricewar' && !PORTS[port]) return 'Port inconnu.';
+  const same = activePlots(state).find((p) => p.kind === kind && p.target === target && (p.ship ?? null) === (ship ?? null) && (p.port ?? null) === (port ?? null) && (p.client ?? null) === (client ?? null));
+  if (same) return 'Une affaire de ce genre le vise déjà.';
+  if (by.cash < attackPrice(state, kind, { target, ship, port })) return `Il faut ${k$(attackPrice(state, kind, { target, ship, port }))} en caisse.`;
+  return null;
+}
+export function orderAttack(state, rng, byId, opts) {
+  const { kind, target, ship = null, client = null, port = null, toShip = null } = opts;
+  const why = attackCheck(state, byId, kind, opts);
+  if (why) return { ok: false, msg: why };
+  const by = state.companies[byId], tg = state.companies[target], A = ATTACKS[kind];
+  const price = attackPrice(state, kind, opts);
+  money(state, by, -price, 'divers');
+  changeReputation(by, -A.rep); // le milieu jase, même sans preuve
+  onHostile(state, by, tg);
+  const strikeAt = kind === 'sabotage' ? state.t + rng.int(SABOTAGE_DELAY[0], SABOTAGE_DELAY[1]) * D : kind === 'crew' ? state.t + CREW_DELAY * D : 0;
+  const plot = {
+    id: state.nextId++, kind, by: byId, target, ship, client, port, toShip, strikeAt,
+    start: state.t, until: state.t + A.days * D, exposeAt: rng.chance(A.expose) ? state.t + rng.int(3, Math.max(4, A.days - 3)) * D : 0,
+    known: [byId], announced: false, price,
+  };
+  plot.counter = counterPrice(state, plot);
+  if (kind === 'bank') tg.creditCut = { until: plot.until, k: BANK_CUT, plot: plot.id };
+  (state.plots ??= []).push(plot);
+  return { ok: true, plot, price };
+}
+// La victime pare le coup (gardes, recouvrement, autre banque, riposte, contre-campagne, prime).
+export function counterPlot(state, cid, plotId) {
+  const p = activePlots(state).find((x) => x.id === plotId && x.target === cid);
+  if (!p || !p.counter) return { ok: false, msg: 'Rien à parer.' };
+  const c = state.companies[cid];
+  if (c.cash < p.counter) return { ok: false, msg: `Il faut ${k$(p.counter)} en caisse.` };
+  money(state, c, -p.counter, 'divers');
+  p.countered = true;
+  p.until = state.t;
+  if (p.kind === 'bank' && c.creditCut?.plot === p.id) c.creditCut = null;
+  if (p.kind === 'sabotage') { const sh = shipById(state, p.ship); if (sh) sh.guardUntil = state.t + 30 * D; }
+  queue(state, state.companies[p.by], 'info', `${c.name} a paré votre coup (${ATTACKS[p.kind].name.toLowerCase()}).`);
+  return { ok: true, price: p.counter };
+}
+// Rumeur chez la victime : quoi, jusqu'à quand, comment parer.
+export function attackRumour(state, p) {
+  const until = formatDate(p.until, true), parry = k$(p.counter);
+  const sh = p.ship != null ? shipById(state, p.ship) : null;
+  if (p.kind === 'sabotage') return `Rumeurs : quelqu'un rôderait autour du ${sh?.name || 'navire'}. Sabotage possible à sa prochaine escale (${SABOTAGE_DAMAGE[0]} à ${SABOTAGE_DAMAGE[1]} points d'état perdus). Des gardes à bord pour un mois : ${parry}.`;
+  if (p.kind === 'payments') return `Rumeurs : ${CLIENTS[p.client]?.name || 'un chargeur'} aurait promis à un concurrent de faire traîner vos paiements jusqu'au ${until} (${PAYMENT_DELAY[0]} à ${PAYMENT_DELAY[1]} jours de retard). Évitez ses contrats, ou mandatez un cabinet de recouvrement : ${parry}.`;
+  if (p.kind === 'bank') return `Votre banque réexamine votre dossier après des pressions : plafond de crédit divisé par deux jusqu'au ${until}. Passer chez une autre banque : ${parry}.`;
+  if (p.kind === 'pricewar') return `Guerre des prix à ${portName(p.port)} : un concurrent casse les prix, les chargeurs vous paient ${Math.round(PRICEWAR_CUT * 100)} % de moins jusqu'au ${until}. Riposte commerciale : ${parry}.`;
+  if (p.kind === 'smear') return `Une campagne de presse vous dénigre : environ ${SMEAR_WEEKLY} point de réputation perdu chaque semaine jusqu'au ${until}. Contre-campagne : ${parry}.`;
+  if (p.kind === 'crew') return `Des recruteurs approchent l'équipage du ${sh?.name || 'navire'} : sans geste de votre part, ses meilleurs éléments partiront d'ici le ${formatDate(p.strikeAt, true)} (un point d'expérience perdu). Prime de fidélité : ${parry}.`;
+  return '';
+}
+// Effets à date : sabotage, débauchage, dénigrement.
+function attackEffects(state, rng, p, notes) {
+  const tg = state.companies[p.target], by = state.companies[p.by];
+  if (p.kind === 'smear') {
+    const week = Math.floor((state.t - p.start) / (7 * D));
+    if (week > (p.week || 0)) { p.week = week; changeReputation(tg, -SMEAR_WEEKLY); }
+  }
+  if (!p.strikeAt || p.done || state.t < p.strikeAt) return;
+  const sh = shipById(state, p.ship);
+  if (!sh || sh.owner !== p.target) { p.done = true; p.until = state.t; return; }
+  if (p.kind === 'sabotage') {
+    if (sh.guardUntil > state.t) {
+      p.done = true; p.until = state.t;
+      queue(state, tg, 'info', `Les gardes du ${sh.name} ont surpris un saboteur : rien n'a été abîmé.`);
+      queue(state, by, 'info', `Votre saboteur a été surpris à bord du ${sh.name} : le coup a échoué.`);
+      return;
+    }
+    if (sh.status !== 'port') return; // il attend la prochaine escale
+    const dmg = rng.int(SABOTAGE_DAMAGE[0], SABOTAGE_DAMAGE[1]);
+    sh.condition = Math.max(25, sh.condition - dmg);
+    shipLog(state, sh, `Sabotage à ${portName(sh.port)} : ${dmg} points d'état perdus`);
+    p.done = true; p.until = state.t;
+    if (tg.human) notes.push({ kind: 'sabotage', company: tg.id, shipId: sh.id, text: `Sabotage à bord du ${sh.name} à ${portName(sh.port)} : ${dmg} points d'état perdus. Un chantier peut le remettre en état.` });
+    queue(state, by, 'info', `Votre saboteur a frappé : le ${sh.name} (${tg.name}) perd ${dmg} points d'état.`);
+  } else if (p.kind === 'crew') {
+    const k = pointsEarned(sh);
+    p.done = true; p.until = state.t;
+    if (!k) return;
+    sh.xp = k >= 2 ? XP_STEPS[k - 2] : 0;
+    while (pointsSpent(sh) > pointsEarned(sh)) { const id = SKILL_IDS.filter((x) => (sh.skills?.[x] || 0) > 0).sort((a, b) => sh.skills[b] - sh.skills[a])[0]; if (!id) break; sh.skills[id]--; }
+    const mine = shipById(state, p.toShip);
+    if (mine && mine.owner === p.by) { const m = pointsEarned(mine); if (m < XP_STEPS.length) mine.xp = Math.max(mine.xp || 0, XP_STEPS[m]); }
+    if (tg.human) notes.push({ kind: 'info', company: tg.id, shipId: sh.id, text: `Les meilleurs marins du ${sh.name} ont été débauchés par un concurrent : l'équipage perd un point d'expérience.` });
+    queue(state, by, 'info', `Les marins débauchés du ${sh.name} ont rejoint ${mine ? `le ${mine.name}` : 'votre flotte'}.`);
+  }
+}
+
 // Chaque jour : rumeurs des nouvelles menaces, scandales, messages différés, fin des affaires.
-export function plotsDaily(state, notes) {
+export function plotsDaily(state, notes, rng = null) {
   for (const p of state.plots || []) {
     if (!p.announced) {
       p.announced = true;
       const tg = state.companies[p.target];
-      if (tg?.human) notes.push({ kind: 'threat', company: tg.id, text: threatText(p) });
+      if (tg?.human) notes.push({ kind: 'threat', company: tg.id, plotId: p.id, shipId: p.ship ?? undefined, text: ATTACKS[p.kind] ? attackRumour(state, p) : threatText(p) });
     }
+    if (ATTACKS[p.kind] && p.until > state.t && rng) attackEffects(state, rng, p, notes);
     if (p.exposeAt && !p.exposed && p.exposeAt <= state.t && p.until > state.t) scandal(state, p);
   }
+  for (const c of state.companies) if (c.creditCut && c.creditCut.until <= state.t) c.creditCut = null;
   state.plots = (state.plots || []).filter((p) => p.until > state.t - 30 * D); // gardées un mois pour mémoire
   if (state.queuedNotes?.length) { notes.push(...state.queuedNotes); state.queuedNotes = []; }
 }
@@ -229,13 +393,31 @@ export function plotsDaily(state, notes) {
 // ---------- IA ----------
 // Rarement (une fois par mois au plus), une IA à l'aise qui a un navire dans un port louche
 // (ou en route vers lui) vise le plus riche de ses concurrents, ou lui débauche un chargeur.
-export const AI_PLOT_CHANCE = 0.05, AI_POACH_CHANCE = 0.04;
+export const AI_PLOT_CHANCE = 0.05, AI_POACH_CHANCE = 0.04, AI_ATTACK_CHANCE = 0.06, AI_COUNTER = 8;
+// Le concurrent à abattre : celui qui approche d'une victoire, sinon le plus riche.
+function aiTarget(state, company, rivals, netWorthOf) {
+  let lead = null;
+  for (const c of rivals) for (const k of VICTORY_KINDS) {
+    if (!victoryOn(state, k)) continue;
+    const f = victoryProgress(state, c, k).frac;
+    if (f >= 0.6 && (!lead || f > lead.f)) lead = { c, f };
+  }
+  if (lead) return lead.c;
+  const rich = rivals.reduce((a, b) => (netWorthOf(b.id) > netWorthOf(a.id) ? b : a));
+  return netWorthOf(rich.id) >= netWorthOf(company.id) * 0.8 ? rich : null; // on ne s'attaque pas aux petits
+}
 export function aiPlots(state, rng, company, netWorthOf) {
-  if (company.bankrupt || company.cash < 2.5e6) return;
+  if (company.bankrupt) return;
+  // Parer ce qui la vise, quand elle en a largement les moyens.
+  for (const p of plotsAgainst(state, company.id)) {
+    if (p.counter && !p.countered && company.cash > p.counter * AI_COUNTER && rng.chance(0.6)) counterPlot(state, company.id, p.id);
+  }
+  if (company.cash < 2.5e6) return;
   const rivals = state.companies.filter((c) => c.id !== company.id && !c.bankrupt);
   if (!rivals.length) return;
-  const target = rivals.reduce((a, b) => (netWorthOf(b.id) > netWorthOf(a.id) ? b : a));
-  if (netWorthOf(target.id) < netWorthOf(company.id) * 0.8) return; // on ne s'attaque pas aux petits
+  const target = aiTarget(state, company, rivals, netWorthOf);
+  if (!target) return;
+  const bold = company.ai?.leaning === 'conquerant';
   const inShady = shipsOf(state, company.id).some((s) => canPlotFrom(s.status === 'port' ? s.port : s.voyage?.to));
   if (inShady && rng.chance(AI_PLOT_CHANCE)) {
     // Une zone de piraterie où se rendent ses navires, sinon un port corrompu où il va.
@@ -249,4 +431,20 @@ export function aiPlots(state, rng, company, netWorthOf) {
     const ids = Object.keys(CLIENTS).filter((id) => { const tp = topPartner(state, id, company.id); return tp && tp.id === target.id && tp.loyalty >= 6; });
     if (ids.length) poachClient(state, rng, company.id, rng.pick(ids));
   }
+  // Coups de concurrence : un au plus par mois, choisi selon ce qui est possible.
+  if (!rng.chance(bold ? AI_ATTACK_CHANCE * 2 : AI_ATTACK_CHANCE)) return;
+  const theirs = shipsOf(state, target.id);
+  const options = [];
+  if (target.reputation >= 60) options.push({ kind: 'smear', target: target.id });
+  const busy = theirs.map((s) => s.voyage?.to || s.port).filter(Boolean);
+  if (busy.length) options.push({ kind: 'pricewar', target: target.id, port: rng.pick(busy) });
+  options.push({ kind: 'bank', target: target.id });
+  const loyal = Object.keys(CLIENTS).filter((id) => relationOf(company, id).loyalty >= LOYAL && relationOf(target, id).deliveries > 0);
+  if (loyal.length) options.push({ kind: 'payments', target: target.id, client: rng.pick(loyal) });
+  const rich = theirs.filter((s) => s.status === 'port').sort((a, b) => eco.shipValue(state, b) - eco.shipValue(state, a))[0];
+  if (rich) options.push({ kind: 'sabotage', target: target.id, ship: rich.id });
+  const vet = theirs.filter((s) => pointsEarned(s) >= 2)[0], mine = shipsOf(state, company.id).filter((s) => pointsEarned(s) < XP_STEPS.length)[0];
+  if (vet && mine) options.push({ kind: 'crew', target: target.id, ship: vet.id, toShip: mine.id });
+  const ok = options.filter((o) => !attackCheck(state, company.id, o.kind, o) && company.cash > attackPrice(state, o.kind, o) * 4);
+  if (ok.length) orderAttack(state, rng, company.id, rng.pick(ok));
 }

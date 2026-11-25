@@ -18,6 +18,7 @@ import { lenderTerms, openLoan, settleLoan, tenderShare, deliverTender, commitOn
 import { skillSpeed, skillHandling } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 import { onTradeSale } from './honours.js';
+import { payCut } from './plots.js';
 
 // why : la raison, quand l'interface doit y réagir (« carburant-fonds » : pas de quoi payer le plein).
 const fail = (msg, why = null) => ({ ok: false, msg, why });
@@ -267,6 +268,9 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   const hold = eco.holdFor(ship.type, c.good);
   c.takenBy = ship.id;
   c.takenAt = state.t; c.takenCo = ship.owner; // pour les cartes d'opportunité (« prise par … »)
+  // Guerre des prix menée par un concurrent dans ce port : le chargeur paie moins (affiché avant).
+  const cut = payCut(state, ship.owner, c.from);
+  if (cut < 1) { c.pay = Math.round((c.pay * cut) / 1000) * 1000; c.priceWar = true; }
   // Affaire en or prise : les joueurs humains le savent (la concurrence se voit).
   if (c.golden) (state.queuedNotes ??= []).push({ kind: 'goldenTaken', contractId: c.id, by: ship.owner, text: `${companyOf(state, ship).name} a pris l'affaire en or de ${portName(c.from)} (${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)}).` });
   ship.cargo = { good: c.good, qty: c.qty, hold, contractId: c.id };

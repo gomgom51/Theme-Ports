@@ -30,13 +30,14 @@ import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
 import { darkOfferDialog, seizedDialog } from './ui/dark.js';
+import { bidDialog } from './ui/rivals.js';
 import { heldDialog } from './ui/plots.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
 const INCIDENT_SCENES = { incendie: 'fire', abordage: 'collision', echouement: 'grounding', voie_eau: 'leak', machine: 'breakdown', froid: 'reefer', gros_temps: 'storm' };
-const PAUSE_KINDS = new Set(['idle', 'prospect', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction', 'threat', 'scandal']);
+const PAUSE_KINDS = new Set(['idle', 'prospect', 'sunk', 'bank', 'banker', 'bankrupt', 'detention', 'pollution', 'sanction', 'threat', 'scandal', 'sabotage']);
 
 const ctx = makeContext();
 const app = {
@@ -548,6 +549,27 @@ function handleNotes(notes) {
     // Maturité de la compagnie, hauts faits, records, méfaits, approche d'une victoire.
     if (n.kind === 'level') { const co = app.state.companies[n.company]; if (co && !co.bankrupt) levelUp(co, n.from, n.to); continue; }
     if (n.kind === 'deed' || n.kind === 'record' || n.kind === 'evil') { honourNote(n, scenes, prefixOf(n)); continue; }
+    // Rachats : une offre sur votre compagnie (réagir), un rachat conclu, votre compagnie rachetée.
+    if (n.kind === 'bid') {
+      app.speed = 0;
+      app.audio.play('pause');
+      const cid = n.company;
+      toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 20000, action: 'Réagir', onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); bidDialog(app, n.bidId); } });
+      popup(async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); await bidDialog(app, n.bidId); });
+      continue;
+    }
+    if (n.kind === 'takeover') { app.audio.play('cash'); toast(prefixOf(n) + n.text, { kind: 'money', timeout: 10000 }); continue; }
+    if (n.kind === 'absorbed') {
+      app.speed = 0;
+      app.audio.play('sunk');
+      popup(() => dialog({ title: 'Votre compagnie est rachetée', body: h('p', n.text), buttons: [{ label: 'Compris', value: 'ok', kind: 'primary' }] }));
+      continue;
+    }
+    if (n.kind === 'takeoverRisk') {
+      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 15000, action: 'Concurrents', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'concurrents'); } });
+      if (app.state.settings.autoPause) paused = true;
+      continue;
+    }
     if (n.kind === 'recordLost') {
       toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 10000, action: 'Trophées', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); } });
       continue;
@@ -626,7 +648,7 @@ function handleNotes(notes) {
     if (scene) playScene(scene, sceneOpts(n, extra));
     const company = n.company != null ? app.state.companies[n.company] : null;
     const prefix = company && app.state.companies.filter((c) => c.human).length > 1 ? `${company.name} : ` : '';
-    const kind = ['sunk', 'bankrupt', 'bank', 'banker', 'detention', 'pollution', 'sanction', 'scandal'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident', 'threat'].includes(n.kind) ? 'warn' : 'info';
+    const kind = ['sunk', 'bankrupt', 'bank', 'banker', 'detention', 'pollution', 'sanction', 'scandal', 'sabotage'].includes(n.kind) ? 'bad' : ['storm', 'breakdown', 'fuel', 'incident', 'threat'].includes(n.kind) ? 'warn' : 'info';
     toast(prefix + n.text, {
       kind,
       timeout: PAUSE_KINDS.has(n.kind) ? 12000 : 7000,

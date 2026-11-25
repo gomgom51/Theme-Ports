@@ -14,17 +14,20 @@ const rivalsOf = (state, cid) => state.companies.filter((c) => c.id !== cid && !
 // ---------- Rumeurs et menaces (notifications importantes) ----------
 export function threatText(state, p, cid) {
   const who = p.known.includes(cid) ? ` Commanditaire : ${nameOf(state, p.by)}.` : ' Un informateur peut dire qui est derrière.';
+  if (P.ATTACKS[p.kind]) return P.attackRumour(state, p) + who;
   if (p.kind === 'pirates') return `Rumeurs : des pirates seraient payés pour viser vos navires dans la zone ${P.zoneById(p.zone).name} jusqu'au ${date(p.until, true)} (attaques environ ${P.PIRATE_BOOST} fois plus probables, assaillants mieux armés). Évitez la zone ou renforcez la défense.${who}`;
   return `Rumeurs : les autorités de ${portName(p.port)} seraient achetées contre vous jusqu'au ${date(p.until, true)} : vos navires risquent d'y être retenus sans motif (environ ${pc(P.HELD_CHANCE)} des escales). Évitez ce port.${who}`;
 }
 // Ajoute aux notifications importantes : menaces contre vous, navires retenus ou dénoncés, vos affaires en cours.
 export function plotAlerts(state, cid, add) {
-  for (const p of P.plotsAgainst(state, cid)) add('watch', p.kind === 'pirates' ? '☠' : '🏛', threatText(state, p, cid), { plot: p.id });
+  const ICON = { pirates: '☠', corruption: '🏛', sabotage: '🧨', payments: '⏳', bank: '🏦', pricewar: '📉', smear: '📰', crew: '🧭' };
+  for (const p of P.plotsAgainst(state, cid)) add('watch', ICON[p.kind] || '⚠', threatText(state, p, cid), P.ATTACKS[p.kind] && p.counter && !p.countered ? { counter: p.id } : { plot: p.id });
   for (const s of shipsOf(state, cid)) {
     if (s.heldBogus || s.busyWhat === 'retenue') add('urgent', '🏛', `Le ${s.name} est retenu sans motif sérieux à ${portName(s.port)} : un avocat peut le faire libérer sous 24 heures.`, { held: s.id });
     if (s.contraband && P.tipped(state, s)) add('urgent', '📦', `Quelqu'un aurait parlé à la douane du colis du ${s.name} : fouille presque certaine (environ ${pc(P.TIP_DETECT)}) à sa prochaine escale. Jeter le colis par-dessus bord ?`, { jettison: s.id });
   }
   for (const p of P.plotsBy(state, cid)) {
+    if (P.ATTACKS[p.kind]) { add('info', '🕴', `${P.ATTACKS[p.kind].name} contre ${nameOf(state, p.target)} jusqu'au ${date(p.until, true)}.`); continue; }
     add('info', '🕴', p.kind === 'pirates'
       ? `Vos pirates guettent les navires de ${nameOf(state, p.target)} dans la zone ${P.zoneById(p.zone).name} jusqu'au ${date(p.until, true)}.`
       : `Les autorités de ${portName(p.port)} retiennent les navires de ${nameOf(state, p.target)} jusqu'au ${date(p.until, true)}.`);
@@ -121,6 +124,7 @@ export function underworldSection(app, port) {
     h('p.hint', 'Des intermédiaires peu recommandables proposent leurs services contre vos concurrents. Tout finit par se savoir : chaque affaire peut s\'ébruiter (scandale, réputation, amende).'),
     h('div.form-row', [h('b', 'Pirates : '), t1, zoneSel, h('button.btn.small.danger', { onclick: () => order('pirates') }, 'Payer les pirates')]),
     h('div.form-row', [h('b', 'Fonctionnaires : '), t2, portSel, h('button.btn.small.danger', { onclick: () => order('corruption') }, 'Les acheter')]),
+    sabotageRow(app, rivals),
   ]);
 }
 
@@ -142,7 +146,7 @@ export function informantSection(app, port) {
 export async function showIntel(app, r) {
   const { state } = app;
   const me = app.ui.activeCompany;
-  const plots = r.plots.length ? h('div.list.compact', r.plots.map((p) => h('div.row', [h('span.grow', p.kind === 'pirates'
+  const plots = r.plots.length ? h('div.list.compact', r.plots.map((p) => h('div.row', [h('span.grow', P.ATTACKS[p.kind] ? `🕴 ${nameOf(state, p.by)} : ${P.ATTACKS[p.kind].name.toLowerCase()}, jusqu'au ${date(p.until, true)}.` : p.kind === 'pirates'
     ? `☠ ${nameOf(state, p.by)} paie des pirates contre vos navires dans la zone ${P.zoneById(p.zone).name}, jusqu'au ${date(p.until, true)}.`
     : `🏛 ${nameOf(state, p.by)} a acheté les autorités de ${portName(p.port)} contre vous, jusqu'au ${date(p.until, true)}.`)])))
     : h('p.muted', 'Personne ne complote contre vous en ce moment.');
@@ -185,4 +189,31 @@ export function partnerInfo(app, clientId) {
     } }, `Débaucher · ${money(price)}`));
   }
   return h('span.partners', out);
+}
+
+// Sabotage d'un navire rival (à sa prochaine escale).
+function sabotageRow(app, rivals) {
+  const { state } = app;
+  const me = app.ui.activeCompany;
+  const ships = rivals.flatMap((c) => shipsOf(state, c.id).map((s) => ({ s, c })));
+  if (!ships.length) return null;
+  const sel = h('select.input', { 'aria-label': 'Navire à saboter' }, ships.map(({ s, c }) => h('option', { value: s.id }, `${s.name} (${c.name}) — ${money(P.attackPrice(state, 'sabotage', { target: c.id, ship: s.id }))}`)));
+  const go = async () => {
+    const ship = Number(sel.value), owner = state.ships.find((x) => x.id === ship)?.owner;
+    const A = P.ATTACKS.sabotage, price = P.attackPrice(state, 'sabotage', { target: owner, ship });
+    const ok = await confirmBox('Faire saboter ce navire ?', `À sa prochaine escale, le navire perd ${P.SABOTAGE_DAMAGE[0]} à ${P.SABOTAGE_DAMAGE[1]} points d'état, sauf s'il a des gardes à bord. Réputation −${A.rep} à coup sûr ; risque que l'affaire s'ébruite : ${pc(A.expose)} (réputation −${A.scandal.rep}, amende de ${money(A.scandal.fine)}). Son armateur entendra une rumeur et pourra mettre des gardes.`, `Payer ${money(price)}`);
+    if (!ok) return;
+    const r = app.act(() => app.withRng((rng) => P.orderAttack(state, rng, me, { kind: 'sabotage', target: owner, ship })), { sound: 'pay' });
+    if (r?.ok) toast('Un homme montera à bord à la prochaine escale.', { timeout: 4000 });
+  };
+  return h('div.form-row', [h('b', 'Sabotage : '), sel, h('button.btn.small.danger', { onclick: go }, 'Faire saboter')]);
+}
+// Contrat d'un chargeur qui fait traîner vos paiements, ou dans un port en guerre des prix.
+export function attackTags(state, cid, c) {
+  const out = [];
+  const pw = P.priceWarAt(state, cid, c.from);
+  if (pw) out.push(h('span.tag.bad', { title: `Guerre des prix à ${portName(c.from)} jusqu'au ${date(pw.until, true)} : ce chargeur vous paiera ${Math.round(P.PRICEWAR_CUT * 100)} % de moins (le prix affiché en tient compte).` }, `−${Math.round(P.PRICEWAR_CUT * 100)} % guerre des prix`));
+  const st = P.stalledBy(state, cid, c.client);
+  if (st) out.push(h('span.tag.bad', { title: `Ce chargeur fera traîner votre paiement (${P.PAYMENT_DELAY[0]} à ${P.PAYMENT_DELAY[1]} jours) jusqu'au ${date(st.until, true)}.` }, '⏳ paiement retardé'));
+  return out;
 }

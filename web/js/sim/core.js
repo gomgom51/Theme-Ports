@@ -18,6 +18,7 @@ export const BOOK_LABELS = {
   discret: 'Affaires discrètes',
   interets: 'Intérêts bancaires',
   impots: 'Impôts',
+  rachats: 'Rachats de compagnies',
   divers: 'Divers',
 };
 export const emptyBook = () => Object.fromEntries(Object.keys(BOOK_LABELS).map((k) => [k, 0]));
@@ -113,7 +114,9 @@ export function cargoLoans(state, companyId) {
 }
 
 export function creditLimit(state, company) {
-  return Math.max(0, 0.6 * fleetValue(state, company.id) + company.reputation * 25000);
+  // Pression d'un concurrent sur sa banque (sim/plots.js) : plafond réduit pour un temps.
+  const cut = company.creditCut && company.creditCut.until > state.t ? company.creditCut.k : 1;
+  return Math.max(0, (0.6 * fleetValue(state, company.id) + company.reputation * 25000) * cut);
 }
 export function interestRate(company) {
   return FLAGS[company.flag].rate + ((100 - company.reputation) / 100) * 0.06;

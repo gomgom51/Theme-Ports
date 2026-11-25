@@ -7,6 +7,7 @@ import { GOODS } from '../data/goods.js';
 import { money as book, news, changeReputation, portName } from './core.js';
 import { worldFuelPrice } from './economy.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
+import { stalledBy, PAYMENT_DELAY } from './plots.js';
 import { clientRel, paymentRisk, clientBankrupt } from './clients.js';
 
 const D = HOURS_PER_DAY;
@@ -88,6 +89,11 @@ export function resolution(state, rng, p) {
     const share = rng.range(0.05, 0.2) * soft;
     event = { kind: 'contestation', withheld: Math.round(total * share), share };
     lines.push({ label: `${C.name} conteste l'état de la marchandise et retient ${pct(share)}`, amount: -event.withheld, kind: 'bad-event' });
+  } else if (stalledBy(state, p.company, p.client)) {
+    // Un concurrent a demandé à ce chargeur de faire traîner (la rumeur l'avait annoncé).
+    const days = rng.int(PAYMENT_DELAY[0], PAYMENT_DELAY[1]);
+    event = { kind: 'differe', days, stalled: true };
+    lines.push({ label: `${C.name} fait traîner : paiement dans ${days} jours`, amount: 0, kind: 'bad-event' });
   } else if (roll < pBankrupt + pDispute + pDefer) {
     const days = rng.int(15, 45);
     event = { kind: 'differe', days };

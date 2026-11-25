@@ -26,6 +26,7 @@ import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 import { shipResults } from './shipresults.js';
 import { victoriesTab, trophiesTab } from './victory.js';
+import { rivalsTab } from './rivals.js';
 
 const badge = (c, size = 28) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -342,6 +343,7 @@ export function officePanel(app, _id, tab) {
       ['assurance', 'Assurance', () => insuranceTab(app)],
       ['chargeurs', 'Chargeurs', () => clientsTab(app)],
       ['classement', 'Classement', () => rankingTab(app)],
+      ['concurrents', 'Concurrents', () => rivalsTab(app)],
       ['victoires', 'Victoires', () => victoriesTab(app)],
       ['trophees', 'Trophées', () => trophiesTab(app)],
     ],
@@ -489,7 +491,7 @@ function rankingTab(app) {
   box.append(h('div.list.compact', r.map((x, i) => h('div.row', [
     h('span.rank', `${i + 1}`),
     badge(x.company, 34),
-    h('span.grow', [h('b', x.company.name), x.company.human ? '' : h('span.muted.small', ' (ordinateur)'), x.company.bankrupt ? h('span.tag.bad', 'faillite') : null]),
+    h('span.grow', [h('b', x.company.name), x.company.human ? '' : h('span.muted.small', ' (ordinateur)'), x.company.absorbed ? h('span.tag.bad', `rachetée par ${state.companies[x.company.absorbed.by]?.name || '?'}`) : x.company.bankrupt ? h('span.tag.bad', 'faillite') : null]),
     h('span.muted.small', `${shipsOf(state, x.company.id).length} navires · réputation ${num(x.company.reputation)}`),
     h('b', money(x.worth)),
   ]))));

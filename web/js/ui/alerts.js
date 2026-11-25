@@ -16,6 +16,8 @@ import { etaOf } from './panel-ship.js';
 import { openCase } from './shady.js';
 import { openRansom } from './piracy.js';
 import { plotAlerts, heldDialog, jettisonDialog } from './plots.js';
+import { counterDialog, bidDialog } from './rivals.js';
+import { pendingBid, canTakeover, takeoverPrice } from '../sim/takeover.js';
 import { pointsFree as crewPoints } from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, iceForecast, forecastText, escortFee, ICE } from '../sim/ice.js';
 import { DARK, DARK_KINDS, darkDetect } from '../sim/dark.js';
@@ -151,6 +153,15 @@ export function computeAlerts(state, ctx, companyId) {
     }
   }
   plotAlerts(state, companyId, (level, icon, text, target) => add(level, icon, text, target?.plot != null ? null : target));
+  // Rachat : une offre sur la table, ou des concurrents qui en ont les moyens.
+  const bid = pendingBid(state, companyId);
+  if (bid) add('urgent', '🤝', `${state.companies[bid.by].name} veut racheter votre compagnie (${money(bid.price)}) : la vente se fera le ${date(bid.until, true)} si l'offre tient toujours.`, { bid: bid.id });
+  else {
+    const buyers = state.companies.filter((o) => o.id !== companyId && !o.bankrupt && canTakeover(state, o.id, companyId).ok);
+    if (buyers.length) add('watch', '🤝', buyers.length > 1
+      ? `${buyers.map((o) => o.name).join(', ')} pourraient racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure réputation multiplie votre prix ; un niveau supérieur au leur vous protège.`
+      : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure réputation multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'office' });
+  }
   const idle = ships.filter(isIdle);
   if (idle.length) add('info', '⚓', idle.length === 1 ? `Le ${idle[0].name} attend vos ordres.` : `${idle.length} navires attendent vos ordres.`, idle.length === 1 ? { ship: idle[0].id } : { panel: 'fleet' });
   const pay = state.payments.filter((p) => p.company === companyId).length;
@@ -169,7 +180,7 @@ export function alertsPanel(app) {
     body.append(h('div.list', list.map((a) => h(`div.card.alert.alert-${lv}`, { class: app.ui.newAlerts?.has(a.key) ? 'unread' : '' }, [
       h('div.card-main', [h('div.card-sub', [app.ui.newAlerts?.has(a.key) ? h('span.unread-dot', { title: 'Nouveau' }) : null, h('span.alert-icon', a.icon), ' ', a.text])]),
       a.target ? h('div.card-side', [h('button.btn.small', {
-        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.held != null) heldDialog(app, a.target.held); else if (a.target.jettison != null) jettisonDialog(app, a.target.jettison); else if (a.target.seized != null) seizedDialog(app, a.target.seized); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
+        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.held != null) heldDialog(app, a.target.held); else if (a.target.counter != null) counterDialog(app, a.target.counter); else if (a.target.bid != null) bidDialog(app, a.target.bid); else if (a.target.jettison != null) jettisonDialog(app, a.target.jettison); else if (a.target.seized != null) seizedDialog(app, a.target.seized); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
       }, 'Voir')]) : null,
     ]))));
   }

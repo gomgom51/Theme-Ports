@@ -12,7 +12,7 @@ import { ENFORCING } from '../data/sanctions.js';
 import { hasEquip, installEquipment } from './equipment.js';
 import { acceptOffer, detectionChance, sanctionFine, taintActive } from './shady.js';
 import { patrolRisk } from './patrols.js';
-import { hostilePort, pirateBoost } from './plots.js';
+import { hostilePort, pirateBoost, payCut } from './plots.js';
 import { piracyAlong } from './piracy.js';
 import { isSeasonal } from './ice.js';
 import { grudgeAt } from './dark.js';
@@ -136,7 +136,8 @@ export function aiShipIdle(state, ctx, rng, ship) {
     // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)
     // Aide d'urgence : à perte, mais une compagnie à la réputation abîmée y gagne.
     const repValue = c.charity && company.reputation < 55 ? c.charity.rep * 150000 : 0;
-    const profit = c.pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue;
+    const pay = c.pay * payCut(state, company.id, c.from); // guerre des prix contre elle dans ce port
+    const profit = pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue;
     options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
   }
   // On garde de quoi faire le plein et payer quelques semaines de frais fixes.

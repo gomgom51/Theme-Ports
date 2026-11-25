@@ -776,3 +776,13 @@ select.input { width: auto; max-width: 100%; }
 .trophy-card.evil { background: #f1ede6; }
 .trophy-card.evil.mine { background: #ece3e3; border-color: #9c4a4a; }
 .trophy-holder b { font-weight: 800; }
+
+/* ---------- Concurrents : rachats et coups ---------- */
+.rivals { display: grid; gap: 10px; }
+.rival-card { border: 1px solid var(--line); border-radius: 10px; background: var(--paper-2); padding: 10px 12px; display: grid; gap: 8px; }
+.rival-head { display: flex; align-items: center; gap: 10px; }
+.rival-buy { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 8px; background: var(--paper); }
+.rival-buy .grow { min-width: 0; }
+.rival-attacks { display: flex; flex-wrap: wrap; gap: 6px; }
+.attack-btn { font-size: 12.5px; }
+.bid-banner { background: #f8e3dc; border: 1px solid #d79a86; border-radius: 8px; padding: 8px 10px; }

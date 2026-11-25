@@ -19,7 +19,7 @@ import { fuelGaugeEl, animateNeedle } from './gauge.js';
 import { riskLines, crewInfo, isStrict } from './risk.js';
 import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
-import { hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
+import { attackTags, hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
 import { isEmbargoed, taintActive, TAINT_DAYS, sanctionPreview } from '../sim/shady.js';
 import * as crew from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
@@ -44,6 +44,7 @@ async function embargoOk(app, ship, port, value = 0) {
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
 import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence } from '../sim/equipment.js';
 import { CREW_LEVELS } from '../data/ships.js';
+import { payCut } from '../sim/plots.js';
 import { inspectionThreshold } from '../sim/incidents.js';
 
 const STATUS_ICON = { sea: '🌊', port: '⚓', laidup: '💤' };
@@ -248,7 +249,7 @@ function contractsBase(app, ship) {
     const reserved = c.reservedFor === ship.owner && c.reservedUntil > state.t;
     return h('div.card.contract', { class: (why ? 'disabled ' : '') + (c.golden ? 'golden' : ''), onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la réputation.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to)]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', 'contrat premium') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la réputation.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to), ...attackTags(state, ship.owner, c)]),
         routeChip(c.to, { eta: est && !est.why ? state.t + est.totalDays * 24 : null, estimate: true, deadline: c.deadline, late: lateRisk }),
         h('div.card-sub.muted', `${num(c.nm)} milles · délai ${days(daysLeft)}`),
         ...(isSeasonal(c.to) || est?.canals?.includes('nsr') ? iceLines(state, ship, c.to, est && !est.why ? est : null) : []),
@@ -263,7 +264,7 @@ function contractsBase(app, ship) {
         ]),
       ]),
       h('div.card-side', [
-        h('div.price', money(c.pay)),
+        h('div.price', money(c.pay * payCut(state, ship.owner, c.from))),
         why ? null : h('button.btn.primary.small', { 'data-guide': 'accept', onclick: async () => {
           if (c.embargo && !(await embargoOk(app, ship, isEmbargoed(c.from) ? c.from : c.to, c.pay))) return;
           const r = app.act(() => act.acceptContract(state, ctx, ship.id, c.id, { speed: T.speed, autoRefuel: true }), { sound: 'crates' });
@@ -442,7 +443,9 @@ async function buyDialog(app, ship, g, q, dests) {
       h('p', `Prix moyen ${money(quote.avg)}/t, manutention comprise : ${money(quote.total)}.`),
       h('div.form-row', [h('b', 'Destination visée : '), sel]),
       h('p.small', [
-        `Vente attendue à ${portName(dest)} : ${money(e.sell)}${e.tender ? ` (dont ${tonnes(e.tender)} au prix de l'appel d'offres)` : ''}, voyage ≈ ${money(e.d.est.cost)} (${days(days0)}). Résultat avant financement : `,
+        `Vente attendue à ${portName(dest)} : ${money(e.sell)}`,
+        e.tender ? ` (dont ${tonnes(e.tender)} au prix de l'appel d'offres)` : null,
+        `, voyage ≈ ${money(e.d.est.cost)} (${days(days0)}). Résultat avant financement : `,
         h('b', { class: e.d.net >= 0 ? 'pos' : 'neg' }, money(e.sell - quote.total - e.d.est.cost, true)),
         '. Le cours peut encore bouger d\'ici l\'arrivée.',
       ]),

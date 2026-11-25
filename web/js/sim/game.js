@@ -31,6 +31,7 @@ import { iceDaily, isSeasonal, iceOpen, escortFee, forecastText } from './ice.js
 import { darkOnArrival, darkDaily, maybeDarkOffer, darkPort, charityDelivered } from './dark.js';
 import { honoursDaily, onDelivered, onStain, onEliminated, onAid } from './honours.js';
 import { levelsDaily, victoryDaily } from './victory.js';
+import { takeoverDaily, aiTakeover } from './takeover.js';
 
 const D = HOURS_PER_DAY;
 export const SAVE_VERSION = 3;
@@ -600,7 +601,8 @@ function daily(state, ctx, rng, notes) {
   refreshOffers(state, ctx, rng);
   dailyReceivables(state, notes);
   clientsDaily(state, notes);
-  plotsDaily(state, notes);
+  plotsDaily(state, notes, rng);
+  takeoverDaily(state, notes); // offres de rachat, compagnies rachetables prévenues
   iceDaily(state, notes);
   darkDaily(state, ctx, rng, notes);
   tradeDaily(state, ctx, rng, notes); // appels d'offres des villes
@@ -627,6 +629,7 @@ function daily(state, ctx, rng, notes) {
     if (!company.human) {
       aiDaily(state, ctx, rng, company);
       if (Math.round(state.t / D) % 30 === 15) aiPlots(state, rng, company, (id) => netWorth(state, id)); // une fois par mois
+      if (Math.round(state.t / D) % 30 === 20) aiTakeover(state, rng, company, notes);
     }
   }
 
