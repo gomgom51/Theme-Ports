@@ -25,6 +25,14 @@ const TRACKS = {
   tier3b: { src: 'musique/niveau3b.mp3', volume: 0.22, loop: true },
   tier4b: { src: 'musique/niveau4b.mp3', volume: 0.22, loop: true },
   tier5b: { src: 'musique/niveau5b.mp3', volume: 0.22, loop: true },
+  // Thèmes de situation (prioritaires sur le niveau quand le fichier existe) : une victoire en vue
+  // (75 % du chemin), la liste noire, ou un concurrent sur le point de gagner.
+  domination: { src: 'musique/domination.mp3', volume: 0.24, loop: true },
+  reputation: { src: 'musique/respect.mp3', volume: 0.24, loop: true },
+  legend: { src: 'musique/legende.mp3', volume: 0.24, loop: true },
+  shadow: { src: 'musique/ombre.mp3', volume: 0.24, loop: true },
+  blacklist: { src: 'musique/liste-noire.mp3', volume: 0.24, loop: true },
+  menace: { src: 'musique/menace.mp3', volume: 0.24, loop: true },
 };
 
 // Sons enregistrés (prioritaires sur les versions synthétisées quand ils existent).
@@ -311,8 +319,15 @@ export class AudioManager {
     this.musicTier = tier;
     if (this.sceneName === 'game' && this.musicScene) { this.musicScene = null; this.playMusic('game'); }
   }
+  // Thème de situation (null : la musique du niveau).
+  setMusicMood(mood) {
+    if (this.musicMood === mood) return;
+    this.musicMood = mood;
+    if (this.sceneName === 'game' && this.musicScene) { this.musicScene = null; this.playMusic('game'); }
+  }
   trackFor(scene) {
     const ok = (k) => TRACKS[k] && !this.missing?.has(TRACKS[k].src);
+    if (scene === 'game' && this.musicMood && ok(this.musicMood)) return this.musicMood;
     if (scene === 'game') {
       const step = this.musicTier ?? 0;
       if (step < 0) return ok('tier0') ? 'tier0' : ok('tier1') ? 'tier1' : ok('game') ? 'game' : null; // niveau 0 : les temps sont durs
@@ -324,7 +339,7 @@ export class AudioManager {
   }
   playMusic(scene) {
     if (!this.unlocked && !window.AndroidBridge) { this.musicScene = null; return; }
-    const key = scene === 'game' ? `game:${this.musicTier ?? 0}` : scene;
+    const key = scene === 'game' ? `game:${this.musicTier ?? 0}:${this.musicMood || ''}` : scene;
     if (key === this.musicScene) return;
     this.musicScene = key;
     const name = this.trackFor(scene);

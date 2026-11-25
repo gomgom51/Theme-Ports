@@ -24,13 +24,16 @@ import { openPayment } from './ui/payment.js';
 import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
-import { officeTier, OFFICE_TIERS, musicStep, reachedTier, MUSIC_LOW, officeSVG } from './ui/officeart.js';
+import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang } from './i18n.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
 import { darkOfferDialog, seizedDialog } from './ui/dark.js';
 import { bidDialog } from './ui/rivals.js';
+import { recordsHeld, RECORDS, EVIL } from './sim/honours.js';
+import { honourSVG } from './ui/trophyart.js';
+import { VICTORY, VICTORY_KINDS, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
@@ -254,11 +257,41 @@ function checkLevels(s) {
     levelUp(co, from, t);
   }
 }
+// Thème de situation : une victoire en vue pour vous (75 %), la liste noire, ou un concurrent
+// tout près de gagner (90 %). Calculé une fois par jour de jeu.
+let moodCache = { key: null, mood: null };
+function musicMood(s, c) {
+  const key = `${c.id}:${Math.floor(s.t / 24)}`;
+  if (moodCache.key === key) return moodCache.mood;
+  let mood = null, best = 0, rival = 0;
+  for (const k of VICTORY_KINDS) {
+    if (!victoryOn(s, k)) continue;
+    const f = victoryProgress(s, c, k).frac;
+    if (f >= VICTORY.alerts[0] && f > best) { best = f; mood = k; }
+    for (const o of s.companies) if (o.id !== c.id && !o.bankrupt) rival = Math.max(rival, victoryProgress(s, o, k).frac);
+  }
+  if (!mood && c.blacklisted) mood = 'blacklist';
+  if (!mood && rival >= VICTORY.alerts[1]) mood = 'menace';
+  moodCache = { key, mood };
+  return mood;
+}
 // Haut fait, record ou méfait : un mot, et (records, méfaits) la scène de la remise puis l'étagère.
 function honourNote(n, scenes, prefix) {
   const open = () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); };
   app.audio.play(n.kind === 'evil' ? 'bell' : 'cash');
   toast(prefix + n.text, { kind: n.kind === 'evil' ? 'warn' : 'money', timeout: 12000, action: 'Trophées', onAction: open });
+  const co = app.state.companies[n.company];
+  if (!scenes || n.kind === 'deed' || !co) return;
+  const kind = n.kind === 'evil' ? 'evil' : 'record';
+  const tier = shownTier(co, netWorth(app.state, co.id));
+  const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0];
+  const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
+  const toImg = (svg, w, h) => { const i = new Image(); i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" `)); return i; };
+  const office = toImg(officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `hon${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, hide: { kind, id: n.record } }), 960, 400);
+  const item = new Image(); item.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(honourSVG(kind, n.record, { size: 192 }));
+  const logo = new Image(); logo.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(logoBadge(co.logo, co.color, 96).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
+  const name = (kind === 'evil' ? EVIL : RECORDS)[n.record]?.name || '';
+  playScene(kind === 'evil' ? 'grim' : 'trophy', { title: kind === 'evil' ? `Méfait : « ${name} »` : `Record : « ${name} »`, text: prefix + n.text, color: co.color, variant: { office, item, logo, slot: honourSlot(tier, kind, n.record), id: n.record } });
 }
 function levelUp(co, from, to) {
   const T = OFFICE_TIERS[to], n = OFFICE_TIERS.length;
@@ -268,7 +301,7 @@ function levelUp(co, from, to) {
   const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0]; // la maquette du bureau
   const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
   const img = (tier) => {
-    const svg = officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `lvl${co.id}-` }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200" ');
+    const svg = officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `lvl${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') } }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200" ');
     const i = new Image();
     i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     return i;
@@ -306,6 +339,7 @@ function updateHud() {
     checkLevels(s);
     renderOpps(app); // cartes d'opportunité (affaires en or, aide d'urgence)
     app.audio.setMusicTier(musicStep(netWorth(s, c.id), c.level ?? 0));
+    app.audio.setMusicMood(musicMood(s, c));
     updateStandings(s, c.id);
   }
   const humans = s.companies.filter((x) => x.human);

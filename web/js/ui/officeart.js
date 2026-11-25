@@ -2,6 +2,8 @@
 import { logoMarkup, emblemInk } from './logos.js';
 import { shipSVG } from './shipart.js';
 import { OFFICE_TIERS, officeTier } from '../data/offices.js';
+import { honourPlaced } from './trophyart.js';
+import { RECORD_IDS, EVIL_IDS } from '../sim/honours.js';
 
 // half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3).
 // Sous LOW (la compagnie a perdu de l'argent depuis ses débuts), thème du niveau 0.
@@ -89,10 +91,63 @@ function books(x, y, w, h, rows = 3) {
   return s;
 }
 
+
+// ---------- Trophées (records) et preuves sinistres (méfaits) ----------
+// Chaque record a sa place (dans l'ordre de RECORD_IDS), chaque méfait aussi : x = centre,
+// b = base (où l'objet est posé), h = hauteur. Les meubles sont dessinés sous les objets.
+const row = (n, x0, dx, b, h) => Array.from({ length: n }, (_, i) => ({ x: x0 + i * dx, b, h }));
+export const HONOUR_SLOTS = [
+  { record: row(8, 10, 11.2, 62, 15), evil: row(6, 407, 12.2, 127, 14) },
+  { record: row(8, 112, 17, 29, 17), evil: row(6, 368, 12, 127, 14) },
+  { record: [...row(4, 401, 20.5, 120, 19), ...row(4, 401, 20.5, 146, 19)], evil: row(6, 51, 11.5, 129, 14) },
+  { record: [...row(4, 80, 18.5, 138, 18), ...row(4, 391, 13, 138, 16)], evil: [...row(3, 446.5, 11.5, 130, 13), ...row(3, 446.5, 11.5, 155, 13)] },
+  { record: [...row(4, 98, 11.5, 128, 14), ...row(2, 370, 17, 120, 16), ...row(2, 370, 17, 146, 16)], evil: [...row(2, 150, 10.5, 131, 12), ...row(4, 329, 9.6, 131, 12)] },
+];
+function honourFurniture(tier, anyEvil) {
+  let s = '';
+  if (tier === 0) {
+    s += '<rect x="4" y="62" width="92" height="4" fill="#7a5434"/><path d="M10 66 l6 8 M90 66 l-6 8" stroke="#5a3c24" stroke-width="2"/>';
+    if (anyEvil) s += '<rect x="400" y="127" width="76" height="5" fill="#2a1d14"/><rect x="404" y="132" width="4" height="26" fill="#1d140e"/><rect x="468" y="132" width="4" height="26" fill="#1d140e"/>';
+  } else if (tier === 1) {
+    s += '<rect x="104" y="29" width="138" height="4" fill="#7a5434"/><path d="M112 33 l6 7 M234 33 l-6 7" stroke="#5a3c24" stroke-width="2"/>';
+    if (anyEvil) s += '<rect x="361" y="127" width="74" height="5" fill="#2a1d14"/><rect x="365" y="132" width="4" height="26" fill="#1d140e"/><rect x="427" y="132" width="4" height="26" fill="#1d140e"/>';
+  } else if (tier === 2) {
+    s += '<rect x="389" y="94" width="86" height="64" fill="#4a2f1b"/><rect x="393" y="98" width="78" height="56" fill="#cfe1e8" opacity=".35"/>';
+    s += '<rect x="393" y="120" width="78" height="2.5" fill="#e8f2f5" opacity=".9"/><rect x="393" y="146" width="78" height="2.5" fill="#e8f2f5" opacity=".9"/><path d="M398 100 l10 50" stroke="#fff" stroke-width="2" opacity=".25"/>';
+    if (anyEvil) s += '<rect x="44" y="129" width="70" height="5" fill="#2a1d14"/><rect x="48" y="134" width="4" height="24" fill="#1d140e"/><rect x="106" y="134" width="4" height="24" fill="#1d140e"/>';
+  } else if (tier === 3) {
+    s += '<rect x="70" y="138" width="76" height="20" fill="#3b3330"/><rect x="70" y="138" width="76" height="3" fill="#5a4f49"/><rect x="383" y="138" width="54" height="20" fill="#3b3330"/><rect x="383" y="138" width="54" height="3" fill="#5a4f49"/>';
+    if (anyEvil) s += '<rect x="439" y="110" width="38" height="48" fill="#1d1916"/><rect x="441" y="130" width="34" height="2.5" fill="#3a302a"/><rect x="441" y="155" width="34" height="2.5" fill="#3a302a"/>';
+  } else {
+    s += '<rect x="361" y="94" width="36" height="56" fill="#2a2f36"/><rect x="363" y="96" width="32" height="52" fill="#9fc3d6" opacity=".18"/><rect x="363" y="120" width="32" height="2" fill="#cfe6f0" opacity=".8"/><rect x="363" y="146" width="32" height="2" fill="#cfe6f0" opacity=".8"/>';
+  }
+  return s;
+}
+// held : { record: [ids], evil: [ids] } ; hide : un objet à ne pas encore poser (animation).
+function honoursLayer(tier, held, hide = null) {
+  if (!held) return '';
+  const slots = HONOUR_SLOTS[tier];
+  const evil = (held.evil || []).filter((id) => !(hide?.kind === 'evil' && hide.id === id));
+  let s = honourFurniture(tier, (held.evil || []).length > 0);
+  RECORD_IDS.forEach((id, i) => {
+    if (!(held.record || []).includes(id) || (hide?.kind === 'record' && hide.id === id)) return;
+    const sl = slots.record[i];
+    s += `<ellipse cx="${sl.x}" cy="${sl.b + 0.6}" rx="${sl.h * 0.32}" ry="1.2" fill="#000" opacity=".25"/>` + honourPlaced('record', id, sl.x - sl.h * 0.375, sl.b - sl.h, sl.h);
+  });
+  EVIL_IDS.forEach((id, i) => {
+    if (!evil.includes(id)) return;
+    const sl = slots.evil[i];
+    s += `<ellipse cx="${sl.x}" cy="${sl.b + 0.6}" rx="${sl.h * 0.34}" ry="1.2" fill="#000" opacity=".35"/>` + honourPlaced('evil', id, sl.x - sl.h * 0.375, sl.b - sl.h, sl.h);
+  });
+  return s;
+}
+// Où se pose un objet (coordonnées du bureau, 480 × 200) : pour l'animation de la scène.
+export const honourSlot = (tier, kind, id) => HONOUR_SLOTS[tier][kind === 'evil' ? 'evil' : 'record'][(kind === 'evil' ? EVIL_IDS : RECORD_IDS).indexOf(id)];
+
 /**
  * tier : 0..4 ; opts : color, logo (compagnie), model : { typeId, color, logo, name } (plus beau navire).
  */
-export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = null, uid = 'of' } = {}) {
+export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = null, uid = 'of', honours = null, hide = null } = {}) {
   const W = 480, H = 200, floorY = 158;
   const id = uid + tier;
   let s = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${OFFICE_TIERS[tier].name}">`;
@@ -148,11 +203,11 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     s += `<rect x="12" y="8" width="456" height="126" fill="none" stroke="#f6f3ec" stroke-width="7"/>`;
     s += `<rect y="${floorY - 24}" width="${W}" height="24" fill="#d9d2c4"/><rect y="${floorY}" width="${W}" height="${H - floorY}" fill="#b9a585"/>`;
     s += `<rect x="150" y="118" width="230" height="10" rx="2" fill="#3b3330"/><rect x="160" y="128" width="8" height="30" fill="#2c2623"/><rect x="362" y="128" width="8" height="30" fill="#2c2623"/>`;
-    s += modelSvg(250, 82, 130);
+    s += modelSvg(278, 90, 100);
     s += `<rect x="180" y="96" width="46" height="22" rx="2" fill="#1f2a33"/><rect x="183" y="99" width="40" height="16" fill="#3f7d8a"/><polyline points="185,112 192,108 199,110 206,104 213,106 220,101" stroke="#c4f1b0" fill="none" stroke-width="1.2"/>`;
     s += `<path d="M230 160 l8 -38 h40 l8 38" fill="#232020"/><rect x="236" y="92" width="46" height="36" rx="10" fill="#2f2b29"/>`;
     s += logoSign(30, 140, 38, color, logo);
-    s += plant(450, 146, 1.3);
+    if (!(honours?.evil || []).length) s += plant(450, 146, 1.3);
   } else {
     // La tour de verre : sommet d'une tour au crépuscule, écrans, longue-vue.
     s += `<rect width="${W}" height="${H}" fill="#1b2433"/>`;
@@ -167,11 +222,12 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
       s += `<polyline points="${x + 4},${120 - k * 2} ${x + 12},${114} ${x + 20},${117} ${x + 28},${108 - k * 3} ${x + 40},${104}" stroke="${['#7fe0c4', '#f6c26b', '#ff8a7a'][k]}" fill="none" stroke-width="1.3"/>`;
     }
     s += `<rect x="14" y="128" width="130" height="34" fill="#3a3f47"/><rect x="14" y="126" width="130" height="4" fill="#5a636e"/>`;
-    s += modelSvg(20, 101, 100);
+    s += modelSvg(18, 109, 72);
     s += `<path d="M420 160 l-6 -28 M420 160 l8 -28 M420 160 l-1 -30" stroke="#a7a7a7" stroke-width="2"/><rect x="398" y="120" width="44" height="7" rx="3" fill="#c9b27a" transform="rotate(-18 420 124)"/>`;
     s += `<path d="M228 168 l6 -34 h36 l6 34" fill="#e8e3da"/><rect x="232" y="104" width="44" height="36" rx="10" fill="#f2efe8"/>`;
     s += logoSign(440, 156, 30, color, logo, '#e8e3da');
   }
+  s += honoursLayer(tier, honours, hide);
   s += '</svg>';
   return s;
 }

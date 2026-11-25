@@ -5,6 +5,7 @@
 import { h } from './dom.js';
 import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, drawShip, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, box, cloud, disc, smoke, flame } from './pixel.js';
 import { WORLD_SCENES } from './scenes-world.js';
+import { HONOUR_SCENES } from './scenes-honours.js';
 const sea_ = (...a) => sea(...a); // (la variable « sea » sert aussi de drapeau dans les scènes des glaces)
 import { SHIP_TYPES } from '../data/ships.js';
 
@@ -1131,6 +1132,7 @@ export const SCENES = {
     },
   },
   ...WORLD_SCENES,
+  ...HONOUR_SCENES,
 };
 
 // Montre une scène dans une fenêtre, avec une croix de fermeture en haut à droite (clic sur
@@ -1141,9 +1143,11 @@ export function showScene(app, kind, { title, text = '', content = null, color =
   const S = SCENES[kind];
   if (!S) return Promise.resolve(null);
   return new Promise((resolve) => {
-    const canvas = h('canvas.scene-canvas', { width: W, height: H, 'aria-hidden': 'true' });
+    // Certaines scènes (records, méfaits) sont dessinées en plus haute résolution et lissées.
+    const res = S.res || 1;
+    const canvas = h('canvas.scene-canvas', { class: res > 1 ? 'smooth' : '', width: W * res, height: H * res, 'aria-hidden': 'true' });
     const g = canvas.getContext('2d');
-    g.imageSmoothingEnabled = false;
+    g.imageSmoothingEnabled = res > 1;
     let done = false;
     const close = (v) => {
       if (done) return;
@@ -1170,7 +1174,7 @@ export function showScene(app, kind, { title, text = '', content = null, color =
       if (!wrap.isConnected) { close(null); return; } // retirée autrement (bouton retour Android)
       let t = (now - t0) / 1000;
       if (S.loop && t > S.loop[1]) t = S.loop[0] + ((t - S.loop[0]) % (S.loop[1] - S.loop[0]));
-      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.setTransform(res, 0, 0, res, 0, 0);
       g.globalAlpha = 1;
       S.draw(g, t, { color, variant, force });
       requestAnimationFrame(frame);

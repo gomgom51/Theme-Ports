@@ -437,6 +437,7 @@ select.input { width: auto; max-width: 100%; }
   display: block; width: 100%; aspect-ratio: 200 / 112; background: #0b1017; border-radius: 6px;
   image-rendering: pixelated; image-rendering: crisp-edges; cursor: var(--cursor-click);
 }
+.scene-canvas.smooth { image-rendering: auto; }
 .scene-text { margin-top: 10px; font-size: 15px; color: var(--ink-2); }
 
 /* ---------- Bannière « à vous de jouer » ---------- */

@@ -24,6 +24,15 @@ Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms 
   jeu.mp3       en secours, si un thème de niveau manque
   victoire.mp3  courte musique de fin de partie
 
+  Thèmes de situation (remplacent le niveau tant que la situation dure) :
+  domination.mp3   victoire « Seul maître à bord » en vue (75 %) : marche de conquête
+  respect.mp3      victoire « La plus respectée » en vue : thème noble et lumineux
+  legende.mp3      victoire « Compagnie légendaire » en vue : épopée maritime en 6/8
+  ombre.mp3        victoire « La flotte fantôme » en vue : thème du méchant
+  liste-noire.mp3  la compagnie est sur la liste noire internationale : polar enfumé
+  menace.mp3       un concurrent est à 90 % d'une victoire : compte à rebours
+  Sans ces fichiers, la musique du niveau continue.
+
 Sans fichier, le jeu reste simplement sans musique (l'ambiance du port et les
 bruitages continuent). Les idées de styles et les paroles sont dans
 docs/musique-suno.md. La musique se coupe dans le menu (« Musique : oui/non »).

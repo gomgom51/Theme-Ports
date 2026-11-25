@@ -2166,4 +2166,8 @@ export default {
   "Les actionnaires de {0} repoussent l'offre de {1} et donnent six mois à leur dirigeant.": "The shareholders of {0} turn down {1}'s offer and give their head six months.",
   "L'offre de rachat de {0} tombe d'elle-même : elle ne tient plus.": "{0}'s takeover offer falls through: it no longer stands.",
   "{0} a désormais les moyens de racheter votre compagnie ({1}). Pour vous protéger : une meilleure réputation (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.": "{0} can now afford to buy your company ({1}). To protect yourself: a better reputation (it multiplies your price), a level above theirs, or a net worth growing faster than their cash.",
+  "Méfait : « {0} »": "Misdeed: “{0}”",
+  "Record : « {0} »": "Record: “{0}”",
+  "Un nouveau record !": "A new record!",
+  "Un méfait de plus": "One more misdeed",
 };

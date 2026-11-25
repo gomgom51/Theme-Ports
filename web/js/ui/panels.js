@@ -27,6 +27,7 @@ import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 import { shipResults } from './shipresults.js';
 import { victoriesTab, trophiesTab } from './victory.js';
 import { rivalsTab } from './rivals.js';
+import { recordsHeld } from '../sim/honours.js';
 
 const badge = (c, size = 28) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 
@@ -296,7 +297,7 @@ function officeHero(app) {
   const model = best ? { typeId: best.type, color: c.color, logo: c.logo, name: best.name } : null;
   const next = OFFICE_TIERS[tier + 1];
   return h('div', [
-    h('div.office-hero', { html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id }) }),
+    h('div.office-hero', { html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id, honours: { record: recordsHeld(state, c.id), evil: recordsHeld(state, c.id, 'evil') } }) }),
     h('div.office-caption', [
       h('span', [h('b', OFFICE_TIERS[tier].name), ' — ', OFFICE_TIERS[tier].text]),
       h('span.office-next', [

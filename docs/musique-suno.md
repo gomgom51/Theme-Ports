@@ -283,9 +283,110 @@ courte fanfare marine joyeuse, accordéon, cuivres légers, tambourin, chœur qu
 
 ---
 
+## 4. Thèmes de situation : une victoire en vue, la liste noire, la menace
+
+Ces morceaux remplacent la musique du niveau quand la situation l'exige, puis lui
+rendent la place quand elle passe. Chacun est facultatif : s'il manque, la musique du
+niveau continue. Priorité : une victoire en vue pour vous (75 % du chemin, Bureau →
+Victoires) ; sinon la liste noire ; sinon un concurrent à 90 % d'une victoire.
+
+Mêmes consignes que pour les niveaux : mode **Custom**, case **Instrumental** cochée
+(sauf mention contraire), 2 à 4 minutes, sans montée brutale, et garder la version
+dont la fin enchaîne le mieux avec le début (le jeu les joue en boucle). Les styles
+sont en anglais : Suno les comprend mieux. Le fil conducteur reste le même : le motif
+d'accordéon du vieux port, que chaque thème transforme à sa façon.
+
+Styles à exclure pour tous (champ **Exclude Styles**) :
+
+```
+vocals, singing, lyrics, jingle, advertisement, EDM drop, dubstep, lo-fi hip hop
+```
+
+### `liste-noire.mp3` — Sur la liste noire internationale
+
+La compagnie est devenue un paria : ses navires ne peuvent plus entrer dans les ports
+qui appliquent les sanctions, les banques ont fermé la porte, on ne commerce plus
+qu'avec l'ombre. Un port la nuit, sous la pluie : élégant, enfumé, menaçant, comme un
+polar. L'accordéon du premier niveau revient, mais en mineur et un peu désaccordé,
+joué par quelqu'un qui n'a plus rien à perdre.
+
+```
+instrumental, dark noir jazz, slow 78 bpm, minor key, smoky and menacing but elegant, muted trumpet, upright bass pizzicato, brushed snare, low tremolo strings, a lone slightly detuned accordion playing an old harbour waltz motif in minor, distant foghorn, rain on a night harbour, smuggler's tango undertone, cinematic crime film, no vocals, seamless loop
+```
+
+**Titre** : Pavillon noir
+
+### `ombre.mp3` — La flotte fantôme approche de la victoire
+
+Les méfaits s'accumulent, la flotte grossit, chaque pays sous embargo est servi : la
+compagnie de l'ombre est sur le point de régner sur les mers que personne ne surveille.
+Ce n'est plus un polar, c'est le thème du méchant : une pulsation froide et implacable,
+des cuivres qui frappent, et le motif du vieux port devenu une marche sinistre.
+
+```
+instrumental, dark orchestral thriller, villain theme, 104 bpm, relentless pulsing low synth bass, war drums and taiko, staccato cellos and basses, menacing low brass stabs, cold choir pads without words, distant ship horns, the old harbour accordion motif turned into a sinister march, powerful and unstoppable, crime syndicate ruling the seas, no vocals, seamless loop
+```
+
+**Titre** : La flotte fantôme
+
+### `domination.mp3` — Seul maître à bord en vue
+
+Les concurrents tombent un à un, ruinés ou rachetés. Une marche de conquête, impériale
+et sans pitié, comme une salle de conseil où l'on signe le rachat du dernier rival : un
+seul thème qui revient sans cesse et grandit, d'une caisse claire seule jusqu'à tout
+l'orchestre.
+
+```
+instrumental, imperial conquest march, 96 bpm, relentless snare drum ostinato from the very start, one single theme repeated and growing in a long crescendo, low brass, timpani, strings in unison, ruthless and grand, cold boardroom power, the old harbour motif played by bold horns, no vocals, seamless loop
+```
+
+**Titre** : Le dernier rachat
+
+### `respect.mp3` — La compagnie la plus respectée en vue
+
+Les hauts faits s'alignent, la réputation touche la perfection : l'armateur honnête,
+celui qui a livré l'aide après l'ouragan et ramené tous ses marins. Noble, chaleureux,
+lumineux, avec des cloches de port au loin. Des voix sans paroles sont permises, mais
+pas de chant.
+
+```
+instrumental, noble and warm orchestral theme, 84 bpm, major key, solo cello melody, gentle piano, soft strings, wordless choir humming softly, distant harbour bells, dignified, hopeful and luminous, gratitude, the honest shipowner, the old harbour accordion motif played tenderly, no lyrics, seamless loop
+```
+
+**Titre** : Le pavillon d'honneur
+
+### `legende.mp3` — La compagnie légendaire en vue
+
+Les records tombent : la plus grande flotte, le plus de tonnes, tous les ports du monde.
+Une épopée maritime : le chant de marins de l'écran d'accueil (6/8) devenu un hymne
+d'aventure pour grand orchestre, avec des cors qui s'envolent et un chœur qui lance des
+« oh » sans paroles.
+
+```
+instrumental, epic maritime adventure, 6/8 time, 120 bpm, full orchestra, soaring french horns, driving strings, big timpani, a sea shanty melody transformed into a heroic anthem, wordless choir chants "oh", crashing waves, wide and legendary, joyful and triumphant, no lyrics, seamless loop
+```
+
+**Titre** : La légende des sept mers
+
+### `menace.mp3` — Un concurrent est sur le point de gagner (facultatif)
+
+Un rival atteint 90 % d'une victoire : il faut réagir, et vite. Une horloge qui tourne,
+une tension qui monte sans jamais exploser, pour pousser le joueur à agir (racheter,
+riposter, ou gagner avant lui).
+
+```
+instrumental, tense countdown, 100 bpm, ticking clock percussion, insistent staccato string ostinato, low drones, rising tension without release, urgent pulse, suspense, a fragment of the old harbour motif in minor, no vocals, seamless loop
+```
+
+**Titre** : Le temps presse
+
+---
+
 ## Ensuite
 
 1. Télécharger les MP3 depuis Suno.
-2. Les renommer exactement `accueil.mp3`, `niveau1.mp3` à `niveau5.mp3` et `victoire.mp3`.
+2. Les renommer exactement `accueil.mp3`, `niveau1.mp3` à `niveau5.mp3`, `victoire.mp3`, et pour les
+   thèmes de situation `liste-noire.mp3`, `ombre.mp3`, `domination.mp3`, `respect.mp3`, `legende.mp3`
+   et `menace.mp3`.
 3. Les déposer dans `web/musique/` du dépôt (sur GitHub : *Add file → Upload files*).
 4. Le prochain APK et la version PC les intègrent automatiquement.
