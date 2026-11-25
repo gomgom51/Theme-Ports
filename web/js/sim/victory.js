@@ -44,8 +44,12 @@ export function victoryProgress(state, company, kind) {
   let parts;
   if (kind === 'domination') {
     const rivals = state.companies.filter((c) => c.id !== company.id);
-    const out = rivals.filter((c) => c.bankrupt).length;
-    parts = [part('Concurrents éliminés', rivals.length ? out / rivals.length : 0, `${out} / ${rivals.length}`)];
+    const out = rivals.filter((c) => c.bankrupt).length, left = rivals.length - out;
+    // Un seul concurrent encore debout : la victoire est en vue (90 %), quel que soit leur nombre au
+    // départ. Sinon, avec deux ou trois concurrents, on ne passait jamais 75 % avant de gagner : ni
+    // alerte pour les autres, ni musique.
+    const f = !rivals.length ? 0 : left === 1 && rivals.length > 1 ? Math.max(out / rivals.length, VICTORY.alerts[1]) : out / rivals.length;
+    parts = [part('Concurrents éliminés', f, left === 1 && rivals.length > 1 ? `${out} / ${rivals.length} — plus qu'un` : `${out} / ${rivals.length}`)];
   } else if (kind === 'reputation') {
     const n = deedCount(company), lv = levelOf(company);
     const hold = company.repHold ? (state.t - company.repHold.since) / D : 0;

@@ -2218,4 +2218,5 @@ export default {
   "Tenue": "Hold",
   "{0} / {1} jours au-dessus de {2}": "{0} / {1} days above {2}",
   "pas encore (atteindre 100)": "not yet (reach 100)",
+  "{0} / {1} — plus qu'un": "{0} / {1} — one left",
 };
