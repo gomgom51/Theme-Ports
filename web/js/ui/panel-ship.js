@@ -664,6 +664,7 @@ function busyTab(app, ship) {
 }
 
 // ---------- Appareiller ----------
+let destClick = null; // position du dernier clic dans la liste des destinations
 function departTab(app, ship) {
   const { state, ctx } = app;
   const T = SHIP_TYPES[ship.type];
@@ -708,7 +709,7 @@ function departTab(app, ship) {
       ]),
       h('div.card-side', [est.error ? null : h('button.btn.primary', { 'data-guide': 'sail', onclick: () => {
         const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true));
-        if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; app.setPreview(null); }
+        if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; app.hoverRoute(null); app.setPreview(null); }
       } }, 'Appareiller')]),
     ]));
   } else {
@@ -719,8 +720,9 @@ function departTab(app, ship) {
   if (contract) return box;
   const worn = ship.condition < inspectionThreshold(eco.ageYears(state, ship));
   // Liste des destinations.
+  const closed = ctx.closedCanals(state, T.draft, ship);
   const rows = PORT_IDS.filter((p) => p !== ship.port).map((p) => {
-    const info = ctx.distanceInfo(ship.port, p, ctx.closedCanals(state, T.draft, ship));
+    const info = ctx.distanceInfo(ship.port, p, closed);
     let why = null;
     if (!eco.fitsPort(p, ship.type)) why = `tirant d'eau ${num1(eco.portDraft(p, ship.type))} m`;
     else if (ship.cargo && !eco.portHandles(p, ship.cargo.hold)) why = 'ne peut pas décharger';
@@ -736,12 +738,23 @@ function departTab(app, ship) {
     // restent affichés, ils donnent envie d'un autre navire.
     const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
     const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
-    return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr') };
+    return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info };
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);
-  box.append(h('div.list.compact', rows.map((r) => h('button.row.selectable', {
+  // Survol : la route vers ce port se dessine sur la carte, comme pour les contrats (tracé calculé
+  // au premier survol seulement).
+  // Après un clic, la liste se décale (la carte du départ s'insère au-dessus) : le navigateur
+  // signale alors un survol de la ligne arrivée sous le curseur immobile, qu'on ignore.
+  const hoverOf = (r) => { let route; return (e) => {
+    if (destClick && e.clientX === destClick.x && e.clientY === destClick.y) return;
+    if (route === undefined) route = r.reachable ? ctx.route(ship.port, r.p, closed) || null : null;
+    if (route && app.hoverPreview === route) return; // déjà affichée (mousemove)
+    app.hoverRoute(route);
+  }; };
+  box.append(h('div.list.compact', rows.map((r) => { const hover = hoverOf(r); return h('button.row.selectable', {
     class: (r.p === dest ? 'selected ' : '') + (r.why ? 'disabled' : ''),
     disabled: !!r.why, 'data-guide': !r.why && r.contracts > 0 ? 'dest' : null, // visite guidée : un port qui a des contrats
-    onclick: () => { app.form.dest[ship.id] = r.p; app.refresh(); },
+    onclick: (e) => { destClick = { x: e.clientX, y: e.clientY }; app.form.dest[ship.id] = r.p; app.hoverRoute(null); app.refresh(); },
+    onmouseenter: hover, onmousemove: hover, onmouseleave: () => app.hoverRoute(null),
   }, [
     flagEl(PORTS[r.p].flag),
     h('span.grow', portName(r.p)),
@@ -754,7 +767,7 @@ function departTab(app, ship) {
     grudgeAt(state, company, r.p) ? h('span.tag.bad', { title: 'Un gang de ce port en veut à votre compagnie : risque de saisie à l\'escale.' }, '⚠ gang') : null,
     ship.dark?.to === r.p ? h('span.tag.bad', 'livraison noire') : null,
     !r.why && r.contracts ? h('span.tag', { class: r.fit ? 'good' : '' }, [h('span', r.contracts > 1 ? `${r.contracts} contrats` : `${r.contracts} contrat`), r.fit ? ' · ' : null, r.fit ? h('span', `${r.fit} pour ce navire`) : null]) : null,
-  ]))));
+  ]); })));
   return box;
 }
 
