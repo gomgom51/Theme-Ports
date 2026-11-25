@@ -1773,4 +1773,11 @@ export default {
   "Retour": "Back",
   "Retour au panneau précédent": "Back to the previous panel",
   "attendu vers le {0}": "expected around {0}",
+  // Fiche du navire : services du port
+  "La zone opère à {0}": "The underworld operates in {0}",
+  "Pirates et fonctionnaires à acheter contre vos concurrents, informateur.": "Pirates and officials for hire against your rivals, plus an informant.",
+  "Un informateur à {0}": "An informant in {0}",
+  "Qui complote contre vous, quels navires rivaux cachent un colis.": "Who is plotting against you, which rival ships hide a parcel.",
+  "Voir →": "See →",
+  "vient de livrer à {0}": "has just delivered to {0}",
 };

@@ -4,6 +4,7 @@ import { GOODS } from '../data/goods.js';
 import { portName } from '../sim/core.js';
 import { resolution, collect, paymentBase } from '../sim/payments.js';
 import { h, money, tonnes, date, dialog, dropToasts } from './dom.js';
+import { artForShip } from './shipart.js';
 import { logoBadge } from './logos.js';
 import { clientRel, relationOf, paymentRisk, gratitudeChance, reportClient, LOYAL, RESERVE_LOYALTY, DENOUNCE_HIT, DENOUNCE_REP, GRUDGE_DAYS } from '../sim/clients.js';
 
@@ -91,11 +92,17 @@ export async function openPayment(app, paymentId) {
     h('span', ev?.kind === 'differe' ? 'À recevoir plus tard' : 'À encaisser'), h('span', money(finalAmount)),
   ]);
   const co = state.companies[p.company];
+  const shipNow = state.ships.find((s) => s.owner === p.company && s.name === p.shipName);
   const body = h('div', [
     // Première ligne : à qui revient l'argent (parties à plusieurs sur le même écran).
     h('div.pay-who', { style: { borderLeftColor: co.color } }, [
       h('span.badge-wrap', { html: logoBadge(co.logo, co.color, 40) }),
       h('b', { 'data-no-tr': '' }, co.captain ? `${co.captain} — ${co.name}` : co.name),
+    ]),
+    // Le navire qui a livré, bien en vue (son portrait s'il est toujours dans la flotte).
+    h('div.pay-ship', [
+      shipNow ? h('span.pay-ship-art', { html: artForShip(state, shipNow, { sky: false }) }) : null,
+      h('div', [h('div.pay-ship-name', { 'data-no-tr': '' }, p.shipName), h('div.pay-ship-sub', `vient de livrer à ${portName(p.to)}`)]),
     ]),
     h('p', [h('b', `${GOODS[p.good].icon} ${tonnes(p.qty)} de ${GOODS[p.good].name.toLowerCase()}`), ` livrés à ${portName(p.to)} par le ${p.shipName} le ${date(p.deliveredT, true)}.`]),
     C ? h('p', ['Client : ', clientLine(state, co, p.client)]) : null,

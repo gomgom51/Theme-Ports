@@ -75,14 +75,15 @@ const scrollMemory = new Map();
 
 // Historique des panneaux ouverts (bouton ← et bouton retour d'Android) ; vidé à la fermeture.
 const HISTORY_MAX = 30;
-app.open = (type, id = null, tab = null, { back = false } = {}) => {
+// focus : classe d'une section à montrer à l'ouverture (défilement et surbrillance).
+app.open = (type, id = null, tab = null, { back = false, focus = null } = {}) => {
   const prev = app.ui.panel;
   if (!back && prev && (prev.type !== type || prev.id !== id)) {
     const hist = (app.ui.history ??= []);
     hist.push({ type: prev.type, id: prev.id, tab: prev.shownTab ?? prev.tab ?? null });
     if (hist.length > HISTORY_MAX) hist.shift();
   }
-  app.ui.panel = { type, id, tab: tab ?? (prev && prev.type === type && prev.id === id ? prev.tab : null) };
+  app.ui.panel = { type, id, tab: tab ?? (prev && prev.type === type && prev.id === id ? prev.tab : null), focus };
   if (app.mode === 'game') armBrowserBack();
   if (type === 'ship') app.ui.selectedShip = id;
   app.hoverPreview = null;
@@ -201,6 +202,13 @@ function renderPanel() {
   panelEl.hidden = false;
   document.body.classList.add('panel-open');
   if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
+  // Section demandée (ex. « La zone » depuis la fiche d'un navire) : on y va, elle s'illumine.
+  // Plusieurs classes : on défile jusqu'à la première trouvée, toutes s'illuminent.
+  if (p.focus) {
+    const secs = p.focus.split(' ').map((c) => body.querySelector(`.${c}`)).filter(Boolean);
+    p.focus = null;
+    if (secs.length) { secs[0].scrollIntoView({ block: 'start' }); secs.forEach((sec) => sec.classList.add('focus-flash')); }
+  }
 }
 
 // ---------- Barre du haut et boutons ----------

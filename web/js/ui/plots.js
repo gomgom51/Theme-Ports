@@ -72,6 +72,27 @@ export async function jettisonDialog(app, shipId) {
   }
 }
 
+// ---------- Lien depuis la fiche d'un navire à quai : les services du port ----------
+// Port louche : « La zone » (pirates, fonctionnaires) et l'informateur ; ailleurs, l'informateur
+// seul. Le lien ouvre la fiche du port à la bonne section.
+export function portServicesLink(app, ship) {
+  const { state } = app;
+  if (ship.owner !== app.ui.activeCompany || ship.status !== 'port' || ship.seized) return null;
+  const port = ship.port;
+  if (P.canPlotFrom(port) && rivalsOf(state, ship.owner).length) {
+    return h('button.services-link.zone', { type: 'button', onclick: () => app.open('port', port, null, { focus: 'informant underworld' }) }, [
+      h('span.services-icon', '🕴'),
+      h('span.grow', [h('b', `La zone opère à ${portName(port)}`), h('span.services-sub', 'Pirates et fonctionnaires à acheter contre vos concurrents, informateur.')]),
+      h('span.services-go', 'Voir →'),
+    ]);
+  }
+  return h('button.services-link', { type: 'button', onclick: () => app.open('port', port, null, { focus: 'informant' }) }, [
+    h('span.services-icon', '👂'),
+    h('span.grow', [h('b', `Un informateur à ${portName(port)}`), h('span.services-sub', 'Qui complote contre vous, quels navires rivaux cachent un colis.')]),
+    h('span.services-go', 'Voir →'),
+  ]);
+}
+
 // ---------- La zone : pirates et fonctionnaires (port louche, un de vos navires à quai) ----------
 export function underworldSection(app, port) {
   const { state } = app;

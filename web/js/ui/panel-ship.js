@@ -18,7 +18,7 @@ import { fuelGaugeEl, animateNeedle } from './gauge.js';
 import { riskLines, crewInfo, isStrict } from './risk.js';
 import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
-import { hostileTag, hostileLine, heldDialog } from './plots.js';
+import { hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
 import { isEmbargoed, taintActive, TAINT_DAYS } from '../sim/shady.js';
 import * as crew from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
@@ -125,6 +125,7 @@ export function shipPanel(app, id, tab) {
       stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).map((id) => EQUIPMENT[id].icon).join(' ') : 'aucun'),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
+    mine ? portServicesLink(app, ship) : null, // services du port (la zone, l'informateur) : un clic mène à la fiche du port
     mine ? h('div.risk-box', [...riskLines(state, ship, { route: ship.status === 'sea' ? ctx.shipRoute(ship) : null }), ...shadyLines(state, ship, ship.status === 'sea' ? ship.voyage.to : null),
       ship.contraband ? h('div.risk-line', `📦 Colis discret à bord pour ${portName(ship.contraband.to)} : ${money(ship.contraband.pay)} à la livraison, avant le ${date(ship.contraband.deadline, true)}.`) : null,
       ...darkLines(state, ship, ship.status === 'sea' ? ship.voyage.to : null),
