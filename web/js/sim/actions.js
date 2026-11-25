@@ -414,6 +414,7 @@ export function layUp(state, shipId) {
   if (err) return fail(err);
   if (ship.cargo) return fail('Déchargez d\'abord la cargaison.');
   ship.status = 'laidup';
+  ship.laidAt = state.t;
   shipLog(state, ship, `Désarmé à ${portName(ship.port)}`);
   return { ok: true };
 }
@@ -427,6 +428,7 @@ export function reactivate(state, shipId) {
   if (cost > company.cash) return fail(`Il faut ${fmtM(cost)} pour réarmer.`);
   money(state, company, -cost, 'divers', ship);
   ship.status = 'port';
+  delete ship.laidAt;
   startBusy(state, ship, 'réarmement', 48);
   shipLog(state, ship, 'Réarmement : l\'équipage revient à bord');
   return { ok: true, cost };

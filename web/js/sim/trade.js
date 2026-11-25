@@ -25,7 +25,10 @@ const D = HOURS_PER_DAY;
 export const TENDER = {
   chance: 0.14,          // par jour : chance qu'une ville lance un appel d'offres (≈ un par semaine)
   max: 4,                // appels d'offres ouverts en même temps, au plus
-  premium: [1.1, 1.26],  // prix offert / prix de vente actuel du port
+  // Prime offerte au-dessus du prix de vente du port, proportionnelle à l'écart de prix naturel de la
+  // marchandise (GOODS.spread) : une prime uniforme rendait les biens chers (machines, manufacturés)
+  // bien trop lucratifs pour les petits cargos, au détriment du vrac.
+  premium: [0.6, 1.2], premiumMin: 1.04, premiumMax: 1.3,
   days: [24, 42],        // durée
   lots: [0.8, 2.0],      // quantité demandée, en lots typiques de la marchandise…
   minQty: 3000, maxQty: 150000, // … entre ces bornes (une course entre quelques navires, pas un puits sans fond)
@@ -61,7 +64,7 @@ function newTender(state, ctx, rng) {
     if (!goods.length) continue;
     const good = rng.weighted(goods);
     const G = GOODS[good];
-    const unit = Math.round(eco.sellPrice(state, port, good) * rng.range(TENDER.premium[0], TENDER.premium[1]));
+    const unit = Math.round(eco.sellPrice(state, port, good) * clamp(1 + G.spread * rng.range(TENDER.premium[0], TENDER.premium[1]), TENDER.premiumMin, TENDER.premiumMax));
     const qty = clamp(Math.round((G.lot * rng.range(TENDER.lots[0], TENDER.lots[1])) / 1000) * 1000, TENDER.minQty, TENDER.maxQty);
     const days = rng.int(TENDER.days[0], TENDER.days[1]);
     return { id: state.nextId++, port, good, unit, qty, left: qty, t0: state.t, until: Math.round(state.t + days * D), commits: [] };

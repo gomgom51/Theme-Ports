@@ -5,9 +5,9 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import * as act from './actions.js';
-import { shipsOf, fleetValue, creditLimit, contractById, bookTotal } from './core.js';
+import { shipsOf, fleetValue, creditLimit, contractById, bookTotal, netWorth } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
-import { INCIDENT_BASE, wearRisk } from './incidents.js';
+import { INCIDENT_BASE, wearRisk, inspectionThreshold } from './incidents.js';
 import { ENFORCING } from '../data/sanctions.js';
 import { hasEquip, installEquipment } from './equipment.js';
 import { acceptOffer, detectionChance, sanctionFine, taintActive } from './shady.js';
@@ -48,6 +48,17 @@ export function aiShipIdle(state, ctx, rng, ship) {
   // Cargaison noire à bord : droit au port de livraison.
   if (ship.dark) { if (!act.depart(state, ctx, ship.id, ship.dark.to, T.speed, true).ok) ship.aiWait = state.t + 24; return; }
 
+  // 0 bis. Près du seuil des inspecteurs et chantier sur place : réparer avant de repartir, même
+  // cargaison à bord. Sinon un vieux navire remis à 65 % après une détention se fait retenir à
+  // chaque escale dans un port exigeant (amende, réparations d'office, prêt sur cargaison échu).
+  if (ship.condition < inspectionThreshold(eco.ageYears(state, ship)) + 6 && PORTS[here].repair >= 1) {
+    const rc = eco.repairCost(state, ship, here, 92);
+    if (rc && rc.points > 5) {
+      if (rc.cost > company.cash - 100000) act.borrow(state, company.id, rc.cost - company.cash + 200000);
+      if (act.repair(state, ship.id, 92).ok) return;
+    }
+  }
+
   // 0. Cargaison sous contrat encore à bord (départ raté faute de carburant) : repartir.
   if (ship.cargo?.contractId) {
     const c = contractById(state, ship.cargo.contractId);
@@ -69,9 +80,14 @@ export function aiShipIdle(state, ctx, rng, ship) {
     let best = { port: here, value: sale && sale.possible ? sale.net : -Infinity };
     for (const p of PORT_IDS) {
       if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
+      // Même prudence qu'à l'achat : pas de détour par un pays sous embargo si l'on s'en abstient,
+      // et sinon l'amende possible est comptée (sans quoi l'IA y vend dès que le cours y est meilleur).
+      const emb = eco.isEmbargoedPort(p);
+      if (emb && avoidsEmbargo(state, company)) continue;
       const trip = tripCost(state, ctx, ship, p);
       if (!trip) continue;
-      const net = eco.quoteTrade(state, p, ship.cargo.good, ship.cargo.qty, 'sell').total * 0.97 - trip.cost;
+      const gross = quoteSellAt(state, p, ship.cargo.good, ship.cargo.qty, trip.days, ship.id).total;
+      const net = gross * 0.97 - trip.cost - (emb ? embargoCost(state, company, ship, gross) : 0);
       if (net > best.value * 1.05) best = { port: p, value: net };
     }
     if (best.port !== here && act.depart(state, ctx, ship.id, best.port, T.speed, true).ok) return;
@@ -239,8 +255,14 @@ const avoidsEmbargo = (state, company) => ENFORCING.has(company.flag) || (compan
 // par faire escale dans un pays qui applique les sanctions dans l'année).
 function embargoCost(state, company, ship, value) {
   const prev = taintActive(state, ship)?.value || 0;
-  return (sanctionFine(company, { value: prev + value }) - (prev ? sanctionFine(company, { value: prev }) : 0)) * 0.85;
+  const fine = sanctionFine(company, { value: prev + value });
+  // Une amende possible que la compagnie ne pourrait pas encaisser : on s'abstient (sinon une seule
+  // amende met une petite compagnie à découvert et la banque saisit ses navires).
+  if (fine > Math.max(0, netWorth(state, company.id)) * EMBARGO_FINE_MAX) return Infinity;
+  return (fine - (prev ? sanctionFine(company, { value: prev }) : 0)) * 0.85;
 }
+// Part de la valeur nette qu'une amende possible peut atteindre avant que l'IA renonce au commerce sous embargo.
+export const EMBARGO_FINE_MAX = 0.3;
 
 // Compagnie audacieuse : accepter un colis discret qui va dans la même direction,
 // si le risque de se faire prendre paraît raisonnable.
@@ -295,9 +317,15 @@ export function aiDaily(state, ctx, rng, company) {
     if (sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'barbeles') && company.cash > 3e6) installEquipment(state, sh.id, 'barbeles');
     else if (sh.status === 'port' && !sh.busyWhat && PORTS[sh.port].repair && !hasEquip(sh, 'citadelle') && company.cash > 8e6) installEquipment(state, sh.id, 'citadelle');
   }
-  // Réarmer les navires désarmés quand le fret repart.
+  // Réarmer les navires désarmés quand le fret repart. Une petite compagnie n'attend pas d'avoir
+  // 1 M$ en caisse : sinon elle s'éteint, navires à quai, pendant que sa dette grossit.
   for (const sh of ships) {
-    if (sh.status === 'laidup' && eco.freightLevel(state, sh.type) >= 0.97 && company.cash > 1e6) act.reactivate(state, sh.id);
+    if (sh.status !== 'laidup') continue;
+    sh.laidAt ??= state.t;
+    const cost = 20000 + SHIP_TYPES[sh.type].opex * 3;
+    if (eco.freightLevel(state, sh.type) >= 0.97 && company.cash > cost + 400000) act.reactivate(state, sh.id);
+    // Désarmé depuis plus d'un an et compagnie endettée : capital mort, on le vend.
+    else if (company.debt > 0 && state.t - sh.laidAt > 365 * D && ships.length > 1) act.sellShip(state, ctx, sh.id);
   }
   // Au bord de la saisie : vendre soi-même un navire (mieux payé que par la banque).
   if (company.cash < 0 && company.debt >= creditLimit(state, company) * 0.95) {

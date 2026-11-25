@@ -58,10 +58,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   Northern Sea Route safety horizon) in `web/js/sim/ice.js`, seasonal windows (`ice` on
   ports in `web/js/data/ports.js`, `ICE_PASSAGES`), Arctic fee `CANAL_FEE.nsr` in `economy.js`;
   dark jobs and pro bono (`DARK`, `DARK_KINDS` pay/infamy, `CHARITY`) in `web/js/sim/dark.js`,
-  infamy reputation cap `repCap` in `web/js/sim/core.js`; city tenders (`TENDER`: frequency, premium, quantity,
-  duration) and cargo financing (`FINANCE`: share lent and rate per port profile, destination bonus, track record,
+  infamy reputation cap `repCap` in `web/js/sim/core.js`; city tenders (`TENDER`: frequency, premium as a multiple of
+  the good's natural spread with a floor and a cap, quantity, duration) and cargo financing (`FINANCE`: share lent and rate per port profile, destination bonus, track record,
   60-day term, late and early-repayment fees, exposure cap = half the net worth) in `web/js/sim/trade.js`; AI opportunity
-  cost of cash locked in cargo `AI_CAPITAL_COST` in `web/js/sim/ai.js`; prospecting for shippers (`PROSPECT`: duration,
+  cost of cash locked in cargo `AI_CAPITAL_COST` and the largest possible embargo fine it accepts `EMBARGO_FINE_MAX`
+  (share of net worth) in `web/js/sim/ai.js`; prospecting for shippers (`PROSPECT`: duration,
   odds per port size / reputation / loyalty / office / negotiation skill, lead share and range, pay) in
   `web/js/sim/prospect.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
@@ -73,10 +74,19 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   commitments announced with their ETA) and cargo loans that let a small company fill a hold. No guaranteed
   price: trading keeps its risk. A tender's free quantity subtracts every other ship's commitment (own fleet
   included), and a ship commits as soon as its departure is planned, or several ships chase the same lot.
-  Leverage needs a cap (total cargo loans ≤ half the net worth) and the AI must charge itself the opportunity cost of
+  A tender premium must follow each good's natural spread (`GOODS.spread`): a flat 10–26 % made dear goods
+  (machines, manufactured goods) a fortune for small general cargo ships, which then won 8 of 16 strategy markets
+  while bulk won none. Leverage needs a cap (total cargo loans ≤ half the net worth) and the AI must charge itself the opportunity cost of
   cash locked in cargo (`AI_CAPITAL_COST`), or it trades instead of buying ships: fleets stall, a few AIs
   become near-zero zombies and the richest snowball. Compare variants on the same seeds: any change to the
   random stream reshuffles single-seed results.
+- Lessons (AI, balance pass after tenders and financing): every AI decision that can touch an embargoed port must
+  check `avoidsEmbargo` and price `embargoCost`, including "sell here or carry the goods elsewhere" for cargo already
+  on board. That branch once ignored it, and enforcing-flag AIs (US, NL, GR) detoured to Iran and Russia for a better
+  price, then paid fines of up to 12 M$: it hid half the growth and caused the only bankruptcy. A possible fine larger
+  than `EMBARGO_FINE_MAX` × net worth is refused. Laid-up ships must come back when freight recovers, even for a
+  company with little cash (reactivation needs only its cost plus a small buffer), and a ship laid up for over a year
+  is sold while the company is in debt, or small fleets die at the quay.
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 - Ice (rule 1): freeze/thaw dates are random each year but the window is always shown,
@@ -103,6 +113,12 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 - Strategies over 16 seeds: bulk 7 wins, tankers 5, liners 3, cargos 1 (cargos'
   edge is grey/black trade, which the test bots barely use); medians ×13–24.
 - Fleet test: every model profitable.
+- After tenders, cargo financing and prospecting (5 years, 96 companies): median ×29, bottom 10 % ×6.7, best ×85,
+  no bankruptcy; Houston (US flag) lowest at ×19, Singapore highest at ×46. Faster than before (×19): trade now
+  pays, as the owner asked, and cash-rich companies fill every hold once their fleet is capped. No trade knob
+  slows it much (tender premium, loan share, exposure cap, `SPREAD` each move it by less than the seed noise);
+  `BALLAST` 1.6 gives ×26 but drops the bottom 10 % to ×3. Strategies over 16 seeds: tankers 7, liners 5,
+  cargos 2, bulk 2, medians ×36–61. Fleet test OK. 10 years: all AIs survive, linear growth once capped.
 - Lessons: used-ship prices must follow earning power (slow `AGING.dep`),
   otherwise cheap old hulls give runaway returns; the AI must price expected
   embargo fines (it now does, `embargoCost` in `ai.js`) or it bleeds billions.

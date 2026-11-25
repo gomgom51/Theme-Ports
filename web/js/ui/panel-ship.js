@@ -20,7 +20,7 @@ import { riskLines, crewInfo, isStrict } from './risk.js';
 import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
 import { hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
-import { isEmbargoed, taintActive, TAINT_DAYS } from '../sim/shady.js';
+import { isEmbargoed, taintActive, TAINT_DAYS, sanctionPreview } from '../sim/shady.js';
 import * as crew from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
 import { darkLines, seizedDialog } from './dark.js';
@@ -32,11 +32,14 @@ import { repCap } from '../sim/core.js';
 // Commercer avec un pays sous embargo marque le navire un an : on demande avant, si le
 // navire est encore « propre ». Renvoie true pour continuer.
 const EMBARGO_TAG = () => h('span.tag.warn', { title: 'Pays sous embargo : y commercer marque le navire un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo');
-async function embargoOk(app, ship, port) {
+async function embargoOk(app, ship, port, value = 0) {
   if (!isEmbargoed(port) || taintActive(app.state, ship)) return true;
-  return confirmBox(`Commercer avec ${PORTS[port] ? portName(port) : 'ce pays'} ?`,
-    `${portName(port)} est sous embargo. Le ${ship.name} sera marqué pendant ${Math.round(TAINT_DAYS / 30)} mois : à chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie, il risquera une amende.`,
-    'Oui, commercer');
+  const risk = sanctionPreview(app.state, ship, value);
+  return confirmBox(`Commercer avec ${PORTS[port] ? portName(port) : 'ce pays'} ?`, h('div', [
+    h('p', `${portName(port)} est sous embargo. Le ${ship.name} sera marqué pendant ${Math.round(TAINT_DAYS / 30)} mois : à chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie, il risquera une amende.`),
+    h('p.warn-text', `Risque à chaque escale : ${pct(risk.odds * 100)}, pour une amende d'environ ${money(risk.fine)}.`),
+    h('p.muted', `L'amende vaut le quart de la valeur commercée avec ces pays pendant le marquage (de 0,5 à 12 M$, 30 % de moins sous un pavillon qui n'applique pas les sanctions). Le risque est rappelé avant chaque départ.`),
+  ]), 'Oui, commercer');
 }
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
 import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence } from '../sim/equipment.js';
@@ -262,7 +265,7 @@ function contractsBase(app, ship) {
       h('div.card-side', [
         h('div.price', money(c.pay)),
         why ? null : h('button.btn.primary.small', { 'data-guide': 'accept', onclick: async () => {
-          if (c.embargo && !(await embargoOk(app, ship, isEmbargoed(c.from) ? c.from : c.to))) return;
+          if (c.embargo && !(await embargoOk(app, ship, isEmbargoed(c.from) ? c.from : c.to, c.pay))) return;
           const r = app.act(() => act.acceptContract(state, ctx, ship.id, c.id, { speed: T.speed, autoRefuel: true }), { sound: 'crates' });
           if (r?.ok) {
             app.toast(`Chargement en cours. Le ${ship.name} partira automatiquement pour ${portName(c.to)} (plein fait si nécessaire).`);
@@ -311,7 +314,7 @@ function tradeTab(app, ship) {
           : `La garantie de prix à ${portName(ship.cargo.floor.port)} a expiré.`) : null,
       ]),
       h('div.card-side', [q.possible ? h(`button.btn.small.${q.profit >= 0 ? 'primary' : 'danger'}`, { onclick: async () => {
-        if (!(await embargoOk(app, ship, here))) return;
+        if (!(await embargoOk(app, ship, here, q.net))) return;
         if (q.profit < 0 && !(await confirmBox('Vendre à perte ?', `Vous perdrez ${money(-q.profit)} sur cette cargaison.`, 'Vendre'))) return;
         app.act(() => act.sellCargo(state, ctx, ship.id), { sound: 'cash' });
       } }, `Vendre ici · ${money(q.profit, true)}`) : null]),
@@ -390,8 +393,8 @@ async function buyDialog(app, ship, g, q, dests) {
   const { state, ctx } = app;
   const company = state.companies[ship.owner];
   const G = GOODS[g];
-  if (!(await embargoOk(app, ship, ship.port))) return;
   const quote = act.quoteBuy(state, ship, g, q);
+  if (!(await embargoOk(app, ship, ship.port, quote.total))) return;
   const est = (p) => {
     const d = dests.find((x) => x.p === p);
     const fq = quoteSellAt(state, p, g, q, d.est.totalDays, ship.id);

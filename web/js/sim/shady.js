@@ -39,6 +39,11 @@ export function sanctionRisk(state, ship, port) {
   if (!t || !enforces(port)) return null;
   return { odds: SANCTION_ODDS * equipMod(ship, 'sanction'), fine: sanctionFine(companyOf(state, ship), t), taint: t };
 }
+// Avant de commercer : le risque d'amende qu'on prendrait (montant pour la valeur ajoutée au marquage).
+export function sanctionPreview(state, ship, value) {
+  const prev = taintActive(state, ship)?.value || 0;
+  return { odds: SANCTION_ODDS * equipMod(ship, 'sanction'), fine: sanctionFine(companyOf(state, ship), { value: prev + value }) };
+}
 export function checkSanctions(state, rng, ship, port, onNote) {
   const risk = sanctionRisk(state, ship, port);
   if (!risk || !rng.chance(risk.odds)) return null;
