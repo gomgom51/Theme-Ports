@@ -201,7 +201,7 @@ function checkDeeds(state, company, notes) {
     if (DEEDS[id].progress(state, company).frac < 1) continue;
     H.deeds[id] = state.t;
     const n = deedCount(company);
-    if (n <= 5) changeReputation(company, HONOURS.deedRep); // le plafond vient de monter d'un point
+    if (n <= 5) changeReputation(company, HONOURS.deedRep, 'hauts faits'); // le plafond vient de monter d'un point
     news(state, `${company.name} gagne le haut fait « ${DEEDS[id].name} ».`, { company: company.id, kind: 'event' });
     say(state, notes, company, 'deed', n <= 5 ? `Haut fait : « ${DEEDS[id].name} ». Le plafond de votre confiance et de votre vertu monte à ${95 + n}.` : `Haut fait : « ${DEEDS[id].name} ».`, { deed: id });
   }
@@ -237,9 +237,12 @@ function checkRecords(state, notes, kind) {
 // Et l'on oublie : sous STANDING.forgiveTo, elle y remonte doucement quoi qu'on fasse.
 function cleanConduct(state, company) {
   const H = hon(company), V = standing(company).virtue, last = Math.max(H.lastDirty ?? -Infinity, H.lastSpill ?? -Infinity);
-  let gain = V < STANDING.forgiveTo ? (STANDING.forgiveMonthly / 30) * (1 - V / STANDING.forgiveTo) : 0;
-  if (state.t - last >= STANDING.cleanDays * 24) gain = Math.max(gain, (STANDING.cleanMonthly / 30) * (1 - V / 110));
-  if (gain > 0) changeVirtue(company, gain);
+  let gain = V < STANDING.forgiveTo ? (STANDING.forgiveMonthly / 30) * (1 - V / STANDING.forgiveTo) : 0, src = 'on oublie';
+  if (state.t - last >= STANDING.cleanDays * 24) {
+    const clean = (STANDING.cleanMonthly / 30) * (1 - V / 110);
+    if (clean >= gain) { gain = clean; src = 'conduite propre'; }
+  }
+  if (gain > 0) changeVirtue(company, gain, src);
 }
 export function honoursDaily(state, notes) {
   for (const c of state.companies) {

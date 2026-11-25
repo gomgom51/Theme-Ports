@@ -1,4 +1,5 @@
 // Point d'entrée : boucle de jeu, interface principale, notifications, sauvegardes.
+import { standingSummary } from './ui/standing.js';
 import { makeContext } from './sim/context.js';
 import { newGame, tick, ranking } from './sim/game.js';
 import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
@@ -223,7 +224,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 function updateStandings(s, me) {
   const el = $('#standings');
   const rows = ranking(s);
-  const key = rows.map((r) => `${r.company.id}:${Math.round(r.worth / 1e4)}:${r.company.bankrupt}`).join('|') + `|${me}:${getLang()}`;
+  const key = rows.map((r) => `${r.company.id}:${Math.round(r.worth / 1e4)}:${r.company.bankrupt}:${Math.floor(r.company.reputation)}:${Math.floor(r.company.confidence ?? 0)}:${Math.floor(r.company.virtue ?? 0)}`).join('|') + `|${me}:${getLang()}`;
   el.hidden = false;
   if (el.dataset.key === key) return;
   el.dataset.key = key;
@@ -232,6 +233,12 @@ function updateStandings(s, me) {
     h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 22) }),
     h('span.standings-name', r.company.name),
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
+    // Réputation (la plus basse des deux), confiance et vertu : la plus basse en rouge.
+    r.company.bankrupt ? null : h('span.standings-rep', { title: 'Réputation (la plus basse des deux) · confiance · vertu' }, [
+      h('span', `★${Math.floor(r.company.reputation)}`), ' ',
+      h('span', { class: repLimit(r.company) === 'trust' ? 'low' : '' }, `🤝${Math.floor(r.company.confidence)}`), ' ',
+      h('span', { class: repLimit(r.company) === 'virtue' ? 'low' : '' }, `💚${Math.floor(r.company.virtue)}`),
+    ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
 }
 // Niveau de la compagnie (le bureau) et ce qu'il faut pour le suivant. Un niveau atteint est
@@ -382,25 +389,7 @@ function updateContext() {
   } else {
     const P = PORTS[ship.port];
     kids.push(h('div.ctx-ship', [h('b', ship.name), h('span', { html: `⚓ ${P.name} <span class="flag" style="width:15px;height:10px">${flagSVG(P.flag)}</span>${mine ? '' : ' · ' + company.name}` })]));
-    if (mine) {
-      const want = T.tank - ship.fuel;
-      const price = eco.fuelPrice(s, ship.port);
-      kids.push(h('button.ctx-btn', {
-        disabled: want < 1, title: `Faire le plein (${Math.round(price)} $/t)`,
-        onclick: () => app.act(() => act.buyFuel(s, ship.id, want), { sound: 'fuel' }),
-      }, [h('span', want < 1 ? 'Soutes pleines' : `Plein ${Math.round(want)} t`), h('b', `⛽ ${want < 1 ? `${Math.round(price)} $/t` : money(want * price)}`)]));
-      const rc = eco.repairCost(s, ship, ship.port, 100);
-      const can = rc && rc.points > 0.5 && !ship.busyWhat && ship.status === 'port';
-      kids.push(h('button.ctx-btn', {
-        disabled: !can,
-        title: rc ? `Réparer jusqu'à ${rc.to} %` : 'Pas de chantier dans ce port',
-        onclick: async () => {
-          if (await confirmBox(`Réparer le ${ship.name} ?`, `Remise en état de ${Math.round(ship.condition)} % à ${rc.to} % : ${money(rc.cost)}, immobilisé ${Math.round(rc.hours / 24 * 10) / 10} jours.`, 'Réparer')) {
-            app.act(() => act.repair(s, ship.id, rc.to), { sound: 'pay' });
-          }
-        },
-      }, [h('span', rc ? (rc.points > 0.5 ? `Réparer → ${rc.to} %` : rc.to < 100 && ship.condition < 99 ? `Chantier limité à ${rc.to} %` : 'En bon état') : 'Pas de chantier'), h('b', `🔧 ${rc && rc.points > 0.5 ? `${money(rc.cost)} · ${Math.max(1, Math.round(rc.hours / 24))} j` : rc ? `${Math.round(ship.condition)} %` : '—'}`)]));
-    }
+    // (Plein et réparation : onglet Escale du navire ; la barre du haut garde la place pour l'essentiel.)
   }
   el.replaceChildren(...kids);
 }
@@ -497,6 +486,8 @@ function handleNotes(notes) {
     if (n.kind === 'crew' && scenes) { crewUps.push(n); continue; }
     if (n.kind === 'ice') { if (scenes) iceChanges.push(n); else toast(`❄ ${n.text}`, { timeout: 9000 }); continue; }
     if (n.kind === 'iceSoon') { toast(`❄ ${n.text}`, { kind: 'warn', timeout: 10000 }); continue; }
+    // Bilan du mois : confiance et vertu, par cause (sans arrêter le temps).
+    if (n.kind === 'standing') { toast(standingSummary(n.log, prefixOf(n)), { timeout: 15000, tag: `standing-${n.company}` }); continue; }
     // Affaires noires : la proposition, les saisies, et ce qu'on lit ensuite dans les nouvelles.
     if (n.kind === 'darkoffer') {
       const cid = n.company;

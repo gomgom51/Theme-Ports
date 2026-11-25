@@ -55,7 +55,7 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   costStat(state, 'sanctions', risk.fine);
   onStain(state, company);
   if (company.ai) company.ai.noEmbargoUntil = state.t + 365 * D; // l'ordinateur retient la leçon un an
-  changeVirtue(company, -8);
+  changeVirtue(company, -8, 'douanes et amendes');
   ship.taint = null;
   const from = FLAGS[PORTS[risk.taint.port].flag].name;
   const text = `${FLAGS[PORTS[port].flag].name} sanctionne le ${ship.name} pour commerce avec un pays sous embargo (${from}) : amende de ${(risk.fine / 1e6).toFixed(2).replace('.', ',')} M$.`;
@@ -184,7 +184,7 @@ function applySeizure(state, ship, company, port, fine, days, onNote) {
   onStain(state, company);
   money(state, company, -fine, 'sinistres', ship);
   costStat(state, 'douane', fine);
-  changeVirtue(company, -15);
+  changeVirtue(company, -15, 'douanes et amendes');
   ship.busyWhat = 'saisie';
   ship.busyUntil = Math.max(ship.busyUntil || 0, state.t) + days * D;
   const text = `La douane de ${portName(port)} saisit un colis de contrebande à bord du ${ship.name} (${company.name}) : amende de ${(fine / 1e6).toFixed(2).replace('.', ',')} M$, navire immobilisé ${days} jours.`;
@@ -203,13 +203,13 @@ export function resolveCase(state, rng, caseId, choice) {
   if (choice === 'soudoyer') {
     money(state, company, -c.bribe, 'discret', ship);
     if (rng.chance(c.chance)) {
-      changeVirtue(company, -2);
+      changeVirtue(company, -2, 'douanes et amendes');
       ship.busyUntil = state.t + 12;
       shipLog(state, ship, `Arrangement avec la douane de ${portName(c.port)}`);
       return { ok: true, bribed: true, cost: c.bribe };
     }
     applySeizure(state, ship, company, c.port, Math.round(c.fine * 1.5), Math.round(c.days * 1.5), null);
-    changeVirtue(company, -5);
+    changeVirtue(company, -5, 'douanes et amendes');
     return { ok: true, bribed: false, cost: c.bribe + Math.round(c.fine * 1.5) };
   }
   applySeizure(state, ship, company, c.port, c.fine, c.days, null);

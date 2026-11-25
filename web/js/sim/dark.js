@@ -111,7 +111,7 @@ export function acceptDark(state, shipId, o) {
   company.crossed = true;
   onDirty(state, company);
   company.infamy = (company.infamy || 0) + DARK_KINDS[o.kind].infamy;
-  changeReputation(company, 0); // le plafond baisse
+  changeReputation(company, 0, 'infamie'); // le plafond baisse
   shipLog(state, ship, `Cargaison noire embarquée pour ${portName(o.to)}`);
   return { ok: true, infamy: company.infamy, cap: repCap(company) };
 }
@@ -171,12 +171,12 @@ export function resolveSeized(state, ctx, rng, shipId, choice) {
     money(state, company, -hire, 'divers', ship);
     ship.busyWhat = 'recrutement';
     ship.busyUntil = state.t + 7 * D;
-    changeVirtue(company, -8); // des marins abandonnés à leur sort : ça se sait
+    changeVirtue(company, -8, 'affaires noires'); // des marins abandonnés à leur sort : ça se sait
     shipLog(state, ship, 'Équipage abandonné aux ravisseurs ; nouvel équipage recruté');
     news(state, `${company.name} refuse de payer pour l'équipage du ${ship.name}, enlevé à ${portName(s.port)}.`, { company: company.id, kind: 'disaster' });
     return { ok: true, abandoned: 'crew' };
   }
-  if (s.by === 'gang') changeVirtue(company, -8);
+  if (s.by === 'gang') changeVirtue(company, -8, 'affaires noires');
   news(state, s.by === 'justice' ? `${company.name} abandonne le ${ship.name}, confisqué à ${portName(s.port)}.` : `${company.name} abandonne le ${ship.name} aux mains d'un gang à ${portName(s.port)}.`, { company: company.id, kind: 'disaster' });
   removeShip(state, ctx, ship, 'abandonné');
   return { ok: true, abandoned: 'ship' };
@@ -200,7 +200,7 @@ export function darkOnArrival(state, ctx, rng, ship, port, notes, note) {
     } else if (rng.chance(darkDetect(ship, port))) {
       ship.dark = null;
       company.infamy = (company.infamy || 0) + DARK.caughtInfamy;
-      changeVirtue(company, -25);
+      changeVirtue(company, -25, 'affaires noires');
       onStain(state, company);
       money(state, company, -Math.round(dk.pay * 0.5), 'sinistres', ship);
       costStat(state, 'douane', Math.round(dk.pay * 0.5));
@@ -333,7 +333,7 @@ export function darkDaily(state, ctx, rng, notes) {
 // Livraison d'une aide d'urgence : réputation (dans la limite du plafond) et bonne presse.
 export function charityDelivered(state, company, ship, c, late) {
   if (!c.charity) return;
-  if (!late) changeVirtue(company, c.charity.rep);
+  if (!late) changeVirtue(company, c.charity.rep, 'aide d\'urgence');
   news(state, `${company.name} achemine l'aide d'urgence de ${c.charity.name} à ${portName(c.to)} avec le ${ship.name}.`, { company: company.id, kind: 'event' });
 }
 

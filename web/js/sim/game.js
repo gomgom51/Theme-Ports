@@ -332,7 +332,7 @@ function sailHour(state, ctx, rng, ship, notes) {
       const d = ship.cargo.damage || 0;
       ship.cargo.damage = Math.min(0.9, d + inc.damage * (1 - d));
     }
-    if (inc.rep) changeTrust(company, inc.rep);
+    if (inc.rep) changeTrust(company, inc.rep, 'incidents');
     const text = incidentText(inc, ship);
     // Échouement, abordage, voie d'eau ou incendie avec une cargaison polluante : une partie se déverse.
     if (inc.severe && inc.kind !== 'gros_temps' && ship.cargo && isPolluting(ship.cargo.good)) {
@@ -390,7 +390,7 @@ function sailHour(state, ctx, rng, ship, notes) {
     money(state, company, -cost, 'carburant', ship);
     ship.fuel = qty;
     v.stalledUntil = state.t + 24;
-    changeTrust(company, -1);
+    changeTrust(company, -1, 'pannes sèches');
     note(state, notes, 'fuel', ship, `Panne sèche ! Le ${ship.name} a dû être ravitaillé en mer (${(cost / 1000).toFixed(0)} k$).`);
     shipLog(state, ship, 'Panne sèche, soutage d\'urgence');
   }
@@ -412,7 +412,7 @@ function arrive(state, ctx, ship, notes, rng) {
   const to = ship.voyage.to;
   // Allure économique : moins d'émissions, un peu de vertu (selon le ralentissement et la longueur du voyage).
   const sv = slowVirtue(company, ship.voyage.speed, T.speed, (ship.voyage.nm || 0) / (24 * ship.voyage.speed));
-  if (sv > 0) changeVirtue(company, sv);
+  if (sv > 0) changeVirtue(company, sv, 'allure économique');
   ship.status = 'port';
   ship.port = to;
   ship.voyage = null;
@@ -421,7 +421,7 @@ function arrive(state, ctx, ship, notes, rng) {
   money(state, company, -fee, 'ports', ship);
   const tr = lastTrip(state, ship);
   if (tr && tr.d1 == null) tr.d1 = state.t;
-  if (!company.portsServed.includes(to)) { company.portsServed.push(to); changeTrust(company, 0.5); }
+  if (!company.portsServed.includes(to)) { company.portsServed.push(to); changeTrust(company, 0.5, 'nouveaux ports'); }
   shipLog(state, ship, `Arrivée à ${portName(to)}`);
   // Port saisonnier déjà pris par les glaces : un brise-glace escorte le navire jusqu'au quai.
   if (isSeasonal(to) && !iceOpen(state, to, state.t, ship)) {
@@ -453,7 +453,7 @@ function arrive(state, ctx, ship, notes, rng) {
     money(state, company, -insp.fine, 'sinistres', ship);
     costStat(state, 'detentions', insp.fine);
     money(state, company, -insp.cost, 'reparations', ship);
-    changeTrust(company, -3);
+    changeTrust(company, -3, 'détentions');
     onStain(state, company);
     ship.repairTo = insp.target;
     ship.detentionCost = insp.cost;
@@ -507,7 +507,7 @@ function deliverContract(state, ship, rng, notes) {
   if (tr && tr.rev == null) tr.rev = Math.round(pay);
   if (penalty > 0) st.late++; else st.onTime++;
   company.delivered++;
-  if (damage > 0.005) changeTrust(company, -damage * 8);
+  if (damage > 0.005) changeTrust(company, -damage * 8, 'cargaisons avariées');
   // Le paiement passe par l'encaissement (bouton « Encaisser » pour les joueurs).
   const payment = createPayment(state, ship, c, penalty, damage);
   taintShip(state, ship, c.to, c.pay);
@@ -528,12 +528,12 @@ function deliverContract(state, ship, rng, notes) {
   charityDelivered(state, company, ship, c, penalty > 0); // aide d'urgence : réputation et bonne presse
   if (penalty > 0) {
     company.late++;
-    changeTrust(company, -(2 + penalty * 10));
+    changeTrust(company, -(2 + penalty * 10), 'retards');
     shipLog(state, ship, `Livraison en retard à ${portName(c.to)} : ${(pay / 1000).toFixed(0)} k$ (pénalité ${Math.round(penalty * 100)} %)`);
   } else {
-    changeTrust(company, 1.5 * (1 - standing(company).confidence / 110));
-    if (USEFUL_GOODS.includes(c.good)) earnVirtue(company, VIRTUE_SOURCES.useful); // marchandise utile
-    if (c.golden && isCleanGood(c.good)) earnVirtue(company, VIRTUE_SOURCES.opportunity); // affaire en or propre
+    changeTrust(company, 1.5 * (1 - standing(company).confidence / 110), 'livraisons à l\'heure');
+    if (USEFUL_GOODS.includes(c.good)) earnVirtue(company, VIRTUE_SOURCES.useful, 'marchandises utiles'); // marchandise utile
+    if (c.golden && isCleanGood(c.good)) earnVirtue(company, VIRTUE_SOURCES.opportunity, 'affaires propres'); // affaire en or propre
     shipLog(state, ship, `Livraison à ${portName(c.to)} : ${(pay / 1000).toFixed(0)} k$`);
   }
   state.contracts = state.contracts.filter((x) => x !== c);
@@ -564,7 +564,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
     const covered = cov.pi;
     const due = covered ? Math.min(claim, Math.max(50000, Math.min(300000, claim * 0.1))) : claim;
     if (due) { money(state, company, -due, 'sinistres', ship); costStat(state, 'reclamations', due); }
-    changeTrust(company, -10);
+    changeTrust(company, -10, 'naufrages');
     const M = (x) => `${(x / 1e6).toFixed(2).replace('.', ',')} M$`;
     cargoLine = !claim ? '' : covered
       ? ` Le chargeur réclame ${M(claim)} : l'assurance P&I paie, il vous reste la franchise (${M(due)}).`
@@ -574,7 +574,7 @@ function sink(state, ctx, ship, notes, pos, wx, inc = null, rng = null) {
     if (cover) { money(state, company, cover, 'sinistres', ship); costStat(state, 'indemnites', -cover); }
     cargoLine = cover ? ` La marchandise est remboursée à ${Math.round(cov.cargo * 100)} % (${(cover / 1e6).toFixed(2).replace('.', ',')} M$).` : ' La marchandise est perdue.';
   }
-  changeTrust(company, -5);
+  changeTrust(company, -5, 'naufrages');
   const causes = {
     incendie: 'a sombré après un incendie', abordage: 'a coulé après un abordage', echouement: 's\'est brisé sur des récifs',
     voie_eau: 'a sombré : une voie d\'eau a eu raison de lui', gros_temps: 'a sombré dans la tempête',
@@ -658,7 +658,7 @@ function daily(state, ctx, rng, notes) {
   checkEnd(state, notes);
 }
 
-function monthly(state) {
+function monthly(state, notes) {
   for (const company of state.companies) {
     if (company.bankrupt) continue;
     const profit = bookTotal(company.month);
@@ -668,6 +668,12 @@ function monthly(state) {
     }
     company.lastMonth = company.month;
     company.month = emptyBook();
+    // Bilan du mois : ce qui a fait monter ou baisser la confiance et la vertu, par cause.
+    const L = company.standingMonth;
+    company.standingLast = L || null;
+    company.standingMonth = { confidence: {}, virtue: {} };
+    const moved = L && [...Object.values(L.confidence || {}), ...Object.values(L.virtue || {})].some((v) => Math.abs(v) >= 0.05);
+    if (company.human && moved && notes) notes.push({ kind: 'standing', company: company.id, log: L });
   }
 }
 
@@ -685,8 +691,8 @@ function checkBank(state, ctx, company, notes) {
     const s = ships[0];
     const price = eco.shipValue(state, s) * 0.75;
     company.cash += price;
-    if (s.cargo?.contractId) changeTrust(company, -10);
-    changeTrust(company, -6);
+    if (s.cargo?.contractId) changeTrust(company, -10, 'saisies de la banque');
+    changeTrust(company, -6, 'saisies de la banque');
     onStain(state, company);
     news(state, `La banque de ${company.name} saisit et vend le ${s.name} pour ${(price / 1e6).toFixed(2).replace('.', ',')} M$.`, { company: company.id, kind: 'disaster' });
     if (company.human) notes.push({ kind: 'bank', company: company.id, text: `Découvert trop important : la banque a saisi et vendu le ${s.name}.` });

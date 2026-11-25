@@ -99,7 +99,7 @@ function scandal(state, p) {
   p.exposed = true;
   p.until = state.t; // les complices lâchent l'affaire
   if (!p.known.includes(p.target)) p.known.push(p.target);
-  changeVirtue(by, -S.rep);
+  changeVirtue(by, -S.rep, 'scandales');
   if (S.fine) money(state, by, -S.fine, 'sinistres');
   if (p.kind === 'bank' && tg.creditCut?.plot === p.id) tg.creditCut = null;
   const sh = p.ship != null ? shipById(state, p.ship) : null;
@@ -175,7 +175,7 @@ export function poachClient(state, rng, byId, clientId) {
   mine.loyalty = Math.min(10, mine.loyalty + 2);
   const leaked = rng.chance(EXPOSE.poach);
   if (leaked) {
-    changeVirtue(by, -SCANDAL.poach.rep);
+    changeVirtue(by, -SCANDAL.poach.rep, 'scandales');
     news(state, `${by.name} aurait versé des fonds à ${C.name} pour lui faire rompre son partenariat avec ${rival.name}.`, { company: by.id, kind: 'event' });
     queue(state, rival, 'info', `${C.name} rompt son partenariat avec vous : ${by.name} l'a acheté, l'affaire s'est ébruitée.`);
     queue(state, by, 'scandal', `L'affaire avec ${C.name} s'est ébruitée : vertu −${SCANDAL.poach.rep}.`);
@@ -298,7 +298,7 @@ export function orderAttack(state, rng, byId, opts) {
   const by = state.companies[byId], tg = state.companies[target], A = ATTACKS[kind];
   const price = attackPrice(state, kind, opts);
   money(state, by, -price, 'divers');
-  changeVirtue(by, -A.rep); // le milieu jase, même sans preuve
+  changeVirtue(by, -A.rep, 'coups bas'); // le milieu jase, même sans preuve
   onHostile(state, by, tg);
   const strikeAt = kind === 'sabotage' ? state.t + rng.int(SABOTAGE_DELAY[0], SABOTAGE_DELAY[1]) * D : kind === 'crew' ? state.t + CREW_DELAY * D : 0;
   const plot = {
@@ -342,7 +342,7 @@ function attackEffects(state, rng, p, notes) {
   const tg = state.companies[p.target], by = state.companies[p.by];
   if (p.kind === 'smear') {
     const week = Math.floor((state.t - p.start) / (7 * D));
-    if (week > (p.week || 0)) { p.week = week; changeReputation(tg, -SMEAR_WEEKLY); } // la presse touche les deux notes
+    if (week > (p.week || 0)) { p.week = week; changeReputation(tg, -SMEAR_WEEKLY, 'campagnes de presse'); } // la presse touche les deux notes
   }
   if (!p.strikeAt || p.done || state.t < p.strikeAt) return;
   const sh = shipById(state, p.ship);

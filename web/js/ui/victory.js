@@ -15,11 +15,14 @@ const bar = (f, cls = '') => h('span.vic-bar', { class: cls }, [h('span', { styl
 const pctTxt = (f) => `${Math.round(Math.max(0, Math.min(1, f)) * 100)} %`;
 
 // ---------- Victoires ----------
+// Bouton vers le guide complet (toutes les victoires, hauts faits, trophées et méfaits, et leurs conditions).
+const codexLink = (app, tab) => h('button.btn.small.codex-link', { onclick: () => app.open('codex', null, tab) }, '📖 Toutes les victoires, hauts faits, trophées et méfaits');
 export function victoriesTab(app) {
   const { state } = app;
   const me = app.ui.activeCompany;
   const years = state.settings.duration;
   const box = h('div.victories');
+  box.append(codexLink(app, 'victoires'));
   const end = years ? `La partie se termine le ${date(years * 365 * D, true)} : si personne n'a gagné d'ici là, la plus grande valeur nette l'emporte.` : 'Partie sans limite de temps : seule une victoire la termine.';
   if (state.victoryClaimed) {
     box.append(h('p.vic-claimed', 'Une victoire a déjà été remportée dans cette partie : elle continue librement, sans nouvelle victoire.'));
@@ -55,7 +58,7 @@ export function victoriesTab(app) {
 }
 
 // ---------- Trophées ----------
-function holderLine(state, rec, R, mineId) {
+export function holderLine(state, rec, R, mineId) {
   if (!rec) return h('span.muted', `Non attribué · seuil : ${R.fmt(R.min())}`);
   const c = state.companies[rec.holder];
   return h('span', [rec.holder === mineId ? h('b', 'À vous') : h('b', { 'data-no-tr': '' }, c?.name || '?'), ` · ${R.fmt(rec.value)}${c?.bankrupt ? ' (compagnie disparue)' : ''}`]);
@@ -84,6 +87,7 @@ export function trophiesTab(app) {
   const me = state.companies[app.ui.activeCompany];
   const H = hon(me), n = deedCount(me);
   const box = h('div.trophies');
+  box.append(codexLink(app, 'hauts-faits'));
   box.append(h('h3', `Hauts faits · ${n} / ${DEED_IDS.length}`));
   box.append(h('p.small.muted', `Chaque compagnie peut tous les gagner. La réputation ordinaire plafonne à 95 ; chacun des cinq premiers hauts faits relève le plafond d'un point. Votre plafond : ${Math.floor(repCap(me))}.`));
   box.append(h('div.deed-grid', DEED_IDS.map((id) => {

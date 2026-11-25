@@ -79,7 +79,7 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   const c = spillCost(ship, pollutionT, factor, startCond, company);
   money(state, company, -c.due, 'sinistres', ship);
   costStat(state, 'pollution', c.due);
-  changeVirtue(company, -Math.min(20, 2 + c.liability / 10e6));
+  changeVirtue(company, -Math.min(20, 2 + c.liability / 10e6), 'marées noires');
   onSpill(state, company);
   const st = (state.stats ??= { incidents: {}, detentions: 0, inspections: 0, sinkings: 0, uninsured: 0 });
   st.spills = (st.spills || 0) + 1;

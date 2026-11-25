@@ -298,7 +298,7 @@ export function abandonContract(state, shipId) {
   const company = companyOf(state, ship);
   const penalty = c ? Math.round(c.pay * 0.25) : 0;
   money(state, company, -penalty, 'divers', ship);
-  changeTrust(company, -8);
+  changeTrust(company, -8, 'contrats abandonnés');
   state.contracts = state.contracts.filter((x) => x !== c);
   ship.cargo = null;
   ship.plan = null;
@@ -579,7 +579,7 @@ export function relocate(state, companyId, portId) {
   standing(company);
   company.confidence = Math.round(company.confidence * 0.7 + base * 0.3);
   company.virtue = Math.round(company.virtue * 0.7 + base * 0.3);
-  changeReputation(company, 0); // plafonds, réputation
+  changeReputation(company, 0, 'changement de pavillon'); // plafonds, réputation
   news(state, `${company.name} transfère son siège à ${portName(portId)} et passe sous pavillon ${FLAGS[company.flag].name}.`, { company: companyId, kind: 'fleet' });
   return { ok: true, cost };
 }

@@ -162,7 +162,7 @@ export function dailyReceivables(state, notes) {
   for (const r of due) {
     const company = state.companies[r.company];
     book(state, company, r.amount, 'fret');
-    if (r.rep) changeTrust(company, r.rep);
+    if (r.rep) changeTrust(company, r.rep, 'litiges');
     if (company.human) notes.push({ kind: 'paid', company: company.id, text: `${r.label} : ${k$(r.amount)} encaissés.`, amount: r.amount });
   }
 }

@@ -9,7 +9,7 @@
 //    (prix, niveau). Le dirigeant peut demander six mois aux actionnaires pour redresser la barre
 //    (chance affichée, selon sa réputation). Tant qu'un concurrent peut le racheter, il est prévenu.
 import { HOURS_PER_DAY, formatDate } from './util.js';
-import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money, removeShip, standing } from './core.js';
+import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money, removeShip, standing, changeTrust, changeVirtue } from './core.js';
 import { onEliminated } from './honours.js';
 import { crossesLine, BLACKLIST } from './shadow.js';
 import { victoryProgress, VICTORY } from './victory.js';
@@ -120,8 +120,9 @@ export function executeTakeover(state, buyerId, targetId, notes = null) {
   for (const [p, n] of Object.entries(target.lenders || {})) (buyer.lenders ??= {})[p] = (buyer.lenders[p] || 0) + n;
   // Réputation et infamie : celles de la cible déteignent.
   buyer.infamy = pv.infamy;
-  buyer.confidence = pv.confidence; buyer.virtue = pv.virtue;
-  changeReputation(buyer, 0); // applique les plafonds, recalcule la réputation
+  // Les notes de la cible déteignent (la variation est notée au bilan du mois, cause « rachat »).
+  const d1 = pv.confidence - buyer.confidence, d2 = pv.virtue - buyer.virtue;
+  changeTrust(buyer, d1, 'rachat'); changeVirtue(buyer, d2, 'rachat');
   // Les coups bas de la cible et contre elle s'arrêtent ; l'offre est close.
   for (const p of state.plots || []) if ((p.by === target.id || p.target === target.id) && p.until > state.t) p.until = state.t;
   for (const b of state.bids || []) if ((b.target === target.id || b.by === target.id) && b.status === 'pending') b.status = b.target === target.id ? 'done' : 'void';

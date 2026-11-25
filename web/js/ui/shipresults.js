@@ -91,7 +91,7 @@ export function shipResults(app) {
     const best = judged.length > 1 ? judged.reduce((a, b) => (b.f.perDay > a.f.perDay ? b : a)) : null;
     const worst = judged.length > 1 ? judged.reduce((a, b) => (b.f.perDay < a.f.perDay ? b : a)) : null;
     box.append(h('div.ship-stats', [
-      stat('Flotte', h('span', { class: fleetDay >= 0 ? 'pos' : 'neg' }, `${money(fleetDay, true)}/jour`), ships.length > 1 ? `${ships.length} navires` : `${ships.length} navire`),
+      stat('Flotte', h('span', { class: fleetDay >= 0 ? 'pos' : 'neg' }, `${money(fleetDay, true)}/jour`), `${ships.length > 1 ? `${ships.length} navires` : `${ships.length} navire`} · moyenne depuis l'achat`),
       best ? stat('Meilleur', best.ship.name, perDayText(best.f)) : null,
       worst ? stat('Moins bon', worst.ship.name, perDayText(worst.f)) : null,
     ]));
@@ -100,6 +100,8 @@ export function shipResults(app) {
     const key = SORTS.find(([k]) => k === sortId)[2];
     box.append(h('div.chips', SORTS.map(([k, label]) => h('button.chip', { class: k === sortId ? 'active' : '', onclick: () => { app.form.shipSort = k; app.refresh(); } }, label))));
     ships.sort((a, b) => (a.f.early - b.f.early) || key(b.f) - key(a.f));
+    // Période : chaque navire est jugé depuis son achat (ou depuis le début du suivi).
+    box.append(h('div.ship-results-head', [h('span', 'Navire'), h('span', 'Par jour (moyenne) · total, depuis l\'achat')]));
     const list = h('div.list.compact');
     for (const { ship, f } of ships) {
       const T = SHIP_TYPES[ship.type], open = app.form.shipOpen === ship.id;
@@ -110,7 +112,7 @@ export function shipResults(app) {
         h('span.grow', [h('b', ship.name), ' ', h('span.muted.small', T.name), h('div.small.muted', dotted(line))]),
         h('span.ship-result-figure', f.early
           ? [h('span.muted.small', 'Trop tôt pour juger'), h('span.small', signed(f.result))]
-          : [h('b', { class: f.perDay >= 0 ? 'pos' : 'neg' }, `${money(f.perDay, true)}/j`), h('span.small.muted', money(f.result, true))]),
+          : [h('b', { class: f.perDay >= 0 ? 'pos' : 'neg' }, `${money(f.perDay, true)}/j`), h('span.small.muted', `${money(f.result, true)} ${sinceText(state, ship)}`)]),
       ]));
       if (open) list.append(shipDetail(app, ship, f));
     }
@@ -119,6 +121,12 @@ export function shipResults(app) {
   const past = company.pastShips || [];
   if (past.length) box.append(pastShips(past));
   return box;
+}
+
+// « depuis l'achat », ou la date du début du suivi (navires d'anciennes sauvegardes).
+function sinceText(state, ship) {
+  const s = trackOf(state, ship);
+  return ship.boughtT != null && s.since <= ship.boughtT + 1 ? 'depuis l\'achat' : `depuis le ${date(s.since, true)}`;
 }
 
 // Fiche détaillée d'un navire.

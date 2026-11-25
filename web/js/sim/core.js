@@ -162,19 +162,44 @@ function syncReputation(company) {
   company.virtue = Math.max(0, Math.min(virtueCap(company), company.virtue));
   company.reputation = Math.min(company.confidence, company.virtue);
 }
-export function changeTrust(company, delta) { standing(company); company.confidence += delta; syncReputation(company); }
+// Bilan du mois : chaque variation (après plafonds) est notée par cause, pour le résumé mensuel.
+function logStanding(company, key, src, applied) {
+  if (!src || Math.abs(applied) < 1e-6) return;
+  const L = (company.standingMonth ??= { confidence: {}, virtue: {} });
+  (L[key] ??= {})[src] = (L[key][src] || 0) + applied;
+}
+export function changeTrust(company, delta, src) {
+  standing(company);
+  const b = company.confidence;
+  company.confidence += delta;
+  syncReputation(company);
+  logStanding(company, 'confidence', src, company.confidence - b);
+}
 // Gains dégressifs : de moins en moins près du haut.
-export const earnTrust = (company, base) => changeTrust(company, base * (1 - standing(company).confidence / 110));
-export const earnVirtue = (company, base) => changeVirtue(company, base * (1 - standing(company).virtue / 110));
+export const earnTrust = (company, base, src) => changeTrust(company, base * (1 - standing(company).confidence / 110), src);
+export const earnVirtue = (company, base, src) => changeVirtue(company, base * (1 - standing(company).virtue / 110), src);
 // Allure économique : part du bonus (0..1) pour une vitesse donnée, et vertu attendue à l'arrivée.
 export function slowShare(speed, serviceSpeed) {
   const V = VIRTUE_SOURCES, r = speed / serviceSpeed;
   return Math.max(0, Math.min(1, (V.slowStart - r) / (V.slowStart - V.slowFull)));
 }
 export const slowVirtue = (company, speed, serviceSpeed, seaDays) => VIRTUE_SOURCES.slow * slowShare(speed, serviceSpeed) * Math.min(1, seaDays / VIRTUE_SOURCES.slowDays) * (1 - standing(company).virtue / 110);
-export function changeVirtue(company, delta) { standing(company); company.virtue += delta; syncReputation(company); }
+export function changeVirtue(company, delta, src) {
+  standing(company);
+  const b = company.virtue;
+  company.virtue += delta;
+  syncReputation(company);
+  logStanding(company, 'virtue', src, company.virtue - b);
+}
 // Les deux à la fois : hauts faits (le plafond monte), campagne de presse, plafond à réappliquer (0).
-export function changeReputation(company, delta) { standing(company); company.confidence += delta; company.virtue += delta; syncReputation(company); }
+export function changeReputation(company, delta, src) {
+  standing(company);
+  const b1 = company.confidence, b2 = company.virtue;
+  company.confidence += delta; company.virtue += delta;
+  syncReputation(company);
+  logStanding(company, 'confidence', src, company.confidence - b1);
+  logStanding(company, 'virtue', src, company.virtue - b2);
+}
 // Laquelle des deux retient la réputation (pour l'expliquer au joueur).
 export const repLimit = (company) => (standing(company).virtue < company.confidence ? 'virtue' : company.confidence < company.virtue ? 'trust' : null);
 

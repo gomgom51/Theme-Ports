@@ -146,7 +146,7 @@ export function reportClient(state, rng, company, incident, choice) {
     cs.named++;
     r.loyalty = 0;
     r.grudgeUntil = state.t + GRUDGE_DAYS * D;
-    changeVirtue(company, DENOUNCE_REP);
+    changeVirtue(company, DENOUNCE_REP, 'dénonciations');
     onDenounce(company);
     news(state, `${company.name} dénonce publiquement ${C.name} : ${WHAT[incident.kind]}.`, { company: company.id, kind: 'event' });
     return { denounced: true };

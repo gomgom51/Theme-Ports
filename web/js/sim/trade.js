@@ -122,8 +122,8 @@ export function deliverTender(state, ship, share) {
   const t = share.tender;
   // On a servi la ville : confiance, et vertu si la marchandise n'est ni fossile ni polluante.
   const co = companyOf(state, ship);
-  earnTrust(co, VIRTUE_SOURCES.tenderTrust);
-  if (isCleanGood(t.good)) earnVirtue(co, VIRTUE_SOURCES.opportunity);
+  earnTrust(co, VIRTUE_SOURCES.tenderTrust, 'appels d\'offres');
+  if (isCleanGood(t.good)) earnVirtue(co, VIRTUE_SOURCES.opportunity, 'affaires propres');
   t.left -= share.qty;
   t.commits = t.commits.filter((c) => c.shipId !== ship.id);
   if (t.left <= 0) { t.left = 0; t.closedAt = state.t; }

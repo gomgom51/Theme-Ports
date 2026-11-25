@@ -1,4 +1,6 @@
 // Panneaux : flotte, port, courtier, bureau, marchés, journal, aide.
+import { codexPanel } from './codex.js';
+import { standingDetail } from './standing.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, GOOD_IDS, HOLDS } from '../data/goods.js';
@@ -474,13 +476,14 @@ function companyTab(app) {
   box.append(h('h3', `Réputation : ${num(c.reputation)}/100`));
   box.append(bar(c.reputation / 100, { good: 0.6, warn: 0.35 }));
   box.append(h('p.hint', 'Votre réputation est la plus basse de vos deux notes, la confiance et la vertu : c\'est elle que juge la victoire « La plus respectée », impossible de n\'en soigner qu\'une. Toute l\'économie (chargeurs, banque, prêts sur cargaison, démarchage, prix de rachat) ne regarde que la confiance ; la vertu, c\'est votre image dans la presse.'));
-  const scoreRow = (icon, label, v, cap, low, text) => h('div.standing-row', { class: low ? 'low' : '' }, [
+  const scoreRow = (icon, label, v, cap, low, text, key) => h('div.standing-row', { class: low ? 'low' : '' }, [
     h('div.standing-head', [h('b', `${icon} ${label} : ${num(v)}/100`), low ? h('span.tag.warn', 'retient votre réputation') : null, cap < 100 ? h('span.muted.small', `plafond ${num(cap)}`) : null]),
     bar(v / 100, { good: 0.6, warn: 0.35 }),
+    standingDetail(c, key),
     h('p.small.muted', text),
   ]);
-  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', 'On peut compter sur vous : c\'est elle que regardent les chargeurs, les banques et les acheteurs. Monte à chaque livraison à l\'heure (un peu moins près du haut), avec les affaires en or et les appels d\'offres servis et en desservant un nouveau port ; baisse avec les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus et les navires détournés.'));
-  box.append(scoreRow('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', `Le bien commun, ou du moins votre image dans la presse. Monte avec l'aide d'urgence livrée à temps, les chargeurs malhonnêtes dénoncés, les contrats de céréales, café et cacao, fruits et viandes ou bois, les affaires en or et appels d'offres sur des marchandises ni fossiles ni polluantes, l'allure économique (sous ${Math.round(VIRTUE_SOURCES.slowStart * 100)} % de la vitesse de service), et doucement chaque mois de conduite propre (aucun commerce sous embargo, colis discret, affaire noire, coup bas ni marée noire depuis ${Math.round(STANDING.cleanDays / 30)} mois) ; sous ${STANDING.forgiveTo}, on finit par oublier et elle y remonte d'elle-même ; baisse avec les marées noires, la contrebande, les amendes d'embargo, les pots-de-vin, les affaires noires et les coups bas.`));
+  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', 'On peut compter sur vous : c\'est elle que regardent les chargeurs, les banques et les acheteurs. Monte à chaque livraison à l\'heure (un peu moins près du haut), avec les affaires en or et les appels d\'offres servis et en desservant un nouveau port ; baisse avec les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus et les navires détournés.', 'confidence'));
+  box.append(scoreRow('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', `Le bien commun, ou du moins votre image dans la presse. Monte avec l'aide d'urgence livrée à temps, les chargeurs malhonnêtes dénoncés, les contrats de céréales, café et cacao, fruits et viandes ou bois, les affaires en or et appels d'offres sur des marchandises ni fossiles ni polluantes, l'allure économique (sous ${Math.round(VIRTUE_SOURCES.slowStart * 100)} % de la vitesse de service), et doucement chaque mois de conduite propre (aucun commerce sous embargo, colis discret, affaire noire, coup bas ni marée noire depuis ${Math.round(STANDING.cleanDays / 30)} mois) ; sous ${STANDING.forgiveTo}, on finit par oublier et elle y remonte d'elle-même ; baisse avec les marées noires, la contrebande, les amendes d'embargo, les pots-de-vin, les affaires noires et les coups bas.`, 'virtue'));
   if (c.infamy) box.append(h('p.warn-text', `☠ Infamie : ${num(c.infamy)}. Votre confiance et votre vertu ne pourront plus dépasser ${100 - Math.min(80, c.infamy)}/100 : c'est définitif.`));
   box.append(h('p.small.muted', 'Hauts faits : chacun des cinq premiers relève d\'un point le plafond des deux notes (95 pour la conduite ordinaire).'));
   box.append(h('p', `${c.delivered} livraisons, dont ${c.late} en retard · ${c.portsServed.length} ports desservis.`));
@@ -611,13 +614,14 @@ export function newsPanel(app) {
 }
 
 // ---------- Aide ----------
-export function helpPanel() {
+export function helpPanel(app) {
   const p = (t) => h('p', t);
   return {
     title: 'Comment jouer',
     body: h('div.help', [
       h('h3', 'Le but'),
-      p('Faire de votre compagnie maritime la plus riche (valeur nette : trésorerie + navires − dettes) à la fin de la partie.'),
+      p('Faire de votre compagnie maritime la plus riche (valeur nette : trésorerie + navires − dettes) à la fin du temps imparti, ou finir la partie plus tôt par l\'une des quatre victoires : seul maître à bord (tous les concurrents ruinés ou rachetés), la plus respectée (réputation parfaite), compagnie légendaire (cinq records en même temps) ou flotte fantôme (des années sur la liste noire). En chemin, huit hauts faits à décrocher, des trophées pour vos records… et des méfaits pour les autres.'),
+      h('button.btn.small.codex-link', { onclick: () => app.open('codex') }, '📖 Toutes les victoires, hauts faits, trophées et méfaits, avec leurs conditions'),
       h('h3', 'Démarrer'),
       p('1. Ouvrez le Courtier 🏗️ et achetez un premier navire d\'occasion : deux bateaux abordables vous attendent dans votre port d\'attache.'),
       p('2. Touchez votre navire (sur la carte ou dans la Flotte 🚢). Dans l\'onglet Contrats, acceptez un transport : le chargement commence et le navire partira tout seul, plein compris.'),
@@ -648,6 +652,11 @@ export function helpPanel() {
       p('Pirates : dans les zones rouges (golfe d\'Aden, golfe de Guinée, Malacca, mer de Sulu, côtes du Venezuela), un navire peut être attaqué. Le combat se joue en trois phases : approche (la vitesse aide), abordage (barbelés, lances à eau, équipage), combat à bord (gardes armés). Abordé, un navire sans citadelle est détourné : rançon à payer ou à négocier. Le départ indique le risque et vos chances.'),
       p('Votre équipage évalue les dangers : un équipage de base donne un avis général, un équipage confirmé des fourchettes, un équipage chevronné des chiffres précis voyage par voyage. Les meilleurs équipages coûtent plus cher mais provoquent moins d\'incidents. Choisissez-le à l\'escale.'),
       p('Le marché du fret suit des cycles : des années fastes, puis des années maigres où désarmer un navire (à l\'escale) coûte moins cher que de le faire travailler à perte. Aussi : grèves, fermeture du canal de Suez, sécheresse à Panama, chocs pétroliers… Lisez le Journal 📰.'),
+      h('h3', 'Réputation : ★, 🤝 et 💚'),
+      p('En haut à gauche, à côté de votre trésorerie : ★ votre réputation, et dessous 🤝 votre confiance et 💚 votre vertu. La réputation est simplement la plus basse des deux (celle qui la retient s\'affiche en rouge). Touchez-la pour le détail au Bureau.'),
+      p('🤝 La confiance, c\'est ce qui fait tourner l\'économie : contrats premium, exigences des chargeurs, litiges, crédit de la banque, prêts sur cargaison, démarchage et prix de rachat de votre compagnie. Elle monte quand vous livrez à l\'heure et tenez parole.'),
+      p('💚 La vertu, c\'est votre image dans la presse : on ne gagne pas en étant seulement efficace, il faut aussi paraître œuvrer pour un monde meilleur. Elle monte avec l\'aide d\'urgence, les marchandises utiles (céréales, café et cacao, fruits et viandes, bois), les affaires propres, l\'allure économique et une conduite sans tache ; elle chute avec les marées noires, la contrebande, les affaires noires et les coups bas. Elle compte pour la victoire « La plus respectée », pour quelques chargeurs soucieux de leur image (leur fret suit votre vertu) et dans quelques ports (moins d\'inspections quand elle est haute).'),
+      p('★ La réputation ne sert qu\'à la victoire « La plus respectée » : il faut 100 aux deux notes. Chaque mois, un court bilan dit ce qui les a fait monter ou baisser.'),
       h('h3', 'Banque, confiance et vertu'),
       p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. La réputation (★ en haut à gauche) est la plus basse de deux notes : la confiance 🤝, qui monte avec les livraisons à l\'heure, et la vertu 💚, qui monte avec l\'aide d\'urgence, les marchandises utiles, l\'allure économique et une conduite propre. Toute l\'économie (chargeurs, banque, prix de rachat) regarde la confiance ; la réputation compte pour la victoire « La plus respectée ».'),
       h('h3', 'Commandes'),
@@ -658,5 +667,5 @@ export function helpPanel() {
 
 export const PANELS = {
   fleet: fleetPanel, port: portPanel, broker: brokerPanel, office: officePanel,
-  markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel,
+  markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel, codex: codexPanel,
 };
