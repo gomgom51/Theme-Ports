@@ -96,7 +96,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   company with little cash (reactivation needs only its cost plus a small buffer), and a ship laid up for over a year
   is sold while the company is in debt, or small fleets die at the quay.
 - Victories (owner's design, "civilization approach"): the time limit still decides if nobody wins.
-  Sole master on board (every rival ruined or bought), the most respected (reputation 100: ordinary gains stop at 95,
+  Sole master on board (every rival ruined or bought; "in sight" once a single rival is left and the leader holds half,
+  then four fifths, of its takeover price in net cash — the last rival gets its own warning), the most respected (reputation 100: ordinary gains stop at 95,
   each of the first five of eight deeds raises the cap by one; level 4; then held six months without falling below 95,
   so rivals warned at 75–90 % have a window to strike), legendary (hold 5 of 8 exclusive records;
   numbered records can be broken, "complete" ones stay with the first), shadow fleet (years on the international

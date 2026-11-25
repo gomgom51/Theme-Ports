@@ -45,7 +45,7 @@ export function victoriesTab(app) {
         ]),
       ]))));
       if (kind === 'reputation') card.append(h('p.small.muted', [`Réputation ordinaire plafonnée à 95 ; chaque haut fait (Bureau → Trophées) relève le plafond d'un point, jusqu'à 100. Niveau ${VICTORY.repLevel + 1} : ${OFFICE_TIERS[VICTORY.repLevel].name.toLowerCase()} (${money(OFFICE_TIERS[VICTORY.repLevel].min)} de valeur nette, un niveau atteint est acquis).`, ` Une fois 100 atteint, le compte à rebours de ${VICTORY.repHoldDays} jours démarre ; sous ${VICTORY.repHoldFloor} (retards, scandale, dénigrement), il repart de zéro.`]));
-      if (kind === 'domination') card.append(h('p.small.muted', 'Un concurrent est éliminé quand il fait faillite ou que vous le rachetez (Bureau → Concurrents). Le rachat se paie comptant, sans emprunt.'));
+      if (kind === 'domination') card.append(h('p.small.muted', 'Un concurrent est éliminé quand il fait faillite ou que vous le rachetez (Bureau → Concurrents). Le rachat se paie comptant, sans emprunt. Quand il n\'en reste qu\'un, la victoire est en vue dès qu\'on a la moitié de son prix de rachat (75 %), puis les quatre cinquièmes (90 %).'));
       if (kind === 'legend') card.append(h('p.small.muted', 'Les records chiffrés se battent : il suffit de faire mieux que leur détenteur pour les lui prendre (Bureau → Trophées).'));
       if (kind === 'shadow') card.append(h('p.small.muted', `La liste noire tombe quand l'infamie atteint son maximum (affaires noires) : vous serez prévenu avant de franchir la ligne. Ses propriétaires se cachent derrière des sociétés-écrans : la démanteler coûte ${TK.TAKEOVER.dismantleK} fois sa valeur nette.`));
     }

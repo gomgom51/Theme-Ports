@@ -11,6 +11,7 @@ import { netWorth, news, shipsOf } from './core.js';
 import { OFFICE_TIERS, officeTier } from '../data/offices.js';
 import { hon, deedCount, recordsHeld, RECORD_IDS, DARK_COUNTRIES } from './honours.js';
 import { EMBARGOED } from '../data/sanctions.js';
+import { takeoverPrice, netCash } from './takeover.js';
 
 const D = HOURS_PER_DAY;
 const YEAR = 365 * D;
@@ -44,12 +45,18 @@ export function victoryProgress(state, company, kind) {
   let parts;
   if (kind === 'domination') {
     const rivals = state.companies.filter((c) => c.id !== company.id);
-    const out = rivals.filter((c) => c.bankrupt).length, left = rivals.length - out;
-    // Un seul concurrent encore debout : la victoire est en vue (90 %), quel que soit leur nombre au
-    // départ. Sinon, avec deux ou trois concurrents, on ne passait jamais 75 % avant de gagner : ni
-    // alerte pour les autres, ni musique.
-    const f = !rivals.length ? 0 : left === 1 && rivals.length > 1 ? Math.max(out / rivals.length, VICTORY.alerts[1]) : out / rivals.length;
-    parts = [part('Concurrents éliminés', f, left === 1 && rivals.length > 1 ? `${out} / ${rivals.length} — plus qu'un` : `${out} / ${rivals.length}`)];
+    const standing = rivals.filter((c) => !c.bankrupt), out = rivals.length - standing.length;
+    if (!rivals.length) parts = [part('Concurrents éliminés', 0, '0 / 0')];
+    else if (!standing.length) parts = [part('Concurrents éliminés', 1, `${out} / ${rivals.length}`)];
+    else if (standing.length === 1) {
+      // Il n'en reste qu'un : la victoire est en vue quand on peut bientôt le racheter. 50 % + la moitié
+      // de la part de son prix de rachat qu'on pourrait déjà payer comptant (rien s'il est d'un niveau
+      // supérieur). 75 % : la moitié du prix ; 90 % : les quatre cinquièmes.
+      const last = standing[0], price = takeoverPrice(state, last, company);
+      const can = levelOf(company) >= levelOf(last) && !last.absorbed;
+      const a = can ? Math.max(0, Math.min(1, netCash(state, company) / Math.max(1, price))) : 0;
+      parts = [part('Dernier concurrent', Math.min(0.99, 0.5 + 0.5 * a), // la victoire elle-même exige le rachat (ou sa faillite) can ? `${last.name} : ${Math.round(a * 100)} % de son prix de rachat en trésorerie nette` : `${last.name} : d'un niveau supérieur au vôtre`)];
+    } else parts = [part('Concurrents éliminés', (out / rivals.length) * 0.5, `${out} / ${rivals.length}`)];
   } else if (kind === 'reputation') {
     const n = deedCount(company), lv = levelOf(company);
     const hold = company.repHold ? (state.t - company.repHold.since) / D : 0;
@@ -119,9 +126,12 @@ export function victoryDaily(state, notes) {
         const pc = Math.round(VICTORY.alerts[step - 1] * 100);
         news(state, `${c.name} approche de la victoire « ${VICTORY_INFO[kind].name} » (${pc} %).`, { company: c.id, kind: 'event' });
         for (const h of state.companies.filter((x) => x.human && !x.bankrupt)) {
+          const lastPrey = kind === 'domination' && h.id !== c.id && state.companies.filter((x) => x.id !== c.id && !x.bankrupt).length === 1;
           notes.push({ kind: 'victoryAlert', company: h.id, about: c.id, victory: kind, step, text: h.id === c.id
-            ? `Vous approchez de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin.`
-            : `${c.name} approche de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin. Bureau → Victoires pour voir où il en est.` });
+            ? (kind === 'domination' ? `Il ne vous reste qu'un concurrent, et vous aurez bientôt de quoi le racheter : victoire « ${VICTORY_INFO[kind].name} » en vue (${pc} %).` : `Vous approchez de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin.`)
+            : lastPrey
+              ? `${c.name} n'a plus que vous en face, et aura bientôt de quoi racheter votre compagnie : victoire « ${VICTORY_INFO[kind].name} » en vue pour lui (${pc} %). Pour lui échapper : une meilleure réputation (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.`
+              : `${c.name} approche de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin. Bureau → Victoires pour voir où il en est.` });
         }
       } else if (step < (marks[kind] || 0) && p.frac < VICTORY.alerts[0] - 0.1) marks[kind] = step; // reparti en arrière : on pourra prévenir de nouveau
     }
