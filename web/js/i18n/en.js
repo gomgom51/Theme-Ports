@@ -2219,4 +2219,10 @@ export default {
   "{0} / {1} jours au-dessus de {2}": "{0} / {1} days above {2}",
   "pas encore (atteindre 100)": "not yet (reach 100)",
   "{0} / {1} — plus qu'un": "{0} / {1} — one left",
+  "Dernier concurrent": "Last rival",
+  "{0} : {1} % de son prix de rachat en trésorerie nette": "{0}: {1}% of its takeover price in net cash",
+  "{0} : d'un niveau supérieur au vôtre": "{0}: above your level",
+  "Il ne vous reste qu'un concurrent, et vous aurez bientôt de quoi le racheter : victoire « {0} » en vue ({1} %).": "You have only one rival left, and you will soon be able to buy it: victory “{0}” in sight ({1}%).",
+  "{0} n'a plus que vous en face, et aura bientôt de quoi racheter votre compagnie : victoire « {1} » en vue pour lui ({2} %). Pour lui échapper : une meilleure réputation (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.": "{0} has only you left to face, and will soon be able to buy your company: victory “{1}” in sight for them ({2}%). To escape: a better reputation (it multiplies your price), a level above theirs, or a net worth growing faster than their cash.",
+  "Un concurrent est éliminé quand il fait faillite ou que vous le rachetez (Bureau → Concurrents). Le rachat se paie comptant, sans emprunt. Quand il n'en reste qu'un, la victoire est en vue dès qu'on a la moitié de son prix de rachat (75 %), puis les quatre cinquièmes (90 %).": "A rival is eliminated when it goes bankrupt or you buy it (Office → Rivals). A takeover is paid in cash, without borrowing. When only one is left, the victory is in sight as soon as you have half its takeover price (75%), then four fifths (90%).",
 };

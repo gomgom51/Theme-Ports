@@ -55,7 +55,8 @@ export function victoryProgress(state, company, kind) {
       const last = standing[0], price = takeoverPrice(state, last, company);
       const can = levelOf(company) >= levelOf(last) && !last.absorbed;
       const a = can ? Math.max(0, Math.min(1, netCash(state, company) / Math.max(1, price))) : 0;
-      parts = [part('Dernier concurrent', Math.min(0.99, 0.5 + 0.5 * a), // la victoire elle-même exige le rachat (ou sa faillite) can ? `${last.name} : ${Math.round(a * 100)} % de son prix de rachat en trésorerie nette` : `${last.name} : d'un niveau supérieur au vôtre`)];
+      // (plafonné à 99 % : la victoire elle-même exige le rachat, ou sa faillite)
+      parts = [part('Dernier concurrent', Math.min(0.99, 0.5 + 0.5 * a), can ? `${last.name} : ${Math.round(a * 100)} % de son prix de rachat en trésorerie nette` : `${last.name} : d'un niveau supérieur au vôtre`)];
     } else parts = [part('Concurrents éliminés', (out / rivals.length) * 0.5, `${out} / ${rivals.length}`)];
   } else if (kind === 'reputation') {
     const n = deedCount(company), lv = levelOf(company);
