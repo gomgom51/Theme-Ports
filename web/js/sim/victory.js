@@ -12,6 +12,7 @@ import { OFFICE_TIERS, officeTier } from '../data/offices.js';
 import { hon, deedCount, recordsHeld, RECORD_IDS, DARK_COUNTRIES } from './honours.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { takeoverPrice, netCash } from './takeover.js';
+import { embargoPenalty } from './home.js';
 
 const D = HOURS_PER_DAY;
 const YEAR = 365 * D;
@@ -52,7 +53,7 @@ export function victoryProgress(state, company, kind) {
       // Il n'en reste qu'un : la victoire est en vue quand on peut bientôt le racheter. 50 % + la moitié
       // de la part de son prix de rachat qu'on pourrait déjà payer comptant (rien s'il est d'un niveau
       // supérieur). 75 % : la moitié du prix ; 90 % : les quatre cinquièmes.
-      const last = standing[0], price = takeoverPrice(state, last, company);
+      const last = standing[0], p0 = takeoverPrice(state, last, company), price = p0 + (embargoPenalty(company, last, p0)?.fine || 0); // amende comprise (place financière, pays sous embargo)
       const can = levelOf(company) >= levelOf(last) && !last.absorbed;
       const a = can ? Math.max(0, Math.min(1, netCash(state, company) / Math.max(1, price))) : 0;
       // (plafonné à 99 % : la victoire elle-même exige le rachat, ou sa faillite)

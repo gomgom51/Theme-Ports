@@ -1,6 +1,7 @@
 // Panneaux : flotte, port, courtier, bureau, marchés, journal, aide.
 import { homeBonusBox } from './homebonus.js';
-import { homeKind } from '../sim/home.js';
+import { homeKind, embargoedPort, setLender } from '../sim/home.js';
+import { SHADOW_LENDER } from '../sim/core.js';
 import { tr } from '../i18n.js';
 import { codexPanel } from './codex.js';
 import { jukeboxDialog } from './jukebox.js';
@@ -412,6 +413,19 @@ function loanTerms(c) {
   ]);
 }
 
+// Pays sous embargo : la banque (chère) ou le prêteur de l'ombre, contre quelques colis discrets.
+function lenderCard(app, c) {
+  const { state } = app;
+  if (!embargoedPort(c.homePort)) return null;
+  const L = c.lender, bank = FLAGS[c.flag].rate, rate = SHADOW_LENDER.rate;
+  return h('div.card.lender-card', [h('div.card-main', [
+    h('div.card-title', L ? '💀 Prêteur de l\'ombre' : '🏦 Banque de votre pays'),
+    h('div.card-sub', `Pays sous embargo : la banque prête à ${num1(bank * 100)} % de base. Un prêteur de l'ombre propose ${num1(rate * 100)} %, tant que vous lui livrez ${SHADOW_LENDER.quota} colis discrets tous les ${Math.round(SHADOW_LENDER.days / 30)} mois ; sinon, le taux de la banque jusqu'à ce que vous rattrapiez le quota.`),
+    L ? h('div.card-sub', [h('span', 'Colis livrés :'), ' ', h('b', `${L.done} / ${SHADOW_LENDER.quota}`), ' ', h('span', `avant le ${date(L.due, true)}`), ' · ', h('span', { class: L.good ? 'pos' : 'neg' }, L.good ? `taux de ${num1(rate * 100)} %` : `quota manqué : taux de la banque, ${num1(bank * 100)} %`)]) : null,
+    L ? h('div.card-sub.muted', 'Les colis se trouvent dans les ports louches (onglet Contrats, propositions discrètes) : la douane peut les trouver, et ils coûtent de la vertu.') : null,
+  ]), h('div.card-side', [h('button.btn.small', { onclick: () => app.act(() => setLender(state, c, !L)) }, L ? 'Revenir à la banque' : 'Passer au prêteur')])]);
+}
+
 function financeTab(app) {
   const { state } = app;
   const c = app.company();
@@ -428,6 +442,8 @@ function financeTab(app) {
   ]));
   box.append(h('p.hint', 'La banque prête jusqu\'à 60 % de la valeur de votre flotte, plus une part selon votre confiance. Un découvert coûte 20 %/an ; trop profond, la banque saisit un navire.'));
   box.append(loanTerms(c));
+  const lender = lenderCard(app, c);
+  if (lender) box.append(lender);
   const pending = pendingList(app);
   if (pending) box.append(pending);
   box.append(h('h3', 'Emprunter'));
@@ -502,7 +518,7 @@ function companyTab(app) {
   box.append(h('h3', 'Changer de port d\'attache'));
   const cost = act.relocateCost(state, c.id);
   box.append(h('p.hint', `Transférer le siège change le pavillon de toute la flotte (impôts, salaires, crédit). Coût : ${money(cost)}.`));
-  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, PORT_IDS.filter((p) => p !== c.homePort).map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}${homeKind(p) === 'ombre' ? ' · 💀 port de l\'ombre' : homeKind(p) === 'place' ? ' · $ place financière' : homeKind(p) === 'hiver' ? ' · ❄ port d\'hiver' : ''}`)));
+  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, PORT_IDS.filter((p) => p !== c.homePort).map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}${homeKind(p) === 'ombre' ? ' · 💀 port de l\'ombre' : homeKind(p) === 'place' ? ' · $ place financière' : homeKind(p) === 'hiver' ? ' · ❄ port d\'hiver' : homeKind(p) === 'famille' ? ' · ♥ famille d\'abord' : ''}`)));
   const preview = h('div', homeBonusBox(sel0(), null));
   function sel0() { return PORT_IDS.find((p) => p !== c.homePort); }
   sel.addEventListener('change', () => preview.replaceChildren(homeBonusBox(sel.value, null)));

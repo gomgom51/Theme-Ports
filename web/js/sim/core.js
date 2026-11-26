@@ -118,8 +118,11 @@ export function creditLimit(state, company) {
   const cut = (company.creditCut && company.creditCut.until > state.t ? company.creditCut.k : 1) * (company.blacklisted ? 0.5 : 1); // liste noire : la banque de l'ombre prête moins
   return Math.max(0, (0.6 * fleetValue(state, company.id) + standing(company).confidence * 25000) * cut); // les banques regardent la confiance
 }
+// Pays sous embargo : pas de banque, un prêteur de l'ombre (sim/home.js tient son quota de colis).
+export const SHADOW_LENDER = { rate: 0.08, quota: 2, days: 180 };
 export function interestRate(company) {
-  return FLAGS[company.flag].rate + ((100 - standing(company).confidence) / 100) * 0.06 + (company.blacklisted ? 0.15 : 0); // banque de l'ombre
+  const L = company.lender;
+  return (L ? (L.good ? SHADOW_LENDER.rate : FLAGS[company.flag].rate) : FLAGS[company.flag].rate) + ((100 - standing(company).confidence) / 100) * 0.06 + (company.blacklisted ? 0.15 : 0); // banque de l'ombre
 }
 // Infamie (affaires noires, sim/dark.js) : une tache définitive qui abaisse le plafond de réputation.
 // Réputation = la plus basse de deux notes, pour qu'on ne puisse pas n'en pousser qu'une

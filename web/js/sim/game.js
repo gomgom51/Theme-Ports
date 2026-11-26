@@ -1,5 +1,5 @@
 // Boucle de simulation : création d'une partie, avancée du temps heure par heure.
-import { portKind, winterKit, startPort } from './home.js';
+import { portKind, winterKit, startPort, homeDaily, familyContract } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, USEFUL_GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
@@ -246,6 +246,7 @@ function portHour(state, ctx, rng, ship, notes) {
       return;
     }
     const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs', saisie: 'est libéré par la douane', installation: 'a son nouvel équipement', retenue: 'est enfin autorisé à repartir', otages: 'est libéré par ses ravisseurs', 'confisqué': 'est rendu par la justice', recrutement: 'a un nouvel équipage' };
+    familyContract(state, ctx, rng, ship); // famille d'abord : un contrat l'attend chez lui
     note(state, notes, 'idle', ship, `Le ${ship.name} ${labels[what] || 'est prêt'} à ${portName(ship.port)}.`);
   }
 }
@@ -499,6 +500,7 @@ function arrive(state, ctx, ship, notes, rng) {
     ship.lawyer = ship.heldBogus.lawyer;
     ship.heldBogus = null;
   } else {
+    familyContract(state, ctx, rng, ship);
     note(state, notes, 'idle', ship, `Le ${ship.name} est arrivé à ${portName(to)}.`);
   }
 }
@@ -636,6 +638,7 @@ function daily(state, ctx, rng, notes) {
   darkDaily(state, ctx, rng, notes);
   tradeDaily(state, ctx, rng, notes); // appels d'offres des villes
   loansDaily(state, notes); // prêts sur cargaison échus
+  homeDaily(state, ctx, rng, notes); // ports d'attache : famille d'abord, prêteur de l'ombre
 
   for (const ship of state.ships) {
     const T = SHIP_TYPES[ship.type];

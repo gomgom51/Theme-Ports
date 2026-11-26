@@ -1,6 +1,6 @@
 // Actions des joueurs (et de l'IA). Chaque action renvoie { ok: true, ... }
 // ou { ok: false, msg } avec un message lisible par le joueur.
-import { winterKit } from './home.js';
+import { winterKit, familyBlocked, familyDiscount } from './home.js';
 import { PORTS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS, OIL_GOODS } from '../data/goods.js';
@@ -239,6 +239,8 @@ export function checkContract(state, ctx, ship, contract) {
   const company = companyOf(state, ship);
   if (!contract || contract.takenBy !== null) return 'Ce contrat n\'est plus disponible.';
   if (contract.from !== ship.port) return 'Le contrat part d\'un autre port.';
+  const fam = familyBlocked(state, company, contract.from);
+  if (fam) return `Port familial de ${fam.name} : son plus grand concurrent n'y trouve aucun contrat.`;
   if (ship.cargo) return 'Les cales ne sont pas vides.';
   if (ship.dark) return 'Les cales sont occupées par la cargaison noire.';
   const hold = eco.holdFor(ship.type, contract.good);
@@ -309,7 +311,9 @@ export function abandonContract(state, shipId) {
 
 // ---------- Négoce ----------
 export function quoteBuy(state, ship, good, qty) {
-  const q = eco.quoteTrade(state, ship.port, good, qty, 'buy');
+  const q0 = eco.quoteTrade(state, ship.port, good, qty, 'buy');
+  const k = 1 - familyDiscount(state.companies[ship.owner], ship.port); // famille d'abord : 5 % moins cher chez soi
+  const q = { ...q0, avg: q0.avg * k, total: q0.total * k, family: k < 1 };
   const hold = eco.holdFor(ship.type, good);
   const handling = qty * (eco.HANDLING_COST[hold] || 0);
   return { ...q, handling, total: q.total + handling, hold };

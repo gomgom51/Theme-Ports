@@ -12,6 +12,7 @@ import * as eco from './economy.js';
 import { portName, companyOf, shipLog } from './core.js';
 import { relationOf } from './clients.js';
 import { rank } from './crew.js';
+import { familyBlocked } from './home.js';
 
 const D = HOURS_PER_DAY;
 export const PROSPECT = {
@@ -38,12 +39,15 @@ export const loadsAt = (port, type) => Object.keys(PORTS[port].exp).some((g) => 
 // Ports proches (pistes) où ce navire peut entrer et charger quelque chose.
 function nearbyPorts(state, ctx, ship) {
   const T = SHIP_TYPES[ship.type];
-  return PORT_IDS.filter((q) => q !== ship.port && eco.fitsPort(q, ship.type) && loadsAt(q, ship.type))
+  const company = companyOf(state, ship);
+  return PORT_IDS.filter((q) => q !== ship.port && eco.fitsPort(q, ship.type) && loadsAt(q, ship.type) && !familyBlocked(state, company, q)) // pas de piste au port familial d'un concurrent qui nous vise
     .map((q) => ({ q, nm: ctx.distanceInfo(ship.port, q, ctx.closedCanals(state, T.draft, ship))?.nm ?? Infinity }))
     .filter((x) => x.nm <= PROSPECT.leadNm);
 }
 export function prospectOdds(state, ship, ctx = null) {
   const company = companyOf(state, ship), port = ship.port;
+  const fam = familyBlocked(state, company, port);
+  if (fam) return { p: 0, parts: {}, loyal: 0, here: false, why: `Port familial de ${fam.name} : son plus grand concurrent ne peut pas y démarcher les chargeurs.` };
   const here = loadsAt(port, ship.type);
   if (!here && ctx && !nearbyPorts(state, ctx, ship).length) return { p: 0, parts: {}, loyal: 0, here, why: 'Ni ce port ni les ports proches n\'expédient ce que ce navire transporte.' };
   const best = Math.max(0, ...portClients(port).map((id) => relationOf(company, id).loyalty));

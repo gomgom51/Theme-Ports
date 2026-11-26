@@ -144,6 +144,16 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   A winter port (Murmansk, Valdez, Ust-Luga, Gdańsk, Hamburg and the four seasonal ports, now pickable as home) fits a
   free ice-class hull on every ship bought (`winterKit`); a seasonal home port, frozen at the January start, puts the
   first ships and contracts in the nearest open port (`START_PORT`), and the AI never starts there.
+  Owner's rules (round 2): a company based in a financial hub that buys a company based in an embargoed country pays a
+  fine (half the price, at least 5 M$, `HOME.embargoFine*`) and is expelled: its head office moves to the bought
+  company's port (warned on the rival card and in the confirmation; the AI does it only for its very last rival, or as a
+  shadow AI); other buyers buy normally. Embargoed countries keep their dear bank, but a shadow lender is an opt-in
+  alternative (Office → Finances): `SHADOW_LENDER` rate (8 %) while 2 discreet parcels are delivered every 6 months,
+  else the bank rate until the quota is caught up (alert 45 days ahead; the shadow AI opts in). "Family first" ports
+  (Buenos Aires, Luanda, Lagos, Cartagena, Veracruz, Arzew, Durban, Richards Bay, Djibouti: the flags that lost on every
+  axis) always hold a reserved contract fitting the home company's free ship (`familyContract`, made as soon as the ship
+  is free there), never offer anything to its biggest competitor by net worth (no contract, no prospecting, shown on
+  its screens), and sell goods 5 % cheaper to the home company.
   Map: a ring in each company's colour around its home port, and a house pin over yours.
 - Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with
   the parry price; AIs parry when cheap and aim at the rival closest to a victory (conquerors at their cheapest prey).

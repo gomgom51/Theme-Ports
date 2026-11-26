@@ -1,7 +1,7 @@
 // Bureau → Concurrents : racheter une compagnie, ou lui compliquer la vie (coups de concurrence).
 // Et, côté victime : l'offre de rachat (demander six mois, vendre), parer un coup.
 import { CLIENTS } from '../data/clients.js';
-import { PORTS, PORT_IDS } from '../data/ports.js';
+import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { OFFICE_TIERS } from '../data/offices.js';
 import { netWorth, shipsOf, portName, fleetValue } from '../sim/core.js';
 import { relationOf, LOYAL } from '../sim/clients.js';
@@ -42,6 +42,7 @@ export function rivalsTab(app) {
         h('div.grow', [h('span', chk.dismantle ? 'Prix pour la démanteler : ' : 'Prix de rachat : '), h('b', money(chk.price ?? TK.takeoverPrice(state, c, me))), chk.dismantle ? h('div.small.muted', `Sur la liste noire : ses navires sanctionnés ne peuvent pas changer de main. On ne peut que racheter la compagnie pour la démanteler, et ses vrais propriétaires se cachent derrière des sociétés-écrans : ${TK.TAKEOVER.dismantleK} fois sa valeur nette ; sa flotte part à la casse.`) : null, chk.ok ? null : h('div.small.muted', chk.why)]),
         h('button.btn.small.primary', { disabled: !chk.ok, onclick: () => takeoverDialog(app, c.id) }, chk.dismantle ? 'Démanteler' : 'Racheter'),
       ]),
+      chk.embargo ? h('div.small.warn-text', `⚠ Pays sous embargo : en plus du prix, amende de ${money(chk.embargo.fine)}, et votre siège partirait à ${PORTS[chk.embargo.port].name}.`) : null,
       h('div.rival-attacks', [
         attackButton(app, c, 'smear'),
         attackButton(app, c, 'pricewar'),
@@ -95,10 +96,21 @@ export async function takeoverDialog(app, targetId) {
     h('p', [`Votre confiance passerait de ${Math.floor(state.companies[me].confidence ?? 0)} à environ ${Math.floor(pv.confidence)}, votre vertu de ${Math.floor(state.companies[me].virtue ?? 0)} à environ ${Math.floor(pv.virtue)}.`, pv.infamy > (state.companies[me].infamy || 0) + 0.5 ? ' Vous hériteriez aussi d\'une part de son infamie.' : null]),
     crossesLine(state.companies[me], pv.infamy - (state.companies[me].infamy || 0)) ? h('p.warn-text', `⛔ Son infamie porterait la vôtre à ${Math.round(pv.infamy)} : à ${BLACKLIST.infamy}, votre compagnie entrerait sur la liste noire internationale, pour toujours.`) : null,
     c.human ? h('p.warn-text', `${c.name} est dirigée par un joueur : il aura ${TK.TAKEOVER.bidDays} jours pour réagir (demander un délai à ses actionnaires).`) : null,
-  ]), c.human ? 'Faire l\'offre' : `Racheter · ${money(pv.price)}`);
+    chk.embargo ? embargoWarning(state, chk.embargo) : null,
+  ]), c.human ? 'Faire l\'offre' : `Racheter · ${money(pv.price + (chk.embargo?.fine || 0))}`);
   if (!ok) return;
   const r = app.act(() => TK.makeBid(state, me, targetId, state.queuedNotes ??= []), { sound: 'cash' });
   if (r?.ok) toast(r.bid ? `Offre déposée : ${c.name} a ${TK.TAKEOVER.bidDays} jours pour réagir.` : `${c.name} est à vous.`, { kind: 'money', timeout: 6000 });
+}
+
+// Place financière qui rachèterait une compagnie d'un pays sous embargo (règle n° 1 : avant de décider).
+function embargoWarning(state, e) {
+  const F = FLAGS[PORTS[e.port].flag];
+  return h('div.warn-card.card', [h('div.card-main', [
+    h('div.card-title', '⚠ Sanctions : votre place financière vous expulserait'),
+    h('div.card-sub', `Cette compagnie est installée dans un pays sous embargo (${F.name}). Basée sur une place financière, la vôtre paierait une amende de ${money(e.fine)} en plus du prix, et devrait quitter son port : votre siège partirait à ${PORTS[e.port].name}, sous pavillon ${F.name} (impôt ${Math.round(F.tax * 100)} %, prêts à ${Math.round(F.rate * 100)} %, réputation de départ basse), et vous perdriez l'avantage de la place financière.`),
+    h('div.card-sub.muted', 'Pour un conquérant, mieux vaut la racheter en dernier : la victoire tombe avant l\'expulsion.'),
+  ])]);
 }
 
 // ---------- Un coup de concurrence ----------

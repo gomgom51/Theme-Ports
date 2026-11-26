@@ -1,4 +1,5 @@
 // Fiche d'un navire : contrats, négoce, escale, départ, voyage en cours, journal.
+import { familyDiscount, familyBlocked } from '../sim/home.js';
 import { eggFor } from '../data/eggs.js';
 import { searchText } from './panels.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
@@ -237,6 +238,8 @@ function prospectCard(app, ship) {
 function contractsBase(app, ship) {
   const { state, ctx } = app;
   const T = SHIP_TYPES[ship.type];
+  const fam = familyBlocked(state, state.companies[ship.owner], ship.port);
+  if (fam) return h('p.warn-text', `♥ ${portName(ship.port)} est le port familial de ${fam.name} : vous êtes son plus grand concurrent, vous n'y trouvez aucun contrat (ni démarchage). Visez un autre port.`);
   const list = state.contracts.filter((c) => c.from === ship.port && c.takenBy === null);
   if (ship.cargo) return h('p.muted', 'Les cales ne sont pas vides : vendez ou livrez la cargaison actuelle avant de prendre un contrat.');
   if (!list.length) return h('p.muted', `Aucun contrat au départ de ${portName(ship.port)} pour le moment. De nouvelles offres arrivent chaque jour.`);
@@ -367,7 +370,8 @@ function tradeTab(app, ship) {
   for (const g of goods) {
     const G = GOODS[g];
     const hold = eco.holdFor(ship.type, g);
-    const unit = eco.buyPrice(state, here, g);
+    const fd = familyDiscount(state.companies[ship.owner], here); // famille d'abord : 5 % moins cher chez soi
+    const unit = eco.buyPrice(state, here, g) * (1 - fd);
     const stock = eco.availableStock(state, here, g);
     const full = Math.floor(Math.min(T.dwt, stock) / 100) * 100;
     // Meilleures destinations pour une cale pleine (appels d'offres compris).
@@ -387,7 +391,7 @@ function tradeTab(app, ship) {
     const choices = [0.25, 0.5, 0.75, 1].map((f) => Math.floor((full * f) / 100) * 100).filter((q, i, a) => q > 0 && a.indexOf(q) === i);
     box.append(h('div.card', [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), G.name, h('span.price-inline', `${money(unit)}/t`), OIL_GOODS.includes(g) ? h('span.tag.warn', { title: 'Pétrole : chaque livraison coûte un peu de vertu (l\'image d\'un transporteur de pétrole).' }, '💚 vertu −') : null]),
+        h('div.card-title', [h('span.good-icon', G.icon), G.name, h('span.price-inline', `${money(unit)}/t`), fd ? h('span.tag.good', { title: 'Famille d\'abord : vos achats de marchandises coûtent 5 % de moins à votre port d\'attache.' }, '♥ −5 % chez vous') : null, OIL_GOODS.includes(g) ? h('span.tag.warn', { title: 'Pétrole : chaque livraison coûte un peu de vertu (l\'image d\'un transporteur de pétrole).' }, '💚 vertu −') : null]),
         h('div.card-sub', `Stock disponible : ${tonnes(stock)} · cours mondial ${money(G.price * state.market.world[g])}/t`),
         tender ? h('div.card-sub', [h('span.tag.good', '📣 appel d\'offres'), ` ${portName(tender.port)} achète à ${money(tender.unit)}/t jusqu'au ${date(tender.until, true)} (${tonnes(tenderRoom(tender, ship.id))} encore libres).`]) : null,
         dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), isEmbargoed(dests[0].p) ? ' ' : null, isEmbargoed(dests[0].p) ? EMBARGO_TAG() : null, dests[0].tender ? ' 📣' : null, ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
@@ -801,13 +805,14 @@ function departTab(app, ship) {
     const need = eco.burnPerDay(T, speed, eco.ageYears(state, ship)) * seaDays * 1.08;
     if (!why && need > T.tank) why = 'autonomie insuffisante';
     const exp = Object.keys(PORTS[p].exp).filter((g) => eco.holdFor(ship.type, g)).length;
-    const here = state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good));
+    const famBlock = familyBlocked(state, state.companies[ship.owner], p); // port familial d'un concurrent qui nous vise : rien pour nous
+    const here = famBlock ? [] : state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good));
     const contracts = here.length;
     // Ceux que ce navire pourrait prendre (capacité, tirant d'eau, vitesse, terminaux) : les autres
     // restent affichés, ils donnent envie d'un autre navire.
     const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
     const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
-    return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info };
+    return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info, famBlock };
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);
   // Survol : la route vers ce port se dessine sur la carte, comme pour les contrats (tracé calculé
   // au premier survol seulement).
@@ -842,6 +847,7 @@ function departTab(app, ship) {
     ship.dark?.to === r.p ? h('span.tag.bad', 'livraison noire') : null,
     lead(r.p) ? h('span.tag.good', { title: `Piste de démarchage : un contrat vous y est réservé jusqu'au ${date(lead(r.p).reservedUntil, true)}.` }, '📋 piste') : null,
     !r.why && !(company.portsServed || []).includes(r.p) ? h('span.tag.good', { title: 'Jamais desservi par votre compagnie : y faire escale compte pour le record « Toutes les escales », et donne un peu de confiance.' }, '✚ nouveau port') : null,
+    r.famBlock ? h('span.tag.warn', { title: `Port familial de ${r.famBlock.name} : son plus grand concurrent n'y trouve ni contrat ni démarchage.` }, '♥ rien pour vous') : null,
     !r.why && r.contracts ? h('span.tag', { class: r.fit ? 'good' : '' }, [h('span', r.contracts > 1 ? `${r.contracts} contrats` : `${r.contracts} contrat`), r.fit ? ' · ' : null, r.fit ? h('span', `${r.fit} pour ce navire`) : null]) : null,
   ]); }));
   box.append(destList);

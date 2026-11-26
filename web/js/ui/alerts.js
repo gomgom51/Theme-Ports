@@ -1,6 +1,7 @@
 // Notifications importantes : tout ce qui demande votre attention, rassemblé en un
 // seul endroit (navires non assurés, retenus, à court de fuel, découvert, etc.),
 // pour ne pas avoir à ouvrir chaque navire et chaque port.
+import { SHADOW_LENDER } from '../sim/core.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS } from '../data/ports.js';
 import { GOODS, OIL_GOODS } from '../data/goods.js';
@@ -84,6 +85,11 @@ export function computeAlerts(state, ctx, companyId) {
   const credit = creditLimit(state, company);
   if (company.debt > 0 && company.debt > credit * 0.85) {
     add('watch', '💳', `Emprunts à ${pct((company.debt / Math.max(1, credit)) * 100)} de votre plafond de crédit : la banque ne prêtera bientôt plus.`, { panel: 'office' });
+  // Prêteur de l'ombre : quota de colis avant l'échéance (règle n° 1).
+  const L = company.lender;
+  if (L && L.done < SHADOW_LENDER.quota && L.due - state.t < 45 * 24) {
+    add(L.due - state.t < 15 * 24 ? 'urgent' : 'watch', '💀', `Prêteur de l'ombre : encore ${SHADOW_LENDER.quota - L.done} colis discret(s) à livrer avant le ${date(L.due, true)}, sinon votre taux remonte à celui de la banque (${Math.round(FLAGS[company.flag].rate * 100)} %).`, { panel: 'office' });
+  }
   }
 
   for (const s of shipsOf(state, companyId)) {

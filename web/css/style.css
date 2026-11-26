@@ -954,3 +954,7 @@ span.juke-btn { cursor: default; border-style: dashed; }
 .home-list { margin: 6px 0 6px 18px; padding: 0; font-size: 13px; line-height: 1.45; }
 .home-tag.winter { background: #e6f1f8; color: #24577a; border-color: #b7d3e6; }
 .home-bonus.winter { border-left: 4px solid #4a8cb8; }
+.home-tag.family { background: #fbe9e7; color: #8c2f2f; border-color: #efc2bb; }
+.home-bonus.family { border-left: 4px solid #c4362c; }
+.home-bonus.lender { border-left: 4px solid #4b3557; }
+.lender-card { margin: 8px 0; }

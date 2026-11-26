@@ -3,7 +3,7 @@
 //         fait ensuite escale dans un pays qui applique les sanctions, il risque une amende.
 //  Noir : des intermédiaires confient un colis à cacher à bord, payé à la livraison.
 //         La douane de chaque port d'escale peut le trouver : saisie, amende, immobilisation.
-import { HOME, homeKind, homeOf, shadowHome } from './home.js';
+import { HOME, homeKind, homeOf, shadowHome, lenderParcel } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORTS } from '../data/sanctions.js';
@@ -178,6 +178,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
     money(state, company, cb.pay, 'discret', ship);
     shipLog(state, ship, `Colis discret livré à ${portName(port)}`);
     onParcel(state, company);
+    lenderParcel(state, company); // prêteur de l'ombre : quota de colis
     addTrust(company, cb.from); // les gangs d'un port sous embargo commencent à vous faire confiance
     scheduleAftermath(state, rng, company, port, cb.nature); // ce qu'il contenait finira peut-être dans les nouvelles
     onNote?.('paid', `Le colis caché à bord du ${ship.name} a été remis à ${portName(port)} : ${Math.round(cb.pay / 1000).toLocaleString('fr-FR')} k$ en liquide.`, { amount: cb.pay, parcel: true });
