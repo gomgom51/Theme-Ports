@@ -33,7 +33,14 @@ export function battleReport(report) {
       h('div.battle-side', [h('div.battle-title', 'Les assaillants'), h('div', `${report.attackers} (force ${String(report.strength).replace('.', ',')})`)]),
     ]),
     h('ol.battle-phases', report.phases.map((p) => h('li', { class: p.ok ? 'pos' : 'neg' }, [h('b', `${p.label} : `), `défense ${String(p.def).replace('.', ',')} contre ${String(p.att).replace('.', ',')} — ${p.text}`]))),
-    h(`p.battle-result.${res[1]}`, res[0] + (report.loss ? ` (${money(report.loss)} volés${report.stolen ? `, ${Math.round(report.stolen * 100)} % de la cargaison` : ''})` : '') + (report.ransom ? ` : rançon demandée ${money(report.ransom)}` : '')),
+    // Un morceau de texte par partie : la traduction anglaise reconnaît chacune.
+    h(`p.battle-result.${res[1]}`, [
+      h('span', res[0]),
+      report.loss ? ' ' : null,
+      report.loss ? h('span', report.stolen ? `(${money(report.loss)} volés, ${Math.round(report.stolen * 100)} % de la cargaison)` : `(${money(report.loss)} volés)`) : null,
+      report.ransom ? ' — ' : null,
+      report.ransom ? h('span', `rançon demandée : ${money(report.ransom)}`) : null,
+    ]),
   ]);
 }
 

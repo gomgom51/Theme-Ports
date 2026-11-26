@@ -2559,4 +2559,8 @@ export default {
   "Les ports de l'ombre (pays sous embargo) aident la flotte fantôme, les grandes places financières rendent les rachats moins chers, les ports d'hiver offrent la classe glace.": "Shadow ports (countries under embargo) help the shadow fleet, the big financial hubs make takeovers cheaper, winter ports give a free ice class.",
   "{0} — {1} · ❄ port d'hiver": "{0} — {1} · ❄ winter port",
   "Achetez un premier navire chez le courtier 🏗️ : votre port est pris par les glaces, deux bateaux abordables vous attendent à {0}.": "Buy a first ship from the broker 🏗️: your port is frozen, two affordable ships wait for you in {0}.",
+  "contre": "vs",
+  "({0} volés)": "({0} stolen)",
+  "({0} volés, {1} % de la cargaison)": "({0} stolen, {1}% of the cargo)",
+  "rançon demandée : {0}": "ransom demanded: {0}",
 };
