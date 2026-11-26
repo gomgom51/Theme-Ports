@@ -37,8 +37,16 @@ import { recordsHeld, RECORDS, EVIL } from './sim/honours.js';
 import { honourSVG } from './ui/trophyart.js';
 import { VICTORY, VICTORY_KINDS, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
+import { initTooltips } from './ui/tooltip.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
+// Vitesse par défaut, choisie par le joueur (menu ☰) et gardée sur l'appareil : c'est à elle que
+// le temps repart, quelle que soit la cause (fenêtre fermée, Espace, dernier navire qui reçoit ses ordres).
+const SPEED_KEY = 'port-dattache-speed';
+function defaultSpeed() {
+  try { const v = +localStorage.getItem(SPEED_KEY); return v >= 1 && v <= 3 ? v : 1; } catch { return 1; }
+}
+function setDefaultSpeed(v) { try { localStorage.setItem(SPEED_KEY, String(v)); } catch { /* stockage indisponible */ } }
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
 const INCIDENT_SCENES = { incendie: 'fire', abordage: 'collision', echouement: 'grounding', voie_eau: 'leak', machine: 'breakdown', froid: 'reefer', gros_temps: 'storm' };
@@ -469,7 +477,7 @@ function switchCompany(id, { banner = true } = {}) {
 // ---------- Notifications ----------
 // ---------- Scènes d'événements et fenêtres qui s'ouvrent seules ----------
 // Une petite animation (ou l'encaissement d'un contrat livré) arrête le temps ; les fenêtres
-// passent l'une après l'autre. Quand la dernière se ferme, le temps repart à vitesse 1, sauf
+// passent l'une après l'autre. Quand la dernière se ferme, le temps repart à la vitesse par défaut, sauf
 // si l'une d'elles demande de rester en pause (décision prise, navire qui attend ses ordres).
 app.sceneQueue = [];
 function popup(show, after = null) {
@@ -493,7 +501,7 @@ async function nextScene() {
   if (app.sceneQueue.length) { nextScene(); return; }
   const hold = app.sceneHold;
   app.sceneHold = false;
-  if (!hold && app.mode === 'game' && !app.state.over) app.speed = 1;
+  if (!hold && app.mode === 'game' && !app.state.over) app.speed = defaultSpeed();
 }
 const companyColor = (id) => app.state.companies[id ?? app.ui.activeCompany]?.color || '#c0392b';
 
@@ -773,6 +781,20 @@ function timeSounds() {
   app.audio.play(sp === 0 ? 'pause' : 'time', sp);
 }
 
+// ---------- Plus aucun navire en attente : le temps repart ----------
+// Quand le joueur donne ses ordres au dernier navire qui attendait (temps arrêté), le temps
+// repart à la vitesse par défaut. Si une fenêtre est ouverte, on attend qu'elle se ferme.
+function autoResume() {
+  if (app.mode !== 'game' || !app.state || app.state.over) { app.idleSeen = null; return; }
+  const s = app.state;
+  const idle = s.companies.filter((c) => c.human && !c.bankrupt).reduce((n, c) => n + shipsOf(s, c.id).filter(isIdle).length, 0);
+  const blocked = app.sceneQueue.length > 0 || !!document.querySelector('.dialog-wrap');
+  if (app.speed > 0 || app.idleSeen == null) { app.idleSeen = idle; return; }
+  if (blocked) { if (idle > app.idleSeen) app.idleSeen = idle; return; } // on garde « il y en avait » jusqu'à la fermeture
+  if (app.idleSeen > 0 && idle === 0) app.setSpeed(defaultSpeed());
+  app.idleSeen = idle;
+}
+
 // ---------- Boucle principale ----------
 let last = performance.now(), acc = 0, lastRefresh = 0;
 function loop(now) {
@@ -800,6 +822,7 @@ function loop(now) {
     }
   }
   if (app.mode === 'game' && app.speed === 0) acc = 0;
+  autoResume();
   timeSounds();
   app.map.frame(app.mode === 'game' && app.speed > 0 ? acc : 0);
   updateHud();
@@ -814,6 +837,7 @@ function enterGame(state) {
   app.state = state;
   app.mode = 'game';
   app.speed = 0;
+  app.idleSeen = null;
   app.form = { dest: {}, speed: {}, autoRefuel: {} };
   app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
   app.map.setGame(state, ctx, app.ui);
@@ -838,6 +862,7 @@ app.newGame = (opts) => {
       body: h('div', [
         h('p', `Vous disposez de ${money(app.company().cash)} pour fonder votre empire maritime${humans.length > 1 ? ' (chaque compagnie joue à son tour quand ses navires attendent des ordres)' : ''}.`),
         h('p', 'Des bulles vont vous montrer les premiers gestes, au moment où ils servent. Vous pouvez arrêter la visite à tout moment, et la reprendre depuis le menu ☰.'),
+        h('p', 'Survolez un bouton ou un chiffre pour une explication. Sur téléphone ou tablette : gardez le doigt appuyé dessus.'),
       ]),
       buttons: [{ label: 'C\'est parti', value: true, kind: 'primary' }],
     }).then(() => {
@@ -855,7 +880,8 @@ app.newGame = (opts) => {
           ? h('li', `Achetez un premier navire chez le courtier 🏗️ : votre port est pris par les glaces, deux bateaux abordables vous attendent à ${portName(startPort(app.company().homePort))}.`)
           : h('li', 'Achetez un premier navire chez le courtier 🏗️ : deux bateaux abordables attendent dans votre port.'),
         h('li', 'Touchez votre navire puis acceptez un contrat : il chargera et partira tout seul.'),
-        h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres.'),
+        h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres, et repart tout seul quand le dernier les a reçues (vitesse par défaut : menu ☰).'),
+        h('li', 'Survolez un bouton ou un chiffre pour une explication. Sur téléphone ou tablette : gardez le doigt appuyé dessus.'),
       ]),
     ]),
     buttons: [{ label: 'Comment jouer', value: 'help', kind: 'ghost' }, { label: 'Ouvrir le courtier', value: 'broker', kind: 'primary' }],
@@ -911,6 +937,7 @@ async function gameMenu() {
       { label: 'Charger', value: 'load' },
       ...(app.canImport ? [{ label: 'Exporter un fichier', value: 'export' }] : []),
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
+      { label: `Vitesse par défaut : ${'▶'.repeat(defaultSpeed())}`, value: 'defspeed' },
       { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
       { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
       { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
@@ -933,6 +960,12 @@ async function gameMenu() {
     if (slot && (await confirmBox('Charger cette partie ?', 'La partie en cours non sauvegardée sera perdue.', 'Charger'))) app.loadSlot(slot);
   } else if (v === 'export') exportFile(app.state);
   else if (v === 'pause') { app.state.settings.autoPause = !app.state.settings.autoPause; toast(`Pause automatique ${app.state.settings.autoPause ? 'activée' : 'désactivée'}.`, { timeout: 2500 }); }
+  else if (v === 'defspeed') {
+    const next = defaultSpeed() % 3 + 1;
+    setDefaultSpeed(next);
+    toast(`Vitesse par défaut : ${next}. Le temps repartira à cette vitesse.`, { timeout: 3000 });
+    app.speed = wasSpeed;
+  }
   else if (v === 'ambience') { app.audio.setAmbience(!app.audio.settings.ambience); app.speed = wasSpeed; }
   else if (v === 'sfx') { app.audio.setSfx(!app.audio.settings.sfx); app.speed = wasSpeed; }
   else if (v === 'music') { app.audio.setMusic(!app.audio.settings.music); app.speed = wasSpeed; }
@@ -949,7 +982,7 @@ async function gameMenu() {
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, select, textarea')) return;
   if (app.mode !== 'game') return;
-  if (e.key === ' ') { e.preventDefault(); app.setSpeed(app.speed ? 0 : 1); }
+  if (e.key === ' ') { e.preventDefault(); app.setSpeed(app.speed ? 0 : defaultSpeed()); }
   else if (e.key >= '1' && e.key <= '3') app.setSpeed(+e.key);
   else if (e.key === 'Escape') { if (document.querySelector('.dialog-wrap')) return; app.close(); }
   else if (e.key === 'Backspace' && app.ui.panel && !document.querySelector('.dialog-wrap')) { e.preventDefault(); app.back(); }
@@ -981,6 +1014,7 @@ if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'http
 $('#standings').addEventListener('click', () => app.open('office', null, 'classement'));
 
 // ---------- Lancement ----------
+initTooltips();
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();

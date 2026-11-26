@@ -958,3 +958,12 @@ span.juke-btn { cursor: default; border-style: dashed; }
 .home-bonus.family { border-left: 4px solid #c4362c; }
 .home-bonus.lender { border-left: 4px solid #4b3557; }
 .lender-card { margin: 8px 0; }
+
+/* Info-bulles du jeu (ui/tooltip.js) : plus rapides et plus lisibles que celles du navigateur. */
+.game-tip {
+  position: fixed; z-index: 200; left: 0; top: 0; max-width: min(340px, calc(100vw - 16px));
+  padding: 7px 11px; border-radius: 8px; background: var(--navy); color: #f6f1e4;
+  font-size: 15px; line-height: 1.35; white-space: pre-line; box-shadow: var(--shadow);
+  pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.12s;
+}
+.game-tip.show { opacity: 1; visibility: visible; }
