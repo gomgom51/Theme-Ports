@@ -502,7 +502,7 @@ function companyTab(app) {
   box.append(h('h3', 'Changer de port d\'attache'));
   const cost = act.relocateCost(state, c.id);
   box.append(h('p.hint', `Transférer le siège change le pavillon de toute la flotte (impôts, salaires, crédit). Coût : ${money(cost)}.`));
-  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, PORT_IDS.filter((p) => p !== c.homePort).map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}${homeKind(p) === 'ombre' ? ' · 🏴 port de l\'ombre' : homeKind(p) === 'place' ? ' · 🏦 place financière' : ''}`)));
+  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, PORT_IDS.filter((p) => p !== c.homePort).map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}${homeKind(p) === 'ombre' ? ' · 💀 port de l\'ombre' : homeKind(p) === 'place' ? ' · $ place financière' : ''}`)));
   const preview = h('div', homeBonusBox(sel0(), null));
   function sel0() { return PORT_IDS.find((p) => p !== c.homePort); }
   sel.addEventListener('change', () => preview.replaceChildren(homeBonusBox(sel.value, null)));

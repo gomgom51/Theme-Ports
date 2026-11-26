@@ -5,8 +5,8 @@ import { HOME, homeKind, takeoverDiscount } from '../sim/home.js';
 const pctTxt = (x) => `${Math.round(x * 100)} %`;
 export function homeTag(port) {
   const k = homeKind(port);
-  if (k === 'ombre') return h('span.tag.home-tag.shadow', { title: 'Port de l\'ombre : un coup de pouce vers la flotte fantôme' }, '🏴 port de l\'ombre');
-  if (k === 'place') return h('span.tag.home-tag.hub', { title: 'Place financière : des rachats moins chers' }, '🏦 place financière');
+  if (k === 'ombre') return h('span.tag.home-tag.shadow', { title: 'Port de l\'ombre : un coup de pouce vers la flotte fantôme' }, '💀 port de l\'ombre');
+  if (k === 'place') return h('span.tag.home-tag.hub', { title: 'Place financière : des rachats moins chers' }, '$ place financière');
   return null;
 }
 // company : la compagnie installée là (montre sa remise actuelle), sinon un aperçu avant le choix.
@@ -14,7 +14,7 @@ export function homeBonusBox(port, company = null) {
   const k = homeKind(port);
   if (k === 'ombre') {
     return h('div.card.home-bonus.shadow', [h('div.card-main', [
-      h('div.card-title', '🏴 Port de l\'ombre : vers la flotte fantôme'),
+      h('div.card-title', '💀 Port de l\'ombre : vers la flotte fantôme'),
       h('ul.home-list', [
         h('li', 'Les gangs vous connaissent : des affaires noires vous sont proposées ici dès le départ.'),
         h('li', `La douane regarde ailleurs chez vous : risque de fouille × ${String(HOME.customs).replace('.', ',')} pour les colis et les cargaisons noires.`),
@@ -27,7 +27,7 @@ export function homeBonusBox(port, company = null) {
   if (k === 'place') {
     const d = company ? takeoverDiscount(company) : null;
     return h('div.card.home-bonus.hub', [h('div.card-main', [
-      h('div.card-title', '🏦 Place financière : vers « Seul maître à bord »'),
+      h('div.card-title', '$ Place financière : vers « Seul maître à bord »'),
       h('div.card-sub', `Banquiers et avocats sur place : racheter un concurrent coûte moins cher quand on a la confiance des marchés. Remise de 0 % à ${HOME.takeoverFrom} de confiance, jusqu'à ${pctTxt(HOME.takeoverMax)} à 100.`),
       d != null ? h('div.card-sub', [h('span', 'Votre remise actuelle :'), ' ', h('b', pctTxt(d))]) : null,
     ])]);
