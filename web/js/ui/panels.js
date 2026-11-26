@@ -1,6 +1,7 @@
 // Panneaux : flotte, port, courtier, bureau, marchés, journal, aide.
 import { tr } from '../i18n.js';
 import { codexPanel } from './codex.js';
+import { jukeboxDialog } from './jukebox.js';
 import { standingDetail } from './standing.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
@@ -301,7 +302,13 @@ function officeHero(app) {
   const model = best ? { typeId: best.type, color: c.color, logo: c.logo, name: best.name } : null;
   const next = OFFICE_TIERS[tier + 1];
   return h('div', [
-    h('div.office-hero', { html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id, honours: { record: recordsHeld(state, c.id), evil: recordsHeld(state, c.id, 'evil') }, shadow: !!c.blacklisted }) }),
+    // Le juke-box dessiné dans le bureau se clique ; les notes gardent leur rythme d'un rafraîchissement à l'autre.
+    h('div.office-hero', {
+      class: app.audio.juke ? 'juke-on' : '', style: { '--juke-phase': `-${((performance.now() / 1000) % 2.4).toFixed(2)}s` },
+      html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id, honours: { record: recordsHeld(state, c.id), evil: recordsHeld(state, c.id, 'evil') }, shadow: !!c.blacklisted }),
+      onclick: (e) => { if (e.target.closest?.('.office-juke')) jukeboxDialog(app); },
+      onkeydown: (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('.office-juke')) { e.preventDefault(); jukeboxDialog(app); } },
+    }),
     h('div.office-caption', [
       h('span', [h('b', OFFICE_TIERS[tier].name), ' — ', OFFICE_TIERS[tier].text]),
       h('span.office-next', [
@@ -310,6 +317,7 @@ function officeHero(app) {
         low ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, worth / MUSIC_LOW)) * 100)}%` } })])
         : next ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min))) * 100)}%` } })]) : null,
       ]),
+      h('button.chip.juke-chip', { class: app.audio.juke ? 'on' : '', onclick: () => jukeboxDialog(app) }, app.audio.juke ? '🎵 Juke-box ♪' : '🎵 Juke-box'),
     ]),
   ]);
 }

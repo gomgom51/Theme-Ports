@@ -92,6 +92,21 @@ function loadSettings() {
   catch { return defaults; }
 }
 
+// Juke-box du bureau : les morceaux déjà entendus (toutes parties confondues) sont débloqués.
+const HEARD_KEY = 'pda-jukebox';
+export function heardTracks() {
+  try { return new Set(JSON.parse(localStorage.getItem(HEARD_KEY) || '[]')); } catch { return new Set(); }
+}
+function markHeard(name) {
+  try {
+    const set = heardTracks();
+    if (set.has(name)) return;
+    set.add(name);
+    localStorage.setItem(HEARD_KEY, JSON.stringify([...set]));
+  } catch { /* stockage indisponible */ }
+}
+export const trackSrc = (name) => TRACKS[name]?.src || null;
+
 export class AudioManager {
   constructor() {
     this.settings = loadSettings();
@@ -160,6 +175,7 @@ export class AudioManager {
   }
 
   setScene(name) {
+    if (name !== 'game') this.juke = null; // le juke-box ne joue que pendant la partie
     if (name === this.sceneName) return;
     this.sceneName = name;
     this.playMusic(name);
@@ -319,6 +335,24 @@ export class AudioManager {
     this.setScene(scene);
   }
   setSfx(on) { this.settings.sfx = on; this.save(); }
+  // Juke-box : id (clé de TRACKS), mode 'one' (en boucle) ou 'all' (à la suite), next(id) → id suivant.
+  playJuke(id, mode, next) {
+    this.juke = { id, mode, next };
+    if (!this.settings.music) { this.setMusic(true); return; }
+    this.musicScene = null;
+    this.playMusic(this.sceneName);
+  }
+  setJukeMode(mode) {
+    if (!this.juke) return;
+    this.juke.mode = mode;
+    if (this.music) this.music.loop = mode === 'one';
+  }
+  stopJuke() {
+    if (!this.juke) return;
+    this.juke = null;
+    this.musicScene = null;
+    this.playMusic(this.sceneName); // retour à la musique de la partie
+  }
   setMusic(on) {
     this.settings.music = on;
     this.save();
@@ -340,6 +374,7 @@ export class AudioManager {
   }
   trackFor(scene) {
     const ok = (k) => TRACKS[k] && !this.missing?.has(TRACKS[k].src);
+    if (this.juke && ok(this.juke.id)) return this.juke.id; // le juke-box du bureau passe avant tout
     if (scene === 'game' && this.musicMood && ok(this.musicMood)) return this.musicMood;
     if (scene === 'game' && MOOD_FALLBACK[this.musicMood] && ok(MOOD_FALLBACK[this.musicMood])) return MOOD_FALLBACK[this.musicMood]; // sans la seconde chanson, la première continue
     if (scene === 'game') {
@@ -353,19 +388,30 @@ export class AudioManager {
   }
   playMusic(scene) {
     if (!this.unlocked && !window.AndroidBridge) { this.musicScene = null; return; }
-    const key = scene === 'game' ? `game:${this.musicTier ?? 0}:${this.musicMood || ''}` : scene;
+    const key = this.juke ? `juke:${this.juke.id}` : scene === 'game' ? `game:${this.musicTier ?? 0}:${this.musicMood || ''}` : scene;
     if (key === this.musicScene) return;
     this.musicScene = key;
     const name = this.trackFor(scene);
     const track = TRACKS[name];
     if (!track || !this.settings.music) { this.fadeOutMusic(); return; }
-    if (this.music && this.musicSrc === track.src) return; // même morceau : il continue
+    const loop = this.juke ? this.juke.mode === 'one' : track.loop;
+    if (this.music && this.musicSrc === track.src) { this.music.loop = loop; return; } // même morceau : il continue
     // Le morceau en cours ne s'efface que quand le suivant joue vraiment : si la seconde
     // chanson d'un niveau n'existe pas, la première continue sans reprendre au début.
     const prev = this.music, prevSrc = this.musicSrc, prevKind = this.musicKind;
     const el = new Audio(track.src);
-    el.loop = track.loop;
+    el.loop = loop;
     el.volume = 0;
+    // Juke-box « à la suite » : le morceau fini, on passe au suivant débloqué.
+    el.addEventListener('ended', () => {
+      if (this.music !== el || !this.juke || this.juke.mode !== 'all') return;
+      const next = this.juke.next(this.juke.id);
+      if (next === this.juke.id) { el.currentTime = 0; el.play().catch(() => {}); return; }
+      this.juke.id = next;
+      this.onJuke?.();
+      this.musicScene = null;
+      this.playMusic(this.sceneName);
+    });
     // Tous les morceaux lancés et pas encore éteints : deux demandes coup sur coup (entrée en
     // partie, puis niveau de la compagnie) ne doivent pas laisser l'ancien morceau tourner.
     (this.live ??= new Set()).add(el);
@@ -382,6 +428,7 @@ export class AudioManager {
     el.play().then(() => {
       if (this.music !== el) { el.pause(); this.live.delete(el); return; }
       this.stopOthers(el); // le nouveau morceau joue : tous les autres s'effacent
+      markHeard(name); // débloqué pour le juke-box
       this.fade(el, track.volume, 2500);
       // La musique couvre un peu l'ambiance.
       if (this.ambBus) this.ambBus.gain.setTargetAtTime(0.6, this.ctx.currentTime, 1);

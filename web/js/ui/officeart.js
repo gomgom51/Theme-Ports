@@ -319,10 +319,52 @@ function shadowBack(tier, u) {
 // Devant le mobilier : portrait, carte aux routes rouges, whisky, coffre-fort, buste doré.
 function shadowFront(tier, u) {
   if (tier === 0) return bossPortrait(u, 94, 38, 36, 44) + safe(u, 304, 158, 1.1) + whisky(u, 310, 125, 0.8);
-  if (tier === 1) return redRoutes(110, 36, 90, 54) + safe(u, 104, 158, 1.15) + whisky(u, 227, 112, 0.85) + goldBust(u, 446, 158, 1.15);
-  if (tier === 2) return bossPortrait(u, 40, 16, 96, 60) + whisky(u, 281, 112, 0.75) + goldBust(u, 31, 158, 1.05);
+  if (tier === 1) return redRoutes(110, 36, 90, 54) + safe(u, 104, 158, 1.15) + jukeGramophone(119, 123.5, false) + whisky(u, 227, 112, 0.85) + goldBust(u, 446, 158, 1.15);
+  if (tier === 2) return bossPortrait(u, 40, 16, 96, 60) + whisky(u, 281, 112, 0.75) + goldBust(u, 22, 94.5, 0.62); // le buste trône sur le juke-box
   if (tier === 3) return redRoutes(183, 99, 40, 16, true) + whisky(u, 152, 118, 0.85) + safe(u, 302, 158, 1) + goldBust(u, 16, 158, 1.25);
   return redRoutes(224, 100, 42, 24, true) + whisky(u, 121, 132, 0.75) + safe(u, 446, 150, 1) + goldBust(u, 38, 197, 1.5);
+}
+
+// ---------- Juke-box (cliquable dans le bureau) ----------
+// Il grandit avec la compagnie : vieille radio au cagibi, gramophone au bureau du port, juke-box au
+// siège, chaîne hi-fi à l'étage de direction, chaîne de designer en haut de la tour. Des notes
+// s'envolent quand il joue (classe juke-on sur l'illustration).
+function juke(inner, nx, ny) {
+  const notes = `<g class="juke-notes" aria-hidden="true"><text x="${nx}" y="${ny}" class="juke-note">♪</text><text x="${nx + 7}" y="${ny + 4}" class="juke-note">♫</text></g>`;
+  return `<g class="office-juke" role="button" tabindex="0" aria-label="Juke-box"><title>Juke-box</title>${inner}${notes}</g>`;
+}
+function jukeRadio(x) { // posée sur une caisse
+  return juke(`<rect x="${x}" y="134" width="44" height="24" fill="#9b7a52" stroke="#6f5236" stroke-width="1.2"/><line x1="${x}" y1="142" x2="${x + 44}" y2="142" stroke="#7d5f3d"/><line x1="${x}" y1="150" x2="${x + 44}" y2="150" stroke="#7d5f3d"/>
+    <path d="M${x + 10} 112 q12 -8 24 0" stroke="#5a2a1c" stroke-width="1.6" fill="none"/><line x1="${x + 38}" y1="113" x2="${x + 44}" y2="96" stroke="#cfcfcf" stroke-width="1"/><circle cx="${x + 44}" cy="96" r="1.1" fill="#cfcfcf"/>
+    <rect x="${x + 4}" y="112" width="36" height="22" rx="5" fill="#a8432c"/><rect x="${x + 8}" y="116" width="16" height="14" rx="2" fill="#efe3c6"/>${[12, 16, 20].map((d) => `<line x1="${x + d}" y1="117" x2="${x + d}" y2="129" stroke="#c9b893" stroke-width="1"/>`).join('')}
+    <circle cx="${x + 32}" cy="120" r="3.2" fill="#efe3c6" stroke="#5a2a1c" stroke-width=".8"/><line x1="${x + 32}" y1="120" x2="${x + 33.5}" y2="117.6" stroke="#5a2a1c" stroke-width=".8"/><circle cx="${x + 32}" cy="128.5" r="2" fill="#5a2a1c"/>`, x + 20, 104);
+}
+function jukeGramophone(cx, base, table) { // sur un guéridon, ou sur ce qui se trouve dessous
+  const T = table ? `<rect x="${cx - 18}" y="${base}" width="36" height="3" rx="1.5" fill="#7a5434"/><rect x="${cx - 2}" y="${base + 3}" width="4" height="${155 - base - 3}" fill="#5f4128"/><rect x="${cx - 10}" y="155" width="20" height="3" rx="1" fill="#5f4128"/>` : '';
+  return juke(`${T}<rect x="${cx - 13}" y="${base - 10}" width="26" height="10" rx="1" fill="#6b4a2e"/><rect x="${cx - 13}" y="${base - 10}" width="26" height="2" fill="#8a6440"/><path d="M${cx - 13} ${base - 5} h-3 v3" stroke="#c9a24a" stroke-width="1.2" fill="none"/>
+    <ellipse cx="${cx - 3}" cy="${base - 10.6}" rx="9" ry="1.5" fill="#1b1b1b"/><path d="M${cx + 7} ${base - 11} q1 -6 4 -10" stroke="#b8862e" stroke-width="2" fill="none"/>
+    <path d="M${cx + 10} ${base - 20} Q${cx + 8} ${base - 27} ${cx + 3} ${base - 32} Q${cx + 14} ${base - 39} ${cx + 24} ${base - 35} Q${cx + 16} ${base - 27} ${cx + 13} ${base - 20} Z" fill="#d4a64a" stroke="#9a6f22" stroke-width=".7"/>
+    <ellipse cx="${cx + 13.5}" cy="${base - 33.6}" rx="10.6" ry="2.6" transform="rotate(-10 ${cx + 13.5} ${base - 33.6})" fill="#8a5f1c"/>`, cx + 26, base - 34);
+}
+function jukeClassic(x) { // le juke-box à l'ancienne : arche lumineuse, disque derrière la vitre
+  return juke(`<ellipse cx="${x + 18}" cy="120" rx="24" ry="30" fill="#f2b84b" opacity=".13"/>
+    <path d="M${x} 158 V114 A18 20 0 0 1 ${x + 36} 114 V158 Z" fill="#6e2323" stroke="#3a1010" stroke-width="1"/>
+    <path d="M${x + 4} 156 V115 A14 16 0 0 1 ${x + 32} 115 V156" fill="none" stroke="#f2b84b" stroke-width="2.2"/><path d="M${x + 7} 156 V116 A11 13 0 0 1 ${x + 29} 116 V156" fill="none" stroke="#e0614f" stroke-width="1.4"/>
+    <path d="M${x + 10} 129 V119 A8 8 0 0 1 ${x + 26} 119 V129 Z" fill="#f3e6c4"/><ellipse cx="${x + 18}" cy="125.5" rx="5.5" ry="1.5" fill="#222"/>
+    <rect x="${x + 10}" y="134" width="16" height="16" rx="2" fill="#3a1010"/>${[13, 16.5, 20, 23.5].map((d) => `<line x1="${x + d}" y1="136" x2="${x + d}" y2="148" stroke="#c99a5b" stroke-width="1"/>`).join('')}
+    <rect x="${x}" y="154" width="36" height="4" fill="#3a1010"/>`, x + 30, 92);
+}
+function jukeHifi(x) { // chaîne hi-fi en teck sous le bureau : vumètres, disques
+  return juke(`<rect x="${x}" y="132" width="48" height="26" rx="1.5" fill="#7a5434" stroke="#4a2f1b" stroke-width=".8"/><rect x="${x + 3}" y="135" width="42" height="9" fill="#2c2623"/>
+    <rect x="${x + 6}" y="137" width="9" height="5" fill="#f2b84b"/><rect x="${x + 18}" y="137" width="9" height="5" fill="#f2b84b"/><line x1="${x + 8}" y1="141.5" x2="${x + 12}" y2="138" stroke="#3a2a1a" stroke-width=".7"/><line x1="${x + 20}" y1="141.5" x2="${x + 24}" y2="138.5" stroke="#3a2a1a" stroke-width=".7"/>
+    <circle cx="${x + 34}" cy="139.5" r="1.7" fill="#c9c9c9"/><circle cx="${x + 40}" cy="139.5" r="1.7" fill="#c9c9c9"/>
+    ${['#c4362c', '#e9dcb7', '#2f6fb0', '#1b1b1b', '#e09a2a', '#5f8f5a', '#1b1b1b', '#7b5ea7', '#e9dcb7', '#c4362c', '#2c3a44', '#d4a64a', '#1b1b1b', '#5b88a0'].map((c, k) => `<rect x="${x + 4 + k * 2.9}" y="147" width="2.4" height="9" fill="${c}"/>`).join('')}`, x + 24, 126);
+}
+function jukeDesigner(x) { // chaîne de designer : façade noire, bandeau néon, égaliseur
+  return juke(`<rect x="${x}" y="140" width="58" height="22" rx="3" fill="#0d1218" stroke="#4a535e" stroke-width=".8"/><rect x="${x + 2}" y="142" width="54" height="1.6" fill="#7fe0c4"/>
+    <circle cx="${x + 8}" cy="153" r="5" fill="#1b2433" stroke="#7fe0c4" stroke-width=".8"/><circle cx="${x + 8}" cy="153" r="1.6" fill="#7fe0c4" opacity=".6"/>
+    <circle cx="${x + 50}" cy="153" r="5" fill="#1b2433" stroke="#ff8a7a" stroke-width=".8"/><circle cx="${x + 50}" cy="153" r="1.6" fill="#ff8a7a" opacity=".6"/>
+    <rect x="${x + 18}" y="147" width="22" height="10" rx="1" fill="#123247"/>${[5, 8, 4, 7, 6, 3, 7].map((hh, k) => `<rect x="${x + 20 + k * 2.8}" y="${156 - hh}" width="1.8" height="${hh}" fill="${['#7fe0c4', '#f6c26b', '#ff8a7a'][k % 3]}"/>`).join('')}`, x + 30, 134);
 }
 
 // ---------- Trophées (records) et preuves sinistres (méfaits) ----------
@@ -404,6 +446,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     s += `<rect x="96" y="40" width="34" height="40" fill="#f6f2e6" transform="rotate(-4 113 60)"/><rect x="100" y="46" width="26" height="5" fill="#c4362c" transform="rotate(-4 113 60)"/>`;
     s += logoSign(420, 52, 36, color, logo, '#f6f2e6');
     s += `<path d="M115 158 l14 -40 h20 l6 40" fill="#4c4a46"/><rect x="120" y="112" width="34" height="8" rx="3" fill="#5a5753"/>`;
+    s += jukeRadio(348);
   } else if (tier === 1) {
     s += `<rect width="${W}" height="${floorY}" fill="${pal.wall || '#e8dcc0'}"/><rect y="${floorY - 6}" width="${W}" height="6" fill="${pal.base || '#cdbd98'}"/>`;
     if (shadow) s += shadowWall(tier, sid);
@@ -419,6 +462,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     if (!shadow) s += plant(445, 146, 1.1);
     s += logoSign(438, 40, 34, color, logo);
     s += `<path d="M215 158 l10 -36 h30 l8 36" fill="#3e3a36"/><rect x="220" y="116" width="40" height="9" rx="4" fill="#4a4540"/>`;
+    if (!shadow) s += jukeGramophone(124, 126, true); // sous la carte ; chez l'armateur de l'ombre, il trône sur le coffre-fort
   } else if (tier === 2) {
     // Le siège : boiseries, tableau de navire, maquette, tapis.
     s += `<rect width="${W}" height="${floorY}" fill="${pal.wall || '#d9cdb2'}"/><rect y="88" width="${W}" height="${floorY - 88}" fill="${pal.panel || '#8a5d3b'}"/>${Array.from({ length: 10 }, (_, k) => `<rect x="${k * 50 + 8}" y="96" width="34" height="${floorY - 104}" fill="none" stroke="${pal.groove || '#6f4a2e'}" stroke-width="${shadow ? 1.2 : 2}"/>`).join('')}<rect y="86" width="${W}" height="5" fill="${pal.groove || '#6f4a2e'}"/>`;
@@ -434,7 +478,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     s += modelSvg(140, 74, 140);
     s += `<rect x="300" y="100" width="40" height="12" fill="#f1ede1"/><circle cx="355" cy="104" r="8" fill="#3d6a8c"/><path d="M349 100 q6 2 12 0 M348 106 q7 2 14 0" stroke="#d9c88f" fill="none"/><rect x="353" y="112" width="4" height="2" fill="#2b2b2b"/>`;
     s += `<path d="M215 160 l10 -40 h36 l8 40" fill="#3a1f14"/><rect x="220" y="96" width="44" height="34" rx="8" fill="#5a2a1c"/>`;
-    if (!shadow) s += plant(30, 146, 1.2);
+    s += jukeClassic(4); // à la place de la plante
   } else if (tier === 3) {
     // L'étage de direction : baie vitrée panoramique sur le port.
     s += `<rect width="${W}" height="${floorY}" fill="${pal.wall || '#e9e4da'}"/>`;
@@ -447,6 +491,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     s += `<rect x="150" y="118" width="230" height="10" rx="2" fill="#3b3330"/><rect x="160" y="128" width="8" height="30" fill="#2c2623"/><rect x="362" y="128" width="8" height="30" fill="#2c2623"/>`;
     s += modelSvg(278, 90, 100);
     s += `<rect x="180" y="96" width="46" height="22" rx="2" fill="#1f2a33"/><rect x="183" y="99" width="40" height="16" fill="#3f7d8a"/><polyline points="185,112 192,108 199,110 206,104 213,106 220,101" stroke="#c4f1b0" fill="none" stroke-width="1.2"/>`;
+    s += jukeHifi(176); // sous le bureau
     s += `<path d="M230 160 l8 -38 h40 l8 38" fill="#232020"/><rect x="236" y="92" width="46" height="36" rx="10" fill="#2f2b29"/>`;
     s += logoSign(30, 140, 38, color, logo);
     if (!(honours?.evil || []).length) s += plant(450, 146, 1.3);
@@ -467,6 +512,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
     s += `<rect x="14" y="128" width="130" height="34" fill="#3a3f47"/><rect x="14" y="126" width="130" height="4" fill="#5a636e"/>`;
     s += modelSvg(18, 109, 72);
     s += `<path d="M420 160 l-6 -28 M420 160 l8 -28 M420 160 l-1 -30" stroke="#a7a7a7" stroke-width="2"/><rect x="398" y="120" width="44" height="7" rx="3" fill="#c9b27a" transform="rotate(-18 420 124)"/>`;
+    s += jukeDesigner(164); // sous le bureau
     s += `<path d="M228 168 l6 -34 h36 l6 34" fill="#e8e3da"/><rect x="232" y="104" width="44" height="36" rx="10" fill="#f2efe8"/>`;
     s += logoSign(440, 156, 30, color, logo, '#e8e3da');
   }
