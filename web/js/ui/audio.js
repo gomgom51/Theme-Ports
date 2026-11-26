@@ -14,6 +14,7 @@ const TRACKS = {
   title: { src: 'musique/accueil.mp3', volume: 0.45, loop: true },
   game: { src: 'musique/jeu.mp3', volume: 0.22, loop: true },
   end: { src: 'musique/victoire.mp3', volume: 0.5, loop: false },
+  credits: { src: 'musique/generique.mp3', volume: 0.47, loop: true }, // générique de fin : « Port d'attache »
   tier0: { src: 'musique/niveau0.mp3', volume: 0.22, loop: true },
   tier1: { src: 'musique/niveau1.mp3', volume: 0.22, loop: true },
   tier2: { src: 'musique/niveau2.mp3', volume: 0.22, loop: true },

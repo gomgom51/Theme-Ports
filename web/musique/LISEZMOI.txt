@@ -23,6 +23,8 @@ Déposez ici vos fichiers MP3 (générés avec Suno, par exemple) sous ces noms 
   et sa première chanson. Seul le niveau 0 (sous 5 M$) fait revenir le thème du doute.
   jeu.mp3       en secours, si un thème de niveau manque
   victoire.mp3  courte musique de fin de partie
+  generique.mp3 générique de fin (« Port d'attache », fourni par l'auteur) : joué après l'écran
+                de victoire et depuis le bouton « Générique et crédits » de l'accueil
 
   Thèmes de situation (remplacent le niveau tant que la situation dure) :
   domination.mp3   victoire « Seul maître à bord » en vue (75 %) : marche de conquête

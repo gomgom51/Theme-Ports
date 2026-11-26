@@ -863,3 +863,58 @@ select.input { width: auto; max-width: 100%; }
 .rival-attacks { display: flex; flex-wrap: wrap; gap: 6px; }
 .attack-btn { font-size: 12.5px; }
 .bid-banner { background: #f8e3dc; border: 1px solid #d79a86; border-radius: 8px; padding: 8px 10px; }
+
+/* Générique de fin : défilé de cinéma, extraits des scènes çà et là. Encre de mer sombre et papier
+   crème (pas de bleu marine ni d'or : on reste dans les couleurs de la carte marine). */
+.screen.end-credits {
+  display: block; overflow: hidden; padding: 0; color: #f2ead8; cursor: default;
+  background: radial-gradient(ellipse at 50% 40%, #1b3036 0, #0f1d21 55%, #0a1316 100%);
+}
+.cr-viewport {
+  position: absolute; inset: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 12%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(transparent 0, #000 12%, #000 86%, transparent 100%);
+}
+.cr-viewport.static { overflow-y: auto; -webkit-mask-image: none; mask-image: none; }
+.cr-viewport.paused { cursor: pointer; }
+.cr-roll { width: min(520px, 92vw); margin: 0 auto; text-align: center; padding-bottom: 20vh; will-change: transform; }
+.cr-viewport.static .cr-roll { padding: 12vh 0 16vh; }
+.cr-head { padding: 4vh 0 7vh; }
+.cr-head h1 { font-family: 'Libre Baskerville', Georgia, serif; font-size: clamp(30px, 5vw, 46px); margin: 8px 0 4px; letter-spacing: 0.5px; }
+.cr-anchor svg { width: 64px; height: 64px; fill: #e0614f; }
+.cr-tag { color: #9fb9b6; font-style: italic; margin: 4px 0; }
+.cr-company { display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; font-size: 18px; }
+.cr-section { margin: 0 0 9vh; }
+.cr-section h3 { color: #6fb7b4; font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; margin: 0 0 14px; font-weight: 700; }
+.cr-line { margin: 0 0 10px; line-height: 1.35; }
+.cr-line span { display: block; font-size: 19px; }
+.cr-line small { display: block; color: #9fb9b6; font-size: 13px; margin-top: 2px; }
+.cr-end { padding: 6vh 0 0; }
+.cr-thanks { font-family: 'Libre Baskerville', Georgia, serif; font-size: clamp(24px, 4vw, 34px); margin: 14px 0 6px; }
+.cr-wind { color: #9fb9b6; font-style: italic; margin: 0; }
+.cr-frame {
+  position: absolute; margin: 0; width: min(340px, 24vw); opacity: 0; transform: translateY(8px) scale(0.98);
+  transition: opacity 0.6s ease, transform 0.6s ease; pointer-events: none;
+}
+.cr-frame.left { left: max(2vw, calc(50% - 260px - 24vw - 3vw)); }
+.cr-frame.right { right: max(2vw, calc(50% - 260px - 24vw - 3vw)); }
+.cr-frame.on { opacity: 1; transform: none; }
+.cr-canvas {
+  display: block; width: 100%; height: auto; image-rendering: pixelated; border-radius: 4px;
+  border: 3px solid #f2ead8; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.cr-canvas.smooth { image-rendering: auto; }
+.cr-caption { margin-top: 8px; font-size: 13px; color: #d9cfba; text-align: center; font-style: italic; }
+.cr-skip { position: absolute; top: calc(12px + var(--safe-t)); right: calc(12px + var(--safe-r)); color: #f2ead8; border-color: rgba(242, 234, 216, 0.4); background: rgba(10, 19, 22, 0.4); z-index: 2; }
+.cr-after { position: absolute; left: 50%; bottom: calc(5vh + var(--safe-b)); transform: translateX(-50%); z-index: 2; }
+/* Téléphone et petite fenêtre : un seul extrait, en haut ; le défilé passe dessous. */
+@media (max-width: 899px) {
+  .cr-frame.left { left: 50%; top: calc(54px + var(--safe-t)); width: min(420px, 86vw); transform: translate(-50%, 8px); }
+  .cr-frame.left.on { transform: translate(-50%, 0); }
+  .cr-frame.right { display: none; }
+  .cr-viewport { top: calc(min(420px, 86vw) * 0.56 + 100px + var(--safe-t)); }
+}
+@media (prefers-reduced-motion: reduce) { .cr-frame { transition: none; } }
+.link-btn { background: none; border: 0; padding: 4px 6px; font: inherit; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.link-btn:hover { color: var(--ink, #1c2a33); }
+.title-card .link-btn.credits { font-size: 13px; }

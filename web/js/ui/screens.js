@@ -13,6 +13,7 @@ import { fuelPrice } from '../sim/economy.js';
 const HOME_PORTS = PORT_IDS.filter((p) => !PORTS[p].ice);
 import { h, money, num1, pct, lineChart } from './dom.js';
 import { listSaves, SLOT_LABEL, hasSave } from './save.js';
+import { creditsScreen } from './credits.js';
 
 // Noms fictifs qui font un clin d'œil à de grands armateurs (Marseille, Hambourg, Taïwan, Genève)
 // sans reprendre leur nom.
@@ -81,7 +82,7 @@ export function titleScreen(app) {
       saves.length ? h('button.btn.big.ghost', { onclick: () => loadScreen(app) }, 'Charger une partie') : null,
       app.canImport ? h('button.btn.big.ghost', { onclick: () => app.importSave() }, 'Importer un fichier') : null,
     ]),
-    h('p.credits', 'Carte : Natural Earth (domaine public).'),
+    h('button.link-btn.credits', { onclick: () => creditsScreen(app, { onDone: () => { app.audio.setScene('title'); titleScreen(app); } }) }, '🎬 Générique et crédits'),
   ]));
 }
 
@@ -244,6 +245,13 @@ function startFromSetup(app, cfg) {
 }
 
 // ---------- Fin de partie ----------
+// Générique de fin d'une partie : légendé avec les chiffres de la compagnie du joueur.
+function rollCredits(app, winner, info, onDone) {
+  const me = app.state.companies[app.ui.activeCompany] || winner.company;
+  const header = info ? `${info.icon} Victoire : ${info.name} — ${winner.company.name}` : `${winner.company.name} l'emporte`;
+  creditsScreen(app, { company: me, header, onDone });
+}
+
 export function endScreen(app) {
   const { state } = app;
   const r = ranking(state);
@@ -264,7 +272,9 @@ export function endScreen(app) {
     ]))),
     lineChart(state.companies.map((c) => ({ color: c.color, points: c.history.map((p) => [p.t, p.nw]) })), { yFormat: (v) => money(v), xFormat: (t) => String(yearOf(t)) }),
     h('div.setup-buttons', [
-      h('button.btn.ghost', { onclick: () => app.toTitle() }, 'Menu principal'),
+      // Le générique de fin roule avant le retour à l'accueil (on peut le passer).
+      h('button.btn.ghost', { onclick: () => rollCredits(app, winner, info, () => app.toTitle()) }, 'Menu principal'),
+      h('button.btn.ghost', { onclick: () => rollCredits(app, winner, info, () => endScreen(app)) }, '🎬 Générique'),
       state.companies.some((c) => c.human && !c.bankrupt) ? h('button.btn.primary', { onclick: () => app.continueEndless() }, info ? 'Continuer à jouer' : 'Continuer sans limite de temps') : null,
     ]),
   ]));

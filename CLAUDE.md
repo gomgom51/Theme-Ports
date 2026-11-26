@@ -217,5 +217,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
   Keep these attributes when reworking those buttons, or the tour silently loses its targets.
+- End credits (`web/js/ui/credits.js`): film-style roll on `musique/generique.mp3`, every game animation fading in
+  and out around it (captions use the player's own figures), after the victory screen and from the title screen.
+  `AUTHOR` holds the name shown for the author; add a scene to `NOT_ALONE` if it cannot draw without game data.
 - Original game only: never reuse the name, art, music or screens of
   *Ports of Call*; keep only the general mechanics.
