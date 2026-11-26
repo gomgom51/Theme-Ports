@@ -18,6 +18,7 @@ export const ICE = {
   escortIceClass: 0.4, // part payée par un navire de classe glace
   nsrHorizon: 20,      // jours : le passage du Nord-Est doit rester sûr ce temps-là pour qu'on l'emprunte
   iceContract: 1.3,    // prime des contrats de fin de saison réservés aux navires de classe glace
+  season: 0.8,         // part des ports saisonniers gelés (ou dégelés) qui déclenche l'annonce générale
 };
 // Passages saisonniers (marqués comme des canaux sur la grille de routage).
 export const ICE_PASSAGES = { nsr: { name: 'passage du Nord-Est', open: 200, close: 315, spread: 10 } };
@@ -118,6 +119,17 @@ export function forecastText(state, id, ship = null) {
   return f.known ? `${what} annoncé le ${formatDate(f.at, true)}` : `${what} prévu entre le ${formatDate(f.from, true)} et le ${formatDate(f.to, true)}`;
 }
 
+// Compagnies humaines dont un navire est à ce port, y fait route ou doit y partir.
+function companiesConcerned(state, id) {
+  const out = new Set();
+  for (const s of state.ships) {
+    const co = state.companies[s.owner];
+    if (!co?.human || co.bankrupt) continue;
+    if ((s.status !== 'sea' && s.port === id) || (s.status === 'sea' && s.voyage?.to === id) || s.plan?.to === id) out.add(co.id);
+  }
+  return out;
+}
+
 // Une fois par jour : annonces, gel et dégel, navires pris par les glaces ou libérés.
 export function iceDaily(state, notes) {
   state.ice ??= {};
@@ -132,17 +144,34 @@ export function iceDaily(state, notes) {
         ? (port ? `Les glaces reviennent : ${name} fermera le ${formatDate(f.at, true)}. Les navires encore au port devront payer un brise-glace pour en sortir.` : `Les glaces reviennent : le ${name} fermera le ${formatDate(f.at, true)}.`)
         : (port ? `Débâcle en vue : ${name} rouvrira le ${formatDate(f.at, true)}.` : `Débâcle en vue : le ${name} rouvrira le ${formatDate(f.at, true)}.`);
       news(state, text, { kind: 'event' });
-      notes.push({ kind: 'iceSoon', place: id, change: f.which, at: f.at, text });
+      // En alerte seulement pour les compagnies dont un navire y est, y va ou doit y partir.
+      if (port) for (const co of companiesConcerned(state, id)) notes.push({ kind: 'iceSoon', place: id, change: f.which, at: f.at, company: co, text });
     }
     if (open !== st.open) {
       st.open = open;
       const text = open
         ? (port ? `Dégel : ${name} est de nouveau accessible.` : `Dégel : le ${name} est ouvert pour l'été.`)
         : (port ? `${name} est pris par les glaces jusqu'au printemps.` : `Le ${name} est pris par les glaces jusqu'à l'été prochain.`);
-      news(state, text, { kind: 'event' });
-      notes.push({ kind: 'ice', place: id, change: open ? 'thaw' : 'freeze', text });
+      news(state, text, { kind: 'event' }); // chaque port dans le journal ; l'annonce générale vient plus bas
       // Les offres qui partent d'un port pris, ou qui y vont, disparaissent.
       if (!open && port) state.contracts = state.contracts.filter((c) => c.takenBy !== null || (c.from !== id && (c.to !== id || (c.ice && c.deadline < state.t + ICE.iceClass * DAY))));
+    }
+  }
+  // Le grand gel et le grand dégel : une seule annonce, quand ICE.season (80 %) des ports saisonniers ont changé.
+  const ports = ICE_PLACES.filter((p) => PORTS[p]);
+  if (ports.length) {
+    const closed = ports.filter((p) => !state.ice[p]?.open).length, n = ports.length, need = Math.ceil(ICE.season * n);
+    if (!state.iceSeason) state.iceSeason = closed * 2 >= n ? 'winter' : 'summer'; // nouvelle partie ou ancienne sauvegarde : sans annonce
+    else if (state.iceSeason === 'summer' && closed >= need) {
+      state.iceSeason = 'winter';
+      const text = `Les glaces reviennent : ${closed} ports saisonniers sur ${n} sont fermés jusqu'au printemps. Un navire encore à quai devra payer un brise-glace pour en sortir ; les dates de chaque port sont sur sa fiche.`;
+      news(state, text, { kind: 'event' });
+      notes.push({ kind: 'ice', change: 'freeze', text });
+    } else if (state.iceSeason === 'winter' && n - closed >= need) {
+      state.iceSeason = 'summer';
+      const text = `Le dégel : ${n - closed} ports saisonniers sur ${n} ont rouvert pour l'été. Les dates du retour des glaces sont sur la fiche de chaque port.`;
+      news(state, text, { kind: 'event' });
+      notes.push({ kind: 'ice', change: 'thaw', text });
     }
   }
   // Navires pris par les glaces dans un port saisonnier, ou libérés par le dégel.

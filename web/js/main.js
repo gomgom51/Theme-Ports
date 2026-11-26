@@ -508,7 +508,7 @@ function handleNotes(notes) {
   for (const n of notes) {
     if (n.kind === 'crew' && scenes) { crewUps.push(n); continue; }
     if (n.kind === 'ice') { if (scenes) iceChanges.push(n); else toast(`❄ ${n.text}`, { timeout: 9000 }); continue; }
-    if (n.kind === 'iceSoon') { toast(`❄ ${n.text}`, { kind: 'warn', timeout: 10000 }); continue; }
+    if (n.kind === 'iceSoon') { toast(`❄ ${prefixOf(n)}${n.text}`, { kind: 'warn', timeout: 10000 }); continue; }
     // Bilan du mois : confiance et vertu, par cause (sans arrêter le temps).
     if (n.kind === 'standing') { toast(standingSummary(n.log, prefixOf(n)), { timeout: 15000, tag: `standing-${n.company}` }); continue; }
     // Affaires noires : la proposition, les saisies, et ce qu'on lit ensuite dans les nouvelles.
@@ -738,10 +738,10 @@ function handleNotes(notes) {
       if (company && company.id !== app.ui.activeCompany && !switched) { switchCompany(company.id); switched = true; }
     }
   }
-  for (const change of ['freeze', 'thaw']) for (const passage of [false, true]) {
-    const list = iceChanges.filter((n) => n.change === change && !!PORTS[n.place] === !passage);
-    if (!list.length) continue;
-    playScene(change, { title: change === 'freeze' ? 'Les glaces reviennent' : 'Le dégel', text: list.map((n) => n.text).join(' '), variant: passage ? 'sea' : null, color: companyColor() });
+  // Le grand gel ou le grand dégel (une annonce générale, plus une par port).
+  for (const change of ['freeze', 'thaw']) {
+    const n = iceChanges.find((x) => x.change === change);
+    if (n) playScene(change, { title: change === 'freeze' ? 'Les glaces reviennent' : 'Le dégel', text: n.text, color: companyColor() });
   }
   for (const cid of new Set(crewUps.map((n) => n.company))) {
     const list = crewUps.filter((n) => n.company === cid), first = list[0];

@@ -149,7 +149,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 - Ice (rule 1): freeze/thaw dates are random each year but the window is always shown,
   the exact date is announced `ICE.announce` days ahead, and every ice cost (escort in or
-  out, risk at arrival) appears before the decision. The Northern Sea Route is only routed
+  out, risk at arrival) appears before the decision. Notifications (owner's call): one global freeze and one global thaw
+  event when `ICE.season` (80 %) of the seasonal ports have changed, not one per port (each port still goes to the
+  news); the 14-day announcement only alerts companies with a ship at, bound for, or planned for that port. The Northern Sea Route is only routed
   when safe (never a gamble); seasonal ports may be a gamble, with the risk shown.
 - Dark jobs (owner's choice: "insane advantage, but tarnish forever"): very high pay is
   balanced by permanent infamy (reputation cap → fewer premium contracts, dearer credit),
