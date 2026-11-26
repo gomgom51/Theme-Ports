@@ -47,6 +47,13 @@
     <button type="button" data-panel="office" title="Bureau"><span class="rail-icon">💼</span><span class="rail-label">Bureau</span></button>
     <button type="button" data-panel="markets" title="Marchés"><span class="rail-icon">📈</span><span class="rail-label">Marchés</span></button>
     <button type="button" data-panel="news" title="Journal"><span class="rail-icon">📰</span><span class="rail-label">Journal</span></button>
+    <!-- Une icône par victoire : l'anneau suit votre progression, le point rouge un concurrent à 75 % ou plus. -->
+    <div class="vic-rail" role="group" aria-label="Victoires">
+      <button type="button" class="vic-btn" data-victory="domination"><span class="vic-btn-icon" aria-hidden="true">⚓</span><span class="vic-dot" hidden></span></button>
+      <button type="button" class="vic-btn" data-victory="reputation"><span class="vic-btn-icon star" aria-hidden="true">★</span><span class="vic-dot" hidden></span></button>
+      <button type="button" class="vic-btn" data-victory="legend"><span class="vic-btn-icon" aria-hidden="true">🏆</span><span class="vic-dot" hidden></span></button>
+      <button type="button" class="vic-btn" data-victory="shadow"><span class="vic-btn-icon" aria-hidden="true">🗡</span><span class="vic-dot" hidden></span></button>
+    </div>
   </nav>
 
   <div id="ticker" class="ticker"></div>

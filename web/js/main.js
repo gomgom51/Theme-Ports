@@ -35,7 +35,7 @@ import { darkOfferDialog, seizedDialog } from './ui/dark.js';
 import { bidDialog } from './ui/rivals.js';
 import { recordsHeld, RECORDS, EVIL } from './sim/honours.js';
 import { honourSVG } from './ui/trophyart.js';
-import { VICTORY, VICTORY_KINDS, victoryOn, victoryProgress } from './sim/victory.js';
+import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
 
@@ -247,11 +247,36 @@ function updateStandings(s, me) {
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
     // Réputation (la plus basse des deux), confiance et vertu : la plus basse en rouge.
     r.company.bankrupt ? null : h('span.standings-rep', { title: 'Réputation (la plus basse des deux) · confiance · vertu' }, [
-      h('span', `★${Math.floor(r.company.reputation)}`), ' ',
+      h('span', [h('span.star', '★'), `${Math.floor(r.company.reputation)}`]), ' ',
       h('span', { class: repLimit(r.company) === 'trust' ? 'low' : '' }, `🤝${Math.floor(r.company.confidence)}`), ' ',
       h('span', { class: repLimit(r.company) === 'virtue' ? 'low' : '' }, `💚${Math.floor(r.company.virtue)}`),
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
+}
+// Icônes de victoire (sous les boutons latéraux) : l'anneau suit votre progression (orange à 75 %,
+// rouge à 90 %), le point rouge signale un concurrent à 75 % ou plus. Recalculé une fois par jour de jeu.
+function updateVictoryRail(s, c) {
+  const key = `${c.id}:${Math.floor(s.t / 24)}:${s.victoryClaimed ? 1 : 0}:${getLang()}`;
+  const rail = $('.vic-rail');
+  if (!rail || rail.dataset.key === key) return;
+  rail.dataset.key = key;
+  for (const b of rail.querySelectorAll('[data-victory]')) {
+    const k = b.dataset.victory, info = VICTORY_INFO[k];
+    const on = victoryOn(s, k);
+    const mine = on ? victoryProgress(s, c, k).frac : 0;
+    let rival = 0;
+    if (on) for (const o of s.companies) if (o.id !== c.id && !o.bankrupt) rival = Math.max(rival, victoryProgress(s, o, k).frac);
+    const f = Math.max(0, Math.min(1, mine));
+    b.style.setProperty('--p', `${Math.round(f * 100)}`);
+    b.classList.toggle('off', !on);
+    b.classList.toggle('warm', on && f >= VICTORY.alerts[0] && f < VICTORY.alerts[1]);
+    b.classList.toggle('hot', on && f >= VICTORY.alerts[1]);
+    b.querySelector('.vic-dot').hidden = !(on && rival >= VICTORY.alerts[0]);
+    const label = !on ? `${info.name} : ${s.victoryClaimed ? 'une victoire a déjà été remportée' : 'désactivée pour cette partie'}`
+      : `${info.name} : vous en êtes à ${Math.round(f * 100)} %, le concurrent le plus avancé à ${Math.round(Math.min(1, rival) * 100)} %`;
+    b.title = label;
+    b.setAttribute('aria-label', label);
+  }
 }
 // Niveau de la compagnie (le bureau) et ce qu'il faut pour le suivant. Un niveau atteint est
 // acquis ; seul le niveau 0 (la compagnie perd de l'argent) le fait oublier, le temps de remonter.
@@ -298,9 +323,11 @@ function musicMood(s, c) {
 }
 // Haut fait, record ou méfait : un mot, et (records, méfaits) la scène de la remise puis l'étagère.
 function honourNote(n, scenes, prefix) {
-  const open = () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); };
+  // Haut fait → « La plus respectée », record → « Compagnie légendaire », méfait → « La flotte fantôme ».
+  const [vk, vt, label] = n.kind === 'deed' ? ['reputation', 'hauts-faits', 'Hauts faits'] : n.kind === 'evil' ? ['shadow', 'mefaits', 'Méfaits'] : ['legend', 'records', 'Records'];
+  const open = () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', vk, vt); };
   app.audio.play(n.kind === 'evil' ? 'bell' : 'cash');
-  toast(prefix + n.text, { kind: n.kind === 'evil' ? 'warn' : 'money', timeout: 12000, action: 'Trophées', onAction: open });
+  toast(prefix + n.text, { kind: n.kind === 'evil' ? 'warn' : 'money', timeout: 12000, action: label, onAction: open });
   const co = app.state.companies[n.company];
   if (!scenes || n.kind === 'deed' || !co) return;
   const kind = n.kind === 'evil' ? 'evil' : 'record';
@@ -393,6 +420,7 @@ function updateHud() {
     app.audio.setMusicTier(musicStep(netWorth(s, c.id), c.level ?? 0));
     app.audio.setMusicMood(musicMood(s, c));
     updateStandings(s, c.id);
+    updateVictoryRail(s, c);
   }
   const humans = s.companies.filter((x) => x.human);
   $('#hud-company').classList.toggle('switchable', humans.length > 1);
@@ -453,6 +481,10 @@ $('#hud-menu').addEventListener('click', () => gameMenu());
 document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => {
   const type = b.dataset.panel;
   if (app.ui.panel?.type === type) app.close(); else app.open(type);
+}));
+document.querySelectorAll('[data-victory]').forEach((b) => b.addEventListener('click', () => {
+  const k = b.dataset.victory;
+  if (app.ui.panel?.type === 'victory' && app.ui.panel.id === k) app.close(); else app.open('victory', k);
 }));
 
 function turnBanner(company) {
@@ -640,7 +672,7 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'takeoverRisk') {
-      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 15000, action: 'Concurrents', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'concurrents'); } });
+      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 15000, action: 'Concurrents', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', 'domination', 'concurrents'); } });
       if (app.state.settings.autoPause) paused = true;
       continue;
     }
@@ -653,13 +685,13 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'recordLost') {
-      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 10000, action: 'Trophées', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); } });
+      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 10000, action: n.evil ? 'Méfaits' : 'Records', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', n.evil ? 'shadow' : 'legend', n.evil ? 'mefaits' : 'records'); } });
       continue;
     }
     if (n.kind === 'victoryAlert') {
       const mine = n.about === n.company;
       app.audio.play(mine ? 'cash' : 'bell');
-      toast(prefixOf(n) + n.text, { kind: mine ? 'money' : 'warn', timeout: 15000, action: 'Victoires', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'victoires'); } });
+      toast(prefixOf(n) + n.text, { kind: mine ? 'money' : 'warn', timeout: 15000, action: 'Voir la course', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', n.victory, 'course'); } });
       if (!mine && app.state.settings.autoPause) paused = true;
       continue;
     }
@@ -1011,7 +1043,7 @@ if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'http
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-$('#standings').addEventListener('click', () => app.open('office', null, 'classement'));
+$('#standings').addEventListener('click', () => app.open('victory', 'domination', 'classement'));
 
 // ---------- Lancement ----------
 initTooltips();

@@ -227,7 +227,7 @@ export function jettison(state, shipId) {
   return { ok: true };
 }
 
-// ---------- Coups de concurrence (Bureau → Concurrents) et sabotage (la zone) ----------
+// ---------- Coups de concurrence (victoire ⚓ → Concurrents) et sabotage (la zone) ----------
 // Chacun coûte de la réputation à coup sûr (le milieu jase), peut s'ébruiter (scandale), et laisse
 // filtrer une rumeur chez la victime : ce qui la menace, jusqu'à quand, et comment parer (règle n° 1).
 export const ATTACKS = {

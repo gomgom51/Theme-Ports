@@ -175,7 +175,7 @@ export function computeAlerts(state, ctx, companyId) {
     const buyers = state.companies.filter((o) => o.id !== companyId && !o.bankrupt && canTakeover(state, o.id, companyId).ok);
     if (buyers.length) add('watch', '🤝', buyers.length > 1
       ? `${buyers.map((o) => o.name).join(', ')} pourraient racheter votre compagnie (${money(Math.min(...buyers.map((o) => takeoverPrice(state, company, o))))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au leur vous protège.`
-      : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company, buyers[0]))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'office' });
+      : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company, buyers[0]))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'victory', id: 'domination', tab: 'concurrents' });
   }
   const idle = ships.filter(isIdle);
   if (idle.length) add('info', '⚓', idle.length === 1 ? `Le ${idle[0].name} attend vos ordres.` : `${idle.length} navires attendent vos ordres.`, idle.length === 1 ? { ship: idle[0].id } : { panel: 'fleet' });
@@ -195,7 +195,7 @@ export function alertsPanel(app) {
     body.append(h('div.list', list.map((a) => h(`div.card.alert.alert-${lv}`, { class: app.ui.newAlerts?.has(a.key) ? 'unread' : '' }, [
       h('div.card-main', [h('div.card-sub', [app.ui.newAlerts?.has(a.key) ? h('span.unread-dot', { title: 'Nouveau' }) : null, h('span.alert-icon', a.icon), ' ', a.text])]),
       a.target ? h('div.card-side', [h('button.btn.small', {
-        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.held != null) heldDialog(app, a.target.held); else if (a.target.counter != null) counterDialog(app, a.target.counter); else if (a.target.bid != null) bidDialog(app, a.target.bid); else if (a.target.jettison != null) jettisonDialog(app, a.target.jettison); else if (a.target.seized != null) seizedDialog(app, a.target.seized); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel); },
+        onclick: () => { if (a.target.ransom != null) openRansom(app, a.target.ransom); else if (a.target.customs != null) openCase(app, a.target.customs); else if (a.target.held != null) heldDialog(app, a.target.held); else if (a.target.counter != null) counterDialog(app, a.target.counter); else if (a.target.bid != null) bidDialog(app, a.target.bid); else if (a.target.jettison != null) jettisonDialog(app, a.target.jettison); else if (a.target.seized != null) seizedDialog(app, a.target.seized); else if (a.target.ship != null) { app.open('ship', a.target.ship); app.focusShip(a.target.ship); } else app.open(a.target.panel, a.target.id ?? null, a.target.tab ?? null); },
       }, 'Voir')]) : null,
     ]))));
   }

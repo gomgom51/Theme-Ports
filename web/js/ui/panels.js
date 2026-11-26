@@ -33,7 +33,8 @@ import { portShadyInfo } from './shady.js';
 import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 import { shipResults } from './shipresults.js';
-import { victoriesTab, trophiesTab } from './victory.js';
+import { raceTab, deedsTab, recordsTab } from './victory.js';
+import { VICTORY_INFO } from '../sim/victory.js';
 import { rivalsTab } from './rivals.js';
 import { recordsHeld } from '../sim/honours.js';
 
@@ -113,6 +114,13 @@ export function fleetPanel(app) {
       h('span.muted.small', `${portName(o.yard)}, livraison le ${date(o.due, true)}`),
     ]))));
   }
+  // Rappel de la formule d'assurance (elle se choisit au Bureau, onglet Finances).
+  const c = app.company(), P = planOf(c);
+  const prem = fleetPremium(state, c, ships, c.insurance || 'complete');
+  body.append(h('div.row.fleet-insurance', [
+    h('span.grow', [h('span', 'Assurance :'), ' ', h('b', P.name), P.rate ? h('span.muted.small', ` · ${money(prem)} par an`) : null]),
+    h('button.btn.small', { onclick: () => app.open('office', null, 'finances', { focus: 'insurance' }) }, 'Changer'),
+  ]));
   return { title: 'Ma flotte', subtitle: `${ships.length} navire${ships.length > 1 ? 's' : ''} · valeur ${money(fleetValue(state, cid))}`, body };
 }
 
@@ -325,12 +333,13 @@ function officeHero(app) {
   ]);
 }
 
-// Formule d'assurance de la compagnie : une vraie décision, prime contre protection.
-function insuranceTab(app) {
+// Formule d'assurance de la compagnie : une vraie décision, prime contre protection (Bureau → Finances).
+function insuranceSection(app) {
   const { state } = app;
   const c = app.company();
   const ships = shipsOf(state, c.id);
-  const box = h('div');
+  const box = h('div.insurance');
+  box.append(h('h3', 'Assurance'));
   box.append(h('p.hint', `Quelle que soit la formule, l'assureur ne paie rien pour un navire parti avec moins de 40 % d'état. Les primes sont prélevées chaque jour.`));
   for (const id of PLAN_IDS) {
     const P = PLANS[id], cur = (c.insurance || 'complete') === id;
@@ -356,13 +365,25 @@ export function officePanel(app, _id, tab) {
       ['finances', 'Finances', () => financeTab(app)],
       ['resultats', 'Résultats', () => resultsTab(app)],
       ['compagnie', 'Compagnie', () => companyTab(app)],
-      ['assurance', 'Assurance', () => insuranceTab(app)],
       ['chargeurs', 'Chargeurs', () => clientsTab(app)],
-      ['classement', 'Classement', () => rankingTab(app)],
-      ['concurrents', 'Concurrents', () => rivalsTab(app)],
-      ['victoires', 'Victoires', () => victoriesTab(app)],
-      ['trophees', 'Trophées', () => trophiesTab(app)],
     ],
+    tab,
+  };
+}
+
+// Une victoire (icônes de l'écran principal) : la course, puis ce qui s'y rattache.
+const VICTORY_TABS = {
+  domination: (app) => [['concurrents', 'Concurrents', () => rivalsTab(app)], ['classement', 'Classement', () => rankingTab(app)]],
+  reputation: (app) => [['hauts-faits', 'Hauts faits', () => deedsTab(app)]],
+  legend: (app) => [['records', 'Records', () => recordsTab(app, 'record')]],
+  shadow: (app) => [['mefaits', 'Méfaits', () => recordsTab(app, 'evil')]],
+};
+export function victoryPanel(app, kind, tab) {
+  const k = VICTORY_INFO[kind] ? kind : 'domination';
+  const info = VICTORY_INFO[k];
+  return {
+    title: info.name, subtitle: 'Victoire', icon: h('span.vic-panel-icon', { class: k === 'reputation' ? 'star' : '' }, info.icon),
+    tabs: [['course', 'La course', () => raceTab(app, k)], ...VICTORY_TABS[k](app)],
     tab,
   };
 }
@@ -458,6 +479,7 @@ function financeTab(app) {
     ...[1e6, 5e6].filter((a) => a <= repayable).map((a) => h('button.chip', { onclick: () => app.act(() => act.repay(state, c.id, a)) }, `− ${money(a)}`)),
     h('button.chip', { onclick: () => app.act(() => act.repay(state, c.id, repayable)) }, `Tout (${money(repayable)})`),
   ]) : h('p.muted', c.debt ? 'Pas assez de trésorerie.' : 'Aucune dette.'));
+  box.append(insuranceSection(app));
   return box;
 }
 
@@ -685,7 +707,7 @@ export function helpPanel(app) {
       p('Chaque port a un tirant d\'eau maximal et des terminaux (vrac, liquide, marchandises diverses, conteneurs). Chaque navire a des cales adaptées à certaines marchandises et une autonomie limitée par ses soutes.'),
       h('h3', 'Les risques'),
       p('En mer : avaries de machine, incendies, abordages, échouements, voies d\'eau, cargaisons abîmées par la tempête (cercles colorés, force en Beaufort). Un navire vieux ou usé en subit bien plus ; même un bon navire peut sombrer, mais il est alors assuré.'),
-      p('Assurance (Bureau → Assurance) : formule complète, coque seule ou rien ; moins de prime, moins de protection. L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
+      p('Assurance (Bureau → Finances) : formule complète, coque seule ou rien ; moins de prime, moins de protection. L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
       p('Pollution : une cargaison polluante (pétrole, produits, chimie) qui se déverse lors d\'un naufrage, d\'un échouement ou d\'un abordage coûte un nettoyage, bien plus cher près des côtes sensibles (zones hachurées sur la carte). L\'assurance paie si le navire était en état ; sinon tout est à vos frais et le pays touché vous ferme ses ports un an. Le départ indique les côtes longées et le pire cas.'),
       p('Commerce gris : l\'Iran et le Venezuela sont sous embargo. Leurs ports paient cher ce qui leur manque, bradent leur brut, et le fret y est mieux payé, mais un navire qui y commerce est marqué un an : en Europe, en Amérique du Nord, au Japon, en Corée et en Océanie, il risque une amende (plus lourde si votre pavillon applique lui-même les sanctions).'),
       p('Commerce noir : dans certains ports, des intermédiaires proposent des colis discrets, payés en liquide à la livraison. La douane de chaque escale peut les trouver : saisie, amende, immobilisation, sauf arrangement dans un port accommodant. Les cargos les cachent mieux que les pétroliers.'),
@@ -708,5 +730,5 @@ export function helpPanel(app) {
 
 export const PANELS = {
   fleet: fleetPanel, port: portPanel, broker: brokerPanel, office: officePanel,
-  markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel, codex: codexPanel,
+  markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel, codex: codexPanel, victory: victoryPanel,
 };
