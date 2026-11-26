@@ -1,5 +1,9 @@
 # Port d'Attache — design rules for this project
 
+**Start here:** `docs/mechanics/README.md` maps every game mechanic, its code, its constants and how
+the systems connect. Read the relevant file there before exploring the code, and update it when you
+change a mechanic.
+
 This is a **management game**. Balance and player agency come before realism.
 Every design or balancing choice must be checked against these rules (set by the
 project owner):
