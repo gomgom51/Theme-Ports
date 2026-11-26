@@ -1,4 +1,4 @@
-// Bureau → Concurrents : racheter une compagnie, ou lui compliquer la vie (coups de concurrence).
+// Victoire ⚓ → Concurrents : racheter une compagnie, ou lui compliquer la vie (coups de concurrence).
 // Et, côté victime : l'offre de rachat (demander six mois, vendre), parer un coup.
 import { CLIENTS } from '../data/clients.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';

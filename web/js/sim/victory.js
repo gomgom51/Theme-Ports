@@ -4,7 +4,7 @@
 //  Légendaire         : détenir cinq des huit records en même temps.
 //  La flotte fantôme  : trois ans sur la liste noire, douze navires, une affaire noire dans
 //                       chaque pays sous embargo.
-// Chaque compagnie voit la progression de toutes les autres (Bureau → Victoires) ; à 75 % puis
+// Chaque compagnie voit la progression de toutes les autres (icônes de victoire de l'écran principal) ; à 75 % puis
 // à 90 % d'une victoire, tout le monde est prévenu (règle n° 1 : pas de défaite surprise).
 import { HOURS_PER_DAY } from './util.js';
 import { netWorth, news, shipsOf } from './core.js';
@@ -29,7 +29,7 @@ export const VICTORY = {
 export const VICTORY_KINDS = ['domination', 'reputation', 'legend', 'shadow'];
 export const VICTORY_INFO = {
   domination: { name: 'Seul maître à bord', icon: '⚓', text: 'Tous vos concurrents ruinés ou rachetés.' },
-  reputation: { name: 'La plus respectée', icon: '🎖', get text() { return `Atteindre une réputation parfaite (100) avec au moins cinq hauts faits et le niveau 4, puis la tenir ${Math.round(VICTORY.repHoldDays / 30)} mois sans retomber sous ${VICTORY.repHoldFloor}.`; } },
+  reputation: { name: 'La plus respectée', icon: '★', get text() { return `Atteindre une réputation parfaite (100) avec au moins cinq hauts faits et le niveau 4, puis la tenir ${Math.round(VICTORY.repHoldDays / 30)} mois sans retomber sous ${VICTORY.repHoldFloor}.`; } },
   legend: { name: 'Compagnie légendaire', icon: '🏆', text: 'Détenir en même temps cinq des huit records.' },
   shadow: { name: 'La flotte fantôme', icon: '🗡', get text() { return `${VICTORY.shadowYears} ans sur la liste noire internationale avec au moins ${VICTORY.shadowShips} navires, et une affaire noire menée à bien dans chaque pays sous embargo.`; } },
 };
@@ -134,7 +134,7 @@ export function victoryDaily(state, notes) {
             ? (kind === 'domination' ? `Il ne vous reste qu'un concurrent, et vous aurez bientôt de quoi le racheter : victoire « ${VICTORY_INFO[kind].name} » en vue (${pc} %).` : `Vous approchez de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin.`)
             : lastPrey
               ? `${c.name} n'a plus que vous en face, et aura bientôt de quoi racheter votre compagnie : victoire « ${VICTORY_INFO[kind].name} » en vue pour lui (${pc} %). Pour lui échapper : une meilleure confiance (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.`
-              : `${c.name} approche de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin. Bureau → Victoires pour voir où il en est.` });
+              : `${c.name} approche de la victoire « ${VICTORY_INFO[kind].name} » : ${pc} % du chemin. Touchez l'icône de cette victoire pour voir où il en est.` });
         }
       } else if (step < (marks[kind] || 0) && p.frac < VICTORY.alerts[0] - 0.1) marks[kind] = step; // reparti en arrière : on pourra prévenir de nouveau
     }

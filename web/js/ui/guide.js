@@ -200,7 +200,16 @@ const STEPS = [
     },
   },
   {
-    id: 'fin', title: 'Bon vent !', after: ['negoce'], ok: true, last: true,
+    id: 'victoires', title: 'Les victoires', after: ['negoce'], ok: true,
+    when: () => true,
+    done: (app) => panelIs(app, 'victory'),
+    show: () => {
+      const v = shown($('.vic-rail'));
+      return v && { el: v, text: 'Quatre façons de gagner avant la fin : ⚓ racheter ou ruiner tous vos concurrents, ★ la réputation parfaite, 🏆 cinq records, 🗡 la flotte fantôme. L\'anneau montre où vous en êtes, un point rouge un concurrent qui approche du but. Touchez une icône pour voir la course.' };
+    },
+  },
+  {
+    id: 'fin', title: 'Bon vent !', after: ['victoires'], ok: true, last: true,
     when: () => true,
     done: () => false,
     show: () => {

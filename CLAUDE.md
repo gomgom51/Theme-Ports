@@ -105,8 +105,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   each of the first five of eight deeds raises the cap by one; level 4; then held six months without falling below 95,
   so rivals warned at 75–90 % have a window to strike), legendary (hold 5 of 8 exclusive records;
   numbered records can be broken, "complete" ones stay with the first), shadow fleet (years on the international
-  blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (Office →
-  Victories) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
+  blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (one ring
+  icon per victory under the side rail, opening that path's page) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
   (award scene), misdeeds are grim proofs on a dark side table; a blacklisted company's office turns ostentatious
   (night outside, velvet, chandelier, gold bust, full safe: `officeSVG` option `shadow`). Office levels are sticky (company maturity) and gate
   takeovers (buy only a company of your level or below), the reputation victory, and bank pressure.
@@ -242,6 +242,10 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
   Keep these attributes when reworking those buttons, or the tour silently loses its targets.
+- Office keeps 4 tabs (Finances with insurance at the bottom, Résultats, Compagnie, Chargeurs). Each victory has a
+  ring icon under the side rail (`.vic-rail`, `data-victory`) opening panel `victory` with tabs: `course` plus
+  domination → `concurrents`, `classement`; reputation → `hauts-faits`; legend → `records`; shadow → `mefaits`.
+  The reputation star ★ is always gold (`--star` / `.star` in `style.css`).
 - End credits (`web/js/ui/credits.js`): film-style roll on `musique/generique.mp3`, every game animation fading in
   and out around it (captions use the player's own figures), after the victory screen and from the title screen.
   `AUTHOR` holds the name shown for the author; add a scene to `NOT_ALONE` if it cannot draw without game data.
