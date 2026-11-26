@@ -1,5 +1,5 @@
 // Boucle de simulation : création d'une partie, avancée du temps heure par heure.
-import { portKind } from './home.js';
+import { portKind, winterKit, startPort } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, USEFUL_GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
@@ -101,7 +101,7 @@ export function newGame(opts, ctx) {
   for (const c of state.companies) {
     for (const type of ['caboteur', 'caboteur', 'polyvalent']) {
       for (let tries = 0; tries < 6; tries++) {
-        const k = eco.makeContract(state, ctx, rng, c.homePort, type);
+        const k = eco.makeContract(state, ctx, rng, startPort(c.homePort), type); // port saisonnier : au port ouvert le plus proche
         if (k) { k.minRep = 0; k.expires = Math.max(k.expires, state.t + 10 * D); state.contracts.push(k); break; }
       }
     }
@@ -157,14 +157,15 @@ function refreshUsedMarket(state, rng, initial = false) {
     // De quoi démarrer dans chaque port d'attache : un caboteur fatigué et un cargo plus grand.
     for (const c of state.companies) {
       // (des coques en fin de carrière : à peu près 2,3 M$ et 4,5 M$, à la portée d'un débutant)
-      state.used.push(makeListing(state, rng, c.homePort, 'caboteur', [22, 26], [62, 78]));
+      const home = startPort(c.homePort); // port saisonnier, gelé en janvier : au port ouvert le plus proche
+      state.used.push(makeListing(state, rng, home, 'caboteur', [22, 26], [62, 78]));
       const r = rng.next();
       if (r < 0.25) {
         // Un vieux cargo des années 60 : presque donné, mais assoiffé.
-        state.used.push(makeListing(state, rng, c.homePort, 'cargo_ancien', [38, 43], [52, 68]));
+        state.used.push(makeListing(state, rng, home, 'cargo_ancien', [38, 43], [52, 68]));
       } else {
-        const second = PORTS[c.homePort].terminals.includes('liquide') && r < 0.45 ? 'petrolier_mr' : 'polyvalent';
-        state.used.push(makeListing(state, rng, c.homePort, second, second === 'petrolier_mr' ? [22.5, 24] : [23, 26], [58, 75]));
+        const second = PORTS[home].terminals.includes('liquide') && r < 0.45 ? 'petrolier_mr' : 'polyvalent';
+        state.used.push(makeListing(state, rng, home, second, second === 'petrolier_mr' ? [22.5, 24] : [23, 26], [58, 75]));
       }
     }
   }
@@ -608,6 +609,7 @@ function deliverOrder(state, rng, order, notes) {
   if (company.bankrupt) return;
   const ship = createShip(state, rng, order.owner, order.type, { port: order.yard, name: order.name || undefined });
   ship.paid = order.paid;
+  winterKit(company, ship); // port d'hiver : classe glace offerte
   ship.fuel = SHIP_TYPES[order.type].tank * 0.6;
   shipLog(state, ship, `Livré neuf par le chantier de ${portName(order.yard)}`);
   news(state, `${company.name} prend livraison du ${ship.name}, ${SHIP_TYPES[order.type].name.toLowerCase()} neuf, à ${portName(order.yard)}.`, { company: company.id, kind: 'fleet' });

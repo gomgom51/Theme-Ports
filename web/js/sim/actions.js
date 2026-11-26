@@ -1,5 +1,6 @@
 // Actions des joueurs (et de l'IA). Chaque action renvoie { ok: true, ... }
 // ou { ok: false, msg } avec un message lisible par le joueur.
+import { winterKit } from './home.js';
 import { PORTS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS, OIL_GOODS } from '../data/goods.js';
@@ -459,6 +460,7 @@ export function buyUsedShip(state, ctx, rng, companyId, listingId) {
   company.cash -= l.price;
   const ship = createShip(state, rng, companyId, l.type, { port: l.port, age: l.age, condition: l.condition, name: l.name });
   ship.paid = l.price;
+  winterKit(company, ship); // port d'hiver : classe glace offerte
   state.used = state.used.filter((x) => x !== l);
   shipLog(state, ship, `Acheté d'occasion à ${portName(l.port)} pour ${fmtM(l.price)}`);
   news(state, `${company.name} achète le ${ship.name} (${SHIP_TYPES[l.type].name.toLowerCase()}) à ${portName(l.port)}.`, { company: companyId, kind: 'fleet' });

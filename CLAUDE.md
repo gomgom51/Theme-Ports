@@ -141,6 +141,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   one, home customs × 0.3, refusals at home without grudge or seizure, and up to 3 parcels on offer; a financial hub
   (the 8 size-5 ports) cuts takeover prices by 0 % at trust 50 up to 25 % at trust 100. Shown on the home-port picker,
   Office → Company and the relocation list; AI leanings follow the home port (shadow port → shadow AI, hub → conqueror).
+  A winter port (Murmansk, Valdez, Ust-Luga, Gdańsk, Hamburg and the four seasonal ports, now pickable as home) fits a
+  free ice-class hull on every ship bought (`winterKit`); a seasonal home port, frozen at the January start, puts the
+  first ships and contracts in the nearest open port (`START_PORT`), and the AI never starts there.
   Map: a ring in each company's colour around its home port, and a house pin over yours.
 - Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with
   the parry price; AIs parry when cheap and aim at the rival closest to a victory (conquerors at their cheapest prey).

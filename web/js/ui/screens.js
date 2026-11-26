@@ -11,7 +11,8 @@ import { flagEl } from './flags.js';
 import { yearOf } from '../sim/util.js';
 import { fuelPrice } from '../sim/economy.js';
 // Ports d'attache possibles : pas les ports saisonniers (on ne démarre pas dans les glaces).
-const HOME_PORTS = PORT_IDS.filter((p) => !PORTS[p].ice);
+// Tous les ports, saisonniers compris (premiers navires au port ouvert le plus proche : sim/home.js).
+const HOME_PORTS = [...PORT_IDS];
 import { h, money, num1, pct, lineChart } from './dom.js';
 import { listSaves, SLOT_LABEL, hasSave } from './save.js';
 import { creditsScreen } from './credits.js';
@@ -230,7 +231,7 @@ function kv(label, value, cls = '') {
 function startFromSetup(app, cfg) {
   const used = new Set(cfg.slots.filter((s) => s.kind === 'human').map((s) => s.port));
   // Les compagnies de l'ordinateur prennent des ports variés et bien équipés.
-  const good = HOME_PORTS.filter((p) => PORTS[p].size >= 3 && PORTS[p].terminals.length >= 3);
+  const good = HOME_PORTS.filter((p) => !PORTS[p].ice && PORTS[p].size >= 3 && PORTS[p].terminals.length >= 3);
   const companies = [];
   for (const s of cfg.slots) {
     if (s.kind === 'none') continue;

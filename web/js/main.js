@@ -1,9 +1,10 @@
 // Point d'entrée : boucle de jeu, interface principale, notifications, sauvegardes.
+import { startPort } from './sim/home.js';
 import { standingSummary } from './ui/standing.js';
 import { makeContext } from './sim/context.js';
 import { newGame, tick, ranking } from './sim/game.js';
 import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
-import { shipsOf, isIdle, shipById, netWorth, standing, repLimit } from './sim/core.js';
+import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName } from './sim/core.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
 import { h, $, money, toast, dialog, confirmBox, num1 } from './ui/dom.js';
@@ -850,7 +851,9 @@ app.newGame = (opts) => {
     body: h('div', [
       h('p', `Vous disposez de ${money(app.company().cash)} pour fonder votre empire maritime${humans.length > 1 ? ' (chaque compagnie joue à son tour quand ses navires attendent des ordres)' : ''}.`),
       h('ol', [
-        h('li', 'Achetez un premier navire chez le courtier 🏗️ : deux bateaux abordables attendent dans votre port.'),
+        startPort(app.company().homePort) !== app.company().homePort
+          ? h('li', `Achetez un premier navire chez le courtier 🏗️ : votre port est pris par les glaces, deux bateaux abordables vous attendent à ${portName(startPort(app.company().homePort))}.`)
+          : h('li', 'Achetez un premier navire chez le courtier 🏗️ : deux bateaux abordables attendent dans votre port.'),
         h('li', 'Touchez votre navire puis acceptez un contrat : il chargera et partira tout seul.'),
         h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres.'),
       ]),

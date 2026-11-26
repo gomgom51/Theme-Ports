@@ -2551,4 +2551,12 @@ export default {
   "{0} — {1} · 💀 port de l'ombre": "{0} — {1} · 💀 shadow port",
   "{0} — {1} · $ place financière": "{0} — {1} · $ financial hub",
   "Affaire noire refusée à {0} (chez vous, sans rancune)": "Dark job turned down in {0} (at home, no grudge)",
+  "Port d'hiver : classe glace offerte sur chaque navire acheté": "Winter port: free ice class on every ship you buy",
+  "❄ port d'hiver": "❄ winter port",
+  "❄ Port d'hiver : la classe glace offerte": "❄ Winter port: free ice class",
+  "Chaque navire acheté, d'occasion ou neuf, est livré avec une coque de classe glace, gratuite : trois semaines de plus à chaque bout de la saison dans les ports arctiques et le passage du Nord-Est, et l'escorte d'un brise-glace à 40 % du prix. Revers : 3 % de carburant en plus (l'équipement se retire au chantier).": "Every ship you buy, used or new, comes with a free ice-class hull: three more weeks at each end of the season in Arctic ports and the Northern Sea Route, and icebreaker escorts at 40% of the price. Downside: 3% more fuel (the equipment can be removed at a shipyard).",
+  "Port saisonnier, pris par les glaces l'hiver : la partie commence en janvier, vos premiers navires et contrats vous attendent à {0}.": "Seasonal port, frozen in winter: the game starts in January, so your first ships and contracts wait for you in {0}.",
+  "Les ports de l'ombre (pays sous embargo) aident la flotte fantôme, les grandes places financières rendent les rachats moins chers, les ports d'hiver offrent la classe glace.": "Shadow ports (countries under embargo) help the shadow fleet, the big financial hubs make takeovers cheaper, winter ports give a free ice class.",
+  "{0} — {1} · ❄ port d'hiver": "{0} — {1} · ❄ winter port",
+  "Achetez un premier navire chez le courtier 🏗️ : votre port est pris par les glaces, deux bateaux abordables vous attendent à {0}.": "Buy a first ship from the broker 🏗️: your port is frozen, two affordable ships wait for you in {0}.",
 };
