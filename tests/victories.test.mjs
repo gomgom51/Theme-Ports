@@ -7,10 +7,13 @@ import { makeContext } from '../web/js/sim/context.js';
 import { newGame, tick } from '../web/js/sim/game.js';
 import { VICTORY_KINDS, victoryProgress } from '../web/js/sim/victory.js';
 import { deedCount, recordsHeld } from '../web/js/sim/honours.js';
+import { HOME } from '../web/js/sim/home.js';
 
 const years = Number(process.argv[2] || 12);
 const seeds = (process.argv[3] || '1,2,3,4,5,6,7,8').split(',').map(Number);
-const homes = ['rotterdam', 'singapour', 'houston', 'piree'];
+// HOMES=a,b,c,d : autres ports d'attache ; HOME_OFF=1 : sans les avantages du port (comparaison).
+const homes = (process.env.HOMES || 'rotterdam,singapour,houston,piree').split(',');
+if (process.env.HOME_OFF) HOME.off = true;
 const ctx = makeContext();
 const out = [];
 for (const seed of seeds) {

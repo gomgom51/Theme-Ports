@@ -1,5 +1,6 @@
 // Interface du commerce gris et noir : propositions discrètes, risques affichés
 // avant de s'engager (douane, sanctions), décision après une saisie.
+import { homeOf } from '../sim/home.js';
 import { PORTS, FLAGS } from '../data/ports.js';
 import { EMBARGOED, ENFORCING, SHADY_PORTS, customsLevel, corruption } from '../data/sanctions.js';
 import { portName } from '../sim/core.js';
@@ -23,7 +24,7 @@ export const customsWord = (flag) => { const c = customsLevel(flag); return c >=
 export function shadyLines(state, ship, to, { general = true } = {}) {
   const out = [];
   if (ship.contraband && to) {
-    const p = detectionChance(ship, to);
+    const p = detectionChance(ship, to, homeOf(state, ship));
     const dest = ship.contraband.to === to;
     out.push(h(`div.risk-line.${levelClass(p) || 'x'}`, `📦 Colis caché à bord${dest ? ' (livraison ici)' : ` (pour ${portName(ship.contraband.to)})`} : risque de fouille à ${portName(to)} ${riskWords(p, ship.crew || 0)}. Si la douane le trouve : amende de ${money(seizureFine(ship.contraband.pay))} et 10 à 25 jours d'immobilisation${corruption(PORTS[to].flag) > 0.15 ? ' (un arrangement sera peut-être possible)' : ''}.`));
   }
@@ -56,7 +57,7 @@ export function offersSection(app, ship) {
   if (ship.contraband) { box.append(h('p.muted', `Un colis est déjà caché à bord (pour ${portName(ship.contraband.to)}).`)); return box; }
   if (!offers.length) { box.append(h('p.muted', 'Personne ne vous a approché aujourd\'hui.')); return box; }
   for (const o of offers) {
-    const p = detectionChance(ship, o.to);
+    const p = detectionChance(ship, o.to, homeOf(state, ship));
     box.append(h('div.card', [
       h('div.card-main', [
         h('div.card-title', ['📦 Colis pour ', flagEl(PORTS[o.to].flag), ` ${portName(o.to)}`, h('span.tag', `douane ${customsWord(PORTS[o.to].flag)}`)]),
@@ -87,7 +88,7 @@ export async function maybeProposeParcel(app, ship, to) {
   const o = app.withRng((rng) => proposeParcel(state, ctx, rng, ship, to));
   if (!o) return;
   const ask = async (offer, insisting) => {
-    const p = detectionChance(ship, offer.to);
+    const p = detectionChance(ship, offer.to, homeOf(state, ship));
     const title = insisting ? 'Il insiste' : 'Une proposition discrète';
     const body = h('div', [
       h('p', insisting

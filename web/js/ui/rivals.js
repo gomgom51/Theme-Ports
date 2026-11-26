@@ -26,7 +26,7 @@ export function rivalsTab(app) {
   const bid = TK.pendingBid(state, me.id);
   if (bid) box.append(h('div.bid-banner', [h('b', `Offre de rachat de ${state.companies[bid.by].name} : ${money(bid.price)}`), ` · elle aboutira le ${date(bid.until, true)} si elle tient toujours. `, h('button.btn.small', { onclick: () => bidDialog(app, bid.id) }, 'Réagir')]));
   const buyers = rivalsOf(state, me.id).filter((o) => TK.canTakeover(state, o.id, me.id).ok);
-  if (buyers.length) box.append(h('p.warn-text', `Peuvent vous racheter aujourd'hui (${money(TK.takeoverPrice(state, me))}) : ${buyers.map((o) => o.name).join(', ')}.`));
+  if (buyers.length) box.append(h('p.warn-text', `Peuvent vous racheter aujourd'hui (${money(Math.min(...buyers.map((o) => TK.takeoverPrice(state, me, o))))}) : ${buyers.map((o) => o.name).join(', ')}.`));
   for (const c of rivalsOf(state, me.id)) {
     const chk = TK.canTakeover(state, me.id, c.id);
     const lv = c.level ?? 0;

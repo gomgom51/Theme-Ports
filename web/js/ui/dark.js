@@ -1,5 +1,6 @@
 // Interface des affaires noires (proposition, saisies) et lignes de risque associées.
 // Tous les risques sont dits avant la décision : douane, confiscation, infamie, refus.
+import { homeOf } from '../sim/home.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { portName, shipById, repCap } from '../sim/core.js';
 import * as eco from '../sim/economy.js';
@@ -21,7 +22,7 @@ export function darkLines(state, ship, to) {
   const company = state.companies[ship.owner];
   if (ship.dark) {
     const K = DARK_KINDS[ship.dark.kind], here = to === ship.dark.to;
-    const p = to ? darkDetect(ship, to) : null;
+    const p = to ? darkDetect(ship, to, homeOf(state, ship)) : null;
     out.push(h(`div.risk-line.${p >= 0.2 ? 'neg' : 'warn-text'}`, [
       `${K.icon} Cargaison noire : ${K.name.toLowerCase()} pour ${portName(ship.dark.to)}, ${money(ship.dark.pay)} à la livraison avant le ${date(ship.dark.deadline, true)}.`,
       to ? (here ? ` Fouille à ${portName(to)}, port de livraison : risque ${riskWords(p, ship.crew || 0)}.` : ` Fouille à ${portName(to)} : risque ${riskWords(p, ship.crew || 0)}.`) : null,
@@ -41,7 +42,7 @@ export async function darkOfferDialog(app, note) {
   const company = state.companies[ship.owner];
   const K = DARK_KINDS[o.kind];
   if (scenesOn()) await showScene(app, 'offer', { title: 'Une « vraie » affaire', variant: 'dark', color: company.color, text: note.text });
-  const p = darkDetect(ship, o.to);
+  const p = darkDetect(ship, o.to, company.homePort);
   const cap = repCap({ infamy: (company.infamy || 0) + K.infamy });
   const [rShip, rCrew] = ransomOf(state, ship);
   const body = h('div', [

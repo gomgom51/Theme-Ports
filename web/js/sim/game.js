@@ -1,4 +1,5 @@
 // Boucle de simulation : création d'une partie, avancée du temps heure par heure.
+import { portKind } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, USEFUL_GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
@@ -69,6 +70,16 @@ export function newGame(opts, ctx) {
   // Tempérament de chaque IA : le chemin de victoire qu'elle poursuit (variés dans une même partie).
   const leanings = [...AI_LEANINGS];
   for (let i = leanings.length - 1; i > 0; i--) { const j = rng.int(0, i); [leanings[i], leanings[j]] = [leanings[j], leanings[i]]; }
+  // Le tempérament suit le port d'attache : l'IA d'un port de l'ombre vise la flotte fantôme, celle d'une
+  // place financière la domination (échanges sans tirage : la suite aléatoire ne change pas).
+  const aiSlots = opts.companies.filter((c) => !c.human && !c.leaning);
+  const want = (kind, lean) => {
+    const k = aiSlots.findIndex((c) => portKind(c.homePort) === kind), cur = leanings.indexOf(lean);
+    if (k < 0 || cur < 0 || k >= leanings.length || portKind(aiSlots[cur]?.homePort) === kind) return;
+    [leanings[k], leanings[cur]] = [leanings[cur], leanings[k]];
+  };
+  want('ombre', 'ombre');
+  want('place', 'conquerant');
   let nextLeaning = 0;
   opts.companies.forEach((c, i) => {
     // c.leaning : imposé (tests) ; 'neutre' : aucun chemin particulier.

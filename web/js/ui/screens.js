@@ -1,4 +1,5 @@
 // Écrans plein écran : accueil, nouvelle partie (choix du port d'attache), fin de partie.
+import { homeTag, homeBonusBox } from './homebonus.js';
 import { getLang, setLang } from '../i18n.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
@@ -187,11 +188,12 @@ function choosePorts(app, cfg, index) {
           class: (p === sel ? 'selected ' : '') + (taken.includes(p) ? 'disabled' : ''),
           disabled: taken.includes(p),
           onclick: () => { sel = p; render(); },
-        }, [flagEl(PORTS[p].flag, FLAGS[PORTS[p].flag].name), h('span.grow', PORTS[p].name)]))),
+        }, [flagEl(PORTS[p].flag, FLAGS[PORTS[p].flag].name), h('span.grow', PORTS[p].name), homeTag(p)]))),
       ]),
       h('div.port-detail', [
         h('h2', [flagEl(P.flag, F.name), P.name]),
         h('p.blurb', P.blurb),
+        homeBonusBox(sel), // avantage du port d'attache, avant le choix (règle n° 1)
         h('h3', `Pavillon : ${F.name}`),
         h('div.ship-stats', [
           kv('Impôt sur les bénéfices', pct(F.tax * 100), F.tax <= 0.03 ? 'good' : F.tax >= 0.15 ? 'bad' : ''),

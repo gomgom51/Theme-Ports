@@ -136,6 +136,12 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   Contracts tab. Owner's call to make tankers less of a safe default (they led the strategy test in every run).
   `company.trust` is something else: the gangs' trust, port by port (`dark.js`). Knobs: `STANDING`, `VIRTUE_SOURCES`
   in `core.js`; `FOSSIL_GOODS`, `USEFUL_GOODS` in `data/goods.js`.
+- Home port bonuses (owner's design, to help the least played victories; `HOME` in `web/js/sim/home.js`): a shadow port
+  (smugglers' port of an embargoed country: Bandar Abbas, Puerto La Cruz, Novorossiysk, Nampo) has gang trust from day
+  one, home customs × 0.3, refusals at home without grudge or seizure, and up to 3 parcels on offer; a financial hub
+  (the 8 size-5 ports) cuts takeover prices by 0 % at trust 50 up to 25 % at trust 100. Shown on the home-port picker,
+  Office → Company and the relocation list; AI leanings follow the home port (shadow port → shadow AI, hub → conqueror).
+  Map: a ring in each company's colour around its home port, and a house pin over yours.
 - Rivalry moves always cost reputation (word gets around), may leak (scandal), and the victim always hears a rumour with
   the parry price; AIs parry when cheap and aim at the rival closest to a victory (conquerors at their cheapest prey).
 - Blacklist (infamy 80): enforcing ports closed, shadow bank only (half the credit, +15 points), but shady ports'

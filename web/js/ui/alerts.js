@@ -129,7 +129,7 @@ export function computeAlerts(state, ctx, companyId) {
       const sr = sanctionRisk(state, ship, v.to);
       if (sr) add('watch', '⚖', `Le ${ship.name}, passé par un pays sous embargo, fait route vers ${PORTS[v.to].name} qui applique les sanctions : risque d'amende de ${money(sr.fine)}.`, go);
       if (ship.contraband) {
-        const p = detectionChance(ship, v.to);
+        const p = detectionChance(ship, v.to, company.homePort);
         if (p >= 0.15) add('watch', '📦', `Le ${ship.name} transporte un colis caché vers ${PORTS[v.to].name}, où la douane est sévère.`, go);
       }
       const c = ship.cargo?.contractId ? contractById(state, ship.cargo.contractId) : null;
@@ -150,7 +150,7 @@ export function computeAlerts(state, ctx, companyId) {
       if (risk > 0) add(risk >= 1 ? 'urgent' : 'watch', '❄', `Le ${ship.name} risque de trouver ${PORTS[to].name} pris par les glaces à son arrivée (${risk >= 1 ? 'certain' : pct(risk * 100)}, ${forecastText(state, to, ship)}) : un brise-glace coûterait ${money(escortFee(ship))}. Accélérez si possible.`, go);
     }
     if (ship.dark && ship.status === 'sea' && ship.voyage) {
-      const p = darkDetect(ship, ship.voyage.to);
+      const p = darkDetect(ship, ship.voyage.to, company.homePort);
       add(p >= 0.2 ? 'urgent' : 'watch', DARK_KINDS[ship.dark.kind].icon, `Cargaison noire à bord du ${ship.name} : la douane de ${PORTS[ship.voyage.to].name} la trouve dans ${Math.round(p * 100)} % des cas (confiscation, scandale).`, go);
     }
     if (crewPoints(ship) > 0) add('info', '🎖', `L'équipage du ${ship.name} peut choisir une spécialité.`, go);
@@ -168,8 +168,8 @@ export function computeAlerts(state, ctx, companyId) {
   else {
     const buyers = state.companies.filter((o) => o.id !== companyId && !o.bankrupt && canTakeover(state, o.id, companyId).ok);
     if (buyers.length) add('watch', '🤝', buyers.length > 1
-      ? `${buyers.map((o) => o.name).join(', ')} pourraient racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au leur vous protège.`
-      : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'office' });
+      ? `${buyers.map((o) => o.name).join(', ')} pourraient racheter votre compagnie (${money(Math.min(...buyers.map((o) => takeoverPrice(state, company, o))))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au leur vous protège.`
+      : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company, buyers[0]))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'office' });
   }
   const idle = ships.filter(isIdle);
   if (idle.length) add('info', '⚓', idle.length === 1 ? `Le ${idle[0].name} attend vos ordres.` : `${idle.length} navires attendent vos ordres.`, idle.length === 1 ? { ship: idle[0].id } : { panel: 'fleet' });

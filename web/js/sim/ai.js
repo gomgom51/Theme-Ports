@@ -299,7 +299,7 @@ function takeParcel(state, ctx, company, ship, to) {
   if (!o) return;
   const route = ctx.route(ship.port, to, ctx.closedCanals(state, SHIP_TYPES[ship.type].draft, ship));
   const pr = patrolRisk({ ...ship, contraband: o }, route, SHIP_TYPES[ship.type].speed);
-  const caught = 1 - (1 - detectionChance(ship, to)) * (1 - (pr?.caught || 0));
+  const caught = 1 - (1 - detectionChance(ship, to, company.homePort)) * (1 - (pr?.caught || 0));
   if (caught < (company.ai?.leaning === 'ombre' ? 0.1 : 0.08)) acceptOffer(state, ship.id, o.id);
 }
 

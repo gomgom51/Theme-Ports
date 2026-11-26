@@ -13,6 +13,7 @@
 //  Pro bono : après un ouragan ou une catastrophe, des associations cherchent des navires pour
 //              l'aide d'urgence : contrats à perte, mais qui rendent de la réputation.
 // Tous les risques sont affichés avant la décision (règle n° 1).
+import { shadowHome, homeOf } from './home.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { SHADY_PORTS } from '../data/sanctions.js';
@@ -58,7 +59,8 @@ export const DARK_KINDS = {
 export const DARK_IDS = Object.keys(DARK_KINDS);
 
 // ---------- Confiance et propositions ----------
-export const trustAt = (company, port) => company?.trust?.[port] || 0;
+// Port de l'ombre : les gangs de chez vous vous connaissent déjà.
+export const trustAt = (company, port) => Math.max(company?.trust?.[port] || 0, shadowHome(company, port) ? DARK.trust : 0);
 export const darkPort = (port) => isEmbargoed(port) && SHADY_PORTS.includes(port);
 export function addTrust(company, port) {
   if (!darkPort(port)) return;
@@ -67,7 +69,7 @@ export function addTrust(company, port) {
 // Navire capable : cales de marchandises diverses ou conteneurs, vides.
 export const darkCapable = (ship) => SHIP_TYPES[ship.type].holds.some((h) => h === 'divers' || h === 'conteneurs');
 export const grudgeAt = (state, company, port) => ((company?.grudge?.[port] || 0) > state.t ? company.grudge[port] : 0);
-export const darkDetect = (ship, port) => Math.min(0.9, detectionChance(ship, port) * DARK.detect);
+export const darkDetect = (ship, port, home = null) => Math.min(0.9, detectionChance(ship, port, home) * DARK.detect);
 
 function makeDarkOffer(state, ctx, rng, ship, from) {
   const kind = rng.pick(DARK_IDS), K = DARK_KINDS[kind];
@@ -95,7 +97,7 @@ export function maybeDarkOffer(state, ctx, rng, ship, port, notes, note) {
   }
   // L'ordinateur : une compagnie audacieuse accepte parfois, les autres refusent (à leurs risques).
   const shadow = company.ai?.leaning === 'ombre';
-  const wary = (!shadow && crossesLine(company, DARK_KINDS[o.kind].infamy + DARK.caughtInfamy)) || darkDetect(ship, o.to) > DARK.aiMaxDetect; // trop risqué pour la douane
+  const wary = (!shadow && crossesLine(company, DARK_KINDS[o.kind].infamy + DARK.caughtInfamy)) || darkDetect(ship, o.to, company.homePort) > DARK.aiMaxDetect; // trop risqué pour la douane
   if (company.ai?.daring && !wary && rng.chance(shadow ? DARK.aiAcceptShadow : DARK.aiAccept)) acceptDark(state, ship.id, o);
   else refuseDark(state, rng, ship.id, o, notes, note);
   return o;
@@ -119,6 +121,8 @@ export function refuseDark(state, rng, shipId, o, notes = null, note = null) {
   const ship = shipById(state, shipId);
   if (!ship) return fail('Navire introuvable.');
   const company = companyOf(state, ship);
+  // Port de l'ombre : chez vous, on peut dire non sans rancune ni saisie.
+  if (shadowHome(company, o.from)) { shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)} (chez vous, sans rancune)`); return { ok: true, seized: null }; }
   (company.grudge ??= {})[o.from] = state.t + DARK.grudgeDays * D;
   if (rng.chance(DARK.refuseSeize)) return { ok: true, seized: seize(state, rng, ship, 'gang', notes, note) };
   shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)}`);
@@ -197,7 +201,7 @@ export function darkOnArrival(state, ctx, rng, ship, port, notes, note) {
       ship.dark = null;
       (company.grudge ??= {})[dk.from] = state.t + DARK.grudgeDays * D;
       if (company.human) note(state, notes, 'info', ship, `La cargaison noire du ${ship.name} arrive trop tard : les acheteurs ne veulent plus en entendre parler, et vos contacts de ${portName(dk.from)} vous en veulent.`);
-    } else if (rng.chance(darkDetect(ship, port))) {
+    } else if (rng.chance(darkDetect(ship, port, homeOf(state, ship)))) {
       ship.dark = null;
       company.infamy = (company.infamy || 0) + DARK.caughtInfamy;
       changeVirtue(company, -25, 'affaires noires');

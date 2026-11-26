@@ -3,6 +3,7 @@
 //         fait ensuite escale dans un pays qui applique les sanctions, il risque une amende.
 //  Noir : des intermédiaires confient un colis à cacher à bord, payé à la livraison.
 //         La douane de chaque port d'escale peut le trouver : saisie, amende, immobilisation.
+import { HOME, homeKind, homeOf, shadowHome } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORTS } from '../data/sanctions.js';
@@ -73,8 +74,10 @@ export const EMBARGO_PREMIUM = 1.25;
 // ---------- Colis discrets ----------
 export function crewDiscretion(ship) { return [1, 0.9, 0.8][ship.crew || 0]; }
 // Probabilité que la douane d'un port trouve le colis lors d'une escale.
-export function detectionChance(ship, port) {
-  return customsLevel(PORTS[port].flag) * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal') * skillConceal(ship);
+// home : port d'attache du propriétaire (port de l'ombre : la douane y regarde ailleurs).
+export function detectionChance(ship, port, home = null) {
+  const k = home === port && homeKind(port) === 'ombre' ? HOME.customs : 1;
+  return k * customsLevel(PORTS[port].flag) * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal') * skillConceal(ship);
 }
 export const seizureFine = (pay) => Math.max(500000, pay * 3);
 
@@ -82,7 +85,8 @@ export function refreshOffers(state, ctx, rng) {
   state.offers = (state.offers || []).filter((o) => o.expires > state.t);
   for (const p of SHADY_PORTS) {
     const n = state.offers.filter((o) => o.from === p).length;
-    if (n < 2 && rng.chance(n ? 0.15 : 0.4)) {
+    const cap = state.companies.some((c) => shadowHome(c, p)) ? HOME.parcels : 2; // plus de colis au port de l'ombre d'une compagnie
+    if (n < cap && rng.chance(n ? 0.15 : 0.4)) {
       const o = makeOffer(state, ctx, rng, p);
       if (o) state.offers.push(o);
     }
@@ -150,7 +154,8 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
     return { late: true };
   }
   // Un navire dénoncé par un concurrent est fouillé presque à coup sûr.
-  if (rng.chance(tipped(state, ship) ? Math.max(TIP_DETECT, detectionChance(ship, port)) : detectionChance(ship, port))) {
+  const home = homeOf(state, ship);
+  if (rng.chance(tipped(state, ship) ? Math.max(TIP_DETECT, detectionChance(ship, port, home)) : detectionChance(ship, port, home))) {
     ship.contraband = null;
     const fine = seizureFine(cb.pay);
     tipReward(state, ship, fine);

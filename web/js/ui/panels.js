@@ -1,4 +1,6 @@
 // Panneaux : flotte, port, courtier, bureau, marchés, journal, aide.
+import { homeBonusBox } from './homebonus.js';
+import { homeKind } from '../sim/home.js';
 import { tr } from '../i18n.js';
 import { codexPanel } from './codex.js';
 import { jukeboxDialog } from './jukebox.js';
@@ -479,6 +481,7 @@ function companyTab(app) {
     stat('Aide aux navires neufs', F.subsidy ? pct(F.subsidy * 100) : 'aucune'),
     stat('Qualité du registre', `${F.rating}/100`),
   ]));
+  box.append(homeBonusBox(c.homePort, c)); // avantage du port d'attache
   // Réputation = la plus basse des deux notes (core.js).
   standing(c);
   const lim = repLimit(c);
@@ -499,7 +502,10 @@ function companyTab(app) {
   box.append(h('h3', 'Changer de port d\'attache'));
   const cost = act.relocateCost(state, c.id);
   box.append(h('p.hint', `Transférer le siège change le pavillon de toute la flotte (impôts, salaires, crédit). Coût : ${money(cost)}.`));
-  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, PORT_IDS.filter((p) => p !== c.homePort).map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}`)));
+  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, PORT_IDS.filter((p) => p !== c.homePort).map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}${homeKind(p) === 'ombre' ? ' · 🏴 port de l\'ombre' : homeKind(p) === 'place' ? ' · 🏦 place financière' : ''}`)));
+  const preview = h('div', homeBonusBox(sel0(), null));
+  function sel0() { return PORT_IDS.find((p) => p !== c.homePort); }
+  sel.addEventListener('change', () => preview.replaceChildren(homeBonusBox(sel.value, null)));
   box.append(h('div.inline', [sel, h('button.btn', { onclick: async () => {
     const p = sel.value;
     const nf = FLAGS[PORTS[p].flag];
@@ -507,6 +513,7 @@ function companyTab(app) {
       app.act(() => act.relocate(state, c.id, p));
     }
   } }, 'Déménager')]));
+  box.append(preview); // l'avantage du port choisi, avant de déménager
   return box;
 }
 

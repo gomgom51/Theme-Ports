@@ -593,6 +593,19 @@ export class MapView {
       g.fill();
     }
 
+    // Ports d'attache : un anneau aux couleurs de chaque compagnie (où sont basés les concurrents),
+    // et une épingle « siège » au-dessus du vôtre, visible à toutes les échelles.
+    for (const co of state.companies) {
+      const P = PORTS[co.homePort];
+      if (co.bankrupt || !P) continue;
+      const [x, y] = this.toScreen(P.lon, P.lat);
+      if (x < -30 || x > this.w + 30 || y < -40 || y > this.h + 20) continue;
+      const mine = co.id === ui.activeCompany, r = 2 + P.size * 0.55 + Math.min(2, scale / 12);
+      g.beginPath(); g.arc(x, y, r + (mine ? 7 : 5.5), 0, Math.PI * 2);
+      g.lineWidth = mine ? 3 : 1.8; g.strokeStyle = co.color; g.stroke();
+      if (mine) this.homePin(g, x, y - r - 4, co.color);
+    }
+
     // Tempêtes : vues du ciel, elles tournent doucement (même à l'arrêt, pour l'œil).
     const spin = performance.now() / 1000;
     for (const s of state.storms) {
@@ -927,6 +940,30 @@ export class MapView {
     // Force (et nom quand la place le permet), sous le centre pour laisser voir l'œil.
     const text = r >= 46 ? `${tr(s.name)} · ${s.force}` : String(s.force);
     this.badge(g, x, y + Math.min(r * 0.6, core + 16), text, `rgb(${hue})`);
+  }
+
+  // Épingle du siège : pointe sur le port, tête ronde aux couleurs de la compagnie, maison blanche.
+  homePin(g, x, tipY, color) {
+    const R = 11.5, cy = tipY - 18;
+    const shape = () => {
+      g.beginPath();
+      g.moveTo(x, tipY);
+      g.quadraticCurveTo(x - 5, cy + R * 0.7, x - R, cy);
+      g.arc(x, cy, R, Math.PI, 0);
+      g.quadraticCurveTo(x + 5, cy + R * 0.7, x, tipY);
+      g.closePath();
+    };
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowBlur = 4; g.shadowOffsetY = 1.5;
+    shape(); g.fillStyle = color; g.fill();
+    g.shadowColor = 'transparent';
+    g.lineWidth = 4; g.strokeStyle = 'rgba(28,42,51,0.85)'; g.stroke(); // contour sombre : se détache même d'un port rouge
+    g.lineWidth = 2; g.strokeStyle = '#fff'; g.stroke();
+    g.fillStyle = '#fff';
+    g.beginPath(); g.moveTo(x - 7, cy + 0.5); g.lineTo(x, cy - 6.5); g.lineTo(x + 7, cy + 0.5); g.closePath(); g.fill(); // toit
+    g.fillRect(x - 4.6, cy + 0.5, 9.2, 6); // murs
+    g.fillStyle = color; g.fillRect(x - 1.4, cy + 2.4, 2.8, 4.1); // porte
+    g.restore();
   }
 
   badge(g, x, y, text, color, size = 11) {
