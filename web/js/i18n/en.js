@@ -2531,4 +2531,5 @@ export default {
   "⏹ Musique de la partie": "⏹ Back to game music",
   "Les glaces reviennent : {0} ports saisonniers sur {1} sont fermés jusqu'au printemps. Un navire encore à quai devra payer un brise-glace pour en sortir ; les dates de chaque port sont sur sa fiche.": "The ice is back: {0} of {1} seasonal ports are closed until spring. A ship still at the quay will need an icebreaker to get out; each port's dates are on its page.",
   "Le dégel : {0} ports saisonniers sur {1} ont rouvert pour l'été. Les dates du retour des glaces sont sur la fiche de chaque port.": "The thaw: {0} of {1} seasonal ports have reopened for the summer. The dates the ice returns are on each port's page.",
+  "Oust-Louga": "Ust-Luga",
 };

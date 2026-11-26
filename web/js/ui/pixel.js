@@ -1,6 +1,19 @@
 // Boîte à outils du pixel art des scènes : trame, mer, ciel, personnages, navires, engins.
 // Tout est dessiné dans le code, sur une toile de 200 × 112 affichée en pixels nets.
 
+// Safari avant la 16 n'a pas roundRect sur le canvas : repli simple (un seul rayon), sinon la scène
+// des records s'arrêtait sur une erreur.
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function roundRect(x, y, w, h, r = 0) {
+    const rad = Math.max(0, Math.min(typeof r === 'number' ? r : (r?.[0] ?? 0), Math.abs(w) / 2, Math.abs(h) / 2));
+    this.moveTo(x + rad, y);
+    this.arcTo(x + w, y, x + w, y + h, rad);
+    this.arcTo(x + w, y + h, x, y + h, rad);
+    this.arcTo(x, y + h, x, y, rad);
+    this.arcTo(x, y, x + w, y, rad);
+    this.closePath();
+  };
+}
 export const W = 200, H = 112;
 export const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 export const hash = (a, b) => {

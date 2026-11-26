@@ -113,6 +113,7 @@ function lookupCore(t, depth) {
 // (au plus six mots, chacun avec une majuscule ou un petit mot de liaison : « Étoile du Nord », « Vent d'Ouest »).
 const LINK = /^(de|du|des|la|le|les|et|of|the|and|van|von|da|do|di|y)$/i;
 const looksLikeName = (g) => {
+  if (/,\s/.test(g)) return false; // « Mourmansk, Gênes » : une liste de noms, traduite un à un
   const w = g.trim().split(/\s+/);
   return w.length <= 6 && /^[A-ZÀ-ÖØ-Þ]/.test(w[0]) && w.every((x) => /^[A-ZÀ-ÖØ-Þ0-9]/.test(x) || LINK.test(x) || /^[dl]['’][A-ZÀ-ÖØ-Þ]/.test(x));
 };
@@ -165,7 +166,8 @@ function bySeparator(t, sep, depth) {
 // Plusieurs phrases collées (« Abordage : … Immobilisé 1.5 j. Coût : … ») : chacune à part,
 // en essayant d'abord jusqu'à trois phrases ensemble (« Incendie… ! L'équipage… »).
 function bySentence(t, depth) {
-  const s = t.split(/(?<=[.!?…])\s+(?=\S)/);
+  // Sans « lookbehind » (?<=…) : Safari ne le comprend qu'à partir de la 16.4, et l'erreur empêchait le jeu de charger.
+  const s = t.replace(/([.!?…])\s+(?=\S)/g, '$1\u0000').split('\u0000');
   if (s.length < 2) return null;
   const out = [];
   let changed = false;

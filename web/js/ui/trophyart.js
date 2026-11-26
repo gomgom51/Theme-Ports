@@ -228,7 +228,7 @@ export const DEED_ART = {
     <path d="M8.6 6 v15.6" stroke="#3a4f86" stroke-width=".5" opacity=".6"/></g>`,
 };
 // Contenu du disque d'une médaille : le dessin s'il existe, sinon l'émoji du haut fait.
-export const deedIcon = (id, emoji) => (Object.hasOwn(DEED_ART, id) ? `<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">${DEED_ART[id]()}</svg>` : emoji);
+export const deedIcon = (id, emoji) => (Object.prototype.hasOwnProperty.call(DEED_ART, id) ? `<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">${DEED_ART[id]()}</svg>` : emoji);
 
 export function honourSVG(kind, id, { size = 64, dim = false } = {}) {
   const art = (kind === 'evil' ? GRIM_ART : TROPHY_ART)[id];
