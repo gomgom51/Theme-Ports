@@ -202,6 +202,10 @@ tests/               tests des routes et de la simulation
 
 ## Crédits
 
+Conception, règles du jeu et direction : Clement Gomes. Développement (programmation, illustrations,
+scènes animées, textes, équilibrage) : Claude (Anthropic). Musique : Suno. Tests : les testeurs
+insomniaques de la Galaxie.
+
 Carte : [Natural Earth](https://www.naturalearthdata.com/) (domaine public), via
 le paquet `world-atlas` ; noms des pays : paquet `i18n-iso-countries`.
 Police des titres : Libre Baskerville (licence SIL OFL, voir `web/fonts/`).

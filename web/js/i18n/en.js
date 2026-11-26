@@ -2487,4 +2487,9 @@ export default {
   "{0} Victoire : {1} — {2}": "{0} Victory: {1} — {2}",
   "{0} l'emporte": "{0} wins",
   "🎬 Générique": "🎬 Credits",
+  "Développement": "Development",
+  "programmation, illustrations, scènes animées, textes et équilibrage": "programming, art, animated scenes, writing and balancing",
+  "toutes les chansons du jeu": "every song in the game",
+  "Tests": "Testing",
+  "Les testeurs insomniaques de la Galaxie": "The sleepless testers from the Galaxy",
 };

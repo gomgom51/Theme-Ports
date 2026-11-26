@@ -6,14 +6,14 @@ import { SCENES } from './scenes.js';
 import { W, H } from './pixel.js';
 import { LOGOS, logoBadge } from './logos.js';
 
-// Le nom affiché pour l'auteur (à remplacer par le nom ou le pseudonyme choisi).
-export const AUTHOR = 'L\'auteur du jeu';
+// L'auteur du jeu (nom choisi par lui pour le générique).
+export const AUTHOR = 'Clement Gomes';
 
 // Sections du générique : [titre, lignes]. Une ligne peut être [texte, détail en petit].
 const SECTIONS = [
   ['Conception, règles du jeu et direction', [AUTHOR]],
-  ['Programmation, illustrations et textes', ['Claude (Anthropic), sous la direction de l\'auteur']],
-  ['Musique', [['Chansons originales', 'de l\'auteur, créées avec Suno'], ['Chanson du générique', '« Port d\'attache »']]],
+  ['Développement', [['Claude (Anthropic)', 'programmation, illustrations, scènes animées, textes et équilibrage']]],
+  ['Musique', [['Suno', 'toutes les chansons du jeu'], ['Chanson du générique', '« Port d\'attache »']]],
   ['Bruitages', [
     ['Pompe à carburant', '« basement water pump », freesound_community'],
     ['Cloche', '« opening bell », u_7xr5ffk4oq'],
@@ -26,7 +26,7 @@ const SECTIONS = [
   ]],
   ['Carte', [['Natural Earth', 'domaine public, via world-atlas'], ['Noms des pays', 'i18n-iso-countries']]],
   ['Police des titres', [['Libre Baskerville', 'SIL Open Font License']]],
-  ['Merci', ['Aux joueuses et aux joueurs des premières traversées, pour leurs retours.']],
+  ['Tests', ['Les testeurs insomniaques de la Galaxie']],
   ['', ['Aucun pétrolier n\'a été coulé pendant le tournage.', 'Toute ressemblance avec des armateurs existants serait purement fortuite.']],
 ];
 
