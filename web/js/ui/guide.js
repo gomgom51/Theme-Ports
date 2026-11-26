@@ -120,7 +120,7 @@ const STEPS = [
     done: (app) => app.speed > 0,
     show: () => {
       const b = shown($('.speed [data-speed="1"]'));
-      return b && { el: b, text: 'Lancez le temps avec ▶ (▶▶ et ▶▶▶ vont plus vite). Le jeu se met en pause tout seul quand un navire a besoin de vous.' };
+      return b && { el: b, text: 'Lancez le temps avec ▶ (▶▶ et ▶▶▶ vont plus vite). Le jeu se met en pause tout seul quand un navire a besoin de vous, et repart à la vitesse par défaut (menu ☰) dès que le dernier a ses ordres.' };
     },
   },
   {
@@ -138,6 +138,15 @@ const STEPS = [
     },
   },
   {
+    id: 'bulles', title: 'Les explications', after: ['mer'], ok: true,
+    when: () => !dialogOpen(),
+    done: () => false,
+    show: () => {
+      const el = shown($('#hud-rep')) || shown($('#hud-menu'));
+      return el ? { el, text: 'Presque tout s\'explique : survolez un bouton, un chiffre ou une icône pour voir une info-bulle. Sur téléphone ou tablette, gardez le doigt appuyé dessus.' } : 'skip';
+    },
+  },
+  {
     id: 'ordres', title: 'En attente d\'ordres', after: ['contrat'], ok: true,
     when: (app) => company(app).delivered > 0 && !!idleShip(app),
     done: (app) => !idleShip(app),
@@ -146,7 +155,7 @@ const STEPS = [
       if (!ship) return null;
       if (panelIs(app, 'ship', ship.id)) {
         const el = shipTab(app) === 'contrats' ? inPanel('.card.contract:not(.disabled) [data-guide="accept"]') || inPanel('.tabs [data-tab="contrats"]') : inPanel('.tabs [data-tab="contrats"]');
-        return el && { el, text: `Le ${ship.name} attend vos ordres : le jeu s'est mis en pause. Prenez un nouveau contrat, ou partez à vide vers un port mieux fourni (onglet « Appareiller »).` };
+        return el && { el, text: `Le ${ship.name} attend vos ordres : le jeu s'est mis en pause. Prenez un nouveau contrat, ou partez à vide vers un port mieux fourni (onglet « Appareiller ») : le temps repartira tout seul.` };
       }
       const f = rail('fleet');
       return f && { el: f, text: `Le ${ship.name} attend vos ordres : le jeu s'est mis en pause. Ouvrez-le (🚢 Flotte, ou sur la carte) pour lui donner un nouveau contrat.` };
