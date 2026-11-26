@@ -1,4 +1,5 @@
 // Fiche d'un navire : contrats, négoce, escale, départ, voyage en cours, journal.
+import { eggFor } from '../data/eggs.js';
 import { searchText } from './panels.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
@@ -191,7 +192,9 @@ export function shipPanel(app, id, tab) {
     headerActions: [
       h('button.icon-btn', { title: 'Renommer', 'aria-label': 'Renommer', onclick: async () => {
         const n = await promptBox('Renommer le navire', ship.name);
-        if (n) app.act(() => act.renameShip(state, ship.id, n));
+        if (!n || !app.act(() => act.renameShip(state, ship.id, n))?.ok) return;
+        const egg = eggFor(n); // œuf de Pâques : ce nom cache un son (data/eggs.js)
+        if (egg?.on.includes('rename')) { app.audio.playEgg(egg); if (egg.toast) app.toast(`✨ ${egg.toast}`, { timeout: 5000 }); }
       } }, '✎'),
       h('button.icon-btn', { title: 'Centrer sur la carte', 'aria-label': 'Centrer sur la carte', onclick: () => app.focusShip(ship.id) }, '◎'),
     ],

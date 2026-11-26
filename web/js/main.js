@@ -700,7 +700,7 @@ function handleNotes(notes) {
       }, () => app.state.settings.autoPause);
       continue;
     }
-    if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive');
+    if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive', n.shipId != null ? shipById(app.state, n.shipId) : null);
     if (n.noFuelCash) app.audio.play('nofuel'); // départ programmé impossible : pas de quoi payer le plein
     if (n.kind === 'sunk') app.audio.play('sunk');
     // Scène illustrée : naufrage, marée noire, détention ou saisie, banquier, et tempête quand

@@ -1,6 +1,7 @@
 // Gestion du son : ambiance du port (écran d'accueil), ambiance marine (en jeu) et
 // bruitages liés aux actions. Le son démarre au premier toucher ou clic, comme
 // l'exigent les navigateurs.
+import { eggFor } from '../data/eggs.js';
 import * as S from './sounds.js';
 import { SHIP_TYPES } from '../data/ships.js';
 
@@ -106,6 +107,7 @@ function markHeard(name) {
   } catch { /* stockage indisponible */ }
 }
 export const trackSrc = (name) => TRACKS[name]?.src || null;
+const EGG_SYNTH = { sonar: S.sonar, ghost: S.ghost, fanfare: S.fanfare };
 
 export class AudioManager {
   constructor() {
@@ -217,6 +219,28 @@ export class AudioManager {
       .then((b) => this.ctx.decodeAudioData(b)).then((buf) => { this.buffers[name] = buf; }).catch(() => this.hornMissing.add(name));
   }
 
+  // Œuf de Pâques (data/eggs.js) : sons/oeufs/<file>.mp3 s'il existe (chargé à la première fois),
+  // sinon son synthétisé de secours. `delay` : secondes avant de jouer (après la corne).
+  async playEgg(egg, delay = 0) {
+    const c = this.ctx;
+    if (!egg || !c || !this.settings.sfx || c.state !== 'running') return;
+    this.buffers ??= {};
+    this.eggMissing ??= new Set();
+    const name = `oeuf-${egg.id}`;
+    if (egg.file && !this.buffers[name] && !this.eggMissing.has(name)) {
+      try {
+        const res = await fetch(`sons/oeufs/${egg.file}.mp3`);
+        if (!res.ok) throw new Error('absent');
+        this.buffers[name] = await c.decodeAudioData(await res.arrayBuffer());
+      } catch { this.eggMissing.add(name); }
+    }
+    const go = () => {
+      if (this.buffers[name]) this.playSample(name, { gain: 0.8, fadeOut: 0.3 });
+      else EGG_SYNTH[egg.synth]?.(c, this.sfxBus, c.currentTime + 0.03, { reverb: this.reverb });
+    };
+    if (delay > 0) setTimeout(go, delay * 1000); else go();
+  }
+
   // Son d'une scène d'événement, chargé à la demande.
   async playScene(kind) {
     const c = this.ctx, name = `scene-${kind}`;
@@ -290,11 +314,16 @@ export class AudioManager {
       // arg : le navire qui appareille (sa famille, et sa hauteur à lui).
       const fam = arg ? hornFamily(arg.type) : 'cargo';
       const pitch = arg ? hornPitch(arg.type, arg.id) : 1;
+      const egg = arg ? eggFor(arg.name) : null; // œuf de Pâques : un nom de navire qui a son son
+      if (egg?.on.includes('depart') && egg.replaceHorn) { this.playEgg(egg); return; }
       const len = this.playHorn(fam, pitch, t, arg ? HORN_SPECIAL[arg.type] : null);
       S.chain(c, out, t + len + 0.2, { gain: 0.12, dur: 0.7, pan: 0.3 });
+      if (egg?.on.includes('depart')) this.playEgg(egg, len + 0.5);
     } else if (name === 'arrive') {
       S.gull(c, out, t, { calls: 3, pan: -0.3, distance: 0.25, gain: 0.2 });
       S.slap(c, out, t + 0.4, { gain: 0.2 });
+      const egg = arg ? eggFor(arg.name) : null;
+      if (egg?.on.includes('arrive')) this.playEgg(egg, 0.9);
     } else if (name === 'pause') {
       // Le temps s'arrête : trois coups de cloche.
       this.playSample('bell', { gain: 0.5, fadeOut: 0.2 });

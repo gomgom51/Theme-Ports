@@ -461,3 +461,48 @@ export function standingCue(ctx, out, t, { kind = 'trust', up = true, gain = 0.1
   }
 }
 
+
+// ---------- Œufs de Pâques (sons de secours, sans fichier) ----------
+// Sonar : un « ping » clair qui s'éteint dans l'eau, puis son écho.
+export function sonar(ctx, out, t, { gain = 0.22, reverb = null } = {}) {
+  for (const [dt, g] of [[0, 1], [0.95, 0.35]]) {
+    const o = ctx.createOscillator(), e = envelope(ctx, t + dt, { attack: 0.004, decay: 1.6, peak: gain * g });
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1180, t + dt);
+    o.frequency.exponentialRampToValueAtTime(1120, t + dt + 1.6);
+    o.connect(e).connect(out);
+    if (reverb) e.connect(reverb);
+    o.start(t + dt); o.stop(t + dt + 1.8);
+  }
+}
+// Fantôme : un accord mineur qui gonfle et tremble, dans le vent.
+export function ghost(ctx, out, t, { gain = 0.12, reverb = null } = {}) {
+  const dur = 3.2;
+  for (const f of [220, 261.6, 329.6, 440 * 1.003]) {
+    const o = ctx.createOscillator(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = f;
+    lfo.frequency.value = 5 + Math.random() * 1.5; lg.gain.value = f * 0.012;
+    lfo.connect(lg).connect(o.frequency);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain / 3, t + 1.1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(out);
+    if (reverb) g.connect(reverb);
+    o.start(t); lfo.start(t); o.stop(t + dur + 0.1); lfo.stop(t + dur + 0.1);
+  }
+  const n = noiseSource(ctx, 'pink', t, dur), bp = ctx.createBiquadFilter(), ng = ctx.createGain();
+  bp.type = 'bandpass'; bp.frequency.setValueAtTime(500, t); bp.frequency.linearRampToValueAtTime(900, t + dur); bp.Q.value = 2;
+  ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(gain * 0.5, t + 1.4); ng.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  n.connect(bp).connect(ng).connect(out);
+}
+// Fanfare : trois notes montantes, brèves et joyeuses.
+export function fanfare(ctx, out, t, { gain = 0.14, reverb = null } = {}) {
+  [523.3, 659.3, 784, 1046.5].forEach((f, i) => {
+    const o = ctx.createOscillator(), e = envelope(ctx, t + i * 0.13, { attack: 0.01, hold: i === 3 ? 0.25 : 0.05, decay: i === 3 ? 0.6 : 0.12, peak: gain });
+    o.type = 'square'; o.frequency.value = f;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600;
+    o.connect(lp).connect(e).connect(out);
+    if (reverb) e.connect(reverb);
+    o.start(t + i * 0.13); o.stop(t + i * 0.13 + 1);
+  });
+}
