@@ -182,6 +182,16 @@ const STEPS = [
     },
   },
   {
+    // Premier bilan du mois : la réputation, la confiance et la vertu, en une bulle.
+    id: 'reputation', title: 'Réputation, confiance, vertu', after: ['encaisser'], ok: true,
+    when: (app) => !!company(app)?.standingLast,
+    done: (app) => panelIs(app, 'office') && shipTab(app) === 'compagnie',
+    show: () => {
+      const el = shown($('[data-guide="rep"]'));
+      return el && { el, text: '★ Votre réputation : la plus basse de deux notes. 🤝 La confiance (peut-on compter sur vous ?) fait tourner vos affaires : contrats, banque, rachat. 💚 La vertu (que dit la presse de vous ?) compte pour la victoire « La plus respectée » et quelques chargeurs. Touchez-la pour le détail.' };
+    },
+  },
+  {
     id: 'negoce', title: 'Le négoce', after: ['bureau'], ok: true,
     when: (app) => app.ui.panel?.type === 'ship' && !!inPanel('.tabs [data-tab="negoce"]'),
     done: (app) => app.ui.panel?.type === 'ship' && shipTab(app) === 'negoce',
@@ -191,7 +201,7 @@ const STEPS = [
     },
   },
   {
-    id: 'fin', title: 'Bon vent !', after: ['negoce'], ok: true, last: true,
+    id: 'fin', title: 'Bon vent !', after: ['negoce', 'reputation'], ok: true, last: true,
     when: () => true,
     done: () => false,
     show: () => {
