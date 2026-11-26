@@ -478,8 +478,9 @@ async function buyDialog(app, ship, g, q, dests) {
     if (!app.act(() => act.borrow(state, company.id, need))?.ok) return;
   }
   const finance = mode === 'origin' ? { source: 'origin' } : mode === 'dest' ? { source: 'dest', dest } : null;
-  const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q, finance), { sound: 'pay' });
-  if (r?.ok) app.form.dest[ship.id] = dest;
+  const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q, finance), { sound: 'pay', refresh: false });
+  if (r?.ok) app.form.dest[ship.id] = dest; // destination prévue, choisie avant de redessiner le panneau
+  app.refresh();
 }
 
 // ---------- Équipage : expérience et spécialités ----------
@@ -770,8 +771,11 @@ function departTab(app, ship) {
         ]),
       ]),
       h('div.card-side', [est.error ? null : h('button.btn.primary', { 'data-guide': 'sail', onclick: () => {
-        const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true));
+        // Le choix de destination est effacé avant de redessiner le panneau : sinon un départ programmé
+        // (navire encore en chargement) laissait la carte « Cap sur… » affichée jusqu'au clic suivant.
+        const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true), { refresh: false });
         if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; app.hoverRoute(null); app.setPreview(null); }
+        app.refresh();
       } }, 'Appareiller')]),
     ]));
   } else {
