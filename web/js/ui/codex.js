@@ -1,10 +1,11 @@
-// Le guide des victoires : les quatre victoires, les huit hauts faits, les huit records (trophées) et
+// Le guide des victoires : les quatre victoires, la réputation (reputation.js), les huit hauts faits, les huit records (trophées) et
 // les six méfaits, avec leurs conditions exactes (textes et seuils tirés du code : toujours à jour).
 import { h, bar, date } from './dom.js';
 import { VICTORY_KINDS, VICTORY_INFO, victoryProgress } from '../sim/victory.js';
 import { DEEDS, DEED_IDS, RECORDS, RECORD_IDS, EVIL, EVIL_IDS, recordHolder, hon } from '../sim/honours.js';
 import { honourSVG, deedIcon } from './trophyart.js';
 import { holderLine, recordProgress } from './victory.js';
+import { reputationGuide } from './reputation.js';
 
 const card = (art, name, text, extra = null, cls = '') => h('div.codex-card', { class: cls }, [art, h('div.grow', [h('b', name), h('div.small', text), extra])]);
 const medal = (id) => h('span.deed-medal', [h('span.deed-ribbon'), h('span.deed-disc', { html: deedIcon(id, DEEDS[id].icon) })]);
@@ -13,12 +14,12 @@ const trophy = (kind, id) => h('div.codex-art', { html: honourSVG(kind, id, { si
 function victoriesList(app) {
   const { state } = app;
   return h('div', [
-    h('p.hint', 'Si personne ne gagne avant la fin du temps imparti, la compagnie la plus riche l\'emporte. Mais quatre victoires peuvent finir la partie plus tôt. Chacun voit la progression de tous (Bureau → Victoires) et tout le monde est prévenu à 75 % puis à 90 % d\'une victoire.'),
+    h('p.hint', 'Si personne ne gagne avant la fin du temps imparti, la compagnie la plus riche l\'emporte. Mais quatre victoires peuvent finir la partie plus tôt. Chacun voit la progression de tous (icônes ⚓ ★ 🏆 🗡 sous les boutons de droite) et tout le monde est prévenu à 75 % puis à 90 % d\'une victoire.'),
     h('div.codex-list', VICTORY_KINDS.map((k) => {
       const V = VICTORY_INFO[k], off = state.settings?.victories?.[k] === false;
-      if (off) return card(h('div.codex-icon', V.icon), V.name, V.text, h('div.small.muted', 'Désactivée dans cette partie.'), 'off');
+      if (off) return card(h('div.codex-icon', { class: k === 'reputation' ? 'star' : '' }, V.icon), V.name, V.text, h('div.small.muted', 'Désactivée dans cette partie.'), 'off');
       const p = victoryProgress(state, app.company(), k);
-      return card(h('div.codex-icon', V.icon), V.name, V.text, h('div', [bar(p.frac), h('div.small.muted', `Vous : ${Math.round(p.frac * 100)} % du chemin`)]));
+      return card(h('div.codex-icon', { class: k === 'reputation' ? 'star' : '' }, V.icon), V.name, V.text, h('div', [bar(p.frac), h('div.small.muted', `Vous : ${Math.round(p.frac * 100)} % du chemin`)]));
     })),
   ]);
 }
@@ -47,9 +48,10 @@ function recordsList(app, kind) {
 
 export function codexPanel(app, id, tab) {
   return {
-    title: 'Victoires, hauts faits, trophées et méfaits',
+    title: 'Victoires, réputation, hauts faits, trophées et méfaits',
     tabs: [
       ['victoires', 'Victoires', () => victoriesList(app)],
+      ['reputation', 'Réputation', () => reputationGuide(app)],
       ['hauts-faits', 'Hauts faits', () => deedsList(app)],
       ['trophees', 'Trophées', () => recordsList(app, 'record')],
       ['mefaits', 'Méfaits', () => recordsList(app, 'evil')],

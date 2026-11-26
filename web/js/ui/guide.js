@@ -120,7 +120,7 @@ const STEPS = [
     done: (app) => app.speed > 0,
     show: () => {
       const b = shown($('.speed [data-speed="1"]'));
-      return b && { el: b, text: 'Lancez le temps avec ▶ (▶▶ et ▶▶▶ vont plus vite). Le jeu se met en pause tout seul quand un navire a besoin de vous.' };
+      return b && { el: b, text: 'Lancez le temps avec ▶ (▶▶ et ▶▶▶ vont plus vite). Le jeu se met en pause tout seul quand un navire a besoin de vous, et repart à la vitesse par défaut (menu ☰) dès que le dernier a ses ordres.' };
     },
   },
   {
@@ -138,6 +138,15 @@ const STEPS = [
     },
   },
   {
+    id: 'bulles', title: 'Les explications', after: ['mer'], ok: true,
+    when: () => !dialogOpen(),
+    done: () => false,
+    show: () => {
+      const el = shown($('#hud-rep')) || shown($('#hud-menu'));
+      return el ? { el, text: 'Presque tout s\'explique : survolez un bouton, un chiffre ou une icône pour voir une info-bulle. Sur téléphone ou tablette, gardez le doigt appuyé dessus.' } : 'skip';
+    },
+  },
+  {
     id: 'ordres', title: 'En attente d\'ordres', after: ['contrat'], ok: true,
     when: (app) => company(app).delivered > 0 && !!idleShip(app),
     done: (app) => !idleShip(app),
@@ -146,7 +155,7 @@ const STEPS = [
       if (!ship) return null;
       if (panelIs(app, 'ship', ship.id)) {
         const el = shipTab(app) === 'contrats' ? inPanel('.card.contract:not(.disabled) [data-guide="accept"]') || inPanel('.tabs [data-tab="contrats"]') : inPanel('.tabs [data-tab="contrats"]');
-        return el && { el, text: `Le ${ship.name} attend vos ordres : le jeu s'est mis en pause. Prenez un nouveau contrat, ou partez à vide vers un port mieux fourni (onglet « Appareiller »).` };
+        return el && { el, text: `Le ${ship.name} attend vos ordres : le jeu s'est mis en pause. Prenez un nouveau contrat, ou partez à vide vers un port mieux fourni (onglet « Appareiller ») : le temps repartira tout seul.` };
       }
       const f = rail('fleet');
       return f && { el: f, text: `Le ${ship.name} attend vos ordres : le jeu s'est mis en pause. Ouvrez-le (🚢 Flotte, ou sur la carte) pour lui donner un nouveau contrat.` };
@@ -182,6 +191,16 @@ const STEPS = [
     },
   },
   {
+    // Premier bilan du mois : la réputation, la confiance et la vertu, en une bulle.
+    id: 'reputation', title: 'Réputation, confiance, vertu', after: ['encaisser'], ok: true,
+    when: (app) => !!company(app)?.standingLast,
+    done: (app) => panelIs(app, 'office') && shipTab(app) === 'compagnie',
+    show: () => {
+      const el = shown($('[data-guide="rep"]'));
+      return el && { el, text: '★ Votre réputation : la plus basse de deux notes. 🤝 La confiance (peut-on compter sur vous ?) fait tourner vos affaires : contrats, banque, rachat. 💚 La vertu (que dit la presse de vous ?) compte pour la victoire « La plus respectée » et quelques chargeurs. Touchez-la pour le détail.' };
+    },
+  },
+  {
     id: 'negoce', title: 'Le négoce', after: ['bureau'], ok: true,
     when: (app) => app.ui.panel?.type === 'ship' && !!inPanel('.tabs [data-tab="negoce"]'),
     done: (app) => app.ui.panel?.type === 'ship' && shipTab(app) === 'negoce',
@@ -191,7 +210,16 @@ const STEPS = [
     },
   },
   {
-    id: 'fin', title: 'Bon vent !', after: ['negoce'], ok: true, last: true,
+    id: 'victoires', title: 'Les victoires', after: ['negoce'], ok: true,
+    when: () => true,
+    done: (app) => panelIs(app, 'victory'),
+    show: () => {
+      const v = shown($('.vic-rail'));
+      return v && { el: v, text: 'Quatre façons de gagner avant la fin : ⚓ racheter ou ruiner tous vos concurrents, ★ la réputation parfaite, 🏆 cinq records, 🗡 la flotte fantôme. L\'anneau montre où vous en êtes, un point rouge un concurrent qui approche du but. Touchez une icône pour voir la course.' };
+    },
+  },
+  {
+    id: 'fin', title: 'Bon vent !', after: ['victoires', 'reputation'], ok: true, last: true,
     when: () => true,
     done: () => false,
     show: () => {

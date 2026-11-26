@@ -35,10 +35,18 @@ import { darkOfferDialog, seizedDialog } from './ui/dark.js';
 import { bidDialog } from './ui/rivals.js';
 import { recordsHeld, RECORDS, EVIL } from './sim/honours.js';
 import { honourSVG } from './ui/trophyart.js';
-import { VICTORY, VICTORY_KINDS, victoryOn, victoryProgress } from './sim/victory.js';
+import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
+import { initTooltips } from './ui/tooltip.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
+// Vitesse par défaut, choisie par le joueur (menu ☰) et gardée sur l'appareil : c'est à elle que
+// le temps repart, quelle que soit la cause (fenêtre fermée, Espace, dernier navire qui reçoit ses ordres).
+const SPEED_KEY = 'port-dattache-speed';
+function defaultSpeed() {
+  try { const v = +localStorage.getItem(SPEED_KEY); return v >= 1 && v <= 3 ? v : 1; } catch { return 1; }
+}
+function setDefaultSpeed(v) { try { localStorage.setItem(SPEED_KEY, String(v)); } catch { /* stockage indisponible */ } }
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
 const INCIDENT_SCENES = { incendie: 'fire', abordage: 'collision', echouement: 'grounding', voie_eau: 'leak', machine: 'breakdown', froid: 'reefer', gros_temps: 'storm' };
@@ -239,11 +247,36 @@ function updateStandings(s, me) {
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
     // Réputation (la plus basse des deux), confiance et vertu : la plus basse en rouge.
     r.company.bankrupt ? null : h('span.standings-rep', { title: 'Réputation (la plus basse des deux) · confiance · vertu' }, [
-      h('span', `★${Math.floor(r.company.reputation)}`), ' ',
+      h('span', [h('span.star', '★'), `${Math.floor(r.company.reputation)}`]), ' ',
       h('span', { class: repLimit(r.company) === 'trust' ? 'low' : '' }, `🤝${Math.floor(r.company.confidence)}`), ' ',
       h('span', { class: repLimit(r.company) === 'virtue' ? 'low' : '' }, `💚${Math.floor(r.company.virtue)}`),
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
+}
+// Icônes de victoire (sous les boutons latéraux) : l'anneau suit votre progression (orange à 75 %,
+// rouge à 90 %), le point rouge signale un concurrent à 75 % ou plus. Recalculé une fois par jour de jeu.
+function updateVictoryRail(s, c) {
+  const key = `${c.id}:${Math.floor(s.t / 24)}:${s.victoryClaimed ? 1 : 0}:${getLang()}`;
+  const rail = $('.vic-rail');
+  if (!rail || rail.dataset.key === key) return;
+  rail.dataset.key = key;
+  for (const b of rail.querySelectorAll('[data-victory]')) {
+    const k = b.dataset.victory, info = VICTORY_INFO[k];
+    const on = victoryOn(s, k);
+    const mine = on ? victoryProgress(s, c, k).frac : 0;
+    let rival = 0;
+    if (on) for (const o of s.companies) if (o.id !== c.id && !o.bankrupt) rival = Math.max(rival, victoryProgress(s, o, k).frac);
+    const f = Math.max(0, Math.min(1, mine));
+    b.style.setProperty('--p', `${Math.round(f * 100)}`);
+    b.classList.toggle('off', !on);
+    b.classList.toggle('warm', on && f >= VICTORY.alerts[0] && f < VICTORY.alerts[1]);
+    b.classList.toggle('hot', on && f >= VICTORY.alerts[1]);
+    b.querySelector('.vic-dot').hidden = !(on && rival >= VICTORY.alerts[0]);
+    const label = !on ? `${info.name} : ${s.victoryClaimed ? 'une victoire a déjà été remportée' : 'désactivée pour cette partie'}`
+      : `${info.name} : vous en êtes à ${Math.round(f * 100)} %, le concurrent le plus avancé à ${Math.round(Math.min(1, rival) * 100)} %`;
+    b.title = label;
+    b.setAttribute('aria-label', label);
+  }
 }
 // Niveau de la compagnie (le bureau) et ce qu'il faut pour le suivant. Un niveau atteint est
 // acquis ; seul le niveau 0 (la compagnie perd de l'argent) le fait oublier, le temps de remonter.
@@ -290,9 +323,11 @@ function musicMood(s, c) {
 }
 // Haut fait, record ou méfait : un mot, et (records, méfaits) la scène de la remise puis l'étagère.
 function honourNote(n, scenes, prefix) {
-  const open = () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); };
+  // Haut fait → « La plus respectée », record → « Compagnie légendaire », méfait → « La flotte fantôme ».
+  const [vk, vt, label] = n.kind === 'deed' ? ['reputation', 'hauts-faits', 'Hauts faits'] : n.kind === 'evil' ? ['shadow', 'mefaits', 'Méfaits'] : ['legend', 'records', 'Records'];
+  const open = () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', vk, vt); };
   app.audio.play(n.kind === 'evil' ? 'bell' : 'cash');
-  toast(prefix + n.text, { kind: n.kind === 'evil' ? 'warn' : 'money', timeout: 12000, action: 'Trophées', onAction: open });
+  toast(prefix + n.text, { kind: n.kind === 'evil' ? 'warn' : 'money', timeout: 12000, action: label, onAction: open });
   const co = app.state.companies[n.company];
   if (!scenes || n.kind === 'deed' || !co) return;
   const kind = n.kind === 'evil' ? 'evil' : 'record';
@@ -385,6 +420,7 @@ function updateHud() {
     app.audio.setMusicTier(musicStep(netWorth(s, c.id), c.level ?? 0));
     app.audio.setMusicMood(musicMood(s, c));
     updateStandings(s, c.id);
+    updateVictoryRail(s, c);
   }
   const humans = s.companies.filter((x) => x.human);
   $('#hud-company').classList.toggle('switchable', humans.length > 1);
@@ -446,6 +482,10 @@ document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('cli
   const type = b.dataset.panel;
   if (app.ui.panel?.type === type) app.close(); else app.open(type);
 }));
+document.querySelectorAll('[data-victory]').forEach((b) => b.addEventListener('click', () => {
+  const k = b.dataset.victory;
+  if (app.ui.panel?.type === 'victory' && app.ui.panel.id === k) app.close(); else app.open('victory', k);
+}));
 
 function turnBanner(company) {
   const el = h('div.turn-banner', [h('div.turn-card', [
@@ -469,7 +509,7 @@ function switchCompany(id, { banner = true } = {}) {
 // ---------- Notifications ----------
 // ---------- Scènes d'événements et fenêtres qui s'ouvrent seules ----------
 // Une petite animation (ou l'encaissement d'un contrat livré) arrête le temps ; les fenêtres
-// passent l'une après l'autre. Quand la dernière se ferme, le temps repart à vitesse 1, sauf
+// passent l'une après l'autre. Quand la dernière se ferme, le temps repart à la vitesse par défaut, sauf
 // si l'une d'elles demande de rester en pause (décision prise, navire qui attend ses ordres).
 app.sceneQueue = [];
 function popup(show, after = null) {
@@ -493,7 +533,7 @@ async function nextScene() {
   if (app.sceneQueue.length) { nextScene(); return; }
   const hold = app.sceneHold;
   app.sceneHold = false;
-  if (!hold && app.mode === 'game' && !app.state.over) app.speed = 1;
+  if (!hold && app.mode === 'game' && !app.state.over) app.speed = defaultSpeed();
 }
 const companyColor = (id) => app.state.companies[id ?? app.ui.activeCompany]?.color || '#c0392b';
 
@@ -632,7 +672,7 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'takeoverRisk') {
-      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 15000, action: 'Concurrents', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'concurrents'); } });
+      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 15000, action: 'Concurrents', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', 'domination', 'concurrents'); } });
       if (app.state.settings.autoPause) paused = true;
       continue;
     }
@@ -645,13 +685,13 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'recordLost') {
-      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 10000, action: 'Trophées', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'trophees'); } });
+      toast(prefixOf(n) + n.text, { kind: 'warn', timeout: 10000, action: n.evil ? 'Méfaits' : 'Records', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', n.evil ? 'shadow' : 'legend', n.evil ? 'mefaits' : 'records'); } });
       continue;
     }
     if (n.kind === 'victoryAlert') {
       const mine = n.about === n.company;
       app.audio.play(mine ? 'cash' : 'bell');
-      toast(prefixOf(n) + n.text, { kind: mine ? 'money' : 'warn', timeout: 15000, action: 'Victoires', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('office', null, 'victoires'); } });
+      toast(prefixOf(n) + n.text, { kind: mine ? 'money' : 'warn', timeout: 15000, action: 'Voir la course', onAction: () => { if (n.company !== app.ui.activeCompany) switchCompany(n.company); app.open('victory', n.victory, 'course'); } });
       if (!mine && app.state.settings.autoPause) paused = true;
       continue;
     }
@@ -773,6 +813,20 @@ function timeSounds() {
   app.audio.play(sp === 0 ? 'pause' : 'time', sp);
 }
 
+// ---------- Plus aucun navire en attente : le temps repart ----------
+// Quand le joueur donne ses ordres au dernier navire qui attendait (temps arrêté), le temps
+// repart à la vitesse par défaut. Si une fenêtre est ouverte, on attend qu'elle se ferme.
+function autoResume() {
+  if (app.mode !== 'game' || !app.state || app.state.over) { app.idleSeen = null; return; }
+  const s = app.state;
+  const idle = s.companies.filter((c) => c.human && !c.bankrupt).reduce((n, c) => n + shipsOf(s, c.id).filter(isIdle).length, 0);
+  const blocked = app.sceneQueue.length > 0 || !!document.querySelector('.dialog-wrap');
+  if (app.speed > 0 || app.idleSeen == null) { app.idleSeen = idle; return; }
+  if (blocked) { if (idle > app.idleSeen) app.idleSeen = idle; return; } // on garde « il y en avait » jusqu'à la fermeture
+  if (app.idleSeen > 0 && idle === 0) app.setSpeed(defaultSpeed());
+  app.idleSeen = idle;
+}
+
 // ---------- Boucle principale ----------
 let last = performance.now(), acc = 0, lastRefresh = 0;
 function loop(now) {
@@ -800,6 +854,7 @@ function loop(now) {
     }
   }
   if (app.mode === 'game' && app.speed === 0) acc = 0;
+  autoResume();
   timeSounds();
   app.map.frame(app.mode === 'game' && app.speed > 0 ? acc : 0);
   updateHud();
@@ -814,6 +869,7 @@ function enterGame(state) {
   app.state = state;
   app.mode = 'game';
   app.speed = 0;
+  app.idleSeen = null;
   app.form = { dest: {}, speed: {}, autoRefuel: {} };
   app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
   app.map.setGame(state, ctx, app.ui);
@@ -838,6 +894,7 @@ app.newGame = (opts) => {
       body: h('div', [
         h('p', `Vous disposez de ${money(app.company().cash)} pour fonder votre empire maritime${humans.length > 1 ? ' (chaque compagnie joue à son tour quand ses navires attendent des ordres)' : ''}.`),
         h('p', 'Des bulles vont vous montrer les premiers gestes, au moment où ils servent. Vous pouvez arrêter la visite à tout moment, et la reprendre depuis le menu ☰.'),
+        h('p', 'Survolez un bouton ou un chiffre pour une explication. Sur téléphone ou tablette : gardez le doigt appuyé dessus.'),
       ]),
       buttons: [{ label: 'C\'est parti', value: true, kind: 'primary' }],
     }).then(() => {
@@ -855,7 +912,8 @@ app.newGame = (opts) => {
           ? h('li', `Achetez un premier navire chez le courtier 🏗️ : votre port est pris par les glaces, deux bateaux abordables vous attendent à ${portName(startPort(app.company().homePort))}.`)
           : h('li', 'Achetez un premier navire chez le courtier 🏗️ : deux bateaux abordables attendent dans votre port.'),
         h('li', 'Touchez votre navire puis acceptez un contrat : il chargera et partira tout seul.'),
-        h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres.'),
+        h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres, et repart tout seul quand le dernier les a reçues (vitesse par défaut : menu ☰).'),
+        h('li', 'Survolez un bouton ou un chiffre pour une explication. Sur téléphone ou tablette : gardez le doigt appuyé dessus.'),
       ]),
     ]),
     buttons: [{ label: 'Comment jouer', value: 'help', kind: 'ghost' }, { label: 'Ouvrir le courtier', value: 'broker', kind: 'primary' }],
@@ -911,6 +969,7 @@ async function gameMenu() {
       { label: 'Charger', value: 'load' },
       ...(app.canImport ? [{ label: 'Exporter un fichier', value: 'export' }] : []),
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
+      { label: `Vitesse par défaut : ${'▶'.repeat(defaultSpeed())}`, value: 'defspeed' },
       { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
       { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
       { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
@@ -933,6 +992,12 @@ async function gameMenu() {
     if (slot && (await confirmBox('Charger cette partie ?', 'La partie en cours non sauvegardée sera perdue.', 'Charger'))) app.loadSlot(slot);
   } else if (v === 'export') exportFile(app.state);
   else if (v === 'pause') { app.state.settings.autoPause = !app.state.settings.autoPause; toast(`Pause automatique ${app.state.settings.autoPause ? 'activée' : 'désactivée'}.`, { timeout: 2500 }); }
+  else if (v === 'defspeed') {
+    const next = defaultSpeed() % 3 + 1;
+    setDefaultSpeed(next);
+    toast(`Vitesse par défaut : ${next}. Le temps repartira à cette vitesse.`, { timeout: 3000 });
+    app.speed = wasSpeed;
+  }
   else if (v === 'ambience') { app.audio.setAmbience(!app.audio.settings.ambience); app.speed = wasSpeed; }
   else if (v === 'sfx') { app.audio.setSfx(!app.audio.settings.sfx); app.speed = wasSpeed; }
   else if (v === 'music') { app.audio.setMusic(!app.audio.settings.music); app.speed = wasSpeed; }
@@ -949,7 +1014,7 @@ async function gameMenu() {
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, select, textarea')) return;
   if (app.mode !== 'game') return;
-  if (e.key === ' ') { e.preventDefault(); app.setSpeed(app.speed ? 0 : 1); }
+  if (e.key === ' ') { e.preventDefault(); app.setSpeed(app.speed ? 0 : defaultSpeed()); }
   else if (e.key >= '1' && e.key <= '3') app.setSpeed(+e.key);
   else if (e.key === 'Escape') { if (document.querySelector('.dialog-wrap')) return; app.close(); }
   else if (e.key === 'Backspace' && app.ui.panel && !document.querySelector('.dialog-wrap')) { e.preventDefault(); app.back(); }
@@ -978,9 +1043,10 @@ if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'http
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-$('#standings').addEventListener('click', () => app.open('office', null, 'classement'));
+$('#standings').addEventListener('click', () => app.open('victory', 'domination', 'classement'));
 
 // ---------- Lancement ----------
+initTooltips();
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();

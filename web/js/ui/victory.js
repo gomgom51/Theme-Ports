@@ -1,5 +1,5 @@
-// Bureau → Victoires (où en est chaque compagnie sur chaque chemin) et Bureau → Trophées
-// (hauts faits, records, méfaits).
+// Une page par victoire (icônes de l'écran principal) : où en est chaque compagnie sur ce chemin,
+// et ce qui s'y rattache (hauts faits, records, méfaits ; concurrents et classement dans panels.js).
 import { h, date, money } from './dom.js';
 import { logoBadge } from './logos.js';
 import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from '../sim/victory.js';
@@ -8,6 +8,7 @@ import { repCap } from '../sim/core.js';
 import { OFFICE_TIERS } from '../data/offices.js';
 import { honourSVG, deedIcon } from './trophyart.js';
 import * as TK from '../sim/takeover.js';
+import { BLACKLIST } from '../sim/shadow.js';
 
 const D = 24;
 const badge = (c, size = 26) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
@@ -17,10 +18,16 @@ const pctTxt = (f) => `${Math.round(Math.max(0, Math.min(1, f)) * 100)} %`;
 // ---------- Victoires ----------
 // Bouton vers le guide complet (toutes les victoires, hauts faits, trophées et méfaits, et leurs conditions).
 const codexLink = (app, tab) => h('button.btn.small.codex-link', { onclick: () => app.open('codex', null, tab) }, '📖 Toutes les victoires, hauts faits, trophées et méfaits');
-export function victoriesTab(app) {
+// Victoire active (ou déjà gagnée par quelqu'un : on garde l'affichage, sans nouvelle victoire possible).
+const shownOn = (state, kind) => victoryOn(state, kind) || (state.victoryClaimed && (state.settings.victories?.[kind] ?? true));
+
+// Onglet « La course » d'une victoire : où en est chaque compagnie sur ce chemin.
+export function raceTab(app, kind) {
   const { state } = app;
   const me = app.ui.activeCompany;
   const years = state.settings.duration;
+  const info = VICTORY_INFO[kind];
+  const on = shownOn(state, kind);
   const box = h('div.victories');
   box.append(codexLink(app, 'victoires'));
   const end = years ? `La partie se termine le ${date(years * 365 * D, true)} : si personne n'a gagné d'ici là, la plus grande valeur nette l'emporte.` : 'Partie sans limite de temps : seule une victoire la termine.';
@@ -29,32 +36,41 @@ export function victoriesTab(app) {
   } else {
     box.append(h('p.muted', [end, ` Chacun voit où en sont les autres ; tout le monde est prévenu quand une compagnie atteint ${pctTxt(VICTORY.alerts[0])} puis ${pctTxt(VICTORY.alerts[1])} d'une victoire.`]));
   }
-  for (const kind of VICTORY_KINDS) {
-    const info = VICTORY_INFO[kind];
-    const on = victoryOn(state, kind) || (state.victoryClaimed && (state.settings.victories?.[kind] ?? true));
-    const card = h('div.vic-card', { class: on ? '' : 'off' }, [
-      h('div.vic-head', [h('span.vic-icon', info.icon), h('div.grow', [h('b', info.name), h('div.small.muted', info.text)]), on ? null : h('span.tag', 'désactivée')]),
-    ]);
-    if (on) {
-      const rows = state.companies.map((c) => ({ c, p: victoryProgress(state, c, kind) }))
-        .filter((x) => !x.c.bankrupt)
-        .sort((a, b) => b.p.frac - a.p.frac);
-      card.append(h('div.vic-rows', rows.map(({ c, p }) => h('div.vic-row', { class: c.id === me ? 'mine' : '' }, [
-        badge(c, 24),
-        h('div.grow', [
-          h('div.vic-line', [h('b', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctTxt(p.frac))]),
-          bar(p.frac, p.frac >= VICTORY.alerts[1] ? 'hot' : p.frac >= VICTORY.alerts[0] ? 'warm' : ''),
-          h('div.vic-parts', p.parts.map((x) => h('span.vic-part', { class: x.frac >= 1 ? 'done' : '' }, [`${x.frac >= 1 ? '✓ ' : ''}${x.label} : `, h('b', x.text)]))),
-        ]),
-      ]))));
-      if (kind === 'reputation') card.append(h('p.small.muted', [`Réputation ordinaire plafonnée à 95 ; chaque haut fait (Bureau → Trophées) relève le plafond d'un point, jusqu'à 100. Niveau ${VICTORY.repLevel + 1} : ${OFFICE_TIERS[VICTORY.repLevel].name.toLowerCase()} (${money(OFFICE_TIERS[VICTORY.repLevel].min)} de valeur nette, un niveau atteint est acquis).`, ` Une fois 100 atteint, le compte à rebours de ${VICTORY.repHoldDays} jours démarre ; sous ${VICTORY.repHoldFloor} (retards, scandale, dénigrement), il repart de zéro.`]));
-      if (kind === 'domination') card.append(h('p.small.muted', 'Un concurrent est éliminé quand il fait faillite ou que vous le rachetez (Bureau → Concurrents). Le rachat se paie comptant, sans emprunt. Quand il n\'en reste qu\'un, la victoire est en vue dès qu\'on a la moitié de son prix de rachat (75 %), puis les quatre cinquièmes (90 %).'));
-      if (kind === 'legend') card.append(h('p.small.muted', 'Les records chiffrés se battent : il suffit de faire mieux que leur détenteur pour les lui prendre (Bureau → Trophées).'));
-      if (kind === 'shadow') card.append(h('p.small.muted', `La liste noire tombe quand l'infamie atteint son maximum (affaires noires) : vous serez prévenu avant de franchir la ligne. Ses propriétaires se cachent derrière des sociétés-écrans : la démanteler coûte ${TK.TAKEOVER.dismantleK} fois sa valeur nette.`));
-    }
-    box.append(card);
+  const card = h('div.vic-card', { class: on ? '' : 'off' }, [
+    h('div.vic-head', [h('span.vic-icon', { class: kind === 'reputation' ? 'star' : '' }, info.icon), h('div.grow', [h('b', info.name), h('div.small.muted', info.text)]), on ? null : h('span.tag', 'désactivée')]),
+  ]);
+  if (on) {
+    const rows = state.companies.map((c) => ({ c, p: victoryProgress(state, c, kind) }))
+      .filter((x) => !x.c.bankrupt)
+      .sort((a, b) => b.p.frac - a.p.frac);
+    card.append(h('div.vic-rows', rows.map(({ c, p }) => h('div.vic-row', { class: c.id === me ? 'mine' : '' }, [
+      badge(c, 24),
+      h('div.grow', [
+        h('div.vic-line', [h('b', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctTxt(p.frac))]),
+        bar(p.frac, p.frac >= VICTORY.alerts[1] ? 'hot' : p.frac >= VICTORY.alerts[0] ? 'warm' : ''),
+        h('div.vic-parts', p.parts.map((x) => h('span.vic-part', { class: x.frac >= 1 ? 'done' : '' }, [`${x.frac >= 1 ? '✓ ' : ''}${x.label} : `, h('b', x.text)]))),
+      ]),
+    ]))));
+    if (kind === 'reputation') card.append(h('p.small.muted', [`Réputation ordinaire plafonnée à 95 ; chaque haut fait (onglet Hauts faits) relève le plafond d'un point, jusqu'à 100. Niveau ${VICTORY.repLevel + 1} : ${OFFICE_TIERS[VICTORY.repLevel].name.toLowerCase()} (${money(OFFICE_TIERS[VICTORY.repLevel].min)} de valeur nette, un niveau atteint est acquis).`, ` Une fois 100 atteint, le compte à rebours de ${VICTORY.repHoldDays} jours démarre ; sous ${VICTORY.repHoldFloor} (retards, scandale, dénigrement), il repart de zéro.`]));
+    if (kind === 'domination') card.append(h('p.small.muted', 'Un concurrent est éliminé quand il fait faillite ou que vous le rachetez (onglet Concurrents). Le rachat se paie comptant, sans emprunt. Quand il n\'en reste qu\'un, la victoire est en vue dès qu\'on a la moitié de son prix de rachat (75 %), puis les quatre cinquièmes (90 %).'));
+    if (kind === 'legend') card.append(h('p.small.muted', 'Les records chiffrés se battent : il suffit de faire mieux que leur détenteur pour les lui prendre (onglet Records).'));
+    if (kind === 'shadow') card.append(h('p.small.muted', `La liste noire tombe quand l'infamie atteint son maximum (affaires noires) : vous serez prévenu avant de franchir la ligne. Ses propriétaires se cachent derrière des sociétés-écrans : la démanteler coûte ${TK.TAKEOVER.dismantleK} fois sa valeur nette.`));
+  } else {
+    box.append(h('p.small.muted', 'Cette victoire est désactivée pour cette partie, mais ses autres onglets restent utiles.'));
   }
+  box.append(card);
+  if (kind === 'shadow') box.append(shadowStatus(state, state.companies[me]));
   return box;
+}
+// Où en est votre compagnie côté ombre : infamie (plafond des notes) et liste noire.
+function shadowStatus(state, c) {
+  const inf = Math.floor(c.infamy || 0);
+  return h('div.vic-shadow-status', [
+    h('h3', 'Votre compagnie'),
+    h('p', c.blacklisted ? `☠ Sur la liste noire depuis le ${date(c.blacklisted.t, true)}. Infamie : ${inf}.`
+      : inf ? `Infamie : ${inf} (la liste noire tombe à ${BLACKLIST.infamy}). Votre confiance et votre vertu ne pourront plus dépasser ${100 - Math.min(80, inf)}/100.`
+      : 'Aucune infamie : votre compagnie n\'a jamais trempé dans une affaire noire.'),
+  ]);
 }
 
 // ---------- Trophées ----------
@@ -94,7 +110,8 @@ function recordCards(app, kind) {
     ]);
   }));
 }
-export function trophiesTab(app) {
+// Hauts faits (victoire « La plus respectée »).
+export function deedsTab(app) {
   const { state } = app;
   const me = state.companies[app.ui.activeCompany];
   const H = hon(me), n = deedCount(me);
@@ -114,11 +131,19 @@ export function trophiesTab(app) {
       ]),
     ]);
   })));
-  box.append(h('h3', 'Records'));
-  box.append(h('p.small.muted', 'Un seul détenteur à la fois. Le premier qui atteint le seuil prend le record ; les records chiffrés se battent ensuite en faisant mieux que le détenteur. Les trophées trônent sur l\'étagère du bureau de leur détenteur.'));
-  box.append(recordCards(app, 'record'));
-  box.append(h('h3', 'Méfaits'));
-  box.append(h('p.small.muted', 'Les records de l\'ombre, mêmes règles. Personne ne les applaudit, mais chacun sait qui les détient : leurs preuves sinistres s\'étalent sur le bureau.'));
-  box.append(recordCards(app, 'evil'));
+  return box;
+}
+// Records (victoire « Compagnie légendaire ») ou méfaits (côté ombre).
+export function recordsTab(app, kind) {
+  const box = h('div.trophies');
+  box.append(codexLink(app, kind === 'evil' ? 'mefaits' : 'trophees'));
+  if (kind === 'evil') {
+    box.append(h('h3', 'Méfaits'));
+    box.append(h('p.small.muted', 'Les records de l\'ombre, mêmes règles. Personne ne les applaudit, mais chacun sait qui les détient : leurs preuves sinistres s\'étalent sur le bureau.'));
+  } else {
+    box.append(h('h3', 'Records'));
+    box.append(h('p.small.muted', 'Un seul détenteur à la fois. Le premier qui atteint le seuil prend le record ; les records chiffrés se battent ensuite en faisant mieux que le détenteur. Les trophées trônent sur l\'étagère du bureau de leur détenteur.'));
+  }
+  box.append(recordCards(app, kind));
   return box;
 }

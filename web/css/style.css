@@ -24,6 +24,7 @@
   --radius: 10px;
   --hud-h: 50px;
   --rail-w: 62px;
+  --star: #c9921f; /* l'étoile de la réputation, partout la même */
   --serif: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
@@ -109,7 +110,8 @@ p { margin: 6px 0; }
 /* Réputation (la plus basse de la confiance 🤝 et de la vertu 🕊), à côté de la trésorerie. */
 .hud-rep { display: flex; flex-direction: column; flex: none; line-height: 1.15; padding-left: 9px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
 .hud-rep-main { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hud-rep-main > span { color: #c9921f; }
+.hud-rep-main > span { color: var(--star); }
+.star { color: var(--star); }
 .hud-rep-sub { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hud-rep-sub .low { color: var(--bad); font-weight: 700; }
 .hud-rep-sub > span { display: inline-flex; align-items: center; gap: 1px; }
@@ -158,6 +160,27 @@ p { margin: 6px 0; }
 .rail button:hover { border-color: var(--teal); }
 .rail-icon { font-size: 19px; line-height: 1.1; }
 .rail-label { font-size: 10.5px; color: var(--ink-2); font-weight: 600; }
+/* Icônes de victoire, sous les boutons : un anneau qui se remplit avec votre progression. */
+.vic-rail { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 6px; margin-top: 4px; }
+.rail .vic-btn {
+  --p: 0; --ring: var(--teal);
+  width: 44px; height: 44px; padding: 3px; border-radius: 50%; border: none;
+  background: conic-gradient(var(--ring) calc(var(--p) * 1%), rgba(28, 42, 51, 0.14) 0);
+  box-shadow: 0 2px 8px rgba(28, 42, 51, 0.12); display: block;
+}
+.rail .vic-btn.warm { --ring: #d39b2a; }
+.rail .vic-btn.hot { --ring: #c4362c; }
+.rail .vic-btn.off { opacity: 0.45; filter: grayscale(1); }
+.rail .vic-btn:hover .vic-btn-icon { box-shadow: inset 0 0 0 2px var(--teal); }
+.vic-btn-icon {
+  display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%;
+  background: rgba(251, 248, 241, 0.98); font-size: 18px; line-height: 1;
+}
+.vic-btn-icon.star { font-size: 21px; font-weight: 800; }
+.vic-dot { position: absolute; top: 0; right: 0; width: 11px; height: 11px; border-radius: 50%; background: var(--bad); border: 2px solid var(--paper); }
+.vic-dot[hidden] { display: none; }
+.vic-panel-icon { font-size: 34px; line-height: 1; width: 44px; text-align: center; flex: none; }
+.vic-shadow-status { margin-top: 12px; }
 .badge {
   position: absolute; top: -5px; left: -5px; min-width: 19px; height: 19px; border-radius: 10px; padding: 0 5px;
   background: var(--red); color: #fff; font-size: 11px; font-weight: 800; line-height: 19px; text-align: center;
@@ -564,6 +587,12 @@ select.input { width: auto; max-width: 100%; }
   .rail button { padding: 4px 2px 3px; }
   .rail-icon { font-size: 17px; }
   .rail-label { font-size: 9.5px; }
+  /* Écran bas (téléphone couché) : les quatre victoires en carré de 2 × 2 pour tenir en hauteur. */
+  .vic-rail { grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 2px; }
+  .rail .vic-btn { width: 25px; height: 25px; padding: 2px; }
+  .vic-btn-icon { font-size: 11px; }
+  .vic-btn-icon.star { font-size: 13px; }
+  .vic-dot { width: 8px; height: 8px; border-width: 1px; top: -1px; right: -1px; }
   .speed button { min-width: 32px; height: 30px; padding: 0 6px; }
   .panel-body { padding: 10px 12px 20px; }
   .ship-stats { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
@@ -838,6 +867,16 @@ select.input { width: auto; max-width: 100%; }
 .codex-art svg { width: 46px; height: 60px; }
 .codex-icon { flex: none; width: 46px; text-align: center; font-size: 30px; }
 .standing-log { margin: 4px 0 2px; }
+/* Guide → Réputation : une carte par note (reputation.js). */
+.rep-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin: 8px 0; }
+.rep-card { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-2); }
+.rep-card-head { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.rep-card-head .codex-icon { width: 36px; font-size: 26px; }
+.rep-value { font-size: 18px; }
+.rep-card h4 { margin: 10px 0 2px; font-size: 13px; }
+.rep-card p { margin: 6px 0 0; }
+.rep-card ul { margin: 2px 0 0; padding-left: 18px; }
+.rep-card li { margin: 3px 0; font-size: 13px; }
 /* Bureau → Compagnie : confiance et vertu. */
 .standing-row { margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); }
 .standing-row.low { border-color: var(--bad); }
@@ -958,3 +997,12 @@ span.juke-btn { cursor: default; border-style: dashed; }
 .home-bonus.family { border-left: 4px solid #c4362c; }
 .home-bonus.lender { border-left: 4px solid #4b3557; }
 .lender-card { margin: 8px 0; }
+
+/* Info-bulles du jeu (ui/tooltip.js) : plus rapides et plus lisibles que celles du navigateur. */
+.game-tip {
+  position: fixed; z-index: 200; left: 0; top: 0; max-width: min(340px, calc(100vw - 16px));
+  padding: 7px 11px; border-radius: 8px; background: var(--navy); color: #f6f1e4;
+  font-size: 15px; line-height: 1.35; white-space: pre-line; box-shadow: var(--shadow);
+  pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.12s;
+}
+.game-tip.show { opacity: 1; visibility: visible; }

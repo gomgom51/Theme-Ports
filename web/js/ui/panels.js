@@ -6,6 +6,7 @@ import { tr } from '../i18n.js';
 import { codexPanel } from './codex.js';
 import { jukeboxDialog } from './jukebox.js';
 import { standingDetail } from './standing.js';
+import { trustNow, virtueNow, reputationLink } from './reputation.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, GOOD_IDS, HOLDS } from '../data/goods.js';
@@ -33,7 +34,8 @@ import { portShadyInfo } from './shady.js';
 import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 import { shipResults } from './shipresults.js';
-import { victoriesTab, trophiesTab } from './victory.js';
+import { raceTab, deedsTab, recordsTab } from './victory.js';
+import { VICTORY_INFO } from '../sim/victory.js';
 import { rivalsTab } from './rivals.js';
 import { recordsHeld } from '../sim/honours.js';
 
@@ -113,6 +115,13 @@ export function fleetPanel(app) {
       h('span.muted.small', `${portName(o.yard)}, livraison le ${date(o.due, true)}`),
     ]))));
   }
+  // Rappel de la formule d'assurance (elle se choisit au Bureau, onglet Finances).
+  const c = app.company(), P = planOf(c);
+  const prem = fleetPremium(state, c, ships, c.insurance || 'complete');
+  body.append(h('div.row.fleet-insurance', [
+    h('span.grow', [h('span', 'Assurance :'), ' ', h('b', P.name), P.rate ? h('span.muted.small', ` · ${money(prem)} par an`) : null]),
+    h('button.btn.small', { onclick: () => app.open('office', null, 'finances', { focus: 'insurance' }) }, 'Changer'),
+  ]));
   return { title: 'Ma flotte', subtitle: `${ships.length} navire${ships.length > 1 ? 's' : ''} · valeur ${money(fleetValue(state, cid))}`, body };
 }
 
@@ -325,12 +334,13 @@ function officeHero(app) {
   ]);
 }
 
-// Formule d'assurance de la compagnie : une vraie décision, prime contre protection.
-function insuranceTab(app) {
+// Formule d'assurance de la compagnie : une vraie décision, prime contre protection (Bureau → Finances).
+function insuranceSection(app) {
   const { state } = app;
   const c = app.company();
   const ships = shipsOf(state, c.id);
-  const box = h('div');
+  const box = h('div.insurance');
+  box.append(h('h3', 'Assurance'));
   box.append(h('p.hint', `Quelle que soit la formule, l'assureur ne paie rien pour un navire parti avec moins de 40 % d'état. Les primes sont prélevées chaque jour.`));
   for (const id of PLAN_IDS) {
     const P = PLANS[id], cur = (c.insurance || 'complete') === id;
@@ -356,13 +366,25 @@ export function officePanel(app, _id, tab) {
       ['finances', 'Finances', () => financeTab(app)],
       ['resultats', 'Résultats', () => resultsTab(app)],
       ['compagnie', 'Compagnie', () => companyTab(app)],
-      ['assurance', 'Assurance', () => insuranceTab(app)],
       ['chargeurs', 'Chargeurs', () => clientsTab(app)],
-      ['classement', 'Classement', () => rankingTab(app)],
-      ['concurrents', 'Concurrents', () => rivalsTab(app)],
-      ['victoires', 'Victoires', () => victoriesTab(app)],
-      ['trophees', 'Trophées', () => trophiesTab(app)],
     ],
+    tab,
+  };
+}
+
+// Une victoire (icônes de l'écran principal) : la course, puis ce qui s'y rattache.
+const VICTORY_TABS = {
+  domination: (app) => [['concurrents', 'Concurrents', () => rivalsTab(app)], ['classement', 'Classement', () => rankingTab(app)]],
+  reputation: (app) => [['hauts-faits', 'Hauts faits', () => deedsTab(app)]],
+  legend: (app) => [['records', 'Records', () => recordsTab(app, 'record')]],
+  shadow: (app) => [['mefaits', 'Méfaits', () => recordsTab(app, 'evil')]],
+};
+export function victoryPanel(app, kind, tab) {
+  const k = VICTORY_INFO[kind] ? kind : 'domination';
+  const info = VICTORY_INFO[k];
+  return {
+    title: info.name, subtitle: 'Victoire', icon: h('span.vic-panel-icon', { class: k === 'reputation' ? 'star' : '' }, info.icon),
+    tabs: [['course', 'La course', () => raceTab(app, k)], ...VICTORY_TABS[k](app)],
     tab,
   };
 }
@@ -458,6 +480,7 @@ function financeTab(app) {
     ...[1e6, 5e6].filter((a) => a <= repayable).map((a) => h('button.chip', { onclick: () => app.act(() => act.repay(state, c.id, a)) }, `− ${money(a)}`)),
     h('button.chip', { onclick: () => app.act(() => act.repay(state, c.id, repayable)) }, `Tout (${money(repayable)})`),
   ]) : h('p.muted', c.debt ? 'Pas assez de trésorerie.' : 'Aucune dette.'));
+  box.append(insuranceSection(app));
   return box;
 }
 
@@ -503,15 +526,16 @@ function companyTab(app) {
   const lim = repLimit(c);
   box.append(h('h3', `Réputation : ${num(c.reputation)}/100`));
   box.append(bar(c.reputation / 100, { good: 0.6, warn: 0.35 }));
-  box.append(h('p.hint', 'Votre réputation est la plus basse de vos deux notes, la confiance et la vertu : c\'est elle que juge la victoire « La plus respectée », impossible de n\'en soigner qu\'une. Toute l\'économie (chargeurs, banque, prêts sur cargaison, démarchage, prix de rachat) ne regarde que la confiance ; la vertu, c\'est votre image dans la presse.'));
+  box.append(h('p.hint', 'Votre réputation est la plus basse de vos deux notes : elle ne sert qu\'à la victoire « La plus respectée ». 🤝 La confiance (peut-on compter sur vous ?) fait tourner vos affaires ; 💚 la vertu (que dit la presse de vous ?), c\'est votre image.'));
+  box.append(reputationLink(app));
   const scoreRow = (icon, label, v, cap, low, text, key) => h('div.standing-row', { class: low ? 'low' : '' }, [
     h('div.standing-head', [h('b', `${icon} ${label} : ${num(v)}/100`), low ? h('span.tag.warn', 'retient votre réputation') : null, cap < 100 ? h('span.muted.small', `plafond ${num(cap)}`) : null]),
     bar(v / 100, { good: 0.6, warn: 0.35 }),
+    h('p.small', text),
     standingDetail(c, key),
-    h('p.small.muted', text),
   ]);
-  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', 'On peut compter sur vous : c\'est elle que regardent les chargeurs, les banques et les acheteurs. Monte à chaque livraison à l\'heure (un peu moins près du haut), avec les affaires en or et les appels d\'offres servis et en desservant un nouveau port ; baisse avec les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus et les navires détournés.', 'confidence'));
-  box.append(scoreRow('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', `Le bien commun, ou du moins votre image dans la presse. Monte avec l'aide d'urgence livrée à temps, les chargeurs malhonnêtes dénoncés, les contrats de céréales, café et cacao, fruits et viandes ou bois, les affaires en or et appels d'offres sur des marchandises ni fossiles ni polluantes, l'allure économique (sous ${Math.round(VIRTUE_SOURCES.slowStart * 100)} % de la vitesse de service), et doucement chaque mois de conduite propre (aucun commerce sous embargo, colis discret, affaire noire, coup bas ni marée noire depuis ${Math.round(STANDING.cleanDays / 30)} mois) ; sous ${STANDING.forgiveTo}, on finit par oublier et elle y remonte d'elle-même ; baisse avec chaque livraison de pétrole, les marées noires, la contrebande, les amendes d'embargo, les pots-de-vin, les affaires noires et les coups bas.`, 'virtue'));
+  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', trustNow(c), 'confidence'));
+  box.append(scoreRow('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', virtueNow(c), 'virtue'));
   if (c.infamy) box.append(h('p.warn-text', `☠ Infamie : ${num(c.infamy)}. Votre confiance et votre vertu ne pourront plus dépasser ${100 - Math.min(80, c.infamy)}/100 : c'est définitif.`));
   box.append(h('p.small.muted', 'Hauts faits : chacun des cinq premiers relève d\'un point le plafond des deux notes (95 pour la conduite ordinaire).'));
   box.append(h('p', `${c.delivered} livraisons, dont ${c.late} en retard · ${c.portsServed.length} ports desservis.`));
@@ -665,8 +689,9 @@ export function helpPanel(app) {
       h('h3', 'Démarrer'),
       p('1. Ouvrez le Courtier 🏗️ et achetez un premier navire d\'occasion : deux bateaux abordables vous attendent dans votre port d\'attache.'),
       p('2. Touchez votre navire (sur la carte ou dans la Flotte 🚢). Dans l\'onglet Contrats, acceptez un transport : le chargement commence et le navire partira tout seul, plein compris.'),
-      p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu\'un événement survient : trois coups de cloche annoncent la pause, un tic-tac le retour du temps.'),
-      p('Les grands événements (naufrage, pirates, douane, ouragan, banquier, crises mondiales…) s\'affichent en petite scène animée qui arrête le temps : fermez-la (✕) et le temps repart à vitesse 1. Menu : « Illustrations » pour les couper.'),
+      p('3. Lancez le temps avec ▶. Le jeu se met en pause dès qu\'un de vos navires attend des ordres (arrivé à vide, déchargement terminé) ou qu\'un événement survient : trois coups de cloche annoncent la pause, un tic-tac le retour du temps. Dès que le dernier navire en attente a reçu ses ordres, le temps repart tout seul, à la vitesse par défaut choisie dans le menu ☰ (Espace aussi).'),
+      p('Info-bulles : survolez un bouton, un chiffre ou une icône pour une explication. Sur téléphone ou tablette, gardez le doigt appuyé dessus.'),
+      p('Les grands événements (naufrage, pirates, douane, ouragan, banquier, crises mondiales…) s\'affichent en petite scène animée qui arrête le temps : fermez-la (✕) et le temps repart à la vitesse par défaut. Menu : « Illustrations » pour les couper.'),
       p('Visite guidée : des bulles montrent les premiers gestes au moment où ils servent. Elle se lance depuis l\'écran « Nouvelle partie », et le menu ☰ permet de l\'arrêter ou de la reprendre à tout moment.'),
       h('h3', 'Gagner de l\'argent'),
       p('Contrats : un chargeur vous paie pour transporter sa marchandise. Revenu garanti, à condition d\'arriver avant la date limite (3 % de pénalité par jour de retard).'),
@@ -684,7 +709,7 @@ export function helpPanel(app) {
       p('Chaque port a un tirant d\'eau maximal et des terminaux (vrac, liquide, marchandises diverses, conteneurs). Chaque navire a des cales adaptées à certaines marchandises et une autonomie limitée par ses soutes.'),
       h('h3', 'Les risques'),
       p('En mer : avaries de machine, incendies, abordages, échouements, voies d\'eau, cargaisons abîmées par la tempête (cercles colorés, force en Beaufort). Un navire vieux ou usé en subit bien plus ; même un bon navire peut sombrer, mais il est alors assuré.'),
-      p('Assurance (Bureau → Assurance) : formule complète, coque seule ou rien ; moins de prime, moins de protection. L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
+      p('Assurance (Bureau → Finances) : formule complète, coque seule ou rien ; moins de prime, moins de protection. L\'assurance ne couvre le navire et sa cargaison que s\'il quitte le port avec au moins 40 % d\'état. Les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) retiennent les navires usés (sous 55 %, 62 % après 20 ans) : amende et réparations d\'office.'),
       p('Pollution : une cargaison polluante (pétrole, produits, chimie) qui se déverse lors d\'un naufrage, d\'un échouement ou d\'un abordage coûte un nettoyage, bien plus cher près des côtes sensibles (zones hachurées sur la carte). L\'assurance paie si le navire était en état ; sinon tout est à vos frais et le pays touché vous ferme ses ports un an. Le départ indique les côtes longées et le pire cas.'),
       p('Commerce gris : l\'Iran et le Venezuela sont sous embargo. Leurs ports paient cher ce qui leur manque, bradent leur brut, et le fret y est mieux payé, mais un navire qui y commerce est marqué un an : en Europe, en Amérique du Nord, au Japon, en Corée et en Océanie, il risque une amende (plus lourde si votre pavillon applique lui-même les sanctions).'),
       p('Commerce noir : dans certains ports, des intermédiaires proposent des colis discrets, payés en liquide à la livraison. La douane de chaque escale peut les trouver : saisie, amende, immobilisation, sauf arrangement dans un port accommodant. Les cargos les cachent mieux que les pétroliers.'),
@@ -693,12 +718,13 @@ export function helpPanel(app) {
       p('Votre équipage évalue les dangers : un équipage de base donne un avis général, un équipage confirmé des fourchettes, un équipage chevronné des chiffres précis voyage par voyage. Les meilleurs équipages coûtent plus cher mais provoquent moins d\'incidents. Choisissez-le à l\'escale.'),
       p('Le marché du fret suit des cycles : des années fastes, puis des années maigres où désarmer un navire (à l\'escale) coûte moins cher que de le faire travailler à perte. Aussi : grèves, fermeture du canal de Suez, sécheresse à Panama, chocs pétroliers… Lisez le Journal 📰.'),
       h('h3', 'Réputation : ★, 🤝 et 💚'),
-      p('En haut à gauche, à côté de votre trésorerie : ★ votre réputation, et dessous 🤝 votre confiance et 💚 votre vertu. La réputation est simplement la plus basse des deux (celle qui la retient s\'affiche en rouge). Touchez-la pour le détail au Bureau.'),
-      p('🤝 La confiance, c\'est ce qui fait tourner l\'économie : contrats premium, exigences des chargeurs, litiges, crédit de la banque, prêts sur cargaison, démarchage et prix de rachat de votre compagnie. Elle monte quand vous livrez à l\'heure et tenez parole.'),
-      p('💚 La vertu, c\'est votre image dans la presse : on ne gagne pas en étant seulement efficace, il faut aussi paraître œuvrer pour un monde meilleur. Elle monte avec l\'aide d\'urgence, les marchandises utiles (céréales, café et cacao, fruits et viandes, bois), les affaires propres, l\'allure économique et une conduite sans tache ; elle chute avec le transport de pétrole, les marées noires, la contrebande, les affaires noires et les coups bas. Elle compte pour la victoire « La plus respectée », pour quelques chargeurs soucieux de leur image (leur fret suit votre vertu) et dans quelques ports (moins d\'inspections quand elle est haute).'),
-      p('★ La réputation ne sert qu\'à la victoire « La plus respectée » : il faut 100 aux deux notes. Chaque mois, un court bilan dit ce qui les a fait monter ou baisser.'),
-      h('h3', 'Banque, confiance et vertu'),
-      p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. La réputation (★ en haut à gauche) est la plus basse de deux notes : la confiance 🤝, qui monte avec les livraisons à l\'heure, et la vertu 💚, qui monte avec l\'aide d\'urgence, les marchandises utiles, l\'allure économique et une conduite propre. Toute l\'économie (chargeurs, banque, prix de rachat) regarde la confiance ; la réputation compte pour la victoire « La plus respectée ».'),
+      p('En haut à gauche, sous votre trésorerie, trois chiffres. Chacun répond à une question.'),
+      p('🤝 La confiance : peut-on compter sur vous ? C\'est elle qui fait tourner vos affaires : contrats premium, exigences des chargeurs, litiges, taux et plafond de la banque, prêts sur cargaison, démarchage, prix de rachat de votre compagnie. Elle monte quand vous livrez à l\'heure et tenez parole.'),
+      p('💚 La vertu : que dit la presse de vous ? Votre image, qui compte pour la victoire « La plus respectée », pour quelques chargeurs soucieux de leur image et dans quelques ports (moins d\'inspections). Elle monte avec l\'aide d\'urgence, les marchandises utiles et une conduite propre ; elle baisse avec le pétrole, les marées noires, la contrebande et les coups bas.'),
+      p('★ La réputation : la plus basse des deux (celle qui la retient s\'affiche en rouge). Elle ne sert qu\'à la victoire « La plus respectée ». Touchez-la pour le détail au Bureau ; chaque mois, un court bilan dit ce qui a fait bouger vos notes.'),
+      h('button.btn.small.codex-link', { onclick: () => app.open('codex', null, 'reputation') }, '📖 Comprendre la réputation, avec vos chiffres'),
+      h('h3', 'La banque'),
+      p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. Plus votre confiance 🤝 est haute, plus le crédit est large et bon marché.'),
       h('h3', 'Commandes'),
       p('Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un navire ou un port pour l\'ouvrir. Clavier : Espace = pause, 1 à 3 = vitesse, Échap = fermer.'),
     ]),
@@ -707,5 +733,5 @@ export function helpPanel(app) {
 
 export const PANELS = {
   fleet: fleetPanel, port: portPanel, broker: brokerPanel, office: officePanel,
-  markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel, codex: codexPanel,
+  markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel, codex: codexPanel, victory: victoryPanel,
 };
