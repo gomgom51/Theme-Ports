@@ -21,16 +21,17 @@ export function threatText(state, p, cid) {
 // Ajoute aux notifications importantes : menaces contre vous, navires retenus ou dénoncés, vos affaires en cours.
 export function plotAlerts(state, cid, add) {
   const ICON = { pirates: '☠', corruption: '🏛', sabotage: '🧨', payments: '⏳', bank: '🏦', pricewar: '📉', smear: '📰', crew: '🧭' };
-  for (const p of P.plotsAgainst(state, cid)) add('watch', ICON[p.kind] || '⚠', threatText(state, p, cid), P.ATTACKS[p.kind] && p.counter && !p.countered ? { counter: p.id } : { plot: p.id });
+  for (const p of P.plotsAgainst(state, cid)) add('watch', ICON[p.kind] || '⚠', threatText(state, p, cid), P.ATTACKS[p.kind] && p.counter && !p.countered ? { counter: p.id } : { plot: p.id }, ['Rumeur', P.ATTACKS[p.kind] ? `${P.ATTACKS[p.kind].name} contre vous` : p.kind === 'pirates' ? `pirates payés · ${P.zoneById(p.zone).name} · jusqu'au ${date(p.until, true)}` : `autorités de ${portName(p.port)} achetées · ${pc(P.HELD_CHANCE)} de retenue`]);
   for (const s of shipsOf(state, cid)) {
-    if (s.heldBogus || s.busyWhat === 'retenue') add('urgent', '🏛', `Le ${s.name} est retenu sans motif sérieux à ${portName(s.port)} : un avocat peut le faire libérer sous 24 heures.`, { held: s.id });
-    if (s.contraband && P.tipped(state, s)) add('urgent', '📦', `Quelqu'un aurait parlé à la douane du colis du ${s.name} : fouille presque certaine (environ ${pc(P.TIP_DETECT)}) à sa prochaine escale. Jeter le colis par-dessus bord ?`, { jettison: s.id });
+    if (s.heldBogus || s.busyWhat === 'retenue') add('urgent', '🏛', `Le ${s.name} est retenu sans motif sérieux à ${portName(s.port)} : un avocat peut le faire libérer sous 24 heures.`, { held: s.id }, [s.name, `retenu sans motif à ${portName(s.port)}`]);
+    if (s.contraband && P.tipped(state, s)) add('urgent', '📦', `Quelqu'un aurait parlé à la douane du colis du ${s.name} : fouille presque certaine (environ ${pc(P.TIP_DETECT)}) à sa prochaine escale. Jeter le colis par-dessus bord ?`, { jettison: s.id }, [s.name, `colis dénoncé · fouille ${pc(P.TIP_DETECT)}`]);
   }
   for (const p of P.plotsBy(state, cid)) {
-    if (P.ATTACKS[p.kind]) { add('info', '🕴', `${P.ATTACKS[p.kind].name} contre ${nameOf(state, p.target)} jusqu'au ${date(p.until, true)}.`); continue; }
+    if (P.ATTACKS[p.kind]) { add('info', '🕴', `${P.ATTACKS[p.kind].name} contre ${nameOf(state, p.target)} jusqu'au ${date(p.until, true)}.`, null, [P.ATTACKS[p.kind].name, `contre ${nameOf(state, p.target)} · jusqu'au ${date(p.until, true)}`]); continue; }
     add('info', '🕴', p.kind === 'pirates'
       ? `Vos pirates guettent les navires de ${nameOf(state, p.target)} dans la zone ${P.zoneById(p.zone).name} jusqu'au ${date(p.until, true)}.`
-      : `Les autorités de ${portName(p.port)} retiennent les navires de ${nameOf(state, p.target)} jusqu'au ${date(p.until, true)}.`);
+      : `Les autorités de ${portName(p.port)} retiennent les navires de ${nameOf(state, p.target)} jusqu'au ${date(p.until, true)}.`, null,
+      [p.kind === 'pirates' ? 'Vos pirates' : `Autorités de ${portName(p.port)}`, `${p.kind === 'pirates' ? 'guettent' : 'retiennent'} ${nameOf(state, p.target)} · jusqu'au ${date(p.until, true)}`]);
   }
 }
 // Étiquette d'un contrat ou d'une destination quand le port est hostile.
