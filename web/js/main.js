@@ -276,7 +276,7 @@ function updateStandings(s, me) {
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
 }
-// Tuiles de victoire (sous les boutons latéraux) : la barre du bas suit votre progression (halo à 75 %,
+// Médailles de victoire (sous les boutons latéraux) : l'anneau autour suit votre progression (halo à 75 %,
 // halo qui respire à 90 %), le point rouge signale un concurrent à 75 % ou plus (il bat à 90 %). Recalculé une fois par jour de jeu.
 function updateVictoryRail(s, c) {
   const key = `${c.id}:${Math.floor(s.t / 24)}:${s.victoryClaimed ? 1 : 0}:${getLang()}`;

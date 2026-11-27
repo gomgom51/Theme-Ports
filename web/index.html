@@ -10,6 +10,7 @@
   <link rel="icon" href="icons/icon-32.png" sizes="32x32" type="image/png">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/stardos-stencil-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/pda-icons.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="css/style.css">
@@ -50,10 +51,10 @@
     <button type="button" data-panel="office" title="Bureau"><span class="rail-icon">💼</span><span class="rail-label">Bureau</span></button>
     <button type="button" data-panel="markets" title="Marchés"><span class="rail-icon">📈</span><span class="rail-label">Marchés</span></button>
     <button type="button" data-panel="news" title="Journal"><span class="rail-icon">📰</span><span class="rail-label">Journal</span></button>
-    <!-- Une tuile par victoire, une couleur par chemin : la barre du bas suit votre progression, le point rouge un concurrent à 75 % ou plus. -->
+    <!-- Une médaille par victoire, une couleur par chemin : l'anneau autour suit votre progression, le point rouge un concurrent à 75 % ou plus. -->
     <div class="vic-rail" role="group" aria-label="Victoires">
-      <button type="button" class="vic-btn" data-victory="domination"><span class="vic-btn-icon" aria-hidden="true">⚓</span><span class="vic-dot" hidden></span></button>
-      <button type="button" class="vic-btn" data-victory="reputation"><span class="vic-btn-icon star" aria-hidden="true">★</span><span class="vic-dot" hidden></span></button>
+      <button type="button" class="vic-btn" data-victory="domination"><span class="vic-btn-icon" aria-hidden="true">🚩</span><span class="vic-dot" hidden></span></button>
+      <button type="button" class="vic-btn" data-victory="reputation"><span class="vic-btn-icon" aria-hidden="true">🌟</span><span class="vic-dot" hidden></span></button>
       <button type="button" class="vic-btn" data-victory="legend"><span class="vic-btn-icon" aria-hidden="true">🏆</span><span class="vic-dot" hidden></span></button>
       <button type="button" class="vic-btn" data-victory="shadow"><span class="vic-btn-icon" aria-hidden="true">🗡</span><span class="vic-dot" hidden></span></button>
     </div>

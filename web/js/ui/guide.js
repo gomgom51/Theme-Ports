@@ -215,7 +215,7 @@ const STEPS = [
     done: (app) => panelIs(app, 'victory'),
     show: () => {
       const v = shown($('.vic-rail'));
-      return v && { el: v, text: 'Quatre façons de gagner avant la fin : ⚓ racheter ou ruiner tous vos concurrents, ★ la réputation parfaite, 🏆 cinq records, 🗡 la flotte fantôme. La barre sous chaque icône montre où vous en êtes, un point rouge un concurrent qui approche du but. Touchez une icône pour voir la course.' };
+      return v && { el: v, text: 'Quatre façons de gagner avant la fin : 🚩 racheter ou ruiner tous vos concurrents, 🌟 la réputation parfaite, 🏆 cinq records, 🗡 la flotte fantôme. L\'anneau autour de chaque médaille montre où vous en êtes, un point rouge un concurrent qui approche du but. Touchez une médaille pour voir la course.' };
     },
   },
   {

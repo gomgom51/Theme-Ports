@@ -28,8 +28,8 @@ export const VICTORY = {
 };
 export const VICTORY_KINDS = ['domination', 'reputation', 'legend', 'shadow'];
 export const VICTORY_INFO = {
-  domination: { name: 'Seul maître à bord', icon: '⚓', text: 'Tous vos concurrents ruinés ou rachetés.' },
-  reputation: { name: 'La plus respectée', icon: '★', get text() { return `Atteindre une réputation parfaite (100) avec au moins cinq hauts faits et le niveau 4, puis la tenir ${Math.round(VICTORY.repHoldDays / 30)} mois sans retomber sous ${VICTORY.repHoldFloor}.`; } },
+  domination: { name: 'Seul maître à bord', icon: '🚩', text: 'Tous vos concurrents ruinés ou rachetés.' },
+  reputation: { name: 'La plus respectée', icon: '🌟', get text() { return `Atteindre une réputation parfaite (100) avec au moins cinq hauts faits et le niveau 4, puis la tenir ${Math.round(VICTORY.repHoldDays / 30)} mois sans retomber sous ${VICTORY.repHoldFloor}.`; } },
   legend: { name: 'Compagnie légendaire', icon: '🏆', text: 'Détenir en même temps cinq des huit records.' },
   shadow: { name: 'La flotte fantôme', icon: '🗡', get text() { return `${VICTORY.shadowYears} ans sur la liste noire internationale avec au moins ${VICTORY.shadowShips} navires, et une affaire noire menée à bien dans chaque pays sous embargo.`; } },
 };

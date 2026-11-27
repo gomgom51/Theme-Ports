@@ -37,7 +37,7 @@ export function raceTab(app, kind) {
     box.append(h('p.muted', [end, ` Chacun voit où en sont les autres ; tout le monde est prévenu quand une compagnie atteint ${pctTxt(VICTORY.alerts[0])} puis ${pctTxt(VICTORY.alerts[1])} d'une victoire.`]));
   }
   const card = h('div.vic-card', { class: on ? '' : 'off' }, [
-    h('div.vic-head', [h('span.vic-icon', { class: kind === 'reputation' ? 'star' : '' }, info.icon), h('div.grow', [h('b', info.name), h('div.small.muted', info.text)]), on ? null : h('span.tag', 'désactivée')]),
+    h('div.vic-head', [h('span.vic-icon', info.icon), h('div.grow', [h('b', info.name), h('div.small.muted', info.text)]), on ? null : h('span.tag', 'désactivée')]),
   ]);
   if (on) {
     const rows = state.companies.map((c) => ({ c, p: victoryProgress(state, c, kind) }))

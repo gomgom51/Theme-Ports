@@ -14,6 +14,9 @@ import { PIRACY_ZONES } from '../sim/piracy.js';
 import { mapShipSprite, drawMapShip } from './mapships.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
+// Animations d'ambiance (pavillons pirates) : figées si le joueur a demandé moins de mouvement.
+const REDUCE_MOTION = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+
 const LABEL_PLACE = {
   ras_tanura: ['left', -6], ras_laffan: ['left', 7], dubai: ['right', 4], bandar_abbas: ['right', -8], karachi: ['right', -10],
   durban: ['left', 4], richards_bay: ['right', -4],
@@ -132,6 +135,8 @@ export class MapView {
     }
     this.view = { cx: 20, cy: -22, scale: 3 };
     this.dirty = true;
+    // Icônes (police PdaIcons, limitée aux émojis du jeu) : redessiner quand elle est chargée.
+    document.fonts?.load('16px PdaIcons', '⚓☠🌿❄').then(() => { this.dirty = true; }, () => {});
     this.pointers = new Map();
     this.preview = null;
     this.highlightPorts = null;
@@ -410,7 +415,7 @@ export class MapView {
     g.setLineDash([]);
 
     // Noms des mers.
-    g.font = `italic ${scale > 6 ? 14 : 12}px 'Libre Baskerville', Georgia, serif`;
+    g.font = `italic ${scale > 6 ? 14 : 12}px PdaIcons, 'Libre Baskerville', Georgia, serif`;
     g.fillStyle = C.ocean;
     g.textAlign = 'center';
     if ('letterSpacing' in g) g.letterSpacing = '2px';
@@ -441,7 +446,7 @@ export class MapView {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Noms des pays (les grands d'abord visibles, les petits en zoomant).
-    g.font = '700 9.5px system-ui, sans-serif';
+    g.font = '700 9.5px PdaIcons, system-ui, sans-serif';
     g.fillStyle = C.country;
     g.textAlign = 'center';
     if ('letterSpacing' in g) g.letterSpacing = '1.5px';
@@ -455,7 +460,7 @@ export class MapView {
     g.textAlign = 'left';
 
     // Ports.
-    g.font = '600 11px system-ui, sans-serif';
+    g.font = '600 11px PdaIcons, system-ui, sans-serif';
     g.textBaseline = 'middle';
     for (const id of PORT_IDS) {
       const P = PORTS[id];
@@ -470,11 +475,17 @@ export class MapView {
       g.lineWidth = 1.6;
       g.strokeStyle = '#fff';
       g.stroke();
-      // Pays sous embargo : anneau rouge en pointillés, et ⚖ devant le nom.
+      // Pays sous embargo : halo rouge, anneau rouge continu liseré de blanc, point rouge, et ⚖ devant le nom.
       const emb = !!EMBARGOED[P.flag];
       if (emb) {
-        g.save(); g.setLineDash([3, 2]); g.beginPath(); g.arc(x, y, r + 5, 0, Math.PI * 2);
-        g.lineWidth = 2; g.strokeStyle = '#c4362c'; g.stroke(); g.restore();
+        g.save();
+        const hg = g.createRadialGradient(x, y, r + 2, x, y, r + 13);
+        hg.addColorStop(0, 'rgba(196,54,44,0.42)'); hg.addColorStop(1, 'rgba(196,54,44,0)');
+        g.fillStyle = hg; g.beginPath(); g.arc(x, y, r + 13, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(x, y, r + 5, 0, Math.PI * 2); g.lineWidth = 2.4; g.strokeStyle = '#b8322a'; g.stroke();
+        g.beginPath(); g.arc(x, y, r + 6.6, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.9)'; g.stroke();
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = '#b8322a'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#fff'; g.stroke();
+        g.restore();
       }
       // Les grands ports sont nommés dès le départ, les petits quand on zoome.
       if (hl || P.size >= 5 || scale > (P.size >= 4 ? 3 : 4.2)) {
@@ -513,33 +524,42 @@ export class MapView {
     const ui = this.ui || {};
     const kmToPx = scale / 60; // 1 mille nautique ≈ 1/60 de degré
 
-    // Côtes sensibles : zones hachurées (une pollution y coûte bien plus cher).
+    // Côtes sensibles : teinte verte unie, bord continu (une pollution y coûte bien plus cher).
     g.save();
     for (const z of ZONES) {
       const [x, y] = this.toScreen(z.lon, z.lat);
       const r = Math.max(6, z.r * kmToPx);
       if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
-      g.fillStyle = `rgba(46,140,110,${0.05 + z.factor * 0.012})`; g.fill();
-      g.setLineDash([4, 4]); g.lineWidth = 1.2; g.strokeStyle = 'rgba(30,110,85,0.55)'; g.stroke(); g.setLineDash([]);
+      g.fillStyle = `rgba(46,140,110,${0.1 + z.factor * 0.012})`; g.fill();
+      g.lineWidth = 1.6; g.strokeStyle = 'rgba(30,110,85,0.7)'; g.stroke();
       if (scale > 7) {
-        g.font = 'italic 600 10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = 'italic 600 10px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
         g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
       }
     }
-    // Zones de piraterie : cercles rouges en pointillés.
-    for (const z of PIRACY_ZONES) {
+    // Zones de piraterie : leur vrai contour (celui que lit la simulation), lissé, teinte rouge unie et bord continu.
+    const flagT = REDUCE_MOTION?.matches ? 0 : performance.now() / 1000;
+    for (const [zi, z] of PIRACY_ZONES.entries()) {
+      const pts = z.poly.map(([lo, la]) => this.toScreen(lo, la));
+      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+      if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) continue;
       const [x, y] = this.toScreen(z.lon, z.lat);
-      const r = Math.max(6, z.r * kmToPx);
-      if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
-      g.fillStyle = `rgba(196,54,44,${z.rate * 2.2})`; g.fill();
-      g.setLineDash([2, 5]); g.lineWidth = 1.4; g.strokeStyle = 'rgba(170,40,32,0.6)'; g.stroke(); g.setLineDash([]);
+      // Spline de Catmull-Rom fermée : la courbe passe par chaque point (ni cercle, ni dents de scie).
+      const n = pts.length, P = (i) => pts[(i + n) % n];
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 0; i < n; i++) {
+        const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+        g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+      }
+      g.closePath();
+      g.fillStyle = `rgba(200,50,40,${0.1 + z.rate * 3})`; g.fill();
+      g.lineWidth = 1.8; g.strokeStyle = 'rgba(170,40,32,0.8)'; g.stroke();
       const bs = scale > 4 ? 1.15 : 0.85;
-      this.pirateBadge(g, x, y, bs);
+      this.pirateBadge(g, x, y, bs, flagT && flagT + zi * 1.7);
       if (scale > 4) {
-        g.font = '700 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = '700 12px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.lineWidth = 3.5; g.strokeStyle = 'rgba(244,239,227,0.9)'; g.strokeText(tr(z.name), x, y + 17 * bs + 4);
         g.fillStyle = 'rgba(150,32,26,0.98)'; g.fillText(tr(z.name), x, y + 17 * bs + 4);
       }
@@ -552,7 +572,7 @@ export class MapView {
       g.save(); g.globalAlpha = 0.78; g.imageSmoothingEnabled = true;
       this.copies((off) => g.drawImage(ice, this.w / 2 + (-180 + off - cx) * scale, this.h / 2 + (-90 - cy) * scale, 360 * scale, 180 * scale));
       g.restore();
-      g.font = '700 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '700 12px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const id of ICE_PLACES) {
         if (!PORTS[id] || iceOpen(state, id)) continue;
         const [x, y] = this.toScreen(PORTS[id].lon, PORTS[id].lat);
@@ -565,7 +585,7 @@ export class MapView {
     for (const [port, until] of Object.entries(me?.grudge || {})) {
       if (until <= state.t || !PORTS[port]) continue;
       const [x, y] = this.toScreen(PORTS[port].lon, PORTS[port].lat);
-      g.font = '800 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '800 12px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText('⚠', x + 9, y - 9);
       g.fillStyle = '#b8322a'; g.fillText('⚠', x + 9, y - 9);
     }
@@ -776,9 +796,11 @@ export class MapView {
 
   // Insigne de piraterie : crâne et tibias blancs sur disque sombre cerclé de rouge.
   // Pavillon pirate : drapeau noir sur sa hampe, tête de mort et tibias croisés.
-  pirateBadge(g, x, y, s = 1) {
+  // Pavillon pirate d'une zone. t (secondes, 0 = immobile) : le badge flotte doucement et une onde court
+  // dans le pavillon, de la hampe vers le bord libre.
+  pirateBadge(g, x, y, s = 1, t = 0) {
     g.save();
-    g.translate(x, y); g.scale(s, s);
+    g.translate(x, y + (t ? Math.sin(t * 1.3) * 1.6 : 0)); g.scale(s, s);
     g.lineCap = 'round'; g.lineJoin = 'round';
     // Hampe et pommeau.
     g.lineWidth = 3.4; g.strokeStyle = 'rgba(244,239,227,0.9)';
@@ -786,17 +808,16 @@ export class MapView {
     g.lineWidth = 1.8; g.strokeStyle = '#4a3420';
     g.beginPath(); g.moveTo(-14, -14); g.lineTo(-14, 13); g.stroke();
     g.fillStyle = '#c9a24a'; g.beginPath(); g.arc(-14, -15, 1.9, 0, Math.PI * 2); g.fill();
-    // Le pavillon, légèrement ondulé, avec un liseré clair pour ressortir sur la carte.
+    // Le pavillon ondule (amplitude nulle à la hampe), avec un liseré clair pour ressortir sur la carte.
+    const wave = (px) => { const u = (px + 13) / 26; return u * (2.2 * Math.sin(px * 0.24 - t * 3.2) + 0.8); };
     g.beginPath();
-    g.moveTo(-13, -13);
-    g.quadraticCurveTo(-2, -16.5, 13, -12);
-    g.lineTo(13, 5);
-    g.quadraticCurveTo(-2, 9, -13, 5);
+    for (let i = 0; i <= 10; i++) { const px = -13 + i * 2.6; g[i ? 'lineTo' : 'moveTo'](px, -13 + wave(px)); }
+    for (let i = 10; i >= 0; i--) { const px = -13 + i * 2.6; g.lineTo(px, 5 + wave(px)); }
     g.closePath();
     g.fillStyle = '#17110f'; g.fill();
     g.lineWidth = 1.5; g.strokeStyle = '#f4efe3'; g.stroke();
-    // Tête de mort et tibias croisés, au centre du pavillon.
-    g.translate(0, -4.2); g.scale(0.82, 0.82);
+    // Tête de mort et tibias croisés, portés par l'onde au centre du pavillon.
+    g.translate(0, -4.2 + wave(0)); g.rotate(Math.atan((wave(1.5) - wave(-1.5)) / 3)); g.scale(0.82, 0.82);
     g.strokeStyle = '#f4efe3'; g.fillStyle = '#f4efe3';
     g.lineWidth = 2;
     g.beginPath(); g.moveTo(-6.5, -2); g.lineTo(6.5, 7); g.moveTo(6.5, -2); g.lineTo(-6.5, 7); g.stroke();
@@ -844,7 +865,7 @@ export class MapView {
     else if (S.icon === 'wrench') { g.lineWidth = 1.9; g.beginPath(); g.moveTo(-2.8, 2.8); g.lineTo(1, -1); g.stroke(); g.lineWidth = 1.4; g.beginPath(); g.arc(2, -2, 1.9, Math.PI * 0.95, Math.PI * 2.55); g.stroke(); }
     else if (S.icon === 'gear') { g.lineWidth = 1.3; g.beginPath(); g.arc(0, 0, 2, 0, Math.PI * 2); g.stroke(); for (let a = 0; a < 6; a++) { const c = Math.cos(a * Math.PI / 3), s = Math.sin(a * Math.PI / 3); g.beginPath(); g.moveTo(c * 2.4, s * 2.4); g.lineTo(c * 3.7, s * 3.7); g.stroke(); } }
     else if (S.icon === 'cycle') { g.beginPath(); g.arc(0, 0, 2.8, Math.PI * 0.2, Math.PI * 1.75); g.stroke(); g.beginPath(); g.moveTo(2.8, -2.6); g.lineTo(2.2, 0.2); g.lineTo(-0.3, -1.2); g.stroke(); }
-    else if (S.icon === 'zzz') { g.font = '800 8px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('z', 0, 0.5); }
+    else if (S.icon === 'zzz') { g.font = '800 8px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('z', 0, 0.5); }
     g.restore();
   }
 
@@ -957,7 +978,7 @@ export class MapView {
 
   badge(g, x, y, text, color, size = 11) {
     text = tr(text);
-    g.font = `700 ${size}px system-ui, sans-serif`;
+    g.font = `700 ${size}px PdaIcons, system-ui, sans-serif`;
     const w = g.measureText(text).width + 8;
     g.fillStyle = 'rgba(251,248,241,0.92)';
     g.strokeStyle = color; g.lineWidth = 1.5;
@@ -969,7 +990,7 @@ export class MapView {
   }
 
   label(g, x, y, text) {
-    g.font = '600 11px system-ui, sans-serif';
+    g.font = '600 11px PdaIcons, system-ui, sans-serif';
     g.textBaseline = 'middle';
     g.lineWidth = 3; g.strokeStyle = C.halo;
     g.strokeText(text, x, y);

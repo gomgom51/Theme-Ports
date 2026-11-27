@@ -23,3 +23,5 @@ jobs:
         run: node tests/sim.test.mjs 3 12345
       - name: Version anglaise (aucun texte resté en français)
         run: node tools/i18n-check.mjs
+      - name: Icônes (chaque émoji a son dessin)
+        run: node tools/icons-check.mjs
