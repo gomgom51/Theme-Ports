@@ -980,6 +980,7 @@ export default {
   "Produits chimiques": "Chemicals",
   "P. raffinés": "Refined",
   "P. chimiques": "Chemicals",
+  "Glisser pour élargir · double-clic : largeur d'origine": "Drag to widen · double-click: original width",
   "GPL (butane, propane)": "LPG (butane, propane)",
   "Gaz naturel liquéfié": "Liquefied natural gas",
   "Véhicules": "Vehicles",
