@@ -249,9 +249,14 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   title/aria-label attributes via a MutationObserver; map canvas labels via `tr()`),
   using the dictionary `web/js/i18n/en.js` (French text → English, `{0}` for
   variable parts, which are translated recursively). Whenever you add or change a
-  French UI/news text, add its English entry, then run `node tools/i18n-extract.mjs`
-  to list texts still missing a translation (proper names need none). Mark an
-  element `data-no-tr` to leave it untouched.
+  French UI/news text, add its English entry, then run `node tools/i18n-check.mjs`
+  (also part of `npm test` and CI): it fails while any code text, or any text a 2-year
+  game produces (notifications, news, logs, with trap ship names), still shows French in
+  English. Proper names and never-shown texts go in `tools/i18n-ignore.json`. Ship,
+  company and captain names are registered at runtime (`registerGameNames`) and treated
+  as untranslatable tokens, so any player-typed name works inside a sentence. Served on
+  localhost or with `?dev`, the game warns in the console about every text still in
+  French (`window.__i18nMissing`). Mark an element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).

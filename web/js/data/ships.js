@@ -185,3 +185,8 @@ export const SHIP_NAMES = [
   'Île de Batz', 'Joséphine', 'Korrigan', 'Lorient', 'Maëlstrom', 'Nantes', 'Océane', 'Penmarc\'h',
   'Rochebonne', 'Sein', 'Tévennec', 'Valparaiso', 'Ys', 'Zanzibar', 'Armen', 'Bréhat',
 ];
+
+// Noms de capitaine proposés (fiche du navire → Équipage).
+export const CAPTAIN_NAMES = ['Yann Le Goff', 'Amara Diallo', 'Sven Halvorsen', 'Mei Lin', 'Diego Ferreira', 'Aiko Tanaka', 'Kwame Mensah', 'Elena Petrova',
+  'Rahul Mehta', 'Fatima Benali', 'Jonas Becker', 'Lucía Moreno', 'Tomasz Nowak', 'Nadia Haddad', 'Erik Lindqvist', 'Grace Okafor', 'Matteo Rossi',
+  'Anouk de Vries', 'Kenji Mori', 'Rosa Alvarez', 'Ioannis Pappas', 'Leïla Mansour', 'Hamish MacLeod', 'Thi Lan Nguyen', 'Bastien Kerjean', 'Olu Adeyemi'];

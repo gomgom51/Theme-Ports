@@ -95,10 +95,13 @@ export function isText(t) {
   if (s.length < 1 || !/[A-Za-zÀ-ÿ]/.test(s)) return false;
   if (/^(https?:\S*$|\.?\.?\/\S*$|#[0-9a-f]{3,8}$|rgba?\(|[\w-]+\.(js|mp3|wav|png|svg|css|json|woff2)$)/i.test(s)) return false;
   if (/^[a-z][\w-]*(\.[\w-]+)+$/.test(s)) return false; // div.class
+  if (/^\S+\.(mp3|wav|ogg|png|jpe?g|svg|css|json|woff2?)$/i.test(s)) return false; // fichiers (« musique/{0}.mp3 »)
+  if (/\[data-[\w-]+=/.test(s)) return false; // sélecteurs CSS
+  if (/\b\d*(px|\{\d+\}px)\b.*\b(serif|sans-serif|monospace|system-ui)\b/.test(t)) return false; // polices du canevas
   if (/^[\w$.-]+$/.test(s) && !/[À-ÿ]/.test(s)) {
     // un seul mot sans accent : un libellé s'il commence par une majuscule (et n'est pas en camelCase/MAJUSCULES),
     // ou s'il accompagne une valeur (« {0} jours », « risque {0} »)
-    return /^[A-Z][a-z]{2,}$/.test(s) || (/\{\d+\}/.test(t) && /^[a-z]{2,}$/.test(s));
+    return /^[A-Z][a-z]{2,}(-[a-z]{2,})*$/.test(s) || (/\{\d+\}/.test(t) && /^[a-z]{2,}$/.test(s));
   }
   if (/^[\w\s.#:>,-]+\{/.test(s) || /^<\w/.test(s) || /^M[\d\s.,-]+[LCZ]/i.test(s)) return false; // CSS, HTML, tracés SVG
   if (/[{};]\s*$/.test(s) && /:\s*[\w#]/.test(s)) return false;

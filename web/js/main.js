@@ -27,7 +27,7 @@ import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
-import { initI18n, setLang, getLang } from './i18n.js';
+import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
@@ -849,10 +849,12 @@ function autoResume() {
 }
 
 // ---------- Boucle principale ----------
-let last = performance.now(), acc = 0, lastRefresh = 0;
+let last = performance.now(), acc = 0, lastRefresh = 0, lastNames = 0;
 function loop(now) {
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
+  // Noms de navires et de compagnies : la traduction les reconnaît, quels qu'ils soient.
+  if (now - lastNames > 1000) { lastNames = now; registerGameNames(app.mode === 'game' ? app.state : app.demo); }
   if (app.mode === 'title' && app.demo) {
     acc += dt * 10;
     const n = Math.floor(acc);
@@ -887,6 +889,7 @@ function loop(now) {
 function enterGame(state) {
   document.querySelectorAll('.scene-wrap').forEach((w) => w.remove()); // scènes de la partie précédente
   pruneDismissed(state);
+  registerGameNames(state);
   app.state = state;
   app.mode = 'game';
   app.speed = 0;

@@ -3,7 +3,7 @@ import { familyDiscount, familyBlocked } from '../sim/home.js';
 import { eggFor } from '../data/eggs.js';
 import { searchText } from './panels.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
-import { SHIP_TYPES } from '../data/ships.js';
+import { SHIP_TYPES, CAPTAIN_NAMES } from '../data/ships.js';
 import { GOODS, HOLDS, USEFUL_GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
 import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
@@ -501,9 +501,6 @@ async function buyDialog(app, ship, g, q, dests) {
 
 // ---------- Équipage : expérience et spécialités ----------
 // Nom du capitaine : proposé dès le premier point gagné (jamais imposé), modifiable à tout moment.
-const CAPTAIN_NAMES = ['Yann Le Goff', 'Amara Diallo', 'Sven Halvorsen', 'Mei Lin', 'Diego Ferreira', 'Aiko Tanaka', 'Kwame Mensah', 'Elena Petrova',
-  'Rahul Mehta', 'Fatima Benali', 'Jonas Becker', 'Lucía Moreno', 'Tomasz Nowak', 'Nadia Haddad', 'Erik Lindqvist', 'Grace Okafor', 'Matteo Rossi',
-  'Anouk de Vries', 'Kenji Mori', 'Rosa Alvarez', 'Ioannis Pappas', 'Leïla Mansour', 'Hamish MacLeod', 'Thi Lan Nguyen', 'Bastien Kerjean', 'Olu Adeyemi'];
 function captainCard(app, ship) {
   const { state } = app;
   if (ship.owner !== app.ui.activeCompany) return ship.captainName ? h('p.captain-line', [h('span', '🧑‍✈️ Capitaine '), h('b', { 'data-no-tr': '' }, ship.captainName)]) : null;

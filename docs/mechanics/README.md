@@ -84,7 +84,7 @@ Key cross-links (each is explained in the target file):
 | Incident / inspection / sinking rates | `RISK`, `INCIDENT_BASE`, `STRICT_FLAGS`, `IMAGE_PORT_FLAGS` in `sim/incidents.js` |
 | Victory thresholds | `VICTORY` in `sim/victory.js`, `HONOURS` in `sim/honours.js` |
 | AI behaviour | `sim/ai.js` (+ `aiTakeover` in takeover.js, `aiPlots` in plots.js, dark-job AI in dark.js) |
-| Player-facing text | French string in code + English entry in `web/js/i18n/en.js`, then `node tools/i18n-extract.mjs` |
+| Player-facing text | French string in code + English entry in `web/js/i18n/en.js`, then `node tools/i18n-check.mjs` (fails on any French left in English) |
 
 ## Glossary (French identifiers)
 
