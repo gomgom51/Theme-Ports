@@ -1,7 +1,10 @@
 // Juke-box du bureau : rejouer, en boucle ou à la suite, les chansons déjà entendues en jeu
 // (débloquées pour toutes les parties). Les autres restent sous cadenas, avec la façon de les entendre.
 import { h, dialog } from './dom.js';
-import { heardTracks } from './audio.js';
+import { unlockedTracks, unlockTracks, once } from './profile.js';
+import { OFFICE_TIERS, officeTier } from '../data/offices.js';
+import { VICTORY_KINDS } from '../sim/victory.js';
+import { MUSIC_LOW } from './officeart.js';
 
 // id : clé de TRACKS (audio.js) ; title : le titre de la chanson ; role : où on l'entend.
 export const JUKEBOX = [
@@ -31,9 +34,53 @@ const byId = Object.fromEntries(JUKEBOX.map((t) => [t.id, t]));
 
 // La chanson d'accueil est toujours là ; les autres, dès qu'on les a entendues une fois.
 function unlocked() {
-  const set = heardTracks();
+  const set = unlockedTracks();
   set.add('title');
   return set;
+}
+
+// Chansons méritées par une compagnie, lues dans la partie elle-même : elles se débloquent même si
+// la musique était coupée, si le juke-box jouait autre chose à ce moment-là, ou si la partie date
+// d'avant le juke-box. Mêmes étapes que la musique de la partie (musicStep, musicMood dans main.js).
+// nw : valeur nette actuelle (en partie) ; sinon, l'historique hebdomadaire suffit.
+export const BLACKLIST_SONG_YEARS = 2; // années sur la liste noire avant la seconde chanson
+export function earnedTracks(state, c, nw = null) {
+  const ids = [];
+  const nws = (c.history || []).map((x) => x.nw).filter(Number.isFinite);
+  if (Number.isFinite(nw)) nws.push(nw);
+  const peak = nws.reduce((a, b) => Math.max(a, b), 0);
+  // Bureaux atteints (un niveau est acquis), et seconde chanson de chaque niveau passé à mi-chemin.
+  const top = Math.max(c.level ?? 0, officeTier(peak));
+  OFFICE_TIERS.forEach((o, t) => {
+    if (t <= top) ids.push(`tier${t + 1}`);
+    if (peak >= o.half) ids.push(`tier${t + 1}b`);
+  });
+  if (nws.some((v) => v < MUSIC_LOW)) ids.push('tier0'); // les temps sont durs
+  // Victoire en vue (alerte à 75 %), ou un concurrent tout près de gagner (alerte à 90 %).
+  for (const k of VICTORY_KINDS) if ((c.victoryMarks?.[k] || 0) >= 1) ids.push(k);
+  if ((state.companies || []).some((o) => o.id !== c.id && Object.values(o.victoryMarks || {}).some((m) => m >= 2))) ids.push('menace');
+  if (c.blacklisted) {
+    ids.push('blacklist');
+    if (state.t - c.blacklisted.t >= BLACKLIST_SONG_YEARS * 365 * 24) ids.push('blacklistb');
+  }
+  if (state.over) ids.push('end');
+  return ids;
+}
+
+// Débloque, pour toutes les parties, ce que les compagnies humaines de cette partie ont mérité.
+// nwOf(c) : valeur nette actuelle (facultatif).
+export function unlockEarned(state, nwOf = null) {
+  const ids = [];
+  for (const c of state?.companies || []) if (c.human) ids.push(...earnedTracks(state, c, nwOf ? nwOf(c) : null));
+  return unlockTracks(ids);
+}
+
+// Une fois par profil : relire toutes les sauvegardes, y compris celles d'avant le juke-box.
+// states() : les parties enregistrées (save.js).
+export function unlockFromSaves(states) {
+  once('jukebox-saves', () => {
+    for (const s of states()) { try { unlockEarned(s); } catch { /* sauvegarde abîmée : on passe */ } }
+  });
 }
 
 export function jukeboxDialog(app) {

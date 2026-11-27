@@ -152,6 +152,7 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `map.js`, `waters.js` | world map canvas, national waters |
 | `scenes*.js`, `pixel.js`, `shipart.js`, `officeart.js`, `trophyart.js`, `logos.js`, `flags.js` | art |
 | `audio.js`, `sounds.js`, `jukebox.js`, `intro.js`, `credits.js` | sound, music, intro, end credits |
+| `profile.js` | player profile, shared by every save (today: jukebox unlocks). A track unlocks when heard, or as soon as a save reaches its milestone (`earnedTracks` in `jukebox.js`: office reached, net worth peak in `history`, blacklist, victory alerts, game over), checked on load, once per game day, and once over all save slots. The one place to change when the desktop build moves the profile to a file |
 | `guide.js` | guided tour (keep `data-guide` markers) |
 | `save.js` | localStorage slots, export/import, `migrateState` on load |
 
