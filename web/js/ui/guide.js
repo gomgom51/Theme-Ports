@@ -6,6 +6,7 @@
 // passe jamais devant une fenêtre ou une scène, sauf l'étape de l'encaissement qui l'explique.
 import { shipsOf, shipById } from '../sim/core.js';
 import { h, toast } from './dom.js';
+import { localRect, viewport } from './scale.js';
 
 const KEY = 'pda-guide-done';
 // Cochée d'office pour une première partie sur cet appareil.
@@ -271,12 +272,12 @@ function render(app, step, view, n) {
 // La bulle à côté de la cible, du côté où elle tient, avec la flèche vers la cible. `box` : un
 // cadre à ne pas recouvrir (la fenêtre d'encaissement) : la bulle se met à côté de lui.
 function place(el, box = null) {
-  const t = el.getBoundingClientRect();
-  const b = box?.getBoundingClientRect();
+  const t = localRect(el); // en px de l'interface (zoom de ui/scale.js)
+  const b = box ? localRect(box) : null;
   // Côtés gauche/droite : on longe le cadre ; haut/bas : on longe le cadre aussi.
   const r = b ? { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height } : t;
   const bw = bubble.offsetWidth, bh = bubble.offsetHeight;
-  const W = innerWidth, H = innerHeight, m = 8, gap = 14;
+  const { w: W, h: H } = viewport(), m = 8, gap = 14;
   const fits = {
     left: r.left - gap - bw >= m, right: r.right + gap + bw <= W - m,
     bottom: r.bottom + gap + bh <= H - m, top: r.top - gap - bh >= m,
