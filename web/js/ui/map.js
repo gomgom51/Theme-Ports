@@ -679,14 +679,15 @@ export class MapView {
       const [px, py] = this.toScreen(P.lon, P.lat);
       if (px < -60 || px > this.w + 60 || py < -60 || py > this.h + 60) continue;
       ships.sort((a, b) => (b.owner === active) - (a.owner === active));
-      // En arcs autour du port, en laissant libre la droite, où s'écrit son nom.
-      const A0 = 0.95, SPAN = Math.PI * 2 - 2 * A0;
+      // En arcs autour du port, en laissant libre le côté où s'écrit son nom (la droite, ou la
+      // gauche pour les ports serrés contre un voisin : l'arc est alors retourné).
+      const A0 = 0.95, SPAN = Math.PI * 2 - 2 * A0, flip = (LABEL_PLACE[port] || ['right'])[0] === 'left' ? -1 : 1;
       let ring = 0, slot = 0;
       ships.forEach((ship) => {
         const rr = 25 + ring * 18, slots = Math.max(4, Math.floor((rr * SPAN) / 30));
         const ang = A0 + ((slot + 0.5) * SPAN) / slots;
         if (++slot >= slots) { slot = 0; ring++; }
-        const x = px + Math.cos(ang) * rr, y = py + Math.sin(ang) * rr;
+        const x = px + flip * Math.cos(ang) * rr, y = py + Math.sin(ang) * rr;
         const own = ship.owner === active;
         const kind = portActivity(ship);
         this.drawDocked(g, x, y, ship, state.companies[ship.owner].color, own, kind === 'laidup', ship.id === ui.selectedShip);
