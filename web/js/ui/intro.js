@@ -121,7 +121,7 @@ export function playIntro(app) {
   if (reduce && !needClick) return; // rien à attendre, et pas d'animation voulue
   const touch = window.matchMedia?.('(pointer: coarse)').matches;
 
-  const canvas = h('canvas.intro-canvas', { 'aria-hidden': 'true' });
+  const canvas = h('canvas.intro-canvas.unzoom', { 'aria-hidden': 'true' }); // au pixel de l'écran, hors du zoom de l'interface
   const root = h('div.intro', { role: 'button', tabindex: '0', 'aria-label': 'Embarquer' }, [
     canvas,
     brandTitle('h1.intro-title'),
