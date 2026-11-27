@@ -31,6 +31,7 @@ It exists so that a new task can start here instead of re-reading 30 simulation 
 | 14 | [rivalry-takeovers.md](14-rivalry-takeovers.md) | Shady deals (pirates, corruption, poaching, intel, tip-off), rivalry attacks and parries, takeovers and bids | `sim/plots.js`, `sim/takeover.js` |
 | 15 | [victories-honours.md](15-victories-honours.md) | Office levels, deeds, records, misdeeds, the four victories and their alerts, end of game | `sim/victory.js`, `sim/honours.js`, `data/offices.js` |
 | 16 | [ai.md](16-ai.md) | How AI companies decide (ship idle loop, daily fleet/treasury, leanings), every AI-only knob | `sim/ai.js` + AI branches elsewhere |
+| — | [../balance/README.md](../balance/README.md) | Balance simulation: comparing two versions of the game on the same seeds (population, strategies, fleet, victories) | `tools/balance/compare.mjs`, `tools/balance/population.mjs` |
 
 ## How the systems connect
 

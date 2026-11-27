@@ -43,6 +43,10 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 
 ### Balance tools (final pass only — not run in CI)
 
+- **Comparing versions** (what a change does to players): `node tools/balance/compare.mjs --ref main=origin/main
+  --ref pr=origin/<branch> --suite full` runs population, strategies, fleet and victories on the same seeds for
+  each version and writes a side-by-side report. Process, metrics and how to read them: `docs/balance/README.md`;
+  past reports in `docs/balance/reports/`.
 - `node tests/fleet.test.mjs` — every ship model profitable in a normal market.
 - `node tests/strategies.test.mjs` — no strategy dominates across seeds; each
   one wins in some markets.
