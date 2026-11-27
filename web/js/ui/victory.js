@@ -46,7 +46,7 @@ export function raceTab(app, kind) {
     card.append(h('div.vic-rows', rows.map(({ c, p }) => h('div.vic-row', { class: c.id === me ? 'mine' : '' }, [
       badge(c, 24),
       h('div.grow', [
-        h('div.vic-line', [h('b', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctTxt(p.frac))]),
+        h('div.vic-line', [h('b.nm', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctTxt(p.frac))]),
         bar(p.frac, p.frac >= VICTORY.alerts[1] ? 'hot' : p.frac >= VICTORY.alerts[0] ? 'warm' : ''),
         h('div.vic-parts', p.parts.map((x) => h('span.vic-part', { class: x.frac >= 1 ? 'done' : '' }, [`${x.frac >= 1 ? '✓ ' : ''}${x.label} : `, h('b', x.text)]))),
       ]),
