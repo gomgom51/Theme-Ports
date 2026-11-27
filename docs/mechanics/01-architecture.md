@@ -13,7 +13,8 @@ web/                     static site (no build step), also wrapped by android/ (
   js/ui/                 panels, map, scenes (pixel art), audio, saves, guide, credits
 tests/                   balance tools (node), see CLAUDE.md
 tools/                   generators: build_world, build_distances, build_countries, i18n-extract;
-                         i18n-check (guard: no French left in the English version)
+                         i18n-check (guard: no French left in the English version),
+                         i18n-screens (same guard on the real screens, hidden browser)
 docs/mechanics/          this reference
 ```
 
@@ -153,6 +154,7 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `scenes*.js`, `pixel.js`, `shipart.js`, `officeart.js`, `trophyart.js`, `logos.js`, `flags.js` | art |
 | `audio.js`, `sounds.js`, `jukebox.js`, `intro.js`, `credits.js` | sound, music, intro, end credits |
 | `motion.js` | interface motion (owner's picks, "mechanical but smooth"): panels slide out from under the rail like a drawer and stop firmly (the old panel slides back in first), a brass bar sweeps a new tab in below the part shared by every tab (Office picture, ship header; the underline slides), dialogs are stamped onto the map with a small jolt and a soft synthesized thud (`stamp` in `sounds.js`, effects volume; drawer and wiper stay silent). The collection receipt, shown after nearly every delivery, keeps the stamp and thud without the jolt (`dialog({ shake: false })`, owner's call: the jolt stays for rare dialogs such as ice, takeover, blacklist). Only opening, closing, switching panel or tab animates, never the 1.2 s refresh; nothing moves under `prefers-reduced-motion`. Timings in `MOTION` |
+| `profile.js` | player profile, shared by every save (today: jukebox unlocks). A track unlocks when heard, or as soon as a save reaches its milestone (`earnedTracks` in `jukebox.js`: office reached, net worth peak in `history`, blacklist, victory alerts, game over), checked on load, once per game day, and once over all save slots. The one place to change when the desktop build moves the profile to a file |
 | `shipnames.js` | every boat name in Stardos Stencil (owner's call), including inside sentences: after translation, known ship names (fleet, broker, cumulated over the session) are wrapped in `span.nm` inside a `span.nm-text[data-no-tr]`; skip an element with `data-no-name`. On the map (canvas, `map.js` `label`), only the selected ship shows its name, in 15 px stencil (owner's call) |
 | `guide.js` | guided tour (keep `data-guide` markers) |
 | `save.js` | localStorage slots, export/import, `migrateState` on load |
@@ -160,7 +162,8 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 ## Tests and tools
 
 See the "Balance tools" section of `CLAUDE.md`. `npm test` = routing + 3-year sim (correctness)
-+ `tools/i18n-check.mjs` (English version: no French text left, from the code or from a simulated game);
++ `tools/i18n-check.mjs` (English version: no French text left, from the code, glued fragments or a simulated game)
++ `tools/i18n-screens.mjs` (the same on screen: a game played in English in a hidden browser, every panel opened);
 `npm run balance` = fleet + strategies (final balance pass only). `npm run build:world` regenerates
 map, countries and distance tables. To measure what a change does to players, compare versions with
 `tools/balance/compare.mjs` (see `docs/balance/README.md`).

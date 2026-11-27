@@ -28,8 +28,8 @@ export const VICTORY = {
 };
 export const VICTORY_KINDS = ['domination', 'reputation', 'legend', 'shadow'];
 export const VICTORY_INFO = {
-  domination: { name: 'Seul maître à bord', icon: '⚓', text: 'Tous vos concurrents ruinés ou rachetés.' },
-  reputation: { name: 'La plus respectée', icon: '★', get text() { return `Atteindre une réputation parfaite (100) avec au moins cinq hauts faits et le niveau 4, puis la tenir ${Math.round(VICTORY.repHoldDays / 30)} mois sans retomber sous ${VICTORY.repHoldFloor}.`; } },
+  domination: { name: 'Seul maître à bord', icon: '🚩', text: 'Tous vos concurrents ruinés ou rachetés.' },
+  reputation: { name: 'La plus respectée', icon: '🌟', get text() { return `Atteindre une réputation parfaite (100) avec au moins cinq hauts faits et le niveau 4, puis la tenir ${Math.round(VICTORY.repHoldDays / 30)} mois sans retomber sous ${VICTORY.repHoldFloor}.`; } },
   legend: { name: 'Compagnie légendaire', icon: '🏆', text: 'Détenir en même temps cinq des huit records.' },
   shadow: { name: 'La flotte fantôme', icon: '🗡', get text() { return `${VICTORY.shadowYears} ans sur la liste noire internationale avec au moins ${VICTORY.shadowShips} navires, et une affaire noire menée à bien dans chaque pays sous embargo.`; } },
 };
@@ -63,7 +63,7 @@ export function victoryProgress(state, company, kind) {
     const n = deedCount(company), lv = levelOf(company);
     const hold = company.repHold ? (state.t - company.repHold.since) / D : 0;
     parts = [
-      part('Réputation', company.repHold ? 1 : (company.reputation - 80) / 20, (company.repHold ? `${Math.floor(company.reputation)} (100 atteint)` : `${Math.floor(company.reputation)} / 100`) + ` · confiance ${Math.floor(company.confidence ?? company.reputation)}, vertu ${Math.floor(company.virtue ?? company.reputation)}`),
+      part('Réputation', company.repHold ? 1 : (company.reputation - 80) / 20, `${company.repHold ? `${Math.floor(company.reputation)} (100 atteint)` : `${Math.floor(company.reputation)} / 100`} · confiance ${Math.floor(company.confidence ?? company.reputation)}, vertu ${Math.floor(company.virtue ?? company.reputation)}`),
       part('Hauts faits', n / VICTORY.repDeeds, `${n} / ${VICTORY.repDeeds}`),
       part('Niveau', (lv + 1) / (VICTORY.repLevel + 1), `${lv + 1} / ${VICTORY.repLevel + 1}`),
       part('Tenue', hold / VICTORY.repHoldDays, company.repHold ? `${Math.floor(hold)} / ${VICTORY.repHoldDays} jours au-dessus de ${VICTORY.repHoldFloor}` : 'pas encore (atteindre 100)'),

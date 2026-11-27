@@ -14,12 +14,12 @@ const trophy = (kind, id) => h('div.codex-art', { html: honourSVG(kind, id, { si
 function victoriesList(app) {
   const { state } = app;
   return h('div', [
-    h('p.hint', 'Si personne ne gagne avant la fin du temps imparti, la compagnie la plus riche l\'emporte. Mais quatre victoires peuvent finir la partie plus tôt. Chacun voit la progression de tous (icônes ⚓ ★ 🏆 🗡 sous les boutons de droite) et tout le monde est prévenu à 75 % puis à 90 % d\'une victoire.'),
+    h('p.hint', 'Si personne ne gagne avant la fin du temps imparti, la compagnie la plus riche l\'emporte. Mais quatre victoires peuvent finir la partie plus tôt. Chacun voit la progression de tous (médailles 🚩 🌟 🏆 🗡 sous les boutons de droite) et tout le monde est prévenu à 75 % puis à 90 % d\'une victoire.'),
     h('div.codex-list', VICTORY_KINDS.map((k) => {
       const V = VICTORY_INFO[k], off = state.settings?.victories?.[k] === false;
-      if (off) return card(h('div.codex-icon', { class: k === 'reputation' ? 'star' : '' }, V.icon), V.name, V.text, h('div.small.muted', 'Désactivée dans cette partie.'), 'off');
+      if (off) return card(h('div.codex-icon', V.icon), V.name, V.text, h('div.small.muted', 'Désactivée dans cette partie.'), 'off');
       const p = victoryProgress(state, app.company(), k);
-      return card(h('div.codex-icon', { class: k === 'reputation' ? 'star' : '' }, V.icon), V.name, V.text, h('div', [bar(p.frac), h('div.small.muted', `Vous : ${Math.round(p.frac * 100)} % du chemin`)]));
+      return card(h('div.codex-icon', V.icon), V.name, V.text, h('div', [bar(p.frac), h('div.small.muted', `Vous : ${Math.round(p.frac * 100)} % du chemin`)]));
     })),
   ]);
 }

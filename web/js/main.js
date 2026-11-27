@@ -13,7 +13,8 @@ import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
 import { playIntro } from './ui/intro.js';
-import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
+import { saveGame, loadGame, listSaves, savedStates, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
+import { unlockEarned, unlockFromSaves, BLACKLIST_SONG_YEARS } from './ui/jukebox.js';
 import { AudioManager } from './ui/audio.js';
 import { renderOpps, pruneDismissed, goldenReach } from './ui/opps.js';
 import { guideTick, startGuide, guideMenuLabel, toggleGuide } from './ui/guide.js';
@@ -82,7 +83,7 @@ app.map = new MapView($('#map'), {
 
 // Partie de démonstration derrière l'écran d'accueil.
 function startDemo() {
-  app.demo = newGame({ seed: 7, duration: 0, companies: ['rotterdam', 'singapour', 'houston', 'shanghai'].map((p, i) => ({ name: 'Démo ' + i, human: false, homePort: p })) }, ctx);
+  app.demo = newGame({ seed: 7, duration: 0, companies: ['rotterdam', 'singapour', 'houston', 'shanghai'].map((p, i) => ({ name: `Démo ${i}`, human: false, homePort: p })) }, ctx);
   tick(app.demo, ctx, 24 * 40);
   app.previewState = app.demo;
 }
@@ -277,7 +278,7 @@ function updateStandings(s, me) {
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
 }
-// Tuiles de victoire (sous les boutons latéraux) : la barre du bas suit votre progression (halo à 75 %,
+// Médailles de victoire (sous les boutons latéraux) : l'anneau autour suit votre progression (halo à 75 %,
 // halo qui respire à 90 %), le point rouge signale un concurrent à 75 % ou plus (il bat à 90 %). Recalculé une fois par jour de jeu.
 function updateVictoryRail(s, c) {
   const key = `${c.id}:${Math.floor(s.t / 24)}:${s.victoryClaimed ? 1 : 0}:${getLang()}`;
@@ -329,7 +330,6 @@ function checkLevels(s) {
 // Thème de situation : une victoire en vue pour vous (75 %), la liste noire, ou un concurrent
 // tout près de gagner (90 %). Calculé une fois par jour de jeu.
 let moodCache = { key: null, mood: null };
-const BLACKLIST_SONG_B = 2; // années sur la liste noire avant la seconde chanson
 function musicMood(s, c) {
   const key = `${c.id}:${Math.floor(s.t / 24)}`;
   if (moodCache.key === key) return moodCache.mood;
@@ -341,7 +341,7 @@ function musicMood(s, c) {
     for (const o of s.companies) if (o.id !== c.id && !o.bankrupt) rival = Math.max(rival, victoryProgress(s, o, k).frac);
   }
   // Sur la liste noire : la première chanson, puis la seconde après deux ans (le chemin de l'ombre est long).
-  if (!mood && c.blacklisted) mood = s.t - c.blacklisted.t >= BLACKLIST_SONG_B * 365 * 24 ? 'blacklistb' : 'blacklist';
+  if (!mood && c.blacklisted) mood = s.t - c.blacklisted.t >= BLACKLIST_SONG_YEARS * 365 * 24 ? 'blacklistb' : 'blacklist';
   if (!mood && rival >= VICTORY.alerts[1]) mood = 'menace';
   moodCache = { key, mood };
   return mood;
@@ -461,6 +461,9 @@ function updateHud() {
     renderOpps(app); // cartes d'opportunité (affaires en or, aide d'urgence)
     app.audio.setMusicTier(musicStep(netWorth(s, c.id), c.level ?? 0));
     app.audio.setMusicMood(musicMood(s, c));
+    // Juke-box : les chansons méritées se débloquent pour toutes les parties, même sans le son.
+    const day = Math.floor(s.t / HOURS_PER_DAY);
+    if (app.unlockDay !== day) { app.unlockDay = day; unlockEarned(s, (x) => netWorth(s, x.id)); }
     updateStandings(s, c.id);
     updateVictoryRail(s, c);
   }
@@ -643,7 +646,7 @@ function handleNotes(notes) {
       if (app.state.settings.autoPause) paused = true;
       continue;
     }
-    if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
+    if (n.kind === 'over') { app.speed = 0; unlockEarned(app.state); saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
     if (n.kind === 'event') {
       toast(`📰 ${n.text}`, { timeout: 9000 });
       if (scenes && EVENT_SCENES[n.id]) playScene(EVENT_SCENES[n.id], { title: n.title, text: n.body, variant: n.variant, color: companyColor() });
@@ -935,6 +938,7 @@ function enterGame(state) {
   app.form = { dest: {}, speed: {}, autoRefuel: {} };
   app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
   app.map.setGame(state, ctx, app.ui);
+  app.unlockDay = null; // juke-box : ce que la partie a déjà mérité (anciennes sauvegardes comprises)
   document.body.classList.add('in-game');
   app.audio.setScene('game');
   hideScreen();
@@ -1130,6 +1134,8 @@ app.map.fitWorld();
 app.audio.setScene('title');
 titleScreen(app);
 playIntro(app); // au lancement seulement : le caboteur quitte le port, puis le menu
+// Juke-box, une fois par profil : les chansons méritées dans toutes les sauvegardes (même d'avant le juke-box).
+(window.requestIdleCallback || setTimeout)(() => unlockFromSaves(savedStates));
 requestAnimationFrame(loop);
 // Navire d'occasion acheté : la scène de la remise des papiers (le temps repart ensuite).
 app.boughtShip = (ship) => {

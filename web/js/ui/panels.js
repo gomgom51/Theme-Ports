@@ -709,12 +709,25 @@ export function searchText(p) {
   const name = portName(p), country = FLAGS[PORTS[p].flag]?.name || '';
   return `${name} ${tr(name)} ${country} ${tr(country)}`;
 }
+// Rayons de l'onglet Marchandises : [famille, marchandises, nom affiché].
+const GOOD_SHELVES = [
+  ['vrac', ['cereales', 'minerai', 'charbon', 'engrais'], 'Vrac sec'],
+  ['citernes', ['brut', 'raffines', 'chimie', 'gpl', 'gnl'], 'Citernes'],
+  ['divers', ['manufactures', 'machines', 'cafe_cacao', 'acier', 'bois'], 'Conteneurs et divers'],
+  ['speciaux', ['fruits', 'vehicules', 'colis'], 'Navires spéciaux'],
+];
 function goodsTab(app) {
   const { state } = app;
   const g = app.form.good || 'cereales';
   const G = GOODS[g];
   const box = h('div');
-  box.append(h('div.chips', GOOD_IDS.map((id) => h('button.chip', { class: id === g ? 'active' : '', onclick: () => { app.form.good = id; app.refresh(); } }, `${GOODS[id].icon} ${GOODS[id].name}`))));
+  // Rayons par navire qui les porte (une couleur chacun) : on reconnaît une marchandise sans lire.
+  const placed = new Set(GOOD_SHELVES.flatMap(([, ids]) => ids));
+  const shelves = GOOD_SHELVES.map(([fam, ids, name]) => [fam, ids.filter((id) => GOODS[id]), name]);
+  shelves[shelves.length - 1][1].push(...GOOD_IDS.filter((id) => !placed.has(id))); // une marchandise ajoutée sans rayon
+  box.append(h('div.goods-shelves', shelves.flatMap(([fam, ids, name]) => [h('div.goods-fam', { 'data-fam': fam }, name),
+    h('div.chips', { 'data-fam': fam }, ids.map((id) => h('button.chip.good-tile', { class: id === g ? 'active' : '', onclick: () => { app.form.good = id; app.refresh(); } },
+      [h('span.gi', { 'aria-hidden': 'true' }, GOODS[id].icon), h('span.gn', GOODS[id].name)])))])));
   box.append(h('p', [h('span', 'Cours mondial :'), ' ', h('b', `${money(G.price * state.market.world[g])}/t`), ' · ', h('span', 'transport :'), ' ', ...G.holds.flatMap((x, i) => [i ? ' ' : null, i ? h('span', 'ou') : null, i ? ' ' : null, h('span', HOLDS[x])])]));
   const search = searchBox(app.form, 'marketSearch');
   box.append(search.input);

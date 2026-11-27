@@ -110,7 +110,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   each of the first five of eight deeds raises the cap by one; level 4; then held six months without falling below 95,
   so rivals warned at 75–90 % have a window to strike), legendary (hold 5 of 8 exclusive records;
   numbered records can be broken, "complete" ones stay with the first), shadow fleet (years on the international
-  blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (one tile
+  blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (one medal
   per victory under the side rail, opening that path's page) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
   (award scene), misdeeds are grim proofs on a dark side table; a blacklisted company's office turns ostentatious
   (night outside, velvet, chandelier, gold bust, full safe: `officeSVG` option `shadow`). Office levels are sticky (company maturity) and gate
@@ -252,7 +252,13 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   French UI/news text, add its English entry, then run `node tools/i18n-check.mjs`
   (also part of `npm test` and CI): it fails while any code text, or any text a 2-year
   game produces (notifications, news, logs, with trap ship names), still shows French in
-  English. Proper names and never-shown texts go in `tools/i18n-ignore.json`. Ship,
+  English. The translator only sees whole text nodes: a template whose variable part is a
+  French fragment (`…${x}${glace ? ' (classe glace)' : ''}.`) is recomposed with each fragment
+  and must translate too, and French text glued with `+` is refused (write a template or
+  separate text nodes). `node tools/i18n-screens.mjs` (Playwright, not in CI: run at release, part of `npm test`)
+  plays a 2-year game in English in a hidden browser, opens every panel, tab and event
+  window, and fails on any French actually on screen (runtime-glued pieces, lone words,
+  status labels, French around names in `data-no-tr`). Proper names and never-shown texts go in `tools/i18n-ignore.json`. Ship,
   company and captain names are registered at runtime (`registerGameNames`) and treated
   as untranslatable tokens, so any player-typed name works inside a sentence. Served on
   localhost or with `?dev`, the game warns in the console about every text still in
@@ -268,7 +274,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
   Keep these attributes when reworking those buttons, or the tour silently loses its targets.
 - Office keeps 4 tabs (Finances with insurance at the bottom, Résultats, Compagnie, Chargeurs). Each victory has a
-  tile under the side rail (own colour, bottom progress bar) (`.vic-rail`, `data-victory`) opening panel `victory` with tabs: `course` plus
+  medal button under the side rail (🚩 🌟 🏆 🗡, own colour, progress ring around it) (`.vic-rail`, `data-victory`) opening panel `victory` with tabs: `course` plus
   domination → `concurrents`, `classement`; reputation → `hauts-faits`; legend → `records`; shadow → `mefaits`.
   The reputation star ★ is always gold (`--star` / `.star` in `style.css`).
 - Logo (`web/js/ui/brand.js`, owner's choice): the sunset-anchor seal crowning a sea-chart plaque, name in Stardos Stencil
@@ -280,5 +286,13 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 - End credits (`web/js/ui/credits.js`): film-style roll on `musique/generique.mp3`, every game animation fading in
   and out around it (captions use the player's own figures), after the victory screen and from the title screen.
   `AUTHOR` holds the name shown for the author; add a scene to `NOT_ALONE` if it cannot draw without game data.
+- Icons (owner's pick, "smooth" style: ink outline, flat fill, one shade, one highlight): the code keeps its emoji and
+  the colour font `web/fonts/pda-icons.woff2` (COLR, `unicode-range` limited to the game's emoji) draws each one in the
+  game's style, in the DOM and on the map canvas. Every font stack starts with `var(--icons)`, every map `g.font`
+  with `PdaIcons`. Drawings in `tools/icons/` (`cps.mjs` says which emoji each replaces), built by
+  `node tools/icons/build.mjs` (Python fonttools, picosvg, skia-pathops). `node tools/icons-check.mjs` (npm test, CI)
+  fails on any emoji without a drawing: draw it, or list it in `TEXT_GLYPHS` if it should stay plain text. Sizes: 16 px
+  in 14 px text, 32 px drawings at 28 px (rail, goods tiles). Goods are grouped by ship on shelves (Markets → Goods).
+  Ask the owner for direction before adding a new family of drawings.
 - Original game only: never reuse the name, art, music or screens of
   *Ports of Call*; keep only the general mechanics.
