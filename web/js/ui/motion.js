@@ -66,27 +66,31 @@ export function drawerOutCopy(el) {
 // (clics rapprochés), il continue sa course avec le nouveau contenu : rien ne s'empile.
 export const panelSwapBegin = (el) => (moving(el) ? -1 : drawerOutCopy(el));
 
-// Onglet : l'ancienne page reste dessous, la nouvelle est découverte par une barre de laiton qui
-// balaie dans le sens des onglets (vers la droite pour un onglet plus à droite).
-export function wipeTab(panel, oldBody, newBody, dir, oldScroll = 0) {
+// Onglet : une barre de laiton balaie l'ancienne page dans le sens des onglets (vers la droite pour un
+// onglet plus à droite) et découvre la nouvelle. La partie commune à tous les onglets (topEl : l'image
+// du Bureau, l'en-tête du navire) ne bouge pas : le balayage commence sous elle.
+export function wipeTab(panel, oldBody, newBody, dir, oldScroll = 0, topEl = null) {
   if (reducedMotion() || !oldBody || !newBody || !dir) return;
   oldBody.getAnimations().forEach((a) => a.cancel());
   const top = newBody.offsetTop, h = newBody.offsetHeight, w = panel.clientWidth;
-  Object.assign(oldBody.style, { position: 'absolute', left: '0', right: '0', top: `${top}px`, height: `${h}px`, zIndex: '0', pointerEvents: 'none' });
+  const cut = topEl?.isConnected ? Math.max(0, Math.round(topEl.offsetTop + topEl.offsetHeight - top - newBody.scrollTop)) : 0;
+  if (cut >= h - 8) return; // la partie commune remplit l'écran : rien à balayer
+  Object.assign(oldBody.style, { position: 'absolute', left: '0', right: '0', top: `${top}px`, height: `${h}px`, zIndex: '2', pointerEvents: 'none' });
+  oldBody.classList.add('wipe-old');
   oldBody.setAttribute('aria-hidden', 'true');
   oldBody.inert = true;
   panel.append(oldBody);
   oldBody.scrollTop = oldScroll;
-  newBody.classList.add('wiping');
   const bar = document.createElement('div');
   bar.className = 'wipe-bar';
-  Object.assign(bar.style, { top: `${top}px`, height: `${h}px` });
+  Object.assign(bar.style, { top: `${top + cut}px`, height: `${h - cut}px` });
   panel.append(bar);
   const e = 'cubic-bezier(.5,0,.25,1)';
-  const from = dir > 0 ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)';
-  newBody.animate([{ clipPath: from, easing: e }, { clipPath: 'inset(0 0 0 0)', offset: 0.84 }, { clipPath: 'inset(0 0 0 0)' }], { duration: MOTION.wipe });
+  // L'ancienne page, posée sur la nouvelle, s'efface derrière la barre.
+  const gone = dir > 0 ? `inset(${cut}px 0 0 100%)` : `inset(${cut}px 100% 0 0)`;
+  oldBody.animate([{ clipPath: `inset(${cut}px 0 0 0)`, easing: e }, { clipPath: gone, offset: 0.84 }, { clipPath: gone }], { duration: MOTION.wipe, fill: 'forwards' });
   const x0 = dir > 0 ? -6 : w - 6, x1 = dir > 0 ? w - 6 : -6;
-  const end = () => { oldBody.remove(); bar.remove(); newBody.classList.remove('wiping'); };
+  const end = () => { oldBody.remove(); bar.remove(); };
   bar.animate([
     { transform: `translateX(${x0}px)`, opacity: 1, easing: e },
     { transform: `translateX(${x1}px)`, opacity: 1, offset: 0.84, easing: 'ease-out' },
@@ -118,7 +122,7 @@ export function slideTabLine(tabsEl, fromId, toId) {
 // Le tampon : le voile tombe en deux crans, la boîte est pressée sur la carte, et la carte encaisse le choc.
 // Renvoie le délai (s) jusqu'au contact, pour caler le bruit ; null sans animation.
 const JOLTED = ['#map', '#hud', '.rail', '#panel', '#ticker', '#standings', '.opps'];
-export function stampIn(wrap, box) {
+export function stampIn(wrap, box, { jolt = true } = {}) {
   if (reducedMotion()) return null;
   wrap.animate([{ opacity: 0, easing: 'steps(3, end)' }, { opacity: 1 }], { duration: 120 });
   box.animate([
@@ -128,7 +132,7 @@ export function stampIn(wrap, box) {
     { transform: 'scale(1)', opacity: 1 },
   ], { duration: MOTION.stamp });
   const hit = Math.round(MOTION.stamp * 0.56), d = MOTION.thud;
-  document.querySelectorAll(JOLTED.join(',')).forEach((el) => {
+  if (jolt) document.querySelectorAll(JOLTED.join(',')).forEach((el) => {
     if (el.hidden) return;
     el.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${d}px)`, offset: 0.35 }, { transform: 'translateY(-1px)', offset: 0.7 }, { transform: 'translateY(0)' }],
       { duration: 110, delay: hit, composite: 'add' });

@@ -168,9 +168,10 @@ export function portPanel(app, id) {
   if (isStrict(id)) body.append(h('p.hint', 'Port exigeant : les navires usés (sous 55 %, 62 % après 20 ans) risquent d\'y être retenus, mis à l\'amende et réparés d\'office aux frais de l\'armateur.'));
   body.append(h('p', ['Terminaux : ', ...P.terminals.map((t) => h('span.tag', HOLDS[t]))]));
   if (state.strikes[id] > state.t) body.append(h('p.warn-text', `Grève des dockers jusqu'au ${date(state.strikes[id], true)}.`));
-  const goodRow = (g, kind) => h('div.row', [
-    h('span.grow', [GOODS[g].icon, ' ', GOODS[g].name]),
-    kind === 'exp' ? h('span.muted.small', `stock ${tonnes(eco.availableStock(state, id, g))}`) : null,
+  // Icône à gauche, nom (le stock dessous, en petit), prix à droite sur une ligne : la colonne est étroite.
+  const goodRow = (g, kind) => h('div.row.goods-row', [
+    h('span.goods-icon', GOODS[g].icon),
+    h('span.grow', [h('span', GOODS[g].name), kind === 'exp' ? h('span.muted.small', `stock ${tonnes(eco.availableStock(state, id, g))}`) : null]),
     h('b', `${money(kind === 'exp' ? eco.buyPrice(state, id, g) : eco.sellPrice(state, id, g))}/t`),
   ]);
   const exp = Object.keys(P.exp), imp = Object.keys(P.imp);
@@ -258,7 +259,7 @@ function usedTab(app) {
       return h('div.card.with-art', { class: affordable ? '' : 'disabled' }, [
         h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipSVG(l.type, { ...look, slot: 'card' }) }),
         h('div.card-main', [
-          h('div.card-title', [l.name, h('span.tag', T.name)]),
+          h('div.card-title', [h('span.nm', l.name), h('span.tag', T.name)]),
           h('div.card-sub', typeSpecs(T)),
           h('div.card-sub', [`${num1(l.age)} ans · état `, h('b', pct(l.condition)), ` · à ${portName(l.port)}`, l.port === company.homePort ? h('span.tag.good', 'votre port') : null]),
           h('div.card-sub', [surveyTag(state, look), repairsToExpect(state, l)]),
@@ -320,7 +321,7 @@ function sellTab(app) {
     const v = eco.shipValue(state, s) * 0.95;
     return h('div.card', { class: can ? '' : 'disabled' }, [
       h('div.card-main', [
-        h('div.card-title', [s.name, h('span.tag', SHIP_TYPES[s.type].name)]),
+        h('div.card-title', [h('span.nm', s.name), h('span.tag', SHIP_TYPES[s.type].name)]),
         h('div.card-sub', `${num1(eco.ageYears(state, s))} ans · état ${pct(s.condition)} · ${shipStatusText(state, ctx, s)}`),
         can ? null : h('div.card-why', 'Doit être à quai, inoccupé et vide.'),
       ]),

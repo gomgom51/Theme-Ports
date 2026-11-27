@@ -144,7 +144,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .ctx-btn:hover:not(:disabled) { border-color: var(--teal); }
 .ctx-btn:disabled { opacity: 0.55; }
 .hud-time { flex: none; display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.hud-date { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-family: var(--serif); font-size: 13px; }
+.hud-date { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-family: var(--stencil); font-size: 16px; letter-spacing: 0.03em; }
 .speed { display: flex; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
 .speed button {
   border: 0; background: transparent; color: var(--ink-2); font-size: 11px; letter-spacing: -2px;
@@ -270,7 +270,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
    sans barre de défilement visible, passait inaperçu (Concurrents, Victoires, Trophées du bureau). */
 .tabs { position: relative; display: flex; flex-wrap: wrap; gap: 2px; padding: 0 10px; background: var(--paper); border-bottom: 1px solid var(--line); }
 .tab {
-  border: 0; background: transparent; color: var(--muted); padding: 8px 11px; white-space: nowrap;
+  border: 0; background: transparent; color: var(--muted); padding: 8px 9px; white-space: nowrap;
   border-bottom: 3px solid transparent; font-weight: 700;
 }
 .tab.active { color: var(--ink); border-bottom-color: var(--teal); }
@@ -280,7 +280,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-ghost, .dialog-ghost { pointer-events: none; }
 .tab-line { position: absolute; height: 3px; background: var(--teal); pointer-events: none; }
 .tabs-sliding .tab.active { border-bottom-color: transparent; }
-.panel-body.wiping { position: relative; z-index: 1; background: var(--paper); }
+.panel-body.wipe-old { background: var(--paper); }
 .wipe-bar {
   position: absolute; left: 0; width: 12px; z-index: 2; pointer-events: none;
   background: linear-gradient(to right, #5a4119, #ecc77c 40%, #c99a48 65%, #5a4119); box-shadow: 0 0 8px rgba(28, 42, 51, 0.4);
@@ -328,6 +328,10 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 /* ---------- Listes et cartes ---------- */
 .list { display: flex; flex-direction: column; gap: 8px; }
 .list.compact { gap: 4px; }
+/* Marchandises d'un port : l'icône reste à gauche du nom (même sur deux lignes), le stock passe dessous, le prix tient sur une ligne. */
+.goods-row { gap: 8px; }
+.goods-row > .grow { display: flex; flex-direction: column; gap: 1px; }
+.goods-row > b { white-space: nowrap; }
 .card {
   display: flex; gap: 10px; align-items: center; background: var(--paper-2); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px;
@@ -384,6 +388,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .grade-svg .grade-empty { fill: currentColor; opacity: 0.2; }
 .grade-svg .grade-full { fill: currentColor; }
 .card-title .grade { margin-left: 4px; }
+.card-title .nm { font-size: 16px; font-weight: 700; }
 .pay-risk { font-size: 12.5px; }
 .client-row .client .tag { margin-left: 4px; }
 .stars { color: #b07d16; letter-spacing: 1px; font-size: 12px; }
@@ -398,7 +403,7 @@ button.row { border-color: transparent; }
 .row.disabled { opacity: 0.5; }
 .mini { display: flex; flex-direction: column; width: 52px; gap: 2px; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; flex: none; }
-.rank { width: 20px; text-align: center; font-weight: 800; color: var(--teal); font-family: var(--serif); }
+.rank { width: 20px; text-align: center; font-weight: 800; color: var(--teal); }
 .flag { display: inline-block; width: 21px; height: 14px; vertical-align: -2px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(28, 42, 51, 0.25); flex: none; overflow: hidden; }
 .flag svg { display: block; width: 100%; height: 100%; }
 .badge-wrap { display: inline-flex; vertical-align: middle; }
@@ -467,7 +472,7 @@ select.input { width: auto; max-width: 100%; }
 .office-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; margin-bottom: 6px; }
 .office-hero svg { width: 100%; height: auto; display: block; }
 .office-caption { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; }
-.office-caption b { font-family: var(--serif); color: var(--ink); }
+.office-caption b { font-family: var(--stencil); font-size: 15px; letter-spacing: 0.03em; color: var(--ink); }
 
 /* ---------- Paiement ---------- */
 .pay-lines { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
@@ -475,17 +480,21 @@ select.input { width: auto; max-width: 100%; }
 .pay-line.event { background: #fbf1dc; border-left: 3px solid var(--warn); }
 .pay-line.good-event { background: #e5f2e9; border-left: 3px solid var(--good); }
 .pay-line.bad-event { background: #f8e4e1; border-left: 3px solid var(--bad); }
-.pay-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; padding: 8px 10px; border-top: 2px solid var(--ink); margin-top: 4px; font-family: var(--serif); }
+.pay-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; padding: 8px 10px; border-top: 2px solid var(--ink); margin-top: 4px; }
 @keyframes pay-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Notifications ---------- */
 /* Messages en haut de l'écran, sous la barre et le bandeau de nouvelles ; le plus récent en haut. */
 .toasts {
-  position: fixed; z-index: 30; left: calc(12px + var(--safe-l)); top: calc(var(--hud-h) + var(--safe-t) + 54px);
-  display: flex; flex-direction: column-reverse; gap: 8px; width: min(560px, calc(100vw - var(--rail-w) - 36px));
+  position: fixed; z-index: 30; right: calc(var(--rail-w) + 24px + var(--safe-r)); top: calc(var(--hud-h) + var(--safe-t) + 54px);
+  display: flex; flex-direction: column-reverse; gap: 8px; width: max(260px, min(500px, calc(100vw - var(--rail-w) - 444px)));
   pointer-events: none;
 }
-.panel-open .toasts { width: max(260px, min(560px, calc(100vw - min(560px, 64vw) - var(--rail-w) - 48px))); }
+/* À droite de la carte, contre le panneau ouvert : la colonne des opportunités (à gauche) reste lisible. */
+.panel-open .toasts {
+  right: calc(var(--rail-w) + 24px + min(560px, calc(100vw - var(--rail-w) - 24px)) + var(--safe-r));
+  width: max(260px, min(500px, calc(100vw - var(--rail-w) - 456px - min(560px, calc(100vw - var(--rail-w) - 24px)))));
+}
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 11px 10px 11px 14px;
   background: var(--paper); border: 1px solid var(--line); border-left: 5px solid var(--teal);
@@ -500,7 +509,7 @@ select.input { width: auto; max-width: 100%; }
 @keyframes toast-in { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .toast .btn { font-size: 14px; }
 @media (max-width: 700px) {
-  .toasts, .panel-open .toasts { width: calc(100vw - var(--rail-w) - 30px); }
+  .toasts, .panel-open .toasts { right: auto; left: calc(12px + var(--safe-l)); width: calc(100vw - var(--rail-w) - 30px); }
   .toast { font-size: 15px; }
 }
 
@@ -805,7 +814,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .guide[hidden] { display: none; }
 .guide-arrow { position: absolute; width: 14px; height: 14px; background: var(--navy); transform: rotate(45deg); border-radius: 2px; }
 .guide-step { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #9fc3d4; }
-.guide h3 { margin: 2px 0 5px; font-family: var(--serif); font-size: 16px; color: #fff; }
+.guide h3 { margin: 2px 0 5px; font-family: var(--stencil); font-size: 16px; letter-spacing: 0.03em; text-transform: none; color: #fff; }
 .guide p { margin: 0 0 9px; }
 .guide-buttons { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .guide-skip { background: none; border: 0; padding: 4px 0; color: rgba(251, 248, 241, 0.7); font-size: 12px; text-decoration: underline; cursor: var(--cursor-click); }
@@ -906,6 +915,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .vic-row.mine { border-color: var(--teal); }
 .vic-row .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .vic-line { display: flex; justify-content: space-between; gap: 8px; }
+.vic-line .nm { font-size: 15px; }
 .vic-pct { font-weight: 800; font-variant-numeric: tabular-nums; }
 .vic-bar { display: block; height: 6px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
 .vic-bar > span { display: block; height: 100%; background: var(--teal); border-radius: 3px; }

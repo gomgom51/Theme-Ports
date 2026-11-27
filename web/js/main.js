@@ -238,7 +238,7 @@ function renderPanel() {
   if (motion === 'in' || (motion === 'swap' && outMs >= 0)) drawerIn(panelEl, Math.max(0, outMs));
   else if (motion === 'tab' && tabs) {
     const ix = (id) => tabs.findIndex((t) => t[0] === id);
-    wipeTab(panelEl, oldBody, body, Math.sign(ix(curTab) - ix(prevTab)), oldScroll);
+    wipeTab(panelEl, oldBody, body, Math.sign(ix(curTab) - ix(prevTab)), oldScroll, def.top instanceof Element ? def.top : null);
     slideTabLine(panelEl.querySelector('.tabs'), prevTab, curTab);
   }
   if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
