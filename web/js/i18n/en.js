@@ -2621,7 +2621,7 @@ export default {
   "{0} : vous en êtes à {1} %, le concurrent le plus avancé à {2} %": "{0}: you are at {1}%, the leading rival at {2}%",
   "Voir la course": "See the race",
   "Les victoires": "Victories",
-  "Quatre façons de gagner avant la fin : ⚓ racheter ou ruiner tous vos concurrents, ★ la réputation parfaite, 🏆 cinq records, 🗡 la flotte fantôme. L'anneau montre où vous en êtes, un point rouge un concurrent qui approche du but. Touchez une icône pour voir la course.": "Four ways to win before the end: ⚓ buy out or ruin every rival, ★ a perfect reputation, 🏆 five records, 🗡 the ghost fleet. The ring shows how far you are; a red dot means a rival is closing in. Tap an icon to see the race.",
+  "Quatre façons de gagner avant la fin : ⚓ racheter ou ruiner tous vos concurrents, ★ la réputation parfaite, 🏆 cinq records, 🗡 la flotte fantôme. La barre sous chaque icône montre où vous en êtes, un point rouge un concurrent qui approche du but. Touchez une icône pour voir la course.": "Four ways to win before the end: ⚓ buy out or ruin every rival, ★ a perfect reputation, 🏆 five records, 🗡 the ghost fleet. The bar under each icon shows how far you are; a red dot means a rival is closing in. Tap an icon to see the race.",
   "Assurance :": "Insurance:",
   "· {0} par an": "· {0} a year",
   "Changer": "Change",
