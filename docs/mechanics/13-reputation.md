@@ -57,7 +57,7 @@ AI conqueror prey choice, smear attack price.
 | Slow steaming (≤ 95 % of service speed, full at 75 %, × sea days/10) | up to +1.2 dégressive | game.arrive |
 | Clean conduct (180 days without grey/black act or spill) | +2.5/month × (1 − v/110) | honours.cleanConduct |
 | Forgetting (below 50) | up to +4/month toward 50, whatever you do | honours.cleanConduct |
-| Oil delivered (contract or sale) | −1 × (0.2 + virtue/100) | game / actions |
+| Oil loaded ship departs (contract or trade, once per cargo) | −1 × (0.2 + virtue/100) | actions.launch |
 | Oil spill | −(2 + liability/10 M$), max −20 | pollution.spill |
 | Sanctions fine | −8 | shady.checkSanctions |
 | Parcel seized (customs or patrol) | −15 | shady / patrols |
@@ -82,3 +82,8 @@ Permanent. Caps both scores; blacklist at 80; makes "Le Juste" impossible. See [
 
 The economy must read trust only (reading the min crushed every risk-taker). Oil costs virtue so an
 oil fleet cannot win the reputation victory. Forgetting below 50 keeps risk-takers alive.
+
+HUD feedback (`main.js` `standingFloats`): each one-off change (any source except the daily drift
+`STANDING_DRIFT` = clean conduct, forgetting) is queued in `company.standingPings` (humans only) and
+shown at once as a floating "±x 🤝/💚" with its sound (trust: heartbeat / door; virtue: harp up / down),
+even under one point. The daily drift stays silent and only floats a number per whole point.

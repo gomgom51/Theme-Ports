@@ -17,7 +17,7 @@ volatility), `depth` (t that moves a big port's price ~10 %), `lot` (typical car
 | Special | vehicules, fruits (frigo, perishable), colis (lourd) |
 
 Lists: `FOSSIL_GOODS` (brut, raffines, charbon, gpl, gnl), `USEFUL_GOODS` (cereales, cafe_cacao,
-fruits, bois → virtue), `OIL_GOODS` (virtue loss per delivery, refinery crisis), `isCleanGood` = not
+fruits, bois → virtue), `OIL_GOODS` (virtue loss per loaded departure, refinery crisis), `isCleanGood` = not
 fossil and pollution < 0.2.
 
 ## World prices and cycle (`dailyMarketUpdate`)

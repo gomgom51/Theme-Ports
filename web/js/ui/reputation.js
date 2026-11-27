@@ -85,7 +85,7 @@ export function reputationGuide(app) {
           li(`Ports soucieux de leur image (${imagePorts}) : ils inspectent un navire usé × ${num1(INSPECT_VIRTUE.low)} plus souvent à vertu 0, × ${num1(INSPECT_VIRTUE.high)} à vertu 100.`, `Pour vous : × ${num1(e.inspectK)}.`),
         ].filter(Boolean),
         'L\'aide d\'urgence, les marchandises utiles (céréales, café et cacao, fruits et viandes, bois), les affaires en or et appels d\'offres sur des marchandises ni fossiles ni polluantes, l\'allure économique, les chargeurs malhonnêtes dénoncés, et doucement chaque mois de conduite propre.',
-        'Chaque livraison de pétrole, les marées noires, la contrebande, les amendes d\'embargo, les pots-de-vin, les affaires noires, les coups bas.',
+        'Chaque départ chargé de pétrole, les marées noires, la contrebande, les amendes d\'embargo, les pots-de-vin, les affaires noires, les coups bas.',
         h('p.small.good', `Rien n'est définitif : sous ${STANDING.forgiveTo}, on finit par oublier et elle y remonte d'elle-même.`)),
       scoreCard('★', 'Réputation', 'La plus basse des deux', Math.min(e.T, e.V), repCap(c),
         'Elle ne sert qu\'à la victoire « La plus respectée ». Impossible de n\'en soigner qu\'une : l\'armateur efficace qui pollue plafonne, le saint qui livre en retard aussi. La note qui la retient s\'affiche en rouge.',

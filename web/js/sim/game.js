@@ -2,13 +2,13 @@
 import { portKind, winterKit, startPort, homeDaily, familyContract } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
-import { GOODS, USEFUL_GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
+import { GOODS, USEFUL_GOODS, isCleanGood } from '../data/goods.js';
 import { Rng, HOURS_PER_DAY, formatDate, dateOf } from './util.js';
 import * as eco from './economy.js';
 import * as act from './actions.js';
 import {
   money, news, emptyBook, bookTotal, companyOf, shipsOf, isIdle, fleetValue, netWorth, interestRate,
-  changeReputation, changeTrust, changeVirtue, earnVirtue, slowVirtue, oilVirtueLoss, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
+  changeReputation, changeTrust, changeVirtue, earnVirtue, slowVirtue, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
   shipTrack, shipBook, lastTrip, activityOf,
 } from './core.js';
 import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
@@ -550,7 +550,6 @@ function deliverContract(state, ship, rng, notes) {
   noteDelivery(state, company, c.client, { late: penalty > 0, damaged: damage > 0.005 });
   onDelivered(state, company, { qty: c.qty, good: c.good, late: penalty > 0 }); // records et hauts faits
   if (c.charity && !(penalty > 0)) onAid(company);
-  if (OIL_GOODS.includes(c.good)) changeVirtue(company, -oilVirtueLoss(company), 'pétrole'); // l'image d'un transporteur de pétrole
   charityDelivered(state, company, ship, c, penalty > 0); // aide d'urgence : réputation et bonne presse
   if (penalty > 0) {
     company.late++;
