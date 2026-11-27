@@ -5,8 +5,7 @@ import { SHADOW_LENDER } from '../sim/core.js';
 import { tr } from '../i18n.js';
 import { codexPanel } from './codex.js';
 import { jukeboxDialog } from './jukebox.js';
-import { standingDetail } from './standing.js';
-import { trustNow, virtueNow, reputationLink } from './reputation.js';
+import { trustEffects, virtueEffects, repQuote, reputationLink } from './reputation.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, GOOD_IDS, HOLDS } from '../data/goods.js';
@@ -322,7 +321,7 @@ function officeHero(app) {
       onkeydown: (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('.office-juke')) { e.preventDefault(); jukeboxDialog(app); } },
     }),
     h('div.office-caption', [
-      h('span', [h('b', OFFICE_TIERS[tier].name), ' — ', OFFICE_TIERS[tier].text]),
+      h('b', OFFICE_TIERS[tier].name),
       h('span.office-next', [
         h('span.muted', low ? `Niveau 0/${OFFICE_TIERS.length} · la compagnie perd de l'argent : retour au cagibi jusqu'à ${money(MUSIC_LOW)} de valeur nette, vous en êtes à ${money(worth)}`
           : next ? `Niveau ${tier + 1}/${OFFICE_TIERS.length} · prochain bureau à ${money(next.min)} de valeur nette, vous en êtes à ${money(worth)}` : `Niveau ${OFFICE_TIERS.length}/${OFFICE_TIERS.length} : le sommet !`),
@@ -507,53 +506,91 @@ function resultsTab(app) {
   ]);
 }
 
+// Bureau → Compagnie : qui vous êtes (pavillon, activité, avantage du port), votre réputation en un
+// coup d'œil (phrase d'ambiance, effets du jour ; le détail est dans le guide), et le déménagement.
+const kv = (label, value, sub = null) => h('div.kv', [h('span.kv-label', label), h('span.kv-value', value), sub ? h('span.kv-sub', sub) : null]);
+const KIND_CHIP = { ombre: '💀 Port de l\'ombre', place: '$ Place financière', hiver: '❄ Port d\'hiver', famille: '♥ Famille d\'abord' };
 function companyTab(app) {
   const { state } = app;
   const c = app.company();
   const F = FLAGS[c.flag];
-  const box = h('div');
-  box.append(h('div.ship-stats', [
-    stat('Port d\'attache', portName(c.homePort)),
-    stat('Pavillon', F.name),
-    stat('Impôt sur les bénéfices', pct(F.tax * 100)),
-    stat('Coût des équipages', `× ${num1(F.crew)}`),
-    stat('Aide aux navires neufs', F.subsidy ? pct(F.subsidy * 100) : 'aucune'),
-    stat('Qualité du registre', `${F.rating}/100`),
+  const kind = homeKind(c.homePort);
+  const box = h('div.company-tab');
+  // Carte d'identité : nom, port, pavillon ; puis le pavillon et l'activité, alignés en deux colonnes.
+  const onTime = c.delivered ? Math.round(((c.delivered - c.late) / c.delivered) * 100) : null;
+  box.append(h('div.co-card', [
+    h('div.co-head', [
+      badge(c, 44),
+      h('div.grow', [
+        h('div.co-name', c.name),
+        h('div.co-where', [flagEl(c.flag, F.name), ' ', h('span', `${portName(c.homePort)} · pavillon ${F.name}`)]),
+      ]),
+      kind ? h('span.tag.co-kind', KIND_CHIP[kind]) : null,
+    ]),
+    h('div.co-cols', [
+      h('div.co-col', [
+        h('div.co-col-title', 'Pavillon'),
+        kv('Impôt sur les bénéfices', pct(F.tax * 100)),
+        kv('Coût des équipages', `× ${num1(F.crew)}`),
+        kv('Aide aux navires neufs', F.subsidy ? pct(F.subsidy * 100) : 'aucune'),
+        kv('Qualité du registre', `${F.rating}/100`),
+      ]),
+      h('div.co-col', [
+        h('div.co-col-title', 'Activité'),
+        kv('Livraisons', num(c.delivered)),
+        kv('À l\'heure', onTime == null ? '—' : pct(onTime)),
+        kv('Ports desservis', num(c.portsServed.length)),
+      ]),
+    ]),
   ]));
-  box.append(homeBonusBox(c.homePort, c)); // avantage du port d'attache
-  // Réputation = la plus basse des deux notes (core.js).
+  if (kind) box.append(homeBonusBox(c.homePort, c)); // l'avantage du port d'attache, s'il y en a un
+  // Réputation : la note, ce qu'elle veut dire dans le milieu, puis les deux notes et leurs effets du jour.
   standing(c);
   const lim = repLimit(c);
-  box.append(h('h3', `Réputation : ${num(c.reputation)}/100`));
-  box.append(bar(c.reputation / 100, { good: 0.6, warn: 0.35 }));
-  box.append(h('p.hint', 'Votre réputation est la plus basse de vos deux notes : elle ne sert qu\'à la victoire « La plus respectée ». 🤝 La confiance (peut-on compter sur vous ?) fait tourner vos affaires ; 💚 la vertu (que dit la presse de vous ?), c\'est votre image.'));
-  box.append(reputationLink(app));
-  const scoreRow = (icon, label, v, cap, low, text, key) => h('div.standing-row', { class: low ? 'low' : '' }, [
-    h('div.standing-head', [h('b', `${icon} ${label} : ${num(v)}/100`), low ? h('span.tag.warn', 'retient votre réputation') : null, cap < 100 ? h('span.muted.small', `plafond ${num(cap)}`) : null]),
+  const q = repQuote(c);
+  const R = Math.min(c.confidence, c.virtue); // = c.reputation
+  const scoreCol = (icon, label, v, cap, low, effects) => h('div.rep-col', { class: low ? 'low' : '' }, [
+    h('div.rep-col-head', [h('span', icon), ' ', h('b', label), h('b.rep-col-val', `${num(v)}`), h('span.muted.small', '/100')]),
     bar(v / 100, { good: 0.6, warn: 0.35 }),
-    h('p.small', text),
-    standingDetail(c, key),
+    h('div.rep-col-tags', [low ? h('span.tag.warn', 'retient votre réputation') : null, cap < 100 ? h('span.muted.small', `plafond ${num(cap)}`) : null]),
+    h('div.rep-effects', effects.map(([l, val, sub]) => kv(l, val, sub))),
   ]);
-  box.append(scoreRow('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', trustNow(c), 'confidence'));
-  box.append(scoreRow('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', virtueNow(c), 'virtue'));
-  if (c.infamy) box.append(h('p.warn-text', `☠ Infamie : ${num(c.infamy)}. Votre confiance et votre vertu ne pourront plus dépasser ${100 - Math.min(80, c.infamy)}/100 : c'est définitif.`));
-  box.append(h('p.small.muted', 'Hauts faits : chacun des cinq premiers relève d\'un point le plafond des deux notes (95 pour la conduite ordinaire).'));
-  box.append(h('p', `${c.delivered} livraisons, dont ${c.late} en retard · ${c.portsServed.length} ports desservis.`));
-  box.append(h('h3', 'Changer de port d\'attache'));
+  box.append(h('div.rep-summary', [
+    h('div.rep-summary-head', [
+      h('span.star.rep-star', '★'),
+      h('div.grow', [h('div.rep-summary-title', 'Réputation'), h('div.rep-summary-val', [h('b', num(R)), h('span.muted', ' /100')])]),
+      reputationLink(app),
+    ]),
+    h('div.bar-star', bar(R / 100)),
+    h('p.rep-quote', q.main),
+    q.gap ? h('p.rep-gap', q.gap) : null,
+    h('div.rep-cols', [
+      scoreCol('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', trustEffects(c)),
+      scoreCol('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', virtueEffects(c)),
+    ]),
+    c.infamy ? h('p.warn-text.small', `☠ Infamie ${num(c.infamy)} : vos deux notes ne pourront plus dépasser ${100 - Math.min(80, c.infamy)}, pour toujours.`) : null,
+  ]));
+  // Déménager : replié, on s'en sert rarement.
   const cost = act.relocateCost(state, c.id);
-  box.append(h('p.hint', `Transférer le siège change le pavillon de toute la flotte (impôts, salaires, crédit). Coût : ${money(cost)}.`));
-  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, PORT_IDS.filter((p) => p !== c.homePort).map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}${homeKind(p) === 'ombre' ? ' · 💀 port de l\'ombre' : homeKind(p) === 'place' ? ' · $ place financière' : homeKind(p) === 'hiver' ? ' · ❄ port d\'hiver' : homeKind(p) === 'famille' ? ' · ♥ famille d\'abord' : ''}`)));
-  const preview = h('div', homeBonusBox(sel0(), null));
-  function sel0() { return PORT_IDS.find((p) => p !== c.homePort); }
-  sel.addEventListener('change', () => preview.replaceChildren(homeBonusBox(sel.value, null)));
-  box.append(h('div.inline', [sel, h('button.btn', { onclick: async () => {
-    const p = sel.value;
-    const nf = FLAGS[PORTS[p].flag];
-    if (await confirmBox(`S'installer à ${PORTS[p].name} ?`, `Pavillon ${nf.name} : impôt ${pct(nf.tax * 100)}, équipages × ${num1(nf.crew)}, registre ${nf.rating}/100. Coût ${money(cost)}.`, 'Déménager')) {
-      app.act(() => act.relocate(state, c.id, p));
-    }
-  } }, 'Déménager')]));
-  box.append(preview); // l'avantage du port choisi, avant de déménager
+  const others = PORT_IDS.filter((p) => p !== c.homePort);
+  const sel = h('select.input', { 'aria-label': 'Nouveau port d\'attache' }, others.map((p) => h('option', { value: p }, `${PORTS[p].name} — ${FLAGS[PORTS[p].flag].name}${homeKind(p) ? ` · ${KIND_CHIP[homeKind(p)]}` : ''}`)));
+  const flagLine = (p) => { const nf = FLAGS[PORTS[p].flag]; return h('p.small.muted', `Pavillon ${nf.name} : impôt ${pct(nf.tax * 100)} · équipages × ${num1(nf.crew)} · registre ${nf.rating}/100`); };
+  const preview = h('div');
+  const showPreview = (p) => preview.replaceChildren(flagLine(p), homeKind(p) ? homeBonusBox(p, null) : '');
+  showPreview(others[0]);
+  sel.addEventListener('change', () => showPreview(sel.value));
+  box.append(h('details.co-move', [
+    h('summary', 'Changer de port d\'attache'),
+    h('p.hint', 'Toute la flotte change de pavillon : impôts, salaires et crédit.'),
+    h('div.inline', [sel, h('button.btn', { onclick: async () => {
+      const p = sel.value;
+      const nf = FLAGS[PORTS[p].flag];
+      if (await confirmBox(`S'installer à ${PORTS[p].name} ?`, `Pavillon ${nf.name} : impôt ${pct(nf.tax * 100)}, équipages × ${num1(nf.crew)}, registre ${nf.rating}/100. Coût ${money(cost)}.`, 'Déménager')) {
+        app.act(() => act.relocate(state, c.id, p));
+      }
+    } }, `Déménager · ${money(cost)}`)]),
+    preview,
+  ]));
   return box;
 }
 
