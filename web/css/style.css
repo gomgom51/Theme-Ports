@@ -857,7 +857,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 }
 @media (prefers-reduced-motion: reduce) { .guide-target { animation: none; } }
 
-/* ---------- Fiche d'un navire : lien vers les services du port (la zone, l'informateur) ---------- */
+/* ---------- Fiche d'un navire : lien vers les services du port (la Mafia, l'informateur) ---------- */
 .services-link {
   display: flex; align-items: center; gap: 10px; width: 100%; margin: 8px 0 0; padding: 8px 12px; text-align: left;
   background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); cursor: var(--cursor-click);

@@ -1,4 +1,4 @@
-// Interface des coups bas : la zone (intermédiaires des ports louches), l'informateur, la retenue abusive,
+// Interface des coups bas : la Mafia (intermédiaires des ports louches), l'informateur, la retenue abusive,
 // les rumeurs de menace dans les notifications importantes, le débauchage d'un chargeur.
 import { CLIENTS } from '../data/clients.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
@@ -77,7 +77,7 @@ export async function jettisonDialog(app, shipId) {
 }
 
 // ---------- Lien depuis la fiche d'un navire à quai : les services du port ----------
-// Port louche : « La zone » (pirates, fonctionnaires) et l'informateur ; ailleurs, l'informateur
+// Port louche : « La Mafia » (pirates, fonctionnaires) et l'informateur ; ailleurs, l'informateur
 // seul. Le lien ouvre la fiche du port à la bonne section.
 export function portServicesLink(app, ship) {
   const { state } = app;
@@ -86,7 +86,7 @@ export function portServicesLink(app, ship) {
   if (P.canPlotFrom(port) && rivalsOf(state, ship.owner).length) {
     return h('button.services-link.zone', { type: 'button', onclick: () => app.open('port', port, null, { focus: 'informant underworld' }) }, [
       h('span.services-icon', '🕴'),
-      h('span.grow', [h('b', `La zone opère à ${portName(port)}`), h('span.services-sub', 'Pirates et fonctionnaires à acheter contre vos concurrents, informateur.')]),
+      h('span.grow', [h('b', `La Mafia opère à ${portName(port)}`), h('span.services-sub', 'Pirates et fonctionnaires à acheter contre vos concurrents, informateur.')]),
       h('span.services-go', 'Voir →'),
     ]);
   }
@@ -97,7 +97,7 @@ export function portServicesLink(app, ship) {
   ]);
 }
 
-// ---------- La zone : pirates et fonctionnaires (port louche, un de vos navires à quai) ----------
+// ---------- La Mafia : pirates et fonctionnaires (port louche, un de vos navires à quai) ----------
 export function underworldSection(app, port) {
   const { state } = app;
   const me = app.ui.activeCompany;
@@ -121,7 +121,7 @@ export function underworldSection(app, port) {
     if (r?.ok) toast('Marché conclu. Rien ne vous relie à cette affaire… pour l\'instant.', { timeout: 4000 });
   };
   return h('div.underworld', [
-    h('h3', '🕴 La zone'),
+    h('h3', '🕴 La Mafia'),
     h('p.hint', 'Des intermédiaires peu recommandables proposent leurs services contre vos concurrents. Tout finit par se savoir : chaque affaire peut s\'ébruiter (scandale, vertu, amende).'),
     h('div.form-row', [h('b', 'Pirates : '), t1, zoneSel, h('button.btn.small.danger', { onclick: () => order('pirates') }, 'Payer les pirates')]),
     h('div.form-row', [h('b', 'Fonctionnaires : '), t2, portSel, h('button.btn.small.danger', { onclick: () => order('corruption') }, 'Les acheter')]),

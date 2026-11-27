@@ -248,7 +248,7 @@ function renderPanel() {
   }
   if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
   if (typing) { const el = body.querySelector(`[data-focus-key="${typing.k}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(typing.a, typing.b); } catch { /* champ sans sélection */ } } }
-  // Section demandée (ex. « La zone » depuis la fiche d'un navire) : on y va, elle s'illumine.
+  // Section demandée (ex. « La Mafia » depuis la fiche d'un navire) : on y va, elle s'illumine.
   // Plusieurs classes : on défile jusqu'à la première trouvée, toutes s'illuminent.
   if (p.focus) {
     const secs = p.focus.split(' ').map((c) => body.querySelector(`.${c}`)).filter(Boolean);
