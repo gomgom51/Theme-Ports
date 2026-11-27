@@ -33,6 +33,17 @@ export function listSaves() {
   return out;
 }
 
+// Toutes les parties enregistrées, lues telles quelles (sans migration) : pour le profil du joueur
+// (juke-box). Une sauvegarde illisible est ignorée.
+export function* savedStates() {
+  for (const slot of SLOTS) {
+    try {
+      const raw = localStorage.getItem(KEY + slot);
+      if (raw) yield JSON.parse(raw);
+    } catch { /* stockage indisponible ou sauvegarde abîmée */ }
+  }
+}
+
 export function hasSave(slot) {
   try { return !!localStorage.getItem(KEY + slot); } catch { return false; }
 }

@@ -168,9 +168,11 @@ export function portPanel(app, id) {
   if (isStrict(id)) body.append(h('p.hint', 'Port exigeant : les navires usés (sous 55 %, 62 % après 20 ans) risquent d\'y être retenus, mis à l\'amende et réparés d\'office aux frais de l\'armateur.'));
   body.append(h('p', ['Terminaux : ', ...P.terminals.map((t) => h('span.tag', HOLDS[t]))]));
   if (state.strikes[id] > state.t) body.append(h('p.warn-text', `Grève des dockers jusqu'au ${date(state.strikes[id], true)}.`));
-  const goodRow = (g, kind) => h('div.row', [
-    h('span.grow', [GOODS[g].icon, ' ', GOODS[g].name]),
-    kind === 'exp' ? h('span.muted.small', `stock ${tonnes(eco.availableStock(state, id, g))}`) : null,
+  // Icône à gauche, nom (le stock dessous, en petit), prix à droite sur une ligne : la colonne est étroite,
+  // les noms longs sont abrégés (le nom entier au survol).
+  const goodRow = (g, kind) => h('div.row.goods-row', [
+    h('span.goods-icon', GOODS[g].icon),
+    h('span.grow', [h('span', GOOD_SHORT[g] ? { title: GOODS[g].name } : {}, GOOD_SHORT[g] || GOODS[g].name), kind === 'exp' ? h('span.muted.small', `stock ${tonnes(eco.availableStock(state, id, g))}`) : null]),
     h('b', `${money(kind === 'exp' ? eco.buyPrice(state, id, g) : eco.sellPrice(state, id, g))}/t`),
   ]);
   const exp = Object.keys(P.exp), imp = Object.keys(P.imp);
@@ -238,6 +240,9 @@ function repairsToExpect(state, l) {
   return h('span.muted', ` réparations à prévoir ≈ ${money(cost)}`);
 }
 
+// Noms abrégés des marchandises, là où la place manque (colonnes Exporte / Importe d'un port).
+const GOOD_SHORT = { raffines: 'P. raffinés', chimie: 'P. chimiques' };
+
 function usedTab(app) {
   const { state, ctx } = app;
   const company = app.company();
@@ -258,12 +263,12 @@ function usedTab(app) {
       return h('div.card.with-art', { class: affordable ? '' : 'disabled' }, [
         h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipSVG(l.type, { ...look, slot: 'card' }) }),
         h('div.card-main', [
-          h('div.card-title', [l.name, h('span.tag', T.name)]),
+          h('div.card-title', [h('span.nm', l.name), h('span.tag', T.name)]),
           h('div.card-sub', typeSpecs(T)),
           h('div.card-sub', [`${num1(l.age)} ans · état `, h('b', pct(l.condition)), ` · à ${portName(l.port)}`, l.port === company.homePort ? h('span.tag.good', 'votre port') : null]),
           h('div.card-sub', [surveyTag(state, look), repairsToExpect(state, l)]),
           bar(l.condition / 100, { good: 0.7, warn: 0.45 }),
-          rolesEl(l.type, { age: l.age }),
+          // Atouts et défauts : dans la fenêtre d'inspection seulement (choix du propriétaire, liste plus légère).
         ]),
         h('div.card-side', [
           miniRadar(shipStats(l.type, { condition: l.condition, age: l.age }), look.color, buy),
@@ -299,7 +304,6 @@ function newTab(app) {
         h('div.card-title', [T.name, h('span.tag', T.category)]),
         h('div.card-sub', T.blurb),
         h('div.card-sub.muted', typeSpecs(T)),
-        rolesEl(id),
       ]),
       h('div.card-side', [
         miniRadar(shipStats(id), company.color, () => order()),
@@ -320,7 +324,7 @@ function sellTab(app) {
     const v = eco.shipValue(state, s) * 0.95;
     return h('div.card', { class: can ? '' : 'disabled' }, [
       h('div.card-main', [
-        h('div.card-title', [s.name, h('span.tag', SHIP_TYPES[s.type].name)]),
+        h('div.card-title', [h('span.nm', s.name), h('span.tag', SHIP_TYPES[s.type].name)]),
         h('div.card-sub', `${num1(eco.ageYears(state, s))} ans · état ${pct(s.condition)} · ${shipStatusText(state, ctx, s)}`),
         can ? null : h('div.card-why', 'Doit être à quai, inoccupé et vide.'),
       ]),
@@ -705,12 +709,25 @@ export function searchText(p) {
   const name = portName(p), country = FLAGS[PORTS[p].flag]?.name || '';
   return `${name} ${tr(name)} ${country} ${tr(country)}`;
 }
+// Rayons de l'onglet Marchandises : [famille, marchandises, nom affiché].
+const GOOD_SHELVES = [
+  ['vrac', ['cereales', 'minerai', 'charbon', 'engrais'], 'Vrac sec'],
+  ['citernes', ['brut', 'raffines', 'chimie', 'gpl', 'gnl'], 'Citernes'],
+  ['divers', ['manufactures', 'machines', 'cafe_cacao', 'acier', 'bois'], 'Conteneurs et divers'],
+  ['speciaux', ['fruits', 'vehicules', 'colis'], 'Navires spéciaux'],
+];
 function goodsTab(app) {
   const { state } = app;
   const g = app.form.good || 'cereales';
   const G = GOODS[g];
   const box = h('div');
-  box.append(h('div.chips', GOOD_IDS.map((id) => h('button.chip', { class: id === g ? 'active' : '', onclick: () => { app.form.good = id; app.refresh(); } }, `${GOODS[id].icon} ${GOODS[id].name}`))));
+  // Rayons par navire qui les porte (une couleur chacun) : on reconnaît une marchandise sans lire.
+  const placed = new Set(GOOD_SHELVES.flatMap(([, ids]) => ids));
+  const shelves = GOOD_SHELVES.map(([fam, ids, name]) => [fam, ids.filter((id) => GOODS[id]), name]);
+  shelves[shelves.length - 1][1].push(...GOOD_IDS.filter((id) => !placed.has(id))); // une marchandise ajoutée sans rayon
+  box.append(h('div.goods-shelves', shelves.flatMap(([fam, ids, name]) => [h('div.goods-fam', { 'data-fam': fam }, name),
+    h('div.chips', { 'data-fam': fam }, ids.map((id) => h('button.chip.good-tile', { class: id === g ? 'active' : '', onclick: () => { app.form.good = id; app.refresh(); } },
+      [h('span.gi', { 'aria-hidden': 'true' }, GOODS[id].icon), h('span.gn', GOODS[id].name)])))])));
   box.append(h('p', [h('span', 'Cours mondial :'), ' ', h('b', `${money(G.price * state.market.world[g])}/t`), ' · ', h('span', 'transport :'), ' ', ...G.holds.flatMap((x, i) => [i ? ' ' : null, i ? h('span', 'ou') : null, i ? ' ' : null, h('span', HOLDS[x])])]));
   const search = searchBox(app.form, 'marketSearch');
   box.append(search.input);

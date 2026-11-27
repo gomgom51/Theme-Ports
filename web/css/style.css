@@ -1,4 +1,8 @@
 /* Thème « carte marine » : papier crème, mer pâle, encre marine, rouge et vert des feux de navigation. */
+/* Icônes du jeu : une police en couleur qui dessine les émojis du code à la façon du jeu (tools/icons).
+   La plage unicode limite la police à ces caractères : le texte n'attend jamais son chargement.
+   Elle est en tête de chaque pile de polices (var(--icons)), y compris sur la carte (ui/map.js). */
+@font-face { font-family: 'PdaIcons'; font-display: block; src: url('../fonts/pda-icons.woff2') format('woff2'); unicode-range: U+200D, U+23ED, U+23F0, U+23F3, U+23F8-23F9, U+2605, U+2615, U+2620, U+2623, U+2665, U+2693-2694, U+2696-2697, U+2699, U+26A0, U+26AB, U+26D4, U+26F0, U+26FD, U+2708, U+2728, U+2744, U+2764, U+2B50, U+FE0E-FE0F, U+1F30A, U+1F310, U+1F31F, U+1F33E-1F33F, U+1F34C, U+1F396, U+1F3AC, U+1F3B2, U+1F3B5, U+1F3C6, U+1F3D7, U+1F3DB, U+1F3E2, U+1F3E6, U+1F3ED, U+1F442, U+1F480, U+1F48A, U+1F49A, U+1F4A3-1F4A4, U+1F4A7, U+1F4B0, U+1F4B3, U+1F4BC, U+1F4C8-1F4C9, U+1F4CB, U+1F4D6, U+1F4DE, U+1F4E1, U+1F4E3, U+1F4E6, U+1F4F0, U+1F501-1F502, U+1F507-1F508, U+1F50A, U+1F512, U+1F514, U+1F525, U+1F527, U+1F529, U+1F52B, U+1F573-1F575, U+1F5E1, U+1F5E3, U+1F694, U+1F697, U+1F6A2, U+1F6A7-1F6A9, U+1F6AB, U+1F6E1-1F6E2, U+1F6F0, U+1F91D, U+1F92B, U+1F947-1F949, U+1F9CA, U+1F9D1, U+1F9E8, U+1F9EA, U+1F9ED, U+1F9EF, U+1F9F1, U+1FA9D, U+1FAB5; }
 @font-face { font-family: 'Libre Baskerville'; font-weight: 700; font-style: normal; font-display: swap; src: url('../fonts/libre-baskerville-latin-700-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Libre Baskerville'; font-weight: 400; font-style: italic; font-display: swap; src: url('../fonts/libre-baskerville-latin-400-italic.woff2') format('woff2'); }
 /* Stardos Stencil : la police du logo (ui/brand.js), lettres de pochoir comme sur les caisses et les conteneurs. */
@@ -28,10 +32,11 @@
   --hud-h: 50px;
   --rail-w: 62px;
   --star: #c9921f; /* l'étoile de la réputation, partout la même */
-  --serif: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  --icons: 'PdaIcons';
+  --serif: var(--icons), 'Libre Baskerville', Georgia, 'Times New Roman', serif;
   /* Stardos Stencil (OFL, comme le logo) : titres, noms de navires et de compagnies. Latin seul : une lettre absente
      (ń, ł…) prend la police de secours. Jamais sous 15 px, les jours du pochoir disparaîtraient. */
-  --stencil: 'Stardos Stencil', 'Libre Baskerville', Georgia, serif;
+  --stencil: var(--icons), 'Stardos Stencil', 'Libre Baskerville', Georgia, serif;
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
@@ -44,7 +49,7 @@ html, body { height: 100%; margin: 0; }
 body {
   background: var(--sea);
   color: var(--ink);
-  font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font: 14px/1.4 var(--icons), system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -107,6 +112,8 @@ p { margin: 6px 0; }
 .hud-company-text { display: flex; flex-direction: column; min-width: 0; text-align: left; line-height: 1.15; }
 .hud-company-name { font-family: var(--stencil); font-weight: 700; font-size: 15px; letter-spacing: 0.03em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nm { font-family: var(--stencil); letter-spacing: 0.03em; }
+/* Noms de navires repérés dans une phrase (shipnames.js) : un rien plus grands, le pochoir paraît plus petit que le texte. */
+.nm-text .nm { font-size: 1.06em; }
 b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-sub.nm { font-size: 16px; color: var(--ink-2); }
 .row b.nm { font-size: 16px; }
@@ -119,7 +126,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .float-delta.pos { color: var(--good); }
 .float-delta.neg { color: var(--bad); }
 @keyframes float-delta { 0% { opacity: 0; transform: translate(-50%, -6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 16px); } }
-/* Réputation (la plus basse de la confiance 🤝 et de la vertu 🕊), à côté de la trésorerie. */
+/* Réputation (la plus basse de la confiance 🤝 et de la vertu 💚), à côté de la trésorerie. */
 .hud-rep { display: flex; flex-direction: column; flex: none; line-height: 1.15; padding-left: 9px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
 .hud-rep-main { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hud-rep-main > span { color: var(--star); }
@@ -144,7 +151,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .ctx-btn:hover:not(:disabled) { border-color: var(--teal); }
 .ctx-btn:disabled { opacity: 0.55; }
 .hud-time { flex: none; display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.hud-date { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-family: var(--serif); font-size: 13px; }
+.hud-date { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-family: var(--stencil); font-size: 16px; letter-spacing: 0.03em; }
 .speed { display: flex; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
 .speed button {
   border: 0; background: transparent; color: var(--ink-2); font-size: 11px; letter-spacing: -2px;
@@ -163,41 +170,35 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 /* ---------- Boutons latéraux (à droite, du côté des panneaux qu'ils ouvrent) ---------- */
 .rail {
   position: fixed; z-index: 13; right: calc(6px + var(--safe-r)); top: calc(var(--hud-h) + var(--safe-t) + 8px);
-  display: none; flex-direction: column; gap: 6px;
+  display: none; flex-direction: column; gap: 4px;
 }
 .in-game .rail { display: flex; }
 .rail button {
-  position: relative; width: var(--rail-w); padding: 6px 2px 5px; border-radius: 12px;
+  position: relative; width: var(--rail-w); padding: 4px 2px 3px; border-radius: 12px;
   background: rgba(251, 248, 241, 0.96); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(28, 42, 51, 0.1);
   display: flex; flex-direction: column; align-items: center; gap: 1px;
 }
 .rail button:hover { border-color: var(--teal); }
-.rail-icon { font-size: 19px; line-height: 1.1; }
+.rail-icon { font-size: 28px; line-height: 32px; height: 32px; } /* dessin de 32 px */
 .rail-label { font-size: 10.5px; color: var(--ink-2); font-weight: 600; }
-/* Icônes de victoire, sous les boutons : un anneau qui se remplit avec votre progression. */
-.vic-rail { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 6px; margin-top: 4px; }
-/* Tuiles de victoire : même forme que les boutons, une couleur par chemin, barre de progression en bas. */
+/* Victoires, sous les boutons : la médaille est le bouton ; un anneau de sa couleur se remplit avec votre progression. */
+.vic-rail { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 7px; margin-top: 6px; }
 .rail .vic-btn {
   --p: 0; --c: var(--teal); --glow: rgba(29, 122, 120, 0.4);
-  width: 46px; height: 40px; padding: 0 0 4px; border-radius: 10px; display: grid; place-items: center;
-  border: 1px solid var(--line);
-  background:
-    linear-gradient(var(--c), var(--c)) left bottom / calc(var(--p) * 1%) 4px no-repeat,
-    linear-gradient(rgba(28, 42, 51, 0.1), rgba(28, 42, 51, 0.1)) left bottom / 100% 4px no-repeat,
-    rgba(251, 248, 241, 0.96);
+  width: 50px; height: 50px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(28, 42, 51, 0.16) 0);
 }
-.rail .vic-btn[data-victory="domination"] { --c: #1f3d63; --glow: rgba(31, 61, 99, 0.45); }  /* ⚓ marine */
-.rail .vic-btn[data-victory="reputation"] { --c: var(--star); --glow: rgba(201, 146, 31, 0.5); } /* ★ l'or de l'étoile */
+.rail .vic-btn[data-victory="domination"] { --c: #b8392f; --glow: rgba(184, 57, 47, 0.45); } /* 🚩 rouge (pavillon bleu) */
+.rail .vic-btn[data-victory="reputation"] { --c: var(--star); --glow: rgba(201, 146, 31, 0.5); } /* 🌟 l'or de l'étoile */
 .rail .vic-btn[data-victory="legend"] { --c: #7a4bb0; --glow: rgba(122, 75, 176, 0.45); }      /* 🏆 violet */
 .rail .vic-btn[data-victory="shadow"] { --c: #3a3a40; --glow: rgba(58, 58, 64, 0.45); }      /* 🗡 anthracite */
-.rail .vic-btn:hover { border-color: var(--c); }
+.rail .vic-btn:hover { transform: scale(1.06); }
 /* À 75 % : un halo doux de sa couleur ; à 90 % : plus fort, et il respire. */
 .rail .vic-btn.warm { box-shadow: 0 0 0 2px var(--glow), 0 0 10px var(--glow); }
 .rail .vic-btn.hot { box-shadow: 0 0 0 2px var(--c), 0 0 14px var(--c); animation: vic-glow 1.6s ease-in-out infinite; }
 @keyframes vic-glow { 50% { box-shadow: 0 0 0 2px var(--c), 0 0 4px var(--c); } }
 .rail .vic-btn.off { opacity: 0.45; filter: grayscale(1); }
-.vic-btn-icon { font-size: 18px; line-height: 1; }
-.vic-btn-icon.star { font-size: 21px; font-weight: 800; }
+.vic-btn-icon { font-size: 38px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)); }
 /* Point rouge : un concurrent à 75 % ; il bat à 90 %. */
 .vic-dot { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: var(--bad); border: 2px solid var(--paper); }
 .vic-dot.hot { animation: vic-dot 1s ease-in-out infinite; }
@@ -268,13 +269,23 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-actions { display: flex; gap: 6px; }
 /* Les onglets passent à la ligne quand ils ne tiennent pas : un onglet caché hors de l'écran,
    sans barre de défilement visible, passait inaperçu (Concurrents, Victoires, Trophées du bureau). */
-.tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 10px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.tabs { position: relative; display: flex; flex-wrap: wrap; gap: 2px; padding: 0 10px; background: var(--paper); border-bottom: 1px solid var(--line); }
 .tab {
-  border: 0; background: transparent; color: var(--muted); padding: 8px 11px; white-space: nowrap;
+  border: 0; background: transparent; color: var(--muted); padding: 8px 9px; white-space: nowrap;
   border-bottom: 3px solid transparent; font-weight: 700;
 }
 .tab.active { color: var(--ink); border-bottom-color: var(--teal); }
 .panel-body { flex: 1; overflow-y: auto; padding: 12px 16px calc(24px + var(--safe-b)); overscroll-behavior: contain; }
+/* Mouvements (motion.js) : tiroir qui part, soulignement qui glisse, barre de laiton qui balaie un onglet,
+   boîte de dialogue qui s'efface. */
+.panel-ghost, .dialog-ghost { pointer-events: none; }
+.tab-line { position: absolute; height: 3px; background: var(--teal); pointer-events: none; }
+.tabs-sliding .tab.active { border-bottom-color: transparent; }
+.panel-body.wipe-old { background: var(--paper); }
+.wipe-bar {
+  position: absolute; left: 0; width: 12px; z-index: 2; pointer-events: none;
+  background: linear-gradient(to right, #5a4119, #ecc77c 40%, #c99a48 65%, #5a4119); box-shadow: 0 0 8px rgba(28, 42, 51, 0.4);
+}
 
 /* ---------- Illustrations des navires ---------- */
 .ship-art { display: block; width: 100%; height: auto; }
@@ -318,6 +329,10 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 /* ---------- Listes et cartes ---------- */
 .list { display: flex; flex-direction: column; gap: 8px; }
 .list.compact { gap: 4px; }
+/* Marchandises d'un port : l'icône reste à gauche du nom (même sur deux lignes), le stock passe dessous, le prix tient sur une ligne. */
+.goods-row { gap: 8px; }
+.goods-row > .grow { display: flex; flex-direction: column; gap: 1px; }
+.goods-row > b { white-space: nowrap; }
 .card {
   display: flex; gap: 10px; align-items: center; background: var(--paper-2); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px;
@@ -374,6 +389,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .grade-svg .grade-empty { fill: currentColor; opacity: 0.2; }
 .grade-svg .grade-full { fill: currentColor; }
 .card-title .grade { margin-left: 4px; }
+.card-title .nm { font-size: 16px; font-weight: 700; }
 .pay-risk { font-size: 12.5px; }
 .client-row .client .tag { margin-left: 4px; }
 .stars { color: #b07d16; letter-spacing: 1px; font-size: 12px; }
@@ -388,7 +404,7 @@ button.row { border-color: transparent; }
 .row.disabled { opacity: 0.5; }
 .mini { display: flex; flex-direction: column; width: 52px; gap: 2px; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; flex: none; }
-.rank { width: 20px; text-align: center; font-weight: 800; color: var(--teal); font-family: var(--serif); }
+.rank { width: 20px; text-align: center; font-weight: 800; color: var(--teal); }
 .flag { display: inline-block; width: 21px; height: 14px; vertical-align: -2px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(28, 42, 51, 0.25); flex: none; overflow: hidden; }
 .flag svg { display: block; width: 100%; height: 100%; }
 .badge-wrap { display: inline-flex; vertical-align: middle; }
@@ -457,7 +473,7 @@ select.input { width: auto; max-width: 100%; }
 .office-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; margin-bottom: 6px; }
 .office-hero svg { width: 100%; height: auto; display: block; }
 .office-caption { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; }
-.office-caption b { font-family: var(--serif); color: var(--ink); }
+.office-caption b { font-family: var(--stencil); font-size: 15px; letter-spacing: 0.03em; color: var(--ink); }
 
 /* ---------- Paiement ---------- */
 .pay-lines { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
@@ -465,17 +481,21 @@ select.input { width: auto; max-width: 100%; }
 .pay-line.event { background: #fbf1dc; border-left: 3px solid var(--warn); }
 .pay-line.good-event { background: #e5f2e9; border-left: 3px solid var(--good); }
 .pay-line.bad-event { background: #f8e4e1; border-left: 3px solid var(--bad); }
-.pay-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; padding: 8px 10px; border-top: 2px solid var(--ink); margin-top: 4px; font-family: var(--serif); }
+.pay-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; padding: 8px 10px; border-top: 2px solid var(--ink); margin-top: 4px; }
 @keyframes pay-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Notifications ---------- */
 /* Messages en haut de l'écran, sous la barre et le bandeau de nouvelles ; le plus récent en haut. */
 .toasts {
-  position: fixed; z-index: 30; left: calc(12px + var(--safe-l)); top: calc(var(--hud-h) + var(--safe-t) + 54px);
-  display: flex; flex-direction: column-reverse; gap: 8px; width: min(560px, calc(100vw - var(--rail-w) - 36px));
+  position: fixed; z-index: 30; right: calc(var(--rail-w) + 24px + var(--safe-r)); top: calc(var(--hud-h) + var(--safe-t) + 54px);
+  display: flex; flex-direction: column-reverse; gap: 8px; width: max(260px, min(500px, calc(100vw - var(--rail-w) - 444px)));
   pointer-events: none;
 }
-.panel-open .toasts { width: max(260px, min(560px, calc(100vw - min(560px, 64vw) - var(--rail-w) - 48px))); }
+/* À droite de la carte, contre le panneau ouvert : la colonne des opportunités (à gauche) reste lisible. */
+.panel-open .toasts {
+  right: calc(var(--rail-w) + 24px + min(560px, calc(100vw - var(--rail-w) - 24px)) + var(--safe-r));
+  width: max(260px, min(500px, calc(100vw - var(--rail-w) - 456px - min(560px, calc(100vw - var(--rail-w) - 24px)))));
+}
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 11px 10px 11px 14px;
   background: var(--paper); border: 1px solid var(--line); border-left: 5px solid var(--teal);
@@ -490,12 +510,12 @@ select.input { width: auto; max-width: 100%; }
 @keyframes toast-in { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .toast .btn { font-size: 14px; }
 @media (max-width: 700px) {
-  .toasts, .panel-open .toasts { width: calc(100vw - var(--rail-w) - 30px); }
+  .toasts, .panel-open .toasts { right: auto; left: calc(12px + var(--safe-l)); width: calc(100vw - var(--rail-w) - 30px); }
   .toast { font-size: 15px; }
 }
 
 /* ---------- Dialogues ---------- */
-.dialog-wrap {
+.dialog-wrap, .dialog-ghost {
   position: fixed; inset: 0; z-index: 50; background: rgba(28, 42, 51, 0.35);
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
@@ -585,7 +605,7 @@ select.input { width: auto; max-width: 100%; }
 .intro-title { position: absolute; left: 0; right: 0; top: 6%; margin: 0 auto; width: min(560px, 46vw, 66vh); min-width: 240px; pointer-events: none; line-height: 0; }
 .intro-prompt {
   position: absolute; left: 0; right: 0; bottom: 8%; padding: 0 16px; text-align: center; pointer-events: none;
-  color: #fff1d0; font-family: 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(18px, 3vw, 26px); letter-spacing: 0.04em; text-shadow: 0 2px 0 #120b1e;
+  color: #fff1d0; font-family: var(--icons), 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(18px, 3vw, 26px); letter-spacing: 0.04em; text-shadow: 0 2px 0 #120b1e;
   animation: intro-blink 1.2s steps(1) infinite;
 }
 .intro.sailing .intro-prompt { display: none; }
@@ -632,14 +652,13 @@ select.input { width: auto; max-width: 100%; }
 @media (max-height: 460px) {
   :root { --hud-h: 46px; --rail-w: 54px; }
   .rail { gap: 4px; }
-  .rail button { padding: 4px 2px 3px; }
-  .rail-icon { font-size: 17px; }
+  .rail button { padding: 3px 2px 2px; }
+  .rail-icon { font-size: 21px; line-height: 24px; height: 24px; }
   .rail-label { font-size: 9.5px; }
   /* Écran bas (téléphone couché) : les quatre victoires en carré de 2 × 2 pour tenir en hauteur. */
   .vic-rail { grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 2px; }
-  .rail .vic-btn { width: 25px; height: 25px; padding: 0 0 3px; border-radius: 7px; background-size: calc(var(--p) * 1%) 3px, 100% 3px, auto; }
-  .vic-btn-icon { font-size: 11px; }
-  .vic-btn-icon.star { font-size: 13px; }
+  .rail .vic-btn { width: 26px; height: 26px; }
+  .vic-btn-icon { font-size: 19px; }
   .vic-dot { width: 8px; height: 8px; border-width: 1px; top: -2px; right: -2px; }
   .speed button { min-width: 32px; height: 30px; padding: 0 6px; }
   .panel-body { padding: 10px 12px 20px; }
@@ -672,7 +691,7 @@ select.input { width: auto; max-width: 100%; }
   /* Téléphone : la barre doit tout faire tenir, menu ☰ compris. */
   .hud { gap: 6px; }
   /* Pastille de la compagnie : petit logo, trésorerie, et dessous la réputation sur une ligne
-     (★ 61 🤝 88 🕊 61). Le nom de la compagnie reste au bureau. */
+     (★ 61 🤝 88 💚 61). Le nom de la compagnie reste au bureau. */
   .hud-company { display: grid; grid-template-columns: auto auto auto; column-gap: 6px; align-items: center; max-width: none; padding: 2px 9px 2px 3px; }
   .hud-company .badge-wrap { grid-row: 1 / span 2; }
   .hud-company .badge-wrap svg { width: 32px; height: 32px; }
@@ -718,7 +737,7 @@ select.input { width: auto; max-width: 100%; }
 .pump-screen { flex: 1; min-width: 200px; background: #1d2a24; border-radius: 8px; padding: 8px 12px; box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5); }
 .lcd-row { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 0; border-bottom: 1px dashed rgba(168, 230, 160, 0.15); }
 .lcd-label { color: #8fbf88; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
-.lcd-value { color: #b8f5a8; font: 700 18px/1.2 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; text-shadow: 0 0 6px rgba(184, 245, 168, 0.45); }
+.lcd-value { color: #b8f5a8; font: 700 18px/1.2 var(--icons), ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; text-shadow: 0 0 6px rgba(184, 245, 168, 0.45); }
 .pump-note { color: #8fbf88; font-size: 11px; margin-top: 6px; }
 .pump-note .neg { color: #ff9a8a; }
 .pump-note .pos { color: #b8f5a8; }
@@ -795,7 +814,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .guide[hidden] { display: none; }
 .guide-arrow { position: absolute; width: 14px; height: 14px; background: var(--navy); transform: rotate(45deg); border-radius: 2px; }
 .guide-step { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #9fc3d4; }
-.guide h3 { margin: 2px 0 5px; font-family: var(--serif); font-size: 16px; color: #fff; }
+.guide h3 { margin: 2px 0 5px; font-family: var(--stencil); font-size: 16px; letter-spacing: 0.03em; text-transform: none; color: #fff; }
 .guide p { margin: 0 0 9px; }
 .guide-buttons { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .guide-skip { background: none; border: 0; padding: 4px 0; color: rgba(251, 248, 241, 0.7); font-size: 12px; text-decoration: underline; cursor: var(--cursor-click); }
@@ -896,6 +915,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .vic-row.mine { border-color: var(--teal); }
 .vic-row .grow { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .vic-line { display: flex; justify-content: space-between; gap: 8px; }
+.vic-line .nm { font-size: 15px; }
 .vic-pct { font-weight: 800; font-variant-numeric: tabular-nums; }
 .vic-bar { display: block; height: 6px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
 .vic-bar > span { display: block; height: 100%; background: var(--teal); border-radius: 3px; }
@@ -1038,8 +1058,8 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .cr-line small { display: block; color: #9fb9b6; font-size: 13px; margin-top: 2px; }
 .cr-end { padding: 6vh 0 0; }
 /* Dernier carton : le sceau et la police du logo, pour finir sur une seule voix. */
-.cr-thanks { font-family: 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(26px, 4.2vw, 38px); margin: 14px 0 6px; }
-.cr-wind { font-family: 'Stardos Stencil', Georgia, serif; font-weight: 400; color: #9fb9b6; font-size: 18px; margin: 0; }
+.cr-thanks { font-family: var(--icons), 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(26px, 4.2vw, 38px); margin: 14px 0 6px; }
+.cr-wind { font-family: var(--icons), 'Stardos Stencil', Georgia, serif; font-weight: 400; color: #9fb9b6; font-size: 18px; margin: 0; }
 .cr-frame {
   position: absolute; margin: 0; width: min(340px, 24vw); opacity: 0; transform: translateY(8px) scale(0.98);
   transition: opacity 0.6s ease, transform 0.6s ease; pointer-events: none;
@@ -1115,3 +1135,18 @@ span.juke-btn { cursor: default; border-style: dashed; }
   pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.12s;
 }
 .game-tip.show { opacity: 1; visibility: visible; }
+
+/* ---------- Marchés → Marchandises : rayons par navire, tuiles de 32 px ---------- */
+.goods-shelves { margin: 4px 0 10px; }
+.goods-fam { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fam); padding-left: 7px; border-left: 3px solid var(--fam); margin: 10px 0 5px; line-height: 1.3; }
+.goods-shelves .goods-fam:first-child { margin-top: 2px; }
+.goods-shelves .chips { gap: 6px; margin: 0; }
+[data-fam="vrac"] { --fam: #9a6a1c; --fam-bg: #f6eedb; --fam-line: #e2cfa3; }
+[data-fam="citernes"] { --fam: #43525c; --fam-bg: #e8ebed; --fam-line: #c9d0d4; }
+[data-fam="divers"] { --fam: #2c5784; --fam-bg: #e6eef7; --fam-line: #bcd0e6; }
+[data-fam="speciaux"] { --fam: #1a6365; --fam-bg: #e0f0ef; --fam-line: #b5d8d5; }
+.good-tile { width: 84px; height: 70px; padding: 5px 4px 4px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--fam-bg); border-color: var(--fam-line); }
+.good-tile.active { background: var(--fam); border-color: var(--fam); color: #fff; }
+.good-tile .gi { font-size: 28px; line-height: 32px; height: 32px; } /* dessin de 32 px */
+.good-tile .gn { font-size: 11px; line-height: 1.15; text-align: center; font-weight: 600; }

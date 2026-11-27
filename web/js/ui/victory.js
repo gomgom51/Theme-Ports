@@ -37,7 +37,7 @@ export function raceTab(app, kind) {
     box.append(h('p.muted', [end, ` Chacun voit où en sont les autres ; tout le monde est prévenu quand une compagnie atteint ${pctTxt(VICTORY.alerts[0])} puis ${pctTxt(VICTORY.alerts[1])} d'une victoire.`]));
   }
   const card = h('div.vic-card', { class: on ? '' : 'off' }, [
-    h('div.vic-head', [h('span.vic-icon', { class: kind === 'reputation' ? 'star' : '' }, info.icon), h('div.grow', [h('b', info.name), h('div.small.muted', info.text)]), on ? null : h('span.tag', 'désactivée')]),
+    h('div.vic-head', [h('span.vic-icon', info.icon), h('div.grow', [h('b', info.name), h('div.small.muted', info.text)]), on ? null : h('span.tag', 'désactivée')]),
   ]);
   if (on) {
     const rows = state.companies.map((c) => ({ c, p: victoryProgress(state, c, kind) }))
@@ -46,7 +46,7 @@ export function raceTab(app, kind) {
     card.append(h('div.vic-rows', rows.map(({ c, p }) => h('div.vic-row', { class: c.id === me ? 'mine' : '' }, [
       badge(c, 24),
       h('div.grow', [
-        h('div.vic-line', [h('b', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctTxt(p.frac))]),
+        h('div.vic-line', [h('b.nm', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctTxt(p.frac))]),
         bar(p.frac, p.frac >= VICTORY.alerts[1] ? 'hot' : p.frac >= VICTORY.alerts[0] ? 'warm' : ''),
         h('div.vic-parts', p.parts.map((x) => h('span.vic-part', { class: x.frac >= 1 ? 'done' : '' }, [`${x.frac >= 1 ? '✓ ' : ''}${x.label} : `, h('b', x.text)]))),
       ]),
@@ -77,7 +77,8 @@ function shadowStatus(state, c) {
 export function holderLine(state, rec, R, mineId) {
   if (!rec) return h('span.muted', `Non attribué · seuil : ${R.fmt(R.min())}`);
   const c = state.companies[rec.holder];
-  return h('span', [rec.holder === mineId ? h('b', 'À vous') : h('b', { 'data-no-tr': '' }, c?.name || '?'), ` · ${R.fmt(rec.value)}${c?.bankrupt ? ' (compagnie disparue)' : ''}`]);
+  // Un morceau de texte par partie : la traduction anglaise reconnaît chacune.
+  return h('span', [rec.holder === mineId ? h('b', 'À vous') : h('b', { 'data-no-tr': '' }, c?.name || '?'), ` · ${R.fmt(rec.value)}`, c?.bankrupt ? ' (compagnie disparue)' : null]);
 }
 // Où en est la compagnie pour un record ou un méfait : barre vers le seuil (non attribué) ou vers
 // le détenteur à battre ; un record « complet » déjà pris reste au premier (pas de barre).

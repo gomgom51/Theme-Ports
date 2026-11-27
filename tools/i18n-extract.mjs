@@ -64,7 +64,7 @@ function scan(src) {
   }
   function emitTemplate(t) {
     const text = t.parts.map((p, k) => (k ? `{${k - 1}}` : '') + p).join('');
-    out.push({ text, kind: t.exprs.length ? 'pattern' : 'str' });
+    out.push({ text, kind: t.exprs.length ? 'pattern' : 'str', parts: t.parts, exprs: t.exprs });
   }
   while (i < src.length) {
     const c = src[i];
@@ -82,8 +82,9 @@ function scan(src) {
       while (/[a-z]/.test(src[i] || '')) i++;
       continue;
     }
-    if (c === "'" || c === '"') { out.push({ text: readString(c), kind: 'str' }); continue; }
-    if (c === '`') { emitTemplate(readTemplate()); continue; }
+    // Position gardée pour les textes du premier niveau (collage par « + », voir concatenated()).
+    if (c === "'" || c === '"') { const at = i; out.push({ text: readString(c), kind: 'str', at, end: i }); continue; }
+    if (c === '`') { const at = i; emitTemplate(readTemplate()); Object.assign(out[out.length - 1], { at, end: i }); continue; }
     i++;
   }
   return out;
@@ -117,6 +118,89 @@ export function segments(text) {
     const map = {};
     return p.replace(/\{(\d+)\}/g, (_, d) => `{${map[d] ??= n++}}`).trim();
   }).filter((p) => p && !/^[#[]/.test(p));
+}
+
+// Textes recollés : un gabarit dont une partie variable est elle-même un morceau de texte
+// (`…coûte ${x}${glace ? ' (classe glace)' : ''}.`) s'affiche d'un seul tenant. Chaque morceau
+// se traduit seul, mais le texte entier doit aussi se traduire : on le recompose avec chaque
+// morceau possible (les autres parties variables valent « 42 »).
+const SAMPLE = '42';
+function holeValues(expr) {
+  const lits = scan(expr);
+  const fill = (e) => (e.parts ? e.parts.map((p, k) => (k ? SAMPLE : '') + p).join('') : e.text);
+  const vals = [...new Set(lits.map(fill).filter((t) => /[A-Za-zÀ-ÿ]{2}/.test(t) && isText(t.replaceAll(SAMPLE, '').trim() || '.')))];
+  if (!vals.length) return null; // pas de morceau de texte : déjà couvert par le motif
+  if (lits.some((e) => e.text === '')) vals.push(''); // « cond ? ' (…)' : '' »
+  if (/\|\||\?\?/.test(expr)) vals.push(SAMPLE); // « nom || 'un concurrent' »
+  return vals;
+}
+// Textes collés par « + » (`res[0] + (perte ? ` (${x} volés)` : '')`) : le texte recomposé ne se
+// voit pas dans le code, et l'écran l'affiche d'un seul tenant. Écrire plutôt un gabarit `…${x}…`
+// (contrôlé par compositions()) ou des nœuds de texte séparés.
+export function concatIn(src) {
+  const lits = scan(src).filter((e) => e.at != null);
+  const inLit = new Uint8Array(src.length + 1);
+  for (const l of lits) inLit.fill(1, l.at, l.end);
+  const prev = (k) => { while (k >= 0 && /\s/.test(src[k])) k--; return k; };
+  const next = (k) => { while (k < src.length && /\s/.test(src[k])) k++; return k; };
+  const plusBefore = (k) => { const a = prev(k); return (src[a] === '+' && src[a - 1] !== '+') || (src[a] === '=' && src[a - 1] === '+'); };
+  const plusAfter = (k) => { const b = next(k); return src[b] === '+' && src[b + 1] !== '+'; };
+  // Le texte est-il une branche d'une expression entre parenthèses elle-même collée par « + » ?
+  const inPlusGroup = (at, end) => {
+    let i = at - 1, depth = 0;
+    for (let n = 0; i >= 0 && n < 400; i--, n++) {
+      if (inLit[i]) continue;
+      const c = src[i];
+      if (c === ')' || c === ']' || c === '}') depth++;
+      else if (c === '(' || c === '[' || c === '{') { if (!depth) break; depth--; } else if (!depth && (c === ';' || c === ',')) return false;
+    }
+    if (src[i] !== '(' || /[\w$)\]]/.test(src[prev(i - 1)] || '')) return false; // appel de fonction : pas un groupe
+    let j = end, d = 0;
+    for (let n = 0; j < src.length && n < 400; j++, n++) {
+      if (inLit[j]) continue;
+      const c = src[j];
+      if (c === '(' || c === '[' || c === '{') d++;
+      else if (c === ')' || c === ']' || c === '}') { if (!d) break; d--; } else if (!d && (c === ';' || c === ',')) return false;
+    }
+    return src[j] === ')' && (plusBefore(i - 1) || plusAfter(j + 1));
+  };
+  return lits.filter((e) => isText(e.text.replace(/\{\d+\}/g, '').trim() || '.') && (plusBefore(e.at - 1) || plusAfter(e.end) || inPlusGroup(e.at, e.end)))
+    .map((e) => ({ text: e.text, line: src.slice(0, e.at).split('\n').length }));
+}
+export function concatenated() {
+  const out = [];
+  for (const d of DIRS) {
+    for (const f of readdirSync(join(ROOT, d))) {
+      if (!f.endsWith('.js') || SKIP.has(f)) continue;
+      for (const e of concatIn(readFileSync(join(ROOT, d, f), 'utf8'))) out.push({ ...e, file: `${d}/${f}`.replace('web/js/', '') });
+    }
+  }
+  return out;
+}
+
+export function compositions() {
+  const seen = new Map();
+  for (const d of DIRS) {
+    for (const f of readdirSync(join(ROOT, d))) {
+      if (!f.endsWith('.js') || SKIP.has(f)) continue;
+      const file = `${d}/${f}`.replace('web/js/', '');
+      for (const e of scan(readFileSync(join(ROOT, d, f), 'utf8'))) {
+        if (!e.exprs?.length) continue;
+        const holes = e.exprs.map(holeValues);
+        if (holes.every((v) => v == null)) continue;
+        let combos = [[]];
+        for (const v of holes) combos = combos.flatMap((c) => (v || [SAMPLE]).map((x) => [...c, x])).slice(0, 64);
+        for (const c of combos) {
+          for (const key of segments(e.parts.map((p, k) => (k ? c[k - 1] : '') + p).join(''))) {
+            if (!isText(key)) continue;
+            if (!seen.has(key)) seen.set(key, { text: key, files: new Set() });
+            seen.get(key).files.add(file);
+          }
+        }
+      }
+    }
+  }
+  return [...seen.values()].map((e) => ({ ...e, files: [...e.files] }));
 }
 
 export function extract() {

@@ -4,6 +4,7 @@
 import { eggFor } from '../data/eggs.js';
 import * as S from './sounds.js';
 import { SHIP_TYPES } from '../data/ships.js';
+import { unlockTracks } from './profile.js';
 
 const KEY = 'portdattache.audio';
 // Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
@@ -94,19 +95,9 @@ function loadSettings() {
   catch { return defaults; }
 }
 
-// Juke-box du bureau : les morceaux déjà entendus (toutes parties confondues) sont débloqués.
-const HEARD_KEY = 'pda-jukebox';
-export function heardTracks() {
-  try { return new Set(JSON.parse(localStorage.getItem(HEARD_KEY) || '[]')); } catch { return new Set(); }
-}
-function markHeard(name) {
-  try {
-    const set = heardTracks();
-    if (set.has(name)) return;
-    set.add(name);
-    localStorage.setItem(HEARD_KEY, JSON.stringify([...set]));
-  } catch { /* stockage indisponible */ }
-}
+// Juke-box du bureau : un morceau entendu est débloqué pour toutes les parties (profil du joueur).
+// Ceux de la partie se débloquent aussi à leur étape, même sans le son (jukebox.js).
+const markHeard = (name) => unlockTracks([name]);
 export const trackSrc = (name) => TRACKS[name]?.src || null;
 const EGG_SYNTH = { sonar: S.sonar, ghost: S.ghost, fanfare: S.fanfare };
 
@@ -355,6 +346,9 @@ export class AudioManager {
     } else if (name === 'trustUp' || name === 'trustDown' || name === 'virtueUp' || name === 'virtueDown') {
       // Confiance et vertu : fichiers de SAMPLES (sons/confiance-plus.mp3…) ; synthèse si l'un manque.
       if (!this.playSample(name, { gain: name === 'trustUp' ? 0.6 : 0.5, fadeOut: 0.3 })) S.standingCue(c, out, t, { kind: name.startsWith('trust') ? 'trust' : 'virtue', up: name.endsWith('Up') });
+    } else if (name === 'stamp') {
+      // Une boîte de dialogue est pressée sur la carte : arg = délai (s) jusqu'au contact.
+      S.stamp(c, out, t + (arg || 0), { gain: 0.22 });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     }

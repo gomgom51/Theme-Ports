@@ -6,6 +6,7 @@ import { SCENES } from './scenes.js';
 import { W, H } from './pixel.js';
 import { logoBadge } from './logos.js';
 import { brandTitle, sealSVG } from './brand.js';
+import { unlockTracks } from './profile.js';
 
 // L'auteur du jeu (nom choisi par lui pour le générique).
 export const AUTHOR = 'Clement Gomes';
@@ -64,6 +65,7 @@ export function creditsScreen(app, { company = null, header = null, onDone = () 
   const color = company?.color || '#c4362c';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   app.audio.setScene('credits');
+  unlockTracks(['credits']); // juke-box : débloqué même sans le son
 
   const line = (l) => (Array.isArray(l) ? h('div.cr-line', [h('span', l[0]), h('small', l[1])]) : h('div.cr-line', h('span', l)));
   const endCard = h('div.cr-end', [

@@ -7,12 +7,14 @@ import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
 import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName } from './sim/core.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
-import { h, $, money, toast, dialog, confirmBox, num1 } from './ui/dom.js';
+import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
+import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
 import { playIntro } from './ui/intro.js';
-import { saveGame, loadGame, listSaves, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
+import { saveGame, loadGame, listSaves, savedStates, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
+import { unlockEarned, unlockFromSaves, BLACKLIST_SONG_YEARS } from './ui/jukebox.js';
 import { AudioManager } from './ui/audio.js';
 import { renderOpps, pruneDismissed, goldenReach } from './ui/opps.js';
 import { guideTick, startGuide, guideMenuLabel, toggleGuide } from './ui/guide.js';
@@ -28,6 +30,7 @@ import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
+import { registerStateShips, watchShipNames } from './ui/shipnames.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
@@ -62,6 +65,9 @@ const app = {
   audio: new AudioManager(),
 };
 
+// Boîtes de dialogue : le bruit du tampon, calé sur le contact (volume des bruitages).
+dialogHooks.onStamp = (delay) => app.audio.play('stamp', delay);
+
 // ---------- Carte ----------
 app.map = new MapView($('#map'), {
   onShip: (id) => {
@@ -77,7 +83,7 @@ app.map = new MapView($('#map'), {
 
 // Partie de démonstration derrière l'écran d'accueil.
 function startDemo() {
-  app.demo = newGame({ seed: 7, duration: 0, companies: ['rotterdam', 'singapour', 'houston', 'shanghai'].map((p, i) => ({ name: 'Démo ' + i, human: false, homePort: p })) }, ctx);
+  app.demo = newGame({ seed: 7, duration: 0, companies: ['rotterdam', 'singapour', 'houston', 'shanghai'].map((p, i) => ({ name: `Démo ${i}`, human: false, homePort: p })) }, ctx);
   tick(app.demo, ctx, 24 * 40);
   app.previewState = app.demo;
 }
@@ -176,7 +182,10 @@ app.focusShip = (id) => {
 
 function renderPanel() {
   const p = app.ui.panel;
-  if (!p || app.mode !== 'game') { panelEl.hidden = true; panelEl.replaceChildren(); document.body.classList.remove('panel-open'); app.ui.openedType = null; return; }
+  if (!p || app.mode !== 'game') {
+    if (app.mode === 'game') drawerOutCopy(panelEl); // le tiroir rentre sous le rail
+    panelEl.hidden = true; panelEl.replaceChildren(); panelEl.dataset.ident = ''; document.body.classList.remove('panel-open'); app.ui.openedType = null; return;
+  }
   // Ouvrir un panneau, c'est lire : les alertes, la flotte, un navire, les paiements.
   const cid = app.ui.activeCompany;
   if (app.ui.openedType !== p.type) {
@@ -195,7 +204,13 @@ function renderPanel() {
   // Champ en cours de saisie (recherche) : on le retrouve après le rafraîchissement, curseur compris.
   const typing = document.activeElement?.closest?.('#panel') && document.activeElement.dataset?.focusKey ? { k: document.activeElement.dataset.focusKey, a: document.activeElement.selectionStart, b: document.activeElement.selectionEnd } : null;
   const oldBody = panelEl.querySelector('.panel-body');
-  if (oldBody && panelEl.dataset.key) scrollMemory.set(panelEl.dataset.key, oldBody.scrollTop);
+  const oldScroll = oldBody?.scrollTop ?? 0;
+  if (oldBody && panelEl.dataset.key) scrollMemory.set(panelEl.dataset.key, oldScroll);
+  // Mouvement : seulement si l'on ouvre, change de panneau ou d'onglet (jamais au rafraîchissement).
+  const ident = `${p.type}:${p.id}`, prevIdent = panelEl.hidden ? '' : (panelEl.dataset.ident || '');
+  const prevTab = panelEl.dataset.tab || '', curTab = String(tabId ?? '');
+  const motion = !prevIdent ? 'in' : prevIdent !== ident ? 'swap' : prevTab !== curTab ? 'tab' : null;
+  const outMs = motion === 'swap' ? panelSwapBegin(panelEl) : 0; // l'ancien panneau rentre d'abord
 
   const body = h('div.panel-body');
   if (def.top) body.append(def.top);
@@ -218,8 +233,16 @@ function renderPanel() {
     body,
   ].filter(Boolean));
   panelEl.dataset.key = key;
+  panelEl.dataset.ident = ident;
+  panelEl.dataset.tab = curTab;
   panelEl.hidden = false;
   document.body.classList.add('panel-open');
+  if (motion === 'in' || (motion === 'swap' && outMs >= 0)) drawerIn(panelEl, Math.max(0, outMs));
+  else if (motion === 'tab' && tabs) {
+    const ix = (id) => tabs.findIndex((t) => t[0] === id);
+    wipeTab(panelEl, oldBody, body, Math.sign(ix(curTab) - ix(prevTab)), oldScroll, def.top instanceof Element ? def.top : null);
+    slideTabLine(panelEl.querySelector('.tabs'), prevTab, curTab);
+  }
   if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
   if (typing) { const el = body.querySelector(`[data-focus-key="${typing.k}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(typing.a, typing.b); } catch { /* champ sans sélection */ } } }
   // Section demandée (ex. « La zone » depuis la fiche d'un navire) : on y va, elle s'illumine.
@@ -255,7 +278,7 @@ function updateStandings(s, me) {
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
 }
-// Tuiles de victoire (sous les boutons latéraux) : la barre du bas suit votre progression (halo à 75 %,
+// Médailles de victoire (sous les boutons latéraux) : l'anneau autour suit votre progression (halo à 75 %,
 // halo qui respire à 90 %), le point rouge signale un concurrent à 75 % ou plus (il bat à 90 %). Recalculé une fois par jour de jeu.
 function updateVictoryRail(s, c) {
   const key = `${c.id}:${Math.floor(s.t / 24)}:${s.victoryClaimed ? 1 : 0}:${getLang()}`;
@@ -307,7 +330,6 @@ function checkLevels(s) {
 // Thème de situation : une victoire en vue pour vous (75 %), la liste noire, ou un concurrent
 // tout près de gagner (90 %). Calculé une fois par jour de jeu.
 let moodCache = { key: null, mood: null };
-const BLACKLIST_SONG_B = 2; // années sur la liste noire avant la seconde chanson
 function musicMood(s, c) {
   const key = `${c.id}:${Math.floor(s.t / 24)}`;
   if (moodCache.key === key) return moodCache.mood;
@@ -319,7 +341,7 @@ function musicMood(s, c) {
     for (const o of s.companies) if (o.id !== c.id && !o.bankrupt) rival = Math.max(rival, victoryProgress(s, o, k).frac);
   }
   // Sur la liste noire : la première chanson, puis la seconde après deux ans (le chemin de l'ombre est long).
-  if (!mood && c.blacklisted) mood = s.t - c.blacklisted.t >= BLACKLIST_SONG_B * 365 * 24 ? 'blacklistb' : 'blacklist';
+  if (!mood && c.blacklisted) mood = s.t - c.blacklisted.t >= BLACKLIST_SONG_YEARS * 365 * 24 ? 'blacklistb' : 'blacklist';
   if (!mood && rival >= VICTORY.alerts[1]) mood = 'menace';
   moodCache = { key, mood };
   return mood;
@@ -439,6 +461,9 @@ function updateHud() {
     renderOpps(app); // cartes d'opportunité (affaires en or, aide d'urgence)
     app.audio.setMusicTier(musicStep(netWorth(s, c.id), c.level ?? 0));
     app.audio.setMusicMood(musicMood(s, c));
+    // Juke-box : les chansons méritées se débloquent pour toutes les parties, même sans le son.
+    const day = Math.floor(s.t / HOURS_PER_DAY);
+    if (app.unlockDay !== day) { app.unlockDay = day; unlockEarned(s, (x) => netWorth(s, x.id)); }
     updateStandings(s, c.id);
     updateVictoryRail(s, c);
   }
@@ -621,7 +646,7 @@ function handleNotes(notes) {
       if (app.state.settings.autoPause) paused = true;
       continue;
     }
-    if (n.kind === 'over') { app.speed = 0; saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
+    if (n.kind === 'over') { app.speed = 0; unlockEarned(app.state); saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
     if (n.kind === 'event') {
       toast(`📰 ${n.text}`, { timeout: 9000 });
       if (scenes && EVENT_SCENES[n.id]) playScene(EVENT_SCENES[n.id], { title: n.title, text: n.body, variant: n.variant, color: companyColor() });
@@ -869,7 +894,7 @@ function loop(now) {
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
   // Noms de navires et de compagnies : la traduction les reconnaît, quels qu'ils soient.
-  if (now - lastNames > 1000) { lastNames = now; registerGameNames(app.mode === 'game' ? app.state : app.demo); }
+  if (now - lastNames > 1000) { lastNames = now; registerGameNames(app.mode === 'game' ? app.state : app.demo); if (app.mode === 'game') registerStateShips(app.state); }
   if (app.mode === 'title' && app.demo) {
     acc += dt * 10;
     const n = Math.floor(acc);
@@ -905,6 +930,7 @@ function enterGame(state) {
   document.querySelectorAll('.scene-wrap').forEach((w) => w.remove()); // scènes de la partie précédente
   pruneDismissed(state);
   registerGameNames(state);
+  registerStateShips(state);
   app.state = state;
   app.mode = 'game';
   app.speed = 0;
@@ -912,6 +938,7 @@ function enterGame(state) {
   app.form = { dest: {}, speed: {}, autoRefuel: {} };
   app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
   app.map.setGame(state, ctx, app.ui);
+  app.unlockDay = null; // juke-box : ce que la partie a déjà mérité (anciennes sauvegardes comprises)
   document.body.classList.add('in-game');
   app.audio.setScene('game');
   hideScreen();
@@ -1099,6 +1126,7 @@ $('#standings').addEventListener('click', () => app.open('victory', 'domination'
 // ---------- Lancement ----------
 initTooltips();
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
+watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });
@@ -1106,6 +1134,8 @@ app.map.fitWorld();
 app.audio.setScene('title');
 titleScreen(app);
 playIntro(app); // au lancement seulement : le caboteur quitte le port, puis le menu
+// Juke-box, une fois par profil : les chansons méritées dans toutes les sauvegardes (même d'avant le juke-box).
+(window.requestIdleCallback || setTimeout)(() => unlockFromSaves(savedStates));
 requestAnimationFrame(loop);
 // Navire d'occasion acheté : la scène de la remise des papiers (le temps repart ensuite).
 app.boughtShip = (ship) => {

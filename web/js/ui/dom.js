@@ -1,5 +1,6 @@
 // Petits utilitaires d'interface : création d'éléments, formats français, notifications.
 import { formatDate } from '../sim/util.js';
+import { stampIn, stampOut } from './motion.js';
 
 // h('div.card', { onclick }, [enfants...])
 export function h(tag, attrs = {}, children = []) {
@@ -75,11 +76,22 @@ export function toast(text, { action, onAction, kind = 'info', timeout = 6000, t
   return el;
 }
 
+// Bruit du tampon à l'ouverture d'une boîte (branché par main.js sur l'audio du jeu).
+export const dialogHooks = { onStamp: null };
+// La boîte est pressée sur la carte (motion.js) ; elle part tout de suite, une copie s'efface.
+// shake : la carte encaisse le choc. Une boîte qui revient souvent (l'encaissement) garde le tampon et
+// son bruit, sans secousse (choix du propriétaire : la secousse reste aux boîtes rares).
+function stampDialog(wrap, shake = true) {
+  const hit = stampIn(wrap, wrap.querySelector('.dialog'), { jolt: shake });
+  if (hit != null) dialogHooks.onStamp?.(hit);
+}
+const unstamp = (wrap) => { stampOut(wrap); wrap.remove(); };
+
 // Boîte de dialogue simple (confirmation ou information).
-export function dialog({ title, body, buttons, vertical = false, wide = false }) {
+export function dialog({ title, body, buttons, vertical = false, wide = false, shake = true }) {
   return new Promise((resolve) => {
     const root = document.getElementById('dialogs');
-    const close = (v) => { wrap.remove(); resolve(v); };
+    const close = (v) => { unstamp(wrap); resolve(v); };
     const wrap = h('div.dialog-wrap', { onclick: (e) => { if (e.target === wrap) close(null); } }, [
       h('div.dialog', { class: wide ? 'wide' : '' }, [
         title ? h('h2', title) : null,
@@ -88,6 +100,7 @@ export function dialog({ title, body, buttons, vertical = false, wide = false })
       ]),
     ]);
     root.append(wrap);
+    stampDialog(wrap, shake);
   });
 }
 export const confirmBox = (title, body, ok = 'Confirmer') =>
@@ -97,7 +110,7 @@ export function promptBox(title, value = '', label = '') {
   return new Promise((resolve) => {
     const input = h('input.input', { value, maxlength: 24, 'aria-label': label || title });
     const root = document.getElementById('dialogs');
-    const close = (v) => { wrap.remove(); resolve(v); };
+    const close = (v) => { unstamp(wrap); resolve(v); };
     const wrap = h('div.dialog-wrap', [
       h('div.dialog', [
         h('h2', title),
@@ -111,6 +124,7 @@ export function promptBox(title, value = '', label = '') {
     ]);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') close(input.value.trim() || null); });
     root.append(wrap);
+    stampDialog(wrap);
     setTimeout(() => input.focus(), 30);
   });
 }
