@@ -154,4 +154,5 @@ The **important notifications** panel (rule 1) is `ui/alerts.js`: it recomputes 
 
 See the "Balance tools" section of `CLAUDE.md`. `npm test` = routing + 3-year sim (correctness);
 `npm run balance` = fleet + strategies (final balance pass only). `npm run build:world` regenerates
-map, countries and distance tables.
+map, countries and distance tables. To measure what a change does to players, compare versions with
+`tools/balance/compare.mjs` (see `docs/balance/README.md`).
