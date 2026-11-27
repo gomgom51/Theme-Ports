@@ -1,5 +1,5 @@
 // Le bureau de la compagnie : cinq décors qui s'embellissent avec la valeur nette.
-import { logoMarkup, emblemInk } from './logos.js';
+import { logoMarkup, logoBadge } from './logos.js';
 import { shipSVG } from './shipart.js';
 import { OFFICE_TIERS, officeTier } from '../data/offices.js';
 import { honourPlaced } from './trophyart.js';
@@ -65,8 +65,7 @@ function frame(x, y, w, h, inner, color = '#6b4a2e') {
 
 function logoSign(x, y, size, color, logo, plate = '#fbf8f1') {
   return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${size * 0.12}" fill="${plate}" stroke="#000" stroke-opacity=".15"/>
-    <circle cx="${x + size / 2}" cy="${y + size / 2}" r="${size * 0.4}" fill="${color}"/>
-    <g transform="translate(${f(x + size * 0.18)} ${f(y + size * 0.18)}) scale(${f((size * 0.64) / 64)})" color="${emblemInk(color)}">${logoMarkup(logo)}</g>`;
+    ${logoBadge(logo, color, f(size * 0.82)).replace('<svg ', `<svg x="${f(x + size * 0.09)}" y="${f(y + size * 0.09)}" `)}`;
 }
 
 function plant(x, y, s = 1) {
