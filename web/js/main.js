@@ -833,7 +833,14 @@ function timeSounds() {
 function autoResume() {
   if (app.mode !== 'game' || !app.state || app.state.over) { app.idleSeen = null; return; }
   const s = app.state;
-  const idle = s.companies.filter((c) => c.human && !c.bankrupt).reduce((n, c) => n + shipsOf(s, c.id).filter(isIdle).length, 0);
+  let idle = s.companies.filter((c) => c.human && !c.bankrupt).reduce((n, c) => n + shipsOf(s, c.id).filter(isIdle).length, 0);
+  // Cargaison achetée pour une destination, départ pas encore donné : le navire (en chargement)
+  // attend toujours ses ordres tant que son écran d'appareillage reste ouvert.
+  if (app.tradeHold != null) {
+    const sh = shipById(s, app.tradeHold), p = app.ui.panel;
+    if (sh && sh.status === 'port' && sh.busyWhat && !sh.plan && p?.type === 'ship' && p.id === sh.id && p.shownTab === 'depart') idle++;
+    else app.tradeHold = null;
+  }
   const blocked = app.sceneQueue.length > 0 || !!document.querySelector('.dialog-wrap');
   if (app.speed > 0 || app.idleSeen == null) { app.idleSeen = idle; return; }
   if (blocked) { if (idle > app.idleSeen) app.idleSeen = idle; return; } // on garde « il y en avait » jusqu'à la fermeture

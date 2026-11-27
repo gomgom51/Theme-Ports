@@ -490,7 +490,12 @@ async function buyDialog(app, ship, g, q, dests) {
   }
   const finance = mode === 'origin' ? { source: 'origin' } : mode === 'dest' ? { source: 'dest', dest } : null;
   const r = app.act(() => act.buyCargo(state, ctx, ship.id, g, q, finance), { sound: 'pay', refresh: false });
-  if (r?.ok) app.form.dest[ship.id] = dest; // destination prévue, choisie avant de redessiner le panneau
+  if (!r?.ok) { app.refresh(); return; }
+  // Achat fait pour une destination : on passe droit à l'appareillage, cap déjà réglé dessus.
+  // Le temps reste arrêté tant que ce départ n'est pas donné (voir app.tradeHold dans main.js).
+  app.form.dest[ship.id] = dest;
+  app.tradeHold = ship.id;
+  if (app.ui.panel) app.ui.panel.tab = 'depart';
   app.refresh();
 }
 
