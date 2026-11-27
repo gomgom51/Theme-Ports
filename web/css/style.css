@@ -112,6 +112,8 @@ p { margin: 6px 0; }
 .hud-company-text { display: flex; flex-direction: column; min-width: 0; text-align: left; line-height: 1.15; }
 .hud-company-name { font-family: var(--stencil); font-weight: 700; font-size: 15px; letter-spacing: 0.03em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nm { font-family: var(--stencil); letter-spacing: 0.03em; }
+/* Noms de navires repérés dans une phrase (shipnames.js) : un rien plus grands, le pochoir paraît plus petit que le texte. */
+.nm-text .nm { font-size: 1.06em; }
 b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-sub.nm { font-size: 16px; color: var(--ink-2); }
 .row b.nm { font-size: 16px; }

@@ -168,10 +168,11 @@ export function portPanel(app, id) {
   if (isStrict(id)) body.append(h('p.hint', 'Port exigeant : les navires usés (sous 55 %, 62 % après 20 ans) risquent d\'y être retenus, mis à l\'amende et réparés d\'office aux frais de l\'armateur.'));
   body.append(h('p', ['Terminaux : ', ...P.terminals.map((t) => h('span.tag', HOLDS[t]))]));
   if (state.strikes[id] > state.t) body.append(h('p.warn-text', `Grève des dockers jusqu'au ${date(state.strikes[id], true)}.`));
-  // Icône à gauche, nom (le stock dessous, en petit), prix à droite sur une ligne : la colonne est étroite.
+  // Icône à gauche, nom (le stock dessous, en petit), prix à droite sur une ligne : la colonne est étroite,
+  // les noms longs sont abrégés (le nom entier au survol).
   const goodRow = (g, kind) => h('div.row.goods-row', [
     h('span.goods-icon', GOODS[g].icon),
-    h('span.grow', [h('span', GOODS[g].name), kind === 'exp' ? h('span.muted.small', `stock ${tonnes(eco.availableStock(state, id, g))}`) : null]),
+    h('span.grow', [h('span', GOOD_SHORT[g] ? { title: GOODS[g].name } : {}, GOOD_SHORT[g] || GOODS[g].name), kind === 'exp' ? h('span.muted.small', `stock ${tonnes(eco.availableStock(state, id, g))}`) : null]),
     h('b', `${money(kind === 'exp' ? eco.buyPrice(state, id, g) : eco.sellPrice(state, id, g))}/t`),
   ]);
   const exp = Object.keys(P.exp), imp = Object.keys(P.imp);
@@ -239,6 +240,9 @@ function repairsToExpect(state, l) {
   return h('span.muted', ` réparations à prévoir ≈ ${money(cost)}`);
 }
 
+// Noms abrégés des marchandises, là où la place manque (colonnes Exporte / Importe d'un port).
+const GOOD_SHORT = { raffines: 'P. raffinés', chimie: 'P. chimiques' };
+
 function usedTab(app) {
   const { state, ctx } = app;
   const company = app.company();
@@ -264,7 +268,7 @@ function usedTab(app) {
           h('div.card-sub', [`${num1(l.age)} ans · état `, h('b', pct(l.condition)), ` · à ${portName(l.port)}`, l.port === company.homePort ? h('span.tag.good', 'votre port') : null]),
           h('div.card-sub', [surveyTag(state, look), repairsToExpect(state, l)]),
           bar(l.condition / 100, { good: 0.7, warn: 0.45 }),
-          rolesEl(l.type, { age: l.age }),
+          // Atouts et défauts : dans la fenêtre d'inspection seulement (choix du propriétaire, liste plus légère).
         ]),
         h('div.card-side', [
           miniRadar(shipStats(l.type, { condition: l.condition, age: l.age }), look.color, buy),
@@ -300,7 +304,6 @@ function newTab(app) {
         h('div.card-title', [T.name, h('span.tag', T.category)]),
         h('div.card-sub', T.blurb),
         h('div.card-sub.muted', typeSpecs(T)),
-        rolesEl(id),
       ]),
       h('div.card-side', [
         miniRadar(shipStats(id), company.color, () => order()),
