@@ -272,7 +272,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   canvas, slot `big` animated at 8 fps); the map uses side-view sprites from `ui/mapships.js` (laden = company hull,
   empty = pale hull with a company stripe, wake length follows speed, routes dashed in the company colour). Two styles,
   fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. `shipSVG` with `attrs`
-  still returns the old vector drawing (office shelf model).
+  still returns the old vector drawing (office shelf model). Map sizes (owner's pick): ships ×1.5 and port names 13 px
+  at 1920 × 1080, times `uiScale()` (`MAP_SHIPS`, `CITY_PX` in `mapships.js`); port names are drawn over the ships,
+  under the selected ship and the dock badges; chunky blocks stop at 3 screen pixels.
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
   Keep these attributes when reworking those buttons, or the tour silently loses its targets.

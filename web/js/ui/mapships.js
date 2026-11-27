@@ -20,7 +20,7 @@ const GREY = '#9a9890';
 const cache = new Map();
 
 // Taille des navires et des noms de ports sur la carte pour un écran de 1920 × 1080 (×1,5 et
-// 13 px) ; sur un écran plus grand, tout grandit avec l'interface (uiScale :
+// 13 px, choix du propriétaire) ; sur un écran plus grand, tout grandit avec l'interface (uiScale :
 // ×1,33 en 2560 × 1440, réglable dans le menu ☰). ui : facteur des autres textes de la carte.
 const MAP_SHIPS = 1.5, CITY_PX = 13;
 export function mapSize() {
