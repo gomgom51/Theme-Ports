@@ -79,7 +79,7 @@ export function orderPlot(state, rng, byId, { kind, target, zone, port }) {
   else return { ok: false, msg: 'Commande inconnue.' };
   if (by.cash < price) return { ok: false, msg: `Il faut ${k$(price)} en caisse.` };
   // Une seule affaire à la fois contre la même cible au même endroit (quel qu'en soit le commanditaire).
-  if (activePlots(state).some((p) => p.target === target && p.kind === kind && (kind === 'pirates' ? p.zone === zone : p.port === port))) return { ok: false, msg: 'Quelqu\'un s\'en occupe déjà : la zone ne prend pas deux fois la même commande.' };
+  if (activePlots(state).some((p) => p.target === target && p.kind === kind && (kind === 'pirates' ? p.zone === zone : p.port === port))) return { ok: false, msg: 'Quelqu\'un s\'en occupe déjà : la Mafia ne prend pas deux fois la même commande.' };
   money(state, by, -price, 'divers');
   onHostile(state, by, tg);
   const days = kind === 'pirates' ? PIRATE_DAYS : CORRUPT_DAYS;
@@ -227,7 +227,7 @@ export function jettison(state, shipId) {
   return { ok: true };
 }
 
-// ---------- Coups de concurrence (victoire ⚓ → Concurrents) et sabotage (la zone) ----------
+// ---------- Coups de concurrence (victoire ⚓ → Concurrents) et sabotage (la Mafia) ----------
 // Chacun coûte de la réputation à coup sûr (le milieu jase), peut s'ébruiter (scandale), et laisse
 // filtrer une rumeur chez la victime : ce qui la menace, jusqu'à quand, et comment parer (règle n° 1).
 export const ATTACKS = {
@@ -282,7 +282,7 @@ export function attackCheck(state, byId, kind, { target, ship, client, port, toS
   if ((by.level ?? 0) < A.minLevel) return `Il faut être au niveau ${A.minLevel + 1} pour cela.`;
   if (kind === 'bank' && (by.level ?? 0) < (tg.level ?? 0)) return 'Sa banque ne vous écoutera pas : sa compagnie est d\'un niveau supérieur au vôtre.';
   if (kind === 'sabotage' || kind === 'crew') { const sh = shipById(state, ship); if (!sh || sh.owner !== target) return 'Navire introuvable.'; }
-  if (kind === 'sabotage' && !shipsOf(state, byId).some((s) => s.status === 'port' && canPlotFrom(s.port))) return 'Il faut un navire à quai dans un port où opère la zone.';
+  if (kind === 'sabotage' && !shipsOf(state, byId).some((s) => s.status === 'port' && canPlotFrom(s.port))) return 'Il faut un navire à quai dans un port où opère la Mafia.';
   if (kind === 'crew') { const sh = shipById(state, ship), mine = shipById(state, toShip); if (!pointsEarned(sh)) return 'Cet équipage n\'a pas encore d\'expérience à débaucher.'; if (!mine || mine.owner !== byId) return 'Choisissez un de vos navires pour les accueillir.'; if (pointsEarned(mine) >= XP_STEPS.length) return 'Votre équipage est déjà au sommet.'; }
   if (kind === 'payments' && relationOf(by, client).loyalty < LOYAL) return 'Seul un chargeur dont vous êtes le partenaire fidèle acceptera de vous rendre ce service.';
   if (kind === 'pricewar' && !PORTS[port]) return 'Port inconnu.';
