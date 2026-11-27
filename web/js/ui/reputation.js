@@ -1,8 +1,10 @@
 // Comprendre la réputation : à quoi servent la confiance 🤝, la vertu 💚, la réputation ★ et
 // l'infamie ☠, avec les chiffres du joueur (tirés des formules du code : toujours à jour).
-// Onglet « Réputation » du guide (codex.js) et lignes « Pour vous aujourd'hui » du bureau.
+// Onglet « Réputation » du guide (codex.js, avec le bilan des points cause par cause) et bloc
+// réputation de Bureau → Compagnie (phrase d'ambiance, effets du jour en deux colonnes).
 // Chaque chiffre du joueur est un nœud de texte à part (traduit seul par i18n.js).
 import { h, num, num1, pct, bar } from './dom.js';
+import { standingCauses } from './standing.js';
 import { standing, interestRate, trustCap, virtueCap, repCap, REP_BASE_CAP, STANDING } from '../sim/core.js';
 import { TAKEOVER } from '../sim/takeover.js';
 import { CLIENTS } from '../data/clients.js';
@@ -31,24 +33,74 @@ export function standingEffects(company) {
 }
 const rate1 = (r) => `${num1(r * 100)} %`;
 
-// Bureau → Compagnie : une ligne d'effets par note.
-export function trustNow(company) {
+// Bureau → Compagnie : ce que la note fait pour vous aujourd'hui, en lignes libellé / valeur.
+export function trustEffects(company) {
   const e = standingEffects(company);
-  return `Pour vous aujourd'hui : crédit à ${rate1(e.rate)} (${rate1(e.rate100)} à 100) · contrats exigeant jusqu'à ${e.premium} de confiance${e.takeoverK ? ` · votre compagnie vaut × ${num1(e.takeoverK)} sa valeur nette pour un acheteur` : ''}.`;
+  return [
+    ['Taux du crédit', `${rate1(e.rate)}`, `${rate1(e.rate100)} à 100`],
+    ['Contrats accessibles', `jusqu'à ${e.premium}`, 'de confiance exigée'],
+    e.takeoverK ? ['Prix de rachat', `× ${num1(e.takeoverK)}`, 'votre valeur nette'] : null,
+  ].filter(Boolean);
 }
-export function virtueNow(company) {
+export function virtueEffects(company) {
   const e = standingEffects(company);
-  return `Pour vous aujourd'hui : chargeurs soucieux de leur image ${signedPct(e.imagePay)} · inspections dans les ports soucieux de leur image × ${num1(e.inspectK)}.`;
+  return [
+    ['Chargeurs d\'image', signedPct(e.imagePay), 'sur leur fret'],
+    ['Inspections', `× ${num1(e.inspectK)}`, 'navires usés, ports d\'image'],
+  ];
 }
-export const reputationLink = (app) => h('button.btn.small.codex-link', { onclick: () => app.open('codex', null, 'reputation') }, '📖 Comprendre la réputation');
+
+// Ce que « ★ 37 » veut dire dans le milieu : une phrase par palier de réputation, avec le nom
+// de la compagnie, et une seconde quand les deux notes divergent fort.
+const QUOTES = [ // [borne haute exclue, phrase] ; 100 = victoire, jamais affichée seule
+  [10, (n) => `« Les assureurs se signent quand ${n} les appelle. »`],
+  [20, (n) => `« Au déjeuner, les cadres sourient dès qu'on prononce le nom de ${n}. »`],
+  [30, (n) => `« ${n} ? C'est une nouvelle série ? »`],
+  [40, (n) => `« ${n} ? Les bateaux ou les camions ? »`],
+  [50, (n) => `« Sur ${n}, y a pas grand-chose à dire. »`],
+  [60, (n) => `« Sur les quais, on connaît ${n}. »`],
+  [70, (n) => `« Sur les quais, on demande ${n}. »`],
+  [80, (n) => `« Contrairement aux journaux, les concurrents n'apprécient pas ${n}. Ils se contentent de les copier. »`],
+  [96, (n) => `« Les ministres veulent être photographiés sur le pont d'un navire de ${n}. Les gens compétents aussi. »`],
+  [Infinity, (n) => `« Si Dieu avait disposé de ${n} à l'époque, Noé serait resté fermier. »`],
+];
+export const REP_GAP = 20; // écart entre les deux notes à partir duquel la phrase le dit
+export function repQuote(company) {
+  const { confidence: T, virtue: V } = standing(company);
+  const R = Math.floor(Math.min(T, V));
+  const main = QUOTES.find(([max]) => R < max)[1](company.name);
+  const gap = T - V >= REP_GAP ? 'Les chargeurs ne jurent que par vous ; la presse, elle, a d\'autres mots.'
+    : V - T >= REP_GAP ? 'La presse vous adore ; les chargeurs, eux, attendent encore leurs cargaisons.' : null;
+  return { main, gap };
+}
+
+// Le bilan des points : chaque cause, ce mois-ci et le mois dernier, les gains puis les pertes.
+const fmt = (v) => (Math.abs(v) < 0.05 ? '—' : `${v > 0 ? '+' : '−'}${num1(Math.abs(v))}`);
+function bilanTable(company, key) {
+  const now = Object.fromEntries(standingCauses(company.standingMonth, key));
+  const last = Object.fromEntries(standingCauses(company.standingLast, key));
+  const causes = [...new Set([...Object.keys(now), ...Object.keys(last)])]
+    .sort((a, b) => ((now[b] ?? 0) + (last[b] ?? 0)) - ((now[a] ?? 0) + (last[a] ?? 0)));
+  const sum = (o) => Object.values(o).reduce((s, v) => s + v, 0);
+  const cell = (v) => h('td.num', { class: v > 0.05 ? 'pos' : v < -0.05 ? 'neg' : 'muted' }, fmt(v ?? 0));
+  return h('div.rep-bilan', [
+    h('div.rep-bilan-head', [h('span', key === 'virtue' ? '💚' : '🤝'), ' ', h('b', key === 'virtue' ? 'Vertu' : 'Confiance')]),
+    causes.length ? h('table.table.rep-bilan-table', [
+      h('thead', h('tr', [h('th', ''), h('th.num', 'Ce mois'), h('th.num', 'Mois dernier')])),
+      h('tbody', causes.map((k) => h('tr', [h('td', k), cell(now[k]), cell(last[k])]))),
+      h('tfoot', h('tr.total', [h('td', 'Total'), cell(sum(now)), cell(sum(last))])),
+    ]) : h('p.small.muted', 'Rien de notable depuis deux mois.'),
+  ]);
+}
+export const reputationLink = (app) => h('button.btn.small.codex-link', { onclick: () => app.open('codex', null, 'reputation') }, 'Détails et bilan des points →');
 
 // Une carte : icône, question, note actuelle, puis listes.
 const li = (text, mine = null) => h('li', [h('span', text), mine ? ' ' : null, mine ? h('b', mine) : null]);
 function scoreCard(icon, name, question, value, cap, intro, brings, up, down, extra = null) {
   return h('div.rep-card', [
-    h('div.rep-card-head', [h('span.codex-icon', icon), h('div.grow', [h('b', name), h('div.small.muted', question)]),
+    h('div.rep-card-head', [h('span.codex-icon', { class: icon === '★' ? 'star' : '' }, icon), h('div.grow', [h('b', name), h('div.small.muted', question)]),
       value != null ? h('b.rep-value', `${num(value)}/100`) : null]),
-    value != null ? bar(value / 100, { good: 0.6, warn: 0.35 }) : null,
+    value != null ? (icon === '★' ? h('div.bar-star', bar(value / 100)) : bar(value / 100, { good: 0.6, warn: 0.35 })) : null, // ★ toujours en or
     cap != null && cap < 100 ? h('div.small.muted', `Plafond actuel : ${num(cap)}`) : null,
     h('p', intro),
     brings.length ? h('h4', 'Ce qu\'elle vous apporte') : null,
@@ -64,6 +116,9 @@ export function reputationGuide(app) {
   const e = standingEffects(c);
   const imagePorts = [...IMAGE_PORT_FLAGS].map((f) => FLAGS[f]?.name).filter(Boolean).join(', ');
   return h('div', [
+    h('h3', 'Vos points, cause par cause'),
+    h('div.rep-bilans', [bilanTable(c, 'confidence'), bilanTable(c, 'virtue')]),
+    h('h3', 'Comprendre les trois notes'),
     h('p.hint', 'Trois chiffres sous votre trésorerie, en haut à gauche : ★ la réputation, 🤝 la confiance et 💚 la vertu. Chacun répond à une question.'),
     h('div.rep-cards', [
       scoreCard('🤝', 'Confiance', 'Peut-on compter sur vous ?', e.T, trustCap(c),
@@ -97,6 +152,6 @@ export function reputationGuide(app) {
         [], null, null,
         h('p.small', c.infamy ? `Votre infamie : ${num(c.infamy)}. Plafond de vos deux notes : ${num(repCap(c))}.` : 'Votre infamie : aucune.')),
     ]),
-    h('p.hint', 'Chaque mois, un court bilan dit ce qui a fait bouger vos notes (Bureau → Compagnie). Ne pas confondre avec la confiance des gangs, port par port, qui ne compte que dans l\'ombre.'),
+    h('p.hint', 'Ne pas confondre avec la confiance des gangs, port par port, qui ne compte que dans l\'ombre.'),
   ]);
 }

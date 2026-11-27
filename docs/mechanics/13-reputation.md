@@ -2,7 +2,9 @@
 
 File: `sim/core.js` (`standing`, `changeTrust`, `changeVirtue`, `changeReputation`, `earnTrust`,
 `earnVirtue`, caps, `STANDING`, `VIRTUE_SOURCES`, `slowVirtue`, `oilVirtueLoss`), `honours.cleanConduct`.
-UI: ★ next to the cash (limiting score in red), monthly summary `ui/standing.js`.
+UI: ★ next to the cash (limiting score in red), monthly summary `ui/standing.js`. Office → Company shows ★ with a
+flavour line per reputation band (`repQuote` in `ui/reputation.js`) and today's effects of each score; Guide → Réputation
+holds the cause-by-cause breakdown (this month / last month) and the explanation cards.
 
 ## The two scores
 
