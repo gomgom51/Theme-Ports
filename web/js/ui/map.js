@@ -368,6 +368,29 @@ export class MapView {
   }
 
   // ---------- Dessin ----------
+  // Contour lissé d'une zone (spline de Catmull-Rom fermée : la courbe passe par chaque point, ni cercle
+  // ni dents de scie), ajouté au chemin courant pour chaque copie visible du monde. Une copie place tout
+  // le contour d'un bloc : choisir la copie point par point (toScreen) coupait en deux une zone à cheval
+  // sur le bord opposé de la vue, et ses deux moitiés se rejoignaient par une bande à travers la carte.
+  // Renvoie le nombre de copies tracées (0 : zone hors écran).
+  zonePath(g, poly) {
+    const { cx, cy, scale } = this.view;
+    let drawn = 0;
+    this.copies((off) => {
+      const pts = poly.map(([lo, la]) => [this.w / 2 + (lo + off - cx) * scale, this.h / 2 + (-la - cy) * scale]);
+      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+      if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) return;
+      const n = pts.length, P = (i) => pts[(i + n) % n];
+      g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 0; i < n; i++) {
+        const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+        g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+      }
+      g.closePath();
+      drawn++;
+    });
+    return drawn;
+  }
   copies(fn) {
     const { cx, scale } = this.view;
     const span = this.w / scale / 2 + 5;
@@ -542,18 +565,9 @@ export class MapView {
     // Zones de piraterie : leur vrai contour (celui que lit la simulation), lissé, teinte rouge unie et bord continu.
     const flagT = REDUCE_MOTION?.matches ? 0 : performance.now() / 1000;
     for (const [zi, z] of PIRACY_ZONES.entries()) {
-      const pts = z.poly.map(([lo, la]) => this.toScreen(lo, la));
-      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
-      if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) continue;
+      g.beginPath();
+      if (!this.zonePath(g, z.poly)) continue;
       const [x, y] = this.toScreen(z.lon, z.lat);
-      // Spline de Catmull-Rom fermée : la courbe passe par chaque point (ni cercle, ni dents de scie).
-      const n = pts.length, P = (i) => pts[(i + n) % n];
-      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 0; i < n; i++) {
-        const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-        g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
-      }
-      g.closePath();
       g.fillStyle = `rgba(200,50,40,${0.1 + z.rate * 3})`; g.fill();
       g.lineWidth = 1.8; g.strokeStyle = 'rgba(170,40,32,0.8)'; g.stroke();
       const bs = scale > 4 ? 1.15 : 0.85;
