@@ -208,7 +208,7 @@ function renderPanel() {
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
       app.ui.history?.length ? h('button.icon-btn.panel-back', { 'aria-label': 'Retour', title: 'Retour au panneau précédent', onclick: () => app.back() }, '←') : null,
       def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 44) }) : null),
-      h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', def.subtitle) : null]),
+      h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', { class: def.nameSub ? 'nm' : '' }, def.subtitle) : null]),
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
     ]),
     tabs ? h('div.tabs', { role: 'tablist' }, tabs.map(([id, label]) => h('button.tab', {
@@ -246,11 +246,12 @@ function updateStandings(s, me) {
     h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 22) }),
     h('span.standings-name', r.company.name),
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
-    // Réputation (la plus basse des deux), confiance et vertu : la plus basse en rouge.
-    r.company.bankrupt ? null : h('span.standings-rep', { title: 'Réputation (la plus basse des deux) · confiance · vertu' }, [
-      h('span', [h('span.star', '★'), `${Math.floor(r.company.reputation)}`]), ' ',
-      h('span', { class: repLimit(r.company) === 'trust' ? 'low' : '' }, `🤝${Math.floor(r.company.confidence)}`), ' ',
-      h('span', { class: repLimit(r.company) === 'virtue' ? 'low' : '' }, `💚${Math.floor(r.company.virtue)}`),
+    // Réputation (la plus basse des deux), confiance et vertu, une colonne chacune (alignées d'une
+    // ligne à l'autre) : la plus basse des deux en rouge.
+    ...(r.company.bankrupt ? [h('span'), h('span'), h('span')] : [
+      h('span.standings-rep', { title: 'Réputation (la plus basse des deux)' }, [h('span.star', '★'), `${Math.floor(r.company.reputation)}`]),
+      h('span.standings-rep', { title: 'Confiance', class: repLimit(r.company) === 'trust' ? 'low' : '' }, `🤝${Math.floor(r.company.confidence)}`),
+      h('span.standings-rep', { title: 'Vertu', class: repLimit(r.company) === 'virtue' ? 'low' : '' }, `💚${Math.floor(r.company.virtue)}`),
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
 }

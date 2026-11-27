@@ -130,6 +130,10 @@ ice, iceSoon, icecaught, crew, prospect, banker, bank, bankrupt, standing, event
 
 The **important notifications** panel (rule 1) is `ui/alerts.js`: it recomputes from state
 (uninsured ships, held/seized ships, low fuel, overdraft, loans due, threats, lender quota…).
+Each alert carries its full sentence (`text`, shown on hover) and a one-line `short` = [who, what with the key figure]
+that the panel lists, one row per alert sorted by urgency (owner's call: bare minimum). A new alert needs both.
+Opportunity cards (`ui/opps.js`) follow the same idea: three or four lines (deal, nearest able ship with its type and
+days to get there, deadline), buttons on the right, details unfolding on hover.
 
 ## UI map (`web/js/ui`)
 
