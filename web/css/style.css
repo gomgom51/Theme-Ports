@@ -100,6 +100,10 @@ p { margin: 6px 0; }
 /* Hors du zoom de l'interface (ui/scale.js) : la carte et l'intro dessinent au pixel de l'écran près. */
 .unzoom { zoom: calc(1 / var(--ui)); }
 .map-layer { position: absolute; inset: 0; display: block; }
+/* Touche patron (A, ui/boss.js) : la carte seule, sans rien du jeu, d'un coup, avec un curseur ordinaire. */
+html.boss body * { visibility: hidden !important; transition: none !important; animation-play-state: paused !important; }
+html.boss #map, html.boss #map * { visibility: visible !important; }
+html.boss, html.boss * { cursor: default !important; }
 
 /* ---------- Barre du haut ---------- */
 .hud {
