@@ -125,7 +125,7 @@ export function playIntro(app) {
   const root = h('div.intro', { role: 'button', tabindex: '0', 'aria-label': 'Embarquer' }, [
     canvas,
     brandTitle('h1.intro-title'),
-    h('div.intro-prompt', touch ? '⚓ Touchez l\'écran pour embarquer' : '⚓ Cliquez pour embarquer'),
+    h('div.intro-prompt', touch ? 'Touchez l\'écran pour embarquer' : 'Cliquez pour embarquer'),
     h('div.intro-skip', touch ? 'Toucher pour passer' : 'Cliquer pour passer'),
   ]);
   document.body.append(root);
