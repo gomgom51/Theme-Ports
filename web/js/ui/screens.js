@@ -1,6 +1,6 @@
 // Écrans plein écran : accueil, nouvelle partie (choix du port d'attache), fin de partie.
 import { homeTag, homeBonusBox } from './homebonus.js';
-import { getLang, setLang } from '../i18n.js';
+import { getLang, setLang, registerNames } from '../i18n.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { HOLDS, GOODS } from '../data/goods.js';
 import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
@@ -20,6 +20,7 @@ import { creditsScreen } from './credits.js';
 // Noms fictifs qui font un clin d'œil à de grands armateurs (Marseille, Hambourg, Taïwan, Genève)
 // sans reprendre leur nom.
 const DEFAULT_NAMES = ['Bonne Mère Armement', 'Alster-Lloyd', 'Everbloom Marine', 'Léman Shipping'];
+registerNames(DEFAULT_NAMES); // des noms propres : jamais traduits
 const REPAIR = ['aucun', 'petit (70 % max)', 'complet', 'grand chantier'];
 
 function screen(cls, children) {

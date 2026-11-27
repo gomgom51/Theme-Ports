@@ -6,6 +6,8 @@
 import EN from './i18n/en.js';
 import { COUNTRIES } from './data/countries.js';
 import { FLAGS, PORTS } from './data/ports.js';
+import { CLIENTS } from './data/clients.js';
+import { SHIP_NAMES, CAPTAIN_NAMES } from './data/ships.js';
 
 const KEY = 'pda-lang';
 export const LANGS = { fr: 'Français', en: 'English' };
@@ -62,6 +64,62 @@ try {
   for (const [code, F] of Object.entries(FLAGS)) add(F.name, code);
 } catch { /* Intl.DisplayNames indisponible : on garde les noms français */ }
 
+// ---------- Noms propres ----------
+// Navires, compagnies, capitaines, clients : choisis par le joueur, ils peuvent contenir n'importe
+// quoi (« (E)(D) Ferdinand », « la Belle Poule », « Étoile du Nord »). Avant de traduire une phrase,
+// chaque nom connu est remplacé par un jeton (caractère d'usage privé) que les motifs prennent
+// pour une partie variable intraduisible, puis remis à sa place.
+const NAMES = new Set();
+const TOKEN0 = 0xE100;
+const TOKEN_ONLY = /^[\uE100-\uEFFF]+$/;
+let nameList = [];
+let nameRe = null;
+function addName(n) {
+  if (typeof n !== 'string') return;
+  const v = n.trim();
+  if (v.length < 2 || NAMES.has(v) || !/[A-Za-zÀ-ÿ0-9]/.test(v) || NAMES.size >= 0xE00) return;
+  NAMES.add(v);
+  nameRe = null;
+}
+// Les noms s'accumulent pendant la session : le journal parle encore des navires vendus.
+export function registerNames(list) {
+  const n0 = NAMES.size;
+  for (const n of list) addName(n);
+  if (NAMES.size !== n0) { nameRe = null; cache.clear(); }
+}
+// Tous les noms d'une partie (à rappeler quand un navire est acheté ou renommé).
+export function registerGameNames(state) {
+  if (!state) return;
+  const list = [];
+  for (const c of state.companies || []) list.push(c.name, c.captain);
+  for (const s of state.ships || []) list.push(s.name, s.captainName);
+  registerNames(list);
+}
+let nameReCI = null;
+function nameRegex() {
+  if (nameRe) return nameRe;
+  nameList = [...NAMES].sort((a, b) => b.length - a.length);
+  const src = `(^|[^\\p{L}\\p{N}])(${nameList.map(esc).join('|')})(?=[^\\p{L}\\p{N}]|$)`;
+  nameRe = nameList.length ? new RegExp(src, 'gu') : null;
+  nameReCI = nameList.length ? new RegExp(src, 'giu') : null; // noms écrits en capitales (« OCÉANE » sur la coque)
+  return nameRe;
+}
+function stripNames(t) {
+  if (!nameRegex()) return t;
+  const sub = (x) => x.replace(nameReCI, '$1 ');
+  return sub(sub(t));
+}
+function protect(t) {
+  const re = nameRegex();
+  if (!re || !t) return t;
+  // Deux passes : la première consomme le séparateur, un nom collé au suivant serait manqué.
+  const sub = (x) => x.replace(re, (_, pre, n) => pre + String.fromCharCode(TOKEN0 + nameList.indexOf(n)));
+  return sub(sub(t));
+}
+const unprotect = (t) => t.replace(/[\uE100-\uEFFF]/g, (c) => nameList[c.charCodeAt(0) - TOKEN0] ?? c);
+for (const C of Object.values(CLIENTS)) addName(C.name);
+for (const n of [...SHIP_NAMES, ...CAPTAIN_NAMES]) addName(n);
+
 // ---------- Traduction ----------
 function lookup(t, depth) {
   const r = lookupCore(t, depth);
@@ -71,6 +129,10 @@ function lookup(t, depth) {
   return null;
 }
 function lookupCore(t, depth) {
+  const r = lookupPattern(t, depth);
+  return r && typeof r === 'object' ? r.text : r;
+}
+function lookupPattern(t, depth) {
   const ex = EXACT.get(t);
   if (ex !== undefined) return ex;
   const lo = LOWER.get(t.toLowerCase());
@@ -79,6 +141,9 @@ function lookupCore(t, depth) {
     return t[0] !== t[0].toUpperCase() && COMMON.has(first) ? lo.charAt(0).toLowerCase() + lo.slice(1) : lo;
   }
   if (depth > 3) return null;
+  // Un motif dont une partie variable reste en français (« {0} navires » sur « Vous : 5 navires »)
+  // ne sert qu'en dernier recours : un motif plus juste (« Vous : {0} ») peut suivre.
+  let fallback = null;
   for (const p of PATTERNS) {
     if (p.chunk && !t.includes(p.chunk)) continue;
     const m = p.re.exec(t);
@@ -105,17 +170,28 @@ function lookupCore(t, depth) {
     }
     const vals = {};
     p.order.forEach((n, i) => { vals[n] = got[i]; });
-    return p.en.replace(/\{(\d+)\}/g, (_, n) => part(vals[n] ?? '', depth + 1));
+    let clean = true;
+    const out = p.en.replace(/\{(\d+)\}/g, (_, n) => {
+      const r = part(vals[n] ?? '', depth + 1);
+      if (clean && looksFrench(r)) clean = false;
+      return r;
+    });
+    if (clean) return out;
+    fallback ??= { text: out };
   }
-  return null;
+  return fallback;
 }
 // Nom propre (navire, compagnie, client) : majuscule initiale, pas deux mots courants à la suite.
 // (au plus six mots, chacun avec une majuscule ou un petit mot de liaison : « Étoile du Nord », « Vent d'Ouest »).
 const LINK = /^(de|du|des|la|le|les|et|of|the|and|van|von|da|do|di|y)$/i;
+// Un mot de nom commence par une majuscule, un chiffre ou un signe (« (E)(D) Ferdinand », « 2e Souffle »).
+const NAME_WORD = /^[^a-zà-ÿ\s]/;
 const looksLikeName = (g) => {
+  const core = g.trim();
+  if (NAMES.has(core) || TOKEN_ONLY.test(core)) return true;
   if (/,\s/.test(g)) return false; // « Mourmansk, Gênes » : une liste de noms, traduite un à un
-  const w = g.trim().split(/\s+/);
-  return w.length <= 6 && /^[A-ZÀ-ÖØ-Þ]/.test(w[0]) && w.every((x) => /^[A-ZÀ-ÖØ-Þ0-9]/.test(x) || LINK.test(x) || /^[dl]['’][A-ZÀ-ÖØ-Þ]/.test(x));
+  const w = core.split(/\s+/);
+  return w.length <= 6 && /[A-Za-zÀ-ÿ0-9]/.test(w[0]) && NAME_WORD.test(w[0]) && w.every((x) => NAME_WORD.test(x) || LINK.test(x) || /^[dl]['’][A-ZÀ-ÖØ-Þ]/.test(x));
 };
 // Deux variables collées : on cherche la coupure (fin de phrase ou de proposition)
 // où chaque morceau se traduit ; sinon tout va au premier.
@@ -132,7 +208,7 @@ function split(s, depth) {
 // Ce qui n'est pas dans le dictionnaire garde son texte, aux formats anglais.
 function part(v, depth) {
   const core = v.trim();
-  if (!core) return v;
+  if (!core || TOKEN_ONLY.test(core)) return v;
   // Un nom propre absent du dictionnaire (navire, compagnie) reste tel quel : « Île de Batz ».
   if (looksLikeName(core) && !EXACT.has(core) && !LOWER.has(core.toLowerCase())) return v.replace(core, englishFormats(core));
   const r = /[A-Za-zÀ-ÿ]/.test(core) ? lookup(core, depth) ?? loose(core, depth) : null;
@@ -209,10 +285,89 @@ export function tr(s) {
   let out = cache.get(s);
   if (out !== undefined) return out;
   const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
-  out = m[2] ? m[1] + (lookup(m[2], 0) ?? loose(m[2], 0) ?? englishFormats(m[2])) + m[3] : s;
+  out = m[2] ? m[1] + translate(m[2]) + m[3] : s;
   if (cache.size > 8000) cache.clear();
   cache.set(s, out);
+  if (DEV && looksFrench(out)) warnFrench(s, out);
   return out;
+}
+function translate(t) {
+  const exact = lookup(t, 0);
+  if (exact != null) return exact;
+  // Les noms connus deviennent des jetons : « Le (E)(D) Ferdinand a terminé… » se découpe sans hésiter.
+  const p = protect(t);
+  if (p !== t) {
+    const r = lookup(p, 0) ?? loose(p, 0);
+    if (r != null) return unprotect(r);
+  }
+  return loose(t, 0) ?? englishFormats(t);
+}
+
+// ---------- Texte resté en français ----------
+// Mots qui ne s'écrivent pas en anglais, une fois les noms propres retirés : petits mots français,
+// élisions (« d'un », « l'équipage »), et tout mot des textes français du dictionnaire qu'aucune
+// traduction anglaise n'emploie (« fonds », « insuffisants »).
+const FRENCH_WORD = /(^|[^\p{L}])(le|les|des|du|une|est|sont|avec|dans|sur|vers|votre|vos|aux|au|à|ou|mais|pas|très|été|être|leur|ses|sa|cette|qui|que)(?=[^\p{L}]|$)|(^|[^\p{L}])[dlj]['’][a-zà-ÿ]/u;
+const WORDS = /[\p{L}'’-]+/gu;
+let FR_ONLY = null;
+function frenchOnly() {
+  if (FR_ONLY) return FR_ONLY;
+  const en = new Set();
+  for (const v of [...Object.values(EN), ...Object.values(MONTHS), ...Object.values(SHORT)]) for (const w of v.toLowerCase().match(WORDS) || []) en.add(w);
+  FR_ONLY = new Set();
+  for (const k of Object.keys(EN)) for (const w of k.toLowerCase().match(WORDS) || []) if (w.length > 2 && !en.has(w)) FR_ONLY.add(w);
+  FR_ONLY.en = en;
+  return FR_ONLY;
+}
+const KNOWN = new Set(["Port d'Attache", "Port d'attache"]);
+let knownRe = null;
+function properNames() {
+  if (knownRe) return knownRe;
+  for (const P of Object.values(PORTS)) KNOWN.add(P.name);
+  for (const c of COUNTRIES) KNOWN.add(c.n).add(EXACT.get(c.n));
+  for (const F of Object.values(FLAGS)) KNOWN.add(F.name).add(EXACT.get(F.name));
+  const all = [...KNOWN].filter((x) => x && x.length > 1).sort((a, b) => b.length - a.length);
+  knownRe = new RegExp(`(^|[^\\p{L}])(${all.map(esc).join('|')})(?=[^\\p{L}]|$)`, 'gu');
+  return knownRe;
+}
+// Mots français d'un texte affiché en anglais (hors noms propres) : [] s'il est bien traduit.
+export function frenchWords(s) {
+  if (!s || typeof s !== 'string' || !/[A-Za-zÀ-ÿ]{2}/.test(s)) return [];
+  const t = stripNames(s).replace(properNames(), '$1 ');
+  const fr = frenchOnly();
+  const out = [];
+  const m = FRENCH_WORD.exec(t);
+  if (m) out.push((m[2] || m[0]).trim());
+  for (const w of t.toLowerCase().match(WORDS) || []) {
+    const x = w.replace(/^['’-]+|['’-]+$/g, '');
+    if (fr.has(x) || (/[éèêàçùûœ]/.test(x) && !fr.en.has(x))) out.push(x);
+  }
+  return out;
+}
+export const looksFrench = (s) => frenchWords(s).length > 0;
+// Vocabulaire français supplémentaire (tous les textes du code, pour le contrôle tools/i18n-check.mjs).
+export function addFrenchVocabulary(texts) {
+  const fr = frenchOnly();
+  // Seulement les textes visiblement français (petits mots, accents) : pas les titres anglais, chemins, styles.
+  for (const t of texts) if (FRENCH_WORD.test(t) || /[éèêàçùûœ]/.test(t)) for (const w of String(t).toLowerCase().match(WORDS) || []) {
+    const x = w.replace(/^['’-]+|['’-]+$/g, '');
+    if (x.length > 2 && !fr.en.has(x)) fr.add(x);
+  }
+}
+// Mode développeur (localhost, fichier local ou ?dev) : chaque texte non traduit est signalé une fois
+// dans la console et gardé dans window.__i18nMissing, pour l'ajouter à js/i18n/en.js.
+const DEV = (() => {
+  try {
+    if (typeof location === 'undefined') return false;
+    return /^(localhost|127\.0\.0\.1|)$/.test(location.hostname) || location.protocol === 'file:' || /[?&]dev\b/.test(location.search);
+  } catch { return false; }
+})();
+const warned = new Set();
+function warnFrench(fr, en) {
+  if (warned.has(fr)) return;
+  warned.add(fr);
+  try { (window.__i18nMissing ||= []).push(fr); } catch { /* hors navigateur */ }
+  console.warn('[i18n] texte non traduit — à ajouter dans js/i18n/en.js :', JSON.stringify(fr), en !== fr ? `→ ${JSON.stringify(en)}` : '');
 }
 
 // ---------- Traduction de l'écran ----------

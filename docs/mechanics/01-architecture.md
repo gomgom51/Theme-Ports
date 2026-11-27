@@ -12,7 +12,8 @@ web/                     static site (no build step), also wrapped by android/ (
                          sanctions, zones; generated: world.js, distances.js, countries.js
   js/ui/                 panels, map, scenes (pixel art), audio, saves, guide, credits
 tests/                   balance tools (node), see CLAUDE.md
-tools/                   generators: build_world, build_distances, build_countries, i18n-extract
+tools/                   generators: build_world, build_distances, build_countries, i18n-extract;
+                         i18n-check (guard: no French left in the English version)
 docs/mechanics/          this reference
 ```
 
@@ -152,6 +153,7 @@ The **important notifications** panel (rule 1) is `ui/alerts.js`: it recomputes 
 
 ## Tests and tools
 
-See the "Balance tools" section of `CLAUDE.md`. `npm test` = routing + 3-year sim (correctness);
+See the "Balance tools" section of `CLAUDE.md`. `npm test` = routing + 3-year sim (correctness)
++ `tools/i18n-check.mjs` (English version: no French text left, from the code or from a simulated game);
 `npm run balance` = fleet + strategies (final balance pass only). `npm run build:world` regenerates
 map, countries and distance tables.
