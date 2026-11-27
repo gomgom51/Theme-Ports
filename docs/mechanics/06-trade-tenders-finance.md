@@ -2,6 +2,9 @@
 
 Files: `actions.quoteBuy/buyCargo/quoteSale/sellCargo/guaranteePrice`, `sim/trade.js`,
 price model in [04](04-economy-market.md). UI: trade tab of `ui/panel-ship.js`, tender cards in `ui/opps.js`.
+After a purchase the panel jumps to the Appareiller tab with the destination chosen in the buy dialog
+already set (still editable); while that screen stays open and no departure is given, the loading ship
+counts as awaiting orders, so auto-pause time does not restart (`app.tradeHold` in `main.js`).
 
 ## Buying (`buyCargo(state, ctx, shipId, good, qty, finance?)`)
 
