@@ -42,7 +42,7 @@ for (const [fr, en] of Object.entries(EN)) {
     const multi = SENTENCE_BREAK.test(fr.replace(/\{\d+\}/g, 'X'));
     // Variables séparées par une simple espace (« Le {0} {1} à {2}. ») : la coupure peut se discuter.
     const spaced = parts.slice(1, -1).map((p, k) => (p === ' ' ? k : -1)).filter((k) => k >= 0);
-    PATTERNS.push({ re, order, en, chunk, glued, spaced, generic, multi, weight: parts.join('').length });
+    PATTERNS.push({ re, parts, order, en, chunk, glued, spaced, generic, multi, weight: parts.join('').length });
   } else {
     EXACT.set(fr, en);
     LOWER.set(fr.toLowerCase(), en);
@@ -148,38 +148,58 @@ function lookupPattern(t, depth) {
     if (p.chunk && !t.includes(p.chunk)) continue;
     const m = p.re.exec(t);
     if (!m) continue;
-    let got = m.slice(1);
-    if (!p.multi && got.some((g) => SENTENCE_BREAK.test(g))) continue;
-    for (const k of p.glued) [got[k], got[k + 1]] = split(got[k] + got[k + 1], depth + 1);
-    if (p.generic) {
-      const ok = (gs) => gs.every((g) => !/[A-Za-zÀ-ÿ]{2}/.test(g) || looksLikeName(g) || lookup(g.trim(), depth + 1) != null);
-      if (!ok(got)) {
-        // Nom en plusieurs mots (« Étoile du Nord » | « a terminé son déchargement ») : autres coupures.
-        let fixed = null;
-        for (const k of p.spaced) {
-          const whole = got[k] + ' ' + got[k + 1];
-          for (let i = whole.indexOf(' '); i > 0 && !fixed; i = whole.indexOf(' ', i + 1)) {
-            const alt = got.slice(); alt[k] = whole.slice(0, i); alt[k + 1] = whole.slice(i + 1);
-            if (ok(alt)) fixed = alt;
-          }
-          if (fixed) break;
-        }
-        if (!fixed) continue;
-        got = fixed;
+    let r = fromMatch(p, m.slice(1), depth);
+    if (r?.clean) return r.text;
+    // Une partie variable qui contient elle-même un mot du motif (« armes de guerre pour une milice »
+    // dans « … : {1} pour {2}, … », « est enfin autorisé à repartir » dans « Le {0} {1} à {2}. ») :
+    // la première coupure est fausse. On essaie de laisser chaque partie, tour à tour, aller le plus loin possible.
+    if (p.order.length > 1) {
+      for (const re of greedyForms(p)) {
+        const m2 = re.exec(t);
+        if (!m2 || m2.slice(1).every((g, i) => g === m[i + 1])) continue;
+        const r2 = fromMatch(p, m2.slice(1), depth);
+        if (r2?.clean) return r2.text;
+        r ??= r2;
       }
     }
-    const vals = {};
-    p.order.forEach((n, i) => { vals[n] = got[i]; });
-    let clean = true;
-    const out = p.en.replace(/\{(\d+)\}/g, (_, n) => {
-      const r = part(vals[n] ?? '', depth + 1);
-      if (clean && looksFrench(r)) clean = false;
-      return r;
-    });
-    if (clean) return out;
-    fallback ??= { text: out };
+    if (r) fallback ??= { text: r.text };
   }
   return fallback;
+}
+// Traduction d'un motif à partir des parties variables trouvées ; null si la coupure ne convient pas.
+function fromMatch(p, got, depth) {
+  if (!p.multi && got.some((g) => SENTENCE_BREAK.test(g))) return null;
+  for (const k of p.glued) [got[k], got[k + 1]] = split(got[k] + got[k + 1], depth + 1);
+  if (p.generic) {
+    const ok = (gs) => gs.every((g) => !/[A-Za-zÀ-ÿ]{2}/.test(g) || looksLikeName(g) || lookup(g.trim(), depth + 1) != null);
+    if (!ok(got)) {
+      // Nom en plusieurs mots (« Étoile du Nord » | « a terminé son déchargement ») : autres coupures.
+      let fixed = null;
+      for (const k of p.spaced) {
+        const whole = got[k] + ' ' + got[k + 1];
+        for (let i = whole.indexOf(' '); i > 0 && !fixed; i = whole.indexOf(' ', i + 1)) {
+          const alt = got.slice(); alt[k] = whole.slice(0, i); alt[k + 1] = whole.slice(i + 1);
+          if (ok(alt)) fixed = alt;
+        }
+        if (fixed) break;
+      }
+      if (!fixed) return null;
+      got = fixed;
+    }
+  }
+  const vals = {};
+  p.order.forEach((n, i) => { vals[n] = got[i]; });
+  let clean = true;
+  const out = p.en.replace(/\{(\d+)\}/g, (_, n) => {
+    const r = part(vals[n] ?? '', depth + 1);
+    if (clean && looksFrench(r)) clean = false;
+    return r;
+  });
+  return { text: out, clean };
+}
+// Mêmes motifs, une partie variable « gourmande » à la fois (construits à la demande).
+function greedyForms(p) {
+  return (p.greedy ??= p.order.map((_, k) => new RegExp(`^${p.parts.map(esc).reduce((a, b, i) => a + (i - 1 === k ? '(.*)' : '(.*?)') + b)}$`, 's')));
 }
 // Nom propre (navire, compagnie, client) : majuscule initiale, pas deux mots courants à la suite.
 // (au plus six mots, chacun avec une majuscule ou un petit mot de liaison : « Étoile du Nord », « Vent d'Ouest »).
@@ -199,7 +219,7 @@ function split(s, depth) {
   const ok = (x) => !x.trim() || !/[A-Za-zÀ-ÿ]{2}/.test(x) || lookup(x.trim(), depth) != null;
   const cuts = [s.length];
   for (const mm of s.matchAll(/[.!?,)]\s*/g)) cuts.push(mm.index + mm[0].length);
-  for (const mm of s.matchAll(/\s[·—]\s|, /g)) cuts.push(mm.index); // juste avant « · », « — » ou « , »
+  for (const mm of s.matchAll(/\s[·—]\s|, |\s\(/g)) cuts.push(mm.index); // juste avant « · », « — », « , » ou « ( »
   cuts.push(0);
   for (const c of cuts) if (ok(s.slice(0, c)) && ok(s.slice(c))) return [s.slice(0, c), s.slice(c)];
   return [s, ''];
@@ -220,8 +240,11 @@ const SEMI = /([\s\u202f\u00a0];\s)/;
 const COMMA = /(, )/;
 function loose(t, depth) {
   if (depth > 4) return null;
-  const m = /^([^A-Za-zÀ-ÿ]*)([\s\S]*?[A-Za-zÀ-ÿ.)])([^A-Za-zÀ-ÿ.)]*)$/.exec(t);
-  if (m && (m[1] || m[3])) {
+  // Icône ou signe autour d'un libellé (« ⛽ Nom ») ; puis, si besoin, guillemet fermant compris
+  // dans le libellé (« 📡 Transpondeur « discret » »).
+  for (const re of [/^([^A-Za-zÀ-ÿ]*)([\s\S]*?[A-Za-zÀ-ÿ.)])([^A-Za-zÀ-ÿ.)]*)$/, /^([^A-Za-zÀ-ÿ«“"]*)([\s\S]*?[A-Za-zÀ-ÿ.)»”"])([^A-Za-zÀ-ÿ.)»”"]*)$/]) {
+    const m = re.exec(t);
+    if (!m || !(m[1] || m[3])) continue;
     const r = lookup(m[2], depth + 1);
     if (r != null && !looksFrench(r)) return englishFormats(m[1]) + r + englishFormats(m[3]);
   }

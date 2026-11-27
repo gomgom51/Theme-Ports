@@ -2940,4 +2940,14 @@ export default {
   "Appel d'offres": "City tender",
   "Piste de démarchage": "Prospecting lead",
   "{0} achète {1} à {2}/t, premier arrivé premier servi.": "{0} buys {1} at {2}/t, first come, first served.",
+  // Textes recollés à l'écran, trouvés par tools/i18n-screens.mjs et les compositions de tools/i18n-check.mjs.
+  "{0} de {1} à livrer avant le {2}.": "{0} of {1} to deliver before {2}.",
+  "{0} de {1} à livrer avant le {2} : retard probable (pénalité de 3 % par jour).": "{0} of {1} to deliver before {2}: likely late (3% penalty per day).",
+  "· partenaires :": "· partners:",
+  "rares": "rare",
+  "Retenue": "Held",
+  "Saisie": "Seized",
+  "Payer la caution ({0})": "Pay the bail ({0})",
+  "{0} — ses navires y vont": "{0} — its ships are heading there",
+  "Le {0} est enfin autorisé à repartir à {1}.": "The {0} is finally cleared to sail from {1}.",
 };

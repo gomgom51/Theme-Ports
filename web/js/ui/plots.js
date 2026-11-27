@@ -176,9 +176,10 @@ export function partnerInfo(app, clientId) {
   const me = app.ui.activeCompany;
   const partners = P.officialPartners(state, clientId);
   if (!partners.length) return null;
-  const names = partners.map((c) => `${c.name}${c.id === me ? ' (vous)' : ''}`).join(', ');
   const tp = P.topPartner(state, clientId, me);
-  const out = [h('span.muted', { 'data-no-tr': '' }, ` · partenaires : ${names}`)];
+  // Noms laissés tels quels, le reste traduit : un morceau de texte par partie.
+  const names = partners.flatMap((c, i) => [i ? ', ' : null, h('span', { 'data-no-tr': '' }, c.name), c.id === me ? ' (vous)' : null]);
+  const out = [h('span.muted', [' · partenaires : ', ...names])];
   if (tp && relationOf(state.companies[tp.id], clientId).loyalty >= 4) {
     const price = P.poachPrice(state, clientId, tp.loyalty);
     const rival = state.companies[tp.id];

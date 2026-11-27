@@ -252,7 +252,13 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   French UI/news text, add its English entry, then run `node tools/i18n-check.mjs`
   (also part of `npm test` and CI): it fails while any code text, or any text a 2-year
   game produces (notifications, news, logs, with trap ship names), still shows French in
-  English. Proper names and never-shown texts go in `tools/i18n-ignore.json`. Ship,
+  English. The translator only sees whole text nodes: a template whose variable part is a
+  French fragment (`…${x}${glace ? ' (classe glace)' : ''}.`) is recomposed with each fragment
+  and must translate too, and French text glued with `+` is refused (write a template or
+  separate text nodes). `node tools/i18n-screens.mjs` (Playwright, not in CI: run at release, part of `npm test`)
+  plays a 2-year game in English in a hidden browser, opens every panel, tab and event
+  window, and fails on any French actually on screen (runtime-glued pieces, lone words,
+  status labels, French around names in `data-no-tr`). Proper names and never-shown texts go in `tools/i18n-ignore.json`. Ship,
   company and captain names are registered at runtime (`registerGameNames`) and treated
   as untranslatable tokens, so any player-typed name works inside a sentence. Served on
   localhost or with `?dev`, the game warns in the console about every text still in
