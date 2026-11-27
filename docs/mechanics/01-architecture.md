@@ -13,7 +13,8 @@ web/                     static site (no build step), also wrapped by android/ (
   js/ui/                 panels, map, scenes (pixel art), audio, saves, guide, credits
 tests/                   balance tools (node), see CLAUDE.md
 tools/                   generators: build_world, build_distances, build_countries, i18n-extract;
-                         i18n-check (guard: no French left in the English version)
+                         i18n-check (guard: no French left in the English version),
+                         i18n-screens (same guard on the real screens, hidden browser)
 docs/mechanics/          this reference
 ```
 
@@ -158,7 +159,8 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 ## Tests and tools
 
 See the "Balance tools" section of `CLAUDE.md`. `npm test` = routing + 3-year sim (correctness)
-+ `tools/i18n-check.mjs` (English version: no French text left, from the code or from a simulated game);
++ `tools/i18n-check.mjs` (English version: no French text left, from the code, glued fragments or a simulated game)
++ `tools/i18n-screens.mjs` (the same on screen: a game played in English in a hidden browser, every panel opened);
 `npm run balance` = fleet + strategies (final balance pass only). `npm run build:world` regenerates
 map, countries and distance tables. To measure what a change does to players, compare versions with
 `tools/balance/compare.mjs` (see `docs/balance/README.md`).

@@ -77,7 +77,7 @@ app.map = new MapView($('#map'), {
 
 // Partie de démonstration derrière l'écran d'accueil.
 function startDemo() {
-  app.demo = newGame({ seed: 7, duration: 0, companies: ['rotterdam', 'singapour', 'houston', 'shanghai'].map((p, i) => ({ name: 'Démo ' + i, human: false, homePort: p })) }, ctx);
+  app.demo = newGame({ seed: 7, duration: 0, companies: ['rotterdam', 'singapour', 'houston', 'shanghai'].map((p, i) => ({ name: `Démo ${i}`, human: false, homePort: p })) }, ctx);
   tick(app.demo, ctx, 24 * 40);
   app.previewState = app.demo;
 }

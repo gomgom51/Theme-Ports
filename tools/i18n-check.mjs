@@ -3,16 +3,21 @@
 //
 // 1. Textes du code et de index.html : chacun, passé dans la traduction, ne doit plus contenir
 //    de mot français (texte absent de js/i18n/en.js, ou motif qui ne s'applique pas).
+// 1 bis. Textes recollés : un gabarit dont une partie variable est elle-même un morceau de texte
+//    (« …coûte {0}{1}. » avec « (classe glace) ») s'affiche d'un seul tenant ; chaque morceau se
+//    traduit seul, le texte recomposé doit se traduire aussi. Un texte français collé par « + »
+//    est refusé (le texte recomposé ne se voit pas dans le code).
 // 2. Textes fabriqués en jeu (notifications, journal, historique) : une partie IA est jouée avec
 //    des noms de navires et de compagnies piégés (« (E)(D) Ferdinand », « la belle poule »…),
 //    une compagnie « humaine » pilotée par l'IA pour recevoir les notifications, et chaque texte
 //    produit doit sortir en anglais.
 // Exceptions (noms propres, textes jamais affichés) : tools/i18n-ignore.json.
+// Ce qui ne se voit qu'à l'écran (morceaux recollés par des fonctions, mots seuls) : tools/i18n-screens.mjs.
 // Lancé par `npm test` et par la CI : une branche qui ajoute un texte sans traduction ne passe pas.
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { extract } from './i18n-extract.mjs';
+import { extract, compositions, concatenated } from './i18n-extract.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // La traduction est active dès que la langue détectée est l'anglais.
@@ -41,6 +46,21 @@ for (const e of all) {
   const en = tr(fr);
   const bad = frenchWords(en);
   if (bad.length) problems.push({ where: e.files.join(','), fr: e.text, en, bad });
+}
+
+// ---------- 1 bis. Textes recollés ----------
+const glued = compositions();
+for (const e of glued) {
+  if (ignored.has(e.text)) continue;
+  const en = tr(e.text);
+  const bad = frenchWords(en);
+  if (bad.length) problems.push({ where: `${e.files.join(',')} (texte recollé)`, fr: e.text, en, bad });
+}
+
+// Texte français collé par « + » : à réécrire en gabarit (contrôlé ci-dessus) ou en nœuds séparés.
+for (const e of concatenated()) {
+  if (ignored.has(e.text) || !frenchWords(e.text.replace(/\{\d+\}/g, ' ')).length) continue;
+  problems.push({ where: `${e.file}:${e.line} (texte collé par +)`, fr: e.text, msg: 'à écrire en gabarit `…${x}…` ou en nœuds de texte séparés' });
 }
 
 // ---------- 2. Textes produits en partie ----------
@@ -115,8 +135,8 @@ for (const { text, kind } of seen.values()) {
 }
 
 // ---------- Bilan ----------
-for (const p of problems) console.log(`${p.where}\n  FR ${JSON.stringify(p.fr)}\n  EN ${JSON.stringify(p.en)}\n  mots français : ${[...new Set(p.bad)].join(', ')}`);
-console.log(`\n${all.length} textes du code et ${seen.size} textes de partie vérifiés : ${problems.length - runtime} + ${runtime} encore en français.`);
+for (const p of problems) console.log(`${p.where}\n  FR ${JSON.stringify(p.fr)}\n  ${p.msg || `EN ${JSON.stringify(p.en)}\n  mots français : ${[...new Set(p.bad)].join(', ')}`}`);
+console.log(`\n${all.length} textes du code, ${glued.length} textes recollés et ${seen.size} textes de partie vérifiés : ${problems.length - runtime} + ${runtime} encore en français.`);
 if (problems.length) {
   console.log('Ajoutez la traduction dans web/js/i18n/en.js (ou, pour un nom propre ou un texte jamais affiché, dans tools/i18n-ignore.json).');
   process.exit(1);

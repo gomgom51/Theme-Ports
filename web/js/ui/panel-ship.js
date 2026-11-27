@@ -894,7 +894,11 @@ function voyageTab(app, ship) {
   ]));
   if (contract) {
     const late = eta > contract.deadline;
-    box.append(h('p', { class: late ? 'neg' : 'pos' }, `${tonnes(contract.qty)} de ${GOODS[contract.good].name.toLowerCase()} à livrer avant le ${date(contract.deadline, true)}${late ? ' : retard probable (pénalité de 3 % par jour)' : ''}.`));
+    // Deux phrases entières : un morceau recollé en fin de phrase échapperait à la traduction anglaise.
+    const qty = tonnes(contract.qty), good = GOODS[contract.good].name.toLowerCase(), by = date(contract.deadline, true);
+    box.append(h('p', { class: late ? 'neg' : 'pos' }, late
+      ? `${qty} de ${good} à livrer avant le ${by} : retard probable (pénalité de 3 % par jour).`
+      : `${qty} de ${good} à livrer avant le ${by}.`));
   } else if (ship.cargo) {
     box.append(h('p', `${tonnes(ship.cargo.qty)} de ${GOODS[ship.cargo.good].name.toLowerCase()} à vendre à l'arrivée.`));
   } else box.append(h('p.muted', 'Voyage à vide.'));

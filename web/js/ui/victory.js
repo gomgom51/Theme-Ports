@@ -77,7 +77,8 @@ function shadowStatus(state, c) {
 export function holderLine(state, rec, R, mineId) {
   if (!rec) return h('span.muted', `Non attribué · seuil : ${R.fmt(R.min())}`);
   const c = state.companies[rec.holder];
-  return h('span', [rec.holder === mineId ? h('b', 'À vous') : h('b', { 'data-no-tr': '' }, c?.name || '?'), ` · ${R.fmt(rec.value)}${c?.bankrupt ? ' (compagnie disparue)' : ''}`]);
+  // Un morceau de texte par partie : la traduction anglaise reconnaît chacune.
+  return h('span', [rec.holder === mineId ? h('b', 'À vous') : h('b', { 'data-no-tr': '' }, c?.name || '?'), ` · ${R.fmt(rec.value)}`, c?.bankrupt ? ' (compagnie disparue)' : null]);
 }
 // Où en est la compagnie pour un record ou un méfait : barre vers le seuil (non attribué) ou vers
 // le détenteur à battre ; un record « complet » déjà pris reste au premier (pas de barre).
