@@ -2933,7 +2933,7 @@ export default {
   "Aucun navire pour cette cargaison": "No ship for this cargo",
   "Vos navires :": "Your ships:",
   "Affaire en or": "Golden deal",
-  "{0} · {1} t de {2} à {3}": "{0} · {1} t from {2} to {3}",
+  "{0} · {1} de {2} à {3}": "{0} · {1} from {2} to {3}",
   "Appel d'offres": "City tender",
   "Piste de démarchage": "Prospecting lead",
   "{0} achète {1} à {2}/t, premier arrivé premier servi.": "{0} buys {1} at {2}/t, first come, first served.",
