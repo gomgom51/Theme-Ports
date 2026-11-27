@@ -31,6 +31,7 @@ import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
 import { registerStateShips, watchShipNames } from './ui/shipnames.js';
+import { initPanelSize, gripAfter } from './ui/panelsize.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
@@ -239,7 +240,7 @@ function renderPanel() {
   panelEl.dataset.tab = curTab;
   panelEl.hidden = false;
   document.body.classList.add('panel-open');
-  if (motion === 'in' || (motion === 'swap' && outMs >= 0)) drawerIn(panelEl, Math.max(0, outMs));
+  if (motion === 'in' || (motion === 'swap' && outMs >= 0)) gripAfter(drawerIn(panelEl, Math.max(0, outMs))?.finished);
   else if (motion === 'tab' && tabs) {
     const ix = (id) => tabs.findIndex((t) => t[0] === id);
     wipeTab(panelEl, oldBody, body, Math.sign(ix(curTab) - ix(prevTab)), oldScroll, def.top instanceof Element ? def.top : null);
@@ -1137,6 +1138,7 @@ $('#standings').addEventListener('click', () => app.open('victory', 'domination'
 initTooltips();
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
+initPanelSize(); // largeur du panneau, réglable à sa poignée
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });

@@ -36,6 +36,8 @@
   --ui: 1;
   --vw: calc(1vw / var(--ui));
   --vh: calc(1vh / var(--ui));
+  --panel-w: clamp(560px, calc(40 * var(--vw)), 820px); /* largeur du panneau (réglable à la poignée, ui/panelsize.js) */
+  --panel-cur: min(var(--panel-w), calc(100 * var(--vw) - var(--rail-w) - 24px));
   --star: #c9921f; /* l'étoile de la réputation, partout la même */
   --icons: 'PdaIcons';
   --serif: var(--icons), 'Libre Baskerville', Georgia, 'Times New Roman', serif;
@@ -259,11 +261,11 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 /* ---------- Panneau latéral ---------- */
 .panel {
   position: fixed; z-index: 12; top: calc(var(--hud-h) + var(--safe-t)); right: calc(var(--rail-w) + 12px + var(--safe-r)); bottom: 0;
-  width: min(560px, calc(calc(100 * var(--vw)) - var(--rail-w) - 24px)); border-right: 1px solid var(--line);
+  width: var(--panel-cur); border-right: 1px solid var(--line);
   background: var(--paper); border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgba(28, 42, 51, 0.14);
   display: flex; flex-direction: column; user-select: text; -webkit-user-select: text;
 }
-.panel-open .ticker { max-width: max(200px, calc(calc(100 * var(--vw)) - min(560px, calc(64 * var(--vw))) - var(--rail-w) - 48px)); }
+.panel-open .ticker { max-width: max(200px, calc(calc(100 * var(--vw)) - var(--panel-cur) - var(--rail-w) - 48px)); }
 .panel-head {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px 8px 16px;
   border-top: 4px solid var(--navy); background: var(--paper);
@@ -293,6 +295,25 @@ b.nm, .panel-sub.nm { font-weight: 700; }
   position: absolute; left: 0; width: 12px; z-index: 2; pointer-events: none;
   background: linear-gradient(to right, #5a4119, #ecc77c 40%, #c99a48 65%, #5a4119); box-shadow: 0 0 8px rgba(28, 42, 51, 0.4);
 }
+/* Poignée du tiroir : sur le bord gauche du panneau, une poignée de laiton à saisir pour l'élargir. */
+.panel-grip {
+  position: fixed; z-index: 13; display: none; top: calc(var(--hud-h) + var(--safe-t)); bottom: 0; width: 14px;
+  right: calc(var(--rail-w) + 12px + var(--safe-r) + var(--panel-cur) - 7px); cursor: ew-resize; touch-action: none;
+}
+.panel-open .panel-grip { display: block; }
+.panel-grip { transition: opacity 0.12s; }
+.panel-grip.waiting { opacity: 0; pointer-events: none; transition: none; } /* cachée net, revient en fondu */
+.panel-grip::before { content: ''; position: absolute; top: 0; bottom: 0; left: 6px; width: 2px; background: transparent; transition: background 0.12s; }
+.panel-grip:hover::before, .panel-resizing .panel-grip::before { background: linear-gradient(#c99a48, #ecc77c 50%, #c99a48); }
+.panel-pull {
+  position: absolute; left: 2px; top: 50%; width: 10px; height: 54px; margin-top: -27px; border-radius: 5px;
+  background: linear-gradient(to right, #5a4119, #ecc77c 40%, #c99a48 65%, #5a4119);
+  box-shadow: 0 1px 3px rgba(28, 42, 51, 0.45), inset 0 0 0 1px rgba(90, 65, 25, 0.5);
+}
+.panel-pull::before { content: ''; position: absolute; left: 3px; right: 3px; top: 17px; height: 20px;
+  background: repeating-linear-gradient(#5a4119 0 2px, transparent 2px 7px); opacity: 0.75; }
+.panel-grip:hover .panel-pull, .panel-resizing .panel-pull { filter: brightness(1.12); }
+.panel-resizing, .panel-resizing * { cursor: ew-resize !important; user-select: none !important; }
 
 /* ---------- Illustrations des navires ---------- */
 .ship-art { display: block; width: 100%; height: auto; }
@@ -500,8 +521,8 @@ select.input { width: auto; max-width: 100%; }
 }
 /* À droite de la carte, contre le panneau ouvert : la colonne des opportunités (à gauche) reste lisible. */
 .panel-open .toasts {
-  right: calc(var(--rail-w) + 24px + min(560px, calc(calc(100 * var(--vw)) - var(--rail-w) - 24px)) + var(--safe-r));
-  width: max(260px, min(500px, calc(calc(100 * var(--vw)) - var(--rail-w) - 456px - min(560px, calc(calc(100 * var(--vw)) - var(--rail-w) - 24px)))));
+  right: calc(var(--rail-w) + 24px + var(--panel-cur) + var(--safe-r));
+  width: max(260px, min(500px, calc(calc(100 * var(--vw)) - var(--rail-w) - 456px - var(--panel-cur))));
 }
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 11px 10px 11px 14px;
@@ -684,6 +705,7 @@ select.input { width: auto; max-width: 100%; }
 }
 @media (max-width: 700px) {
   .panel { width: calc(calc(100 * var(--vw)) - var(--rail-w) - 12px); }
+  .panel-open .panel-grip { display: none; }
   .two-cols { grid-template-columns: 1fr; }
   .port-choice { grid-template-columns: 1fr; height: auto; }
   .port-list { max-height: calc(40 * var(--vh)); }
