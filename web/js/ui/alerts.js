@@ -161,7 +161,8 @@ export function computeAlerts(state, ctx, companyId) {
     }
     if (crewPoints(ship) > 0) add('info', '🎖', `L'équipage du ${ship.name} peut choisir une spécialité.`, go);
     if (ship.status === 'laidup' && eco.freightLevel(state, ship.type) >= 1) {
-      add('info', '📈', `Le fret est remonté pour les ${T.category.toLowerCase()}s : réarmer le ${ship.name} ?`, go);
+      const cat = T.category.toLowerCase();
+      add('info', '📈', `Le fret est remonté pour les ${cat.endsWith('s') ? cat : cat + 's'} : réarmer le ${ship.name} ?`, go);
     }
   }
   plotAlerts(state, companyId, (level, icon, text, target) => add(level, icon, text, target?.plot != null ? null : target));
