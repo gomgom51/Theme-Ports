@@ -668,7 +668,7 @@ export class MapView {
       const own = ship.owner === active;
       const half = this.drawShip(g, x, y, ship, pos.heading, company.color, own, ship.id === ui.selectedShip, moving ? v.speed : 0);
       this.shipScreenPos.push({ id: ship.id, x, y, own });
-      if (ship.id === ui.selectedShip || (own && scale > 7)) this.label(g, x + Math.min(9, half.hw * 0.5), y - half.hh - 6, ship.name);
+      if (ship.id === ui.selectedShip) this.label(g, x + Math.min(9, half.hw * 0.5), y - half.hh - 7, ship.name);
     }
     // Navires à quai : pictogramme aux couleurs de la compagnie, et pour les vôtres une
     // pastille qui dit ce qu'ils font (chargement, déchargement, réparation, attente…).
@@ -968,12 +968,15 @@ export class MapView {
     g.textAlign = 'left';
   }
 
+  // Nom du navire sélectionné (lui seul, choix du propriétaire), au pochoir comme partout ailleurs.
   label(g, x, y, text) {
-    g.font = '600 11px system-ui, sans-serif';
+    g.save();
+    g.font = '700 15px "Stardos Stencil", PdaIcons, Georgia, serif';
     g.textBaseline = 'middle';
-    g.lineWidth = 3; g.strokeStyle = C.halo;
+    g.lineJoin = 'round'; g.lineWidth = 3.5; g.strokeStyle = C.halo;
     g.strokeText(text, x, y);
     g.fillStyle = C.ink; g.fillText(text, x, y);
+    g.restore();
   }
 
   frame(frac, running = frac > 0) {
