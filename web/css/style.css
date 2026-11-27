@@ -1,6 +1,9 @@
 /* Thème « carte marine » : papier crème, mer pâle, encre marine, rouge et vert des feux de navigation. */
 @font-face { font-family: 'Libre Baskerville'; font-weight: 700; font-style: normal; font-display: swap; src: url('../fonts/libre-baskerville-latin-700-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Libre Baskerville'; font-weight: 400; font-style: italic; font-display: swap; src: url('../fonts/libre-baskerville-latin-400-italic.woff2') format('woff2'); }
+/* Stardos Stencil : la police du logo (ui/brand.js), lettres de pochoir comme sur les caisses et les conteneurs. */
+@font-face { font-family: 'Stardos Stencil'; font-weight: 700; font-style: normal; font-display: swap; src: url('../fonts/stardos-stencil-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Stardos Stencil'; font-weight: 400; font-style: normal; font-display: swap; src: url('../fonts/stardos-stencil-latin-400-normal.woff2') format('woff2'); }
 
 :root {
   --sea: #cde1e9;
@@ -26,6 +29,9 @@
   --rail-w: 62px;
   --star: #c9921f; /* l'étoile de la réputation, partout la même */
   --serif: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  /* Stardos Stencil (OFL, comme le logo) : titres, noms de navires et de compagnies. Latin seul : une lettre absente
+     (ń, ł…) prend la police de secours. Jamais sous 15 px, les jours du pochoir disparaîtraient. */
+  --stencil: 'Stardos Stencil', 'Libre Baskerville', Georgia, serif;
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
@@ -47,17 +53,19 @@ body {
 button, input, select { font: inherit; color: inherit; }
 /* Curseurs : une ancre renversée en forme de flèche (la couronne fait la pointe), marine
    bordée de blanc pour rester visible sur fond clair comme sombre, orange sur ce qui se
-   clique. Le point de clic est la pointe, en haut à gauche. */
+   clique. Le jas finit en boules, comme l’ancre du logo (web/js/ui/brand.js). Le point de
+   clic est la pointe, en haut à gauche. */
 :root {
-  --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%231c3d52'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23e8743b' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, auto;
-  --cursor-click: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%23e8743b'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23ffd877' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, pointer;
+  --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%231c3d52'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23e8743b' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, auto;
+  --cursor-click: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%23e8743b'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23ffd877' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, pointer;
 }
 html { cursor: var(--cursor); }
 input, textarea, [contenteditable] { cursor: text; }
 button, a, select, summary, label.check, [role="button"], [data-speed] { cursor: var(--cursor-click); }
 button:disabled { cursor: var(--cursor); }
 h1, h2 { margin: 0; line-height: 1.2; font-family: var(--serif); font-weight: 700; letter-spacing: 0.01em; }
-h3 { margin: 18px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--teal); font-weight: 800; }
+h2 { font-family: var(--stencil); letter-spacing: 0.03em; }
+h3 { margin: 18px 0 8px; font-family: var(--stencil); font-size: 15px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--teal); font-weight: 700; }
 p { margin: 6px 0; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
@@ -97,7 +105,11 @@ p { margin: 6px 0; }
 }
 .hud-company .badge-wrap { display: inline-flex; flex: none; }
 .hud-company-text { display: flex; flex-direction: column; min-width: 0; text-align: left; line-height: 1.15; }
-.hud-company-name { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-company-name { font-family: var(--stencil); font-weight: 700; font-size: 15px; letter-spacing: 0.03em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm { font-family: var(--stencil); letter-spacing: 0.03em; }
+b.nm, .panel-sub.nm { font-weight: 700; }
+.panel-sub.nm { font-size: 16px; color: var(--ink-2); }
+.row b.nm { font-size: 16px; }
 .hud-cash { font-weight: 800; font-variant-numeric: tabular-nums; }
 .hud-cash.neg { color: var(--bad); }
 /* Variation de confiance ou de vertu : un chiffre qui s'envole au-dessus de la note. */
@@ -122,7 +134,7 @@ p { margin: 6px 0; }
 .hud-context { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; }
 .hud-context:empty { display: none; }
 .ctx-ship { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; padding: 0 4px; }
-.ctx-ship b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctx-ship b { font-family: var(--stencil); font-size: 16px; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx-ship span { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx-btn {
   flex: none; display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1;
@@ -214,25 +226,27 @@ p { margin: 6px 0; }
   position: fixed; z-index: 8; left: calc(12px + var(--safe-l)); bottom: calc(46px + var(--safe-b));
   display: none; flex-direction: column; gap: 2px; padding: 6px 10px; text-align: left; cursor: var(--cursor-click);
   background: rgba(251, 248, 241, 0.95); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
-  font-size: 12px; color: var(--ink-2); max-width: min(300px, calc(100vw - var(--rail-w) - 40px));
+  font-size: 12.5px; color: var(--ink-2); max-width: calc(100vw - var(--rail-w) - 40px);
 }
-.in-game .standings:not([hidden]) { display: flex; }
+/* Une grille : rang, logo, nom complet, valeur, ★, 🤝, 💚, alignés d'une ligne à l'autre. */
+.in-game .standings:not([hidden]) { display: grid; grid-template-columns: repeat(7, auto); column-gap: 8px; row-gap: 3px; align-items: center; }
 .standings:hover { border-color: var(--teal); }
-.standings-row { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.standings-row { display: contents; white-space: nowrap; }
 .standings-row.me { color: var(--ink); font-weight: 800; }
-.standings-row.out { opacity: 0.5; }
+.standings-row.out > * { opacity: 0.5; }
 .standings-rank { width: 20px; text-align: center; }
 .standings-logo { line-height: 0; }
-.standings-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-.standings-worth { font-variant-numeric: tabular-nums; margin-left: 8px; }
+.standings-name { font-family: var(--stencil); font-size: 15px; letter-spacing: 0.03em; white-space: nowrap; }
+.standings-row.me .standings-name { font-weight: 700; }
+.standings-worth { font-variant-numeric: tabular-nums; margin-left: 6px; text-align: right; white-space: nowrap; }
 .ship-results-head { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 10px 4px 4px; }
-.standings-rep { font-size: 11px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-left: 6px; }
-.standings-rep .low { color: var(--bad); }
-.standings-level { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--ink-2); }
+.standings-rep { font-size: 11px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.standings-rep.low { color: var(--bad); }
+.standings-level { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--ink-2); }
 .level-bar { display: block; height: 5px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
 .level-bar > span { display: block; height: 100%; background: var(--teal); border-radius: 3px; }
 .office-next { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
-@media (max-width: 600px) { .standings-row:not(.me) { display: none; } }
+@media (max-width: 600px) { .standings-row:not(.me) > * { display: none; } }
 
 /* ---------- Panneau latéral ---------- */
 .panel {
@@ -264,6 +278,9 @@ p { margin: 6px 0; }
 
 /* ---------- Illustrations des navires ---------- */
 .ship-art { display: block; width: 100%; height: auto; }
+/* Navire en pixel art (pixelship.js) : le canevas est posé à la taille du cadre, en pixels entiers. */
+.px-ship { position: relative; aspect-ratio: 400 / 110; overflow: hidden; }
+.px-ship canvas { position: absolute; image-rendering: pixelated; }
 .ship-hero { display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }
 .ship-hero-art { flex: 1; min-width: 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; }
 .ship-hero .radar-wrap { flex: none; }
@@ -331,7 +348,6 @@ p { margin: 6px 0; }
 .loan-terms { font-size: 12.5px; color: var(--ink-2); background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 10px; }
 .loan-terms b { color: var(--ink); }
 .unread-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2f6fb0; margin-right: 6px; vertical-align: 1px; }
-.card.alert.unread .card-sub { font-weight: 700; color: var(--ink); }
 .sale-compare { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 6px; }
 .sale-compare .stat-value { font-size: 15px; }
 .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -543,11 +559,9 @@ select.input { width: auto; max-width: 100%; }
 }
 .title-card.wide { width: min(520px, 100%); text-align: left; }
 .title-card h2 { margin-bottom: 12px; }
-.logo { margin-bottom: 18px; }
-.logo-anchor { font-size: 38px; display: block; line-height: 1; color: var(--navy); }
-.logo-anchor svg { width: 54px; height: 54px; }
-.logo h1 { font-size: 32px; color: var(--navy); }
-.tagline { color: var(--teal); margin: 6px 0 0; letter-spacing: 0.2em; text-transform: uppercase; font-size: 11.5px; font-weight: 800; }
+/* Logo : la plaque de carte marine couronnée du sceau (ui/brand.js), un peu plus large que la carte. */
+.logo { margin: -6px -14px 14px; line-height: 0; }
+.brand-plaque svg { display: block; width: 100%; height: auto; }
 .title-buttons { display: flex; flex-direction: column; gap: 10px; }
 .title-card .list { margin-bottom: 12px; }
 .credits { color: var(--muted); font-size: 11px; margin-top: 16px; }
@@ -568,12 +582,10 @@ select.input { width: auto; max-width: 100%; }
 }
 .intro.leaving { opacity: 0; pointer-events: none; }
 .intro-canvas { position: absolute; left: 0; top: 0; image-rendering: pixelated; image-rendering: crisp-edges; }
-.intro-title { position: absolute; left: 0; right: 0; top: 9%; padding: 0 16px; text-align: center; color: #fff1d0; pointer-events: none; text-shadow: 0 3px 0 #120b1e, 0 0 22px rgba(255, 180, 100, .35); }
-.intro-title h1 { color: inherit; font-size: clamp(34px, 7vw, 68px); }
-.intro-title p { margin: 6px 0 0; font-size: clamp(11px, 2vw, 15px); font-weight: 800; letter-spacing: .25em; text-transform: uppercase; opacity: .85; }
+.intro-title { position: absolute; left: 0; right: 0; top: 6%; margin: 0 auto; width: min(560px, 46vw, 66vh); min-width: 240px; pointer-events: none; line-height: 0; }
 .intro-prompt {
   position: absolute; left: 0; right: 0; bottom: 8%; padding: 0 16px; text-align: center; pointer-events: none;
-  color: #fff1d0; font-weight: 800; font-size: clamp(16px, 3vw, 22px); text-shadow: 0 2px 0 #120b1e;
+  color: #fff1d0; font-family: 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(18px, 3vw, 26px); letter-spacing: 0.04em; text-shadow: 0 2px 0 #120b1e;
   animation: intro-blink 1.2s steps(1) infinite;
 }
 .intro.sailing .intro-prompt { display: none; }
@@ -691,7 +703,7 @@ select.input { width: auto; max-width: 100%; }
 .pay-who .badge-wrap { display: inline-flex; }
 .pay-ship { display: flex; align-items: center; gap: 12px; margin: 12px 0 6px; }
 .pay-ship-art { width: 128px; flex: none; line-height: 0; border-radius: 6px; overflow: hidden; background: var(--paper-2); border: 1px solid var(--line); }
-.pay-ship-name { font-family: var(--serif); font-size: 23px; font-weight: 700; line-height: 1.15; color: var(--ink); }
+.pay-ship-name { font-family: var(--stencil); letter-spacing: 0.03em; font-size: 23px; font-weight: 700; line-height: 1.15; color: var(--ink); }
 .pay-ship-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .dialog:has(.pay-lines) .dialog-buttons { animation: pay-in 0.4s ease-out 1.8s both; }
 @media (max-height: 460px) {
@@ -718,11 +730,24 @@ select.input { width: auto; max-width: 100%; }
 
 /* Notifications importantes */
 .badge.urgent { background: var(--bad); }
-.card.alert { padding: 8px 10px; }
-.card.alert-0 { border-left: 4px solid var(--bad); }
-.card.alert-1 { border-left: 4px solid var(--warn); }
-.card.alert-2 { border-left: 4px solid var(--teal); }
-.alert-icon { display: inline-block; width: 1.4em; text-align: center; }
+/* Une ligne par alerte : icône, qui, quoi. La colonne « qui » prend la largeur du plus long nom (sous-grille). */
+.alert-list { display: grid; grid-template-columns: 24px max-content minmax(0, 1fr) 14px; column-gap: 10px; row-gap: 4px; }
+.alert-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; width: 100%; text-align: left;
+  padding: 7px 10px 7px 8px; background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--teal); border-radius: 8px;
+  font: inherit; font-size: 13.5px; color: var(--ink-2); }
+.alert-row.lv0 { border-left-color: var(--bad); }
+.alert-row.lv1 { border-left-color: var(--warn); }
+button.alert-row { cursor: var(--cursor-click); }
+button.alert-row:hover { border-color: var(--teal); background: var(--paper-2); }
+button.alert-row.lv0:hover { border-left-color: var(--bad); }
+button.alert-row.lv1:hover { border-left-color: var(--warn); }
+.ar-icon { text-align: center; font-size: 15px; }
+.ar-who { max-width: 180px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-who.nm { font-size: 15px; }
+.ar-what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-row.lv0 .ar-what { color: var(--bad); font-weight: 600; }
+.alert-row.unread .ar-who::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: #2f6fb0; vertical-align: 2px; }
+.ar-go { color: var(--muted); font-size: 18px; line-height: 1; }
 
 /* Rapport de combat (pirates) */
 .battle-sides { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: start; margin-bottom: 8px; }
@@ -814,23 +839,36 @@ select.input { width: auto; max-width: 100%; }
 .status-line + .route-chip { margin: 6px 0 0; }
 
 /* ---------- Cartes d'opportunité (en bas à gauche, au-dessus du classement) ---------- */
-.opps { position: fixed; z-index: 9; left: calc(12px + var(--safe-l)); bottom: 46px; display: none; flex-direction: column; gap: 6px; width: min(330px, calc(100vw - var(--rail-w) - 36px)); max-height: 55vh; overflow-y: auto; }
+.opps { position: fixed; z-index: 9; left: calc(12px + var(--safe-l)); bottom: 46px; display: none; flex-direction: column; gap: 5px; width: 372px; max-width: calc(100vw - var(--rail-w) - 36px); overflow-y: auto; scrollbar-width: thin; }
 .in-game .opps:not([hidden]) { display: flex; }
 .opps-toggle { align-self: flex-start; border: 1px solid var(--line); background: rgba(251, 248, 241, 0.97); border-radius: 999px; padding: 3px 12px; font-size: 12.5px; font-weight: 800; color: var(--ink-2); box-shadow: var(--shadow); }
-.opp { position: relative; background: var(--paper); border: 1px solid var(--line); border-left: 5px solid #e0b84a; border-radius: 10px; padding: 8px 28px 8px 11px; font-size: 13px; line-height: 1.35; box-shadow: var(--shadow); }
+/* Trois ou quatre lignes ; boutons dans la colonne de droite ; le détail se déplie au survol. */
+.opp { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; background: var(--paper); border: 1px solid var(--line); border-left: 5px solid #e0b84a; border-radius: 10px; padding: 6px 7px 6px 10px; font-size: 13px; line-height: 1.32; box-shadow: var(--shadow); }
 .opp.aid { border-left-color: #d0607a; }
 .opp.tender { border-left-color: var(--teal); }
-.opp-commit { margin-top: 2px; font-size: 12.5px; }
 .opp.gone { opacity: 0.75; border-left-color: var(--muted); }
-.opp-head { display: flex; align-items: center; gap: 6px; font-size: 14px; }
-.opp-icon { color: #c9971f; font-size: 15px; }
+.opp-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.opp-head { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opp-icon { color: #c9971f; font-size: 15px; margin-right: 5px; }
 .opp.aid .opp-icon { color: #c4385a; }
-.opp-body, .opp-until, .opp-ships, .opp-from { margin-top: 3px; }
-.opp-from { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.opp-port { border: 1px solid var(--line-2); background: var(--paper-2); border-radius: 999px; padding: 1px 8px; font-size: 12px; cursor: var(--cursor-click); }
+.opp-body, .opp-until, .opp-ships, .opp-from { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opp-ships { color: var(--ink-2); }
+.opp-from { display: flex; align-items: center; gap: 4px; }
+.opp-port { border: 1px solid var(--line-2); background: var(--paper-2); border-radius: 999px; padding: 0 8px; font-size: 12px; cursor: var(--cursor-click); }
 .opp-port:hover { border-color: var(--teal); }
-.opp-actions { margin-top: 5px; }
-.opp-close { position: absolute; top: 4px; right: 6px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: var(--cursor-click); }
+.opp-commits { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12.5px; }
+.opp-commit { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.opp-logo { line-height: 0; display: inline-block; }
+.opp-side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 4px; }
+.opp-side .btn.small { padding: 3px 10px; }
+.opp-close { border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; padding: 0 2px; cursor: var(--cursor-click); }
+.opp-more { grid-column: 1 / -1; display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.16s ease-out; }
+.opp.open .opp-more, .opp:focus-within .opp-more { grid-template-rows: 1fr; }
+.opp-more-in { min-height: 0; overflow: hidden; }
+.opp-more-body { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); }
+.opp-more-body > b:first-child { color: var(--ink); }
+.opp-ship-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: reduce) { .opp-more { transition: none; } }
 
 /* ---------- Achat d'une cargaison : financement ---------- */
 .fin-options { display: grid; gap: 6px; }
@@ -885,7 +923,6 @@ select.input { width: auto; max-width: 100%; }
 /* Allure économique (onglet Appareiller) et gains des opportunités. */
 .eco-line { margin: 2px 0 8px; }
 .eco-line.good { color: var(--good, #2e7d4f); }
-.opp-gain { font-size: 12px; color: var(--muted); margin-top: 2px; }
 /* Guide des victoires, hauts faits, trophées et méfaits. */
 .rec-progress { margin-top: 3px; }
 .rec-missing summary { cursor: pointer; color: var(--teal); }
@@ -921,7 +958,7 @@ select.input { width: auto; max-width: 100%; }
 .kv-sub { grid-column: 1 / -1; font-size: 11px; color: var(--muted); margin-top: -1px; }
 .co-card, .rep-summary { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
 .co-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.co-name { font-family: var(--serif); font-weight: 700; font-size: 17px; line-height: 1.2; }
+.co-name { font-family: var(--stencil); letter-spacing: 0.03em; font-weight: 700; font-size: 17px; line-height: 1.2; }
 .co-where { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
 .co-kind { flex: none; }
 .co-cols, .rep-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
@@ -990,18 +1027,19 @@ select.input { width: auto; max-width: 100%; }
 .cr-roll { width: min(520px, 92vw); margin: 0 auto; text-align: center; padding-bottom: 20vh; will-change: transform; }
 .cr-viewport.static .cr-roll { padding: 12vh 0 16vh; }
 .cr-head { padding: 4vh 0 7vh; }
-.cr-head h1 { font-family: 'Libre Baskerville', Georgia, serif; font-size: clamp(30px, 5vw, 46px); margin: 8px 0 4px; letter-spacing: 0.5px; }
-.cr-anchor svg { width: 64px; height: 64px; fill: #e0614f; }
+.cr-head h1 { width: min(440px, 100%); margin: 0 auto 10px; line-height: 0; }
+.cr-anchor svg { width: 64px; height: 64px; }
 .cr-tag { color: #9fb9b6; font-style: italic; margin: 4px 0; }
 .cr-company { display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; font-size: 18px; }
 .cr-section { margin: 0 0 9vh; }
-.cr-section h3 { color: #6fb7b4; font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; margin: 0 0 14px; font-weight: 700; }
+.cr-section h3 { font-family: inherit; color: #6fb7b4; font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; margin: 0 0 14px; font-weight: 700; }
 .cr-line { margin: 0 0 10px; line-height: 1.35; }
 .cr-line span { display: block; font-size: 19px; }
 .cr-line small { display: block; color: #9fb9b6; font-size: 13px; margin-top: 2px; }
 .cr-end { padding: 6vh 0 0; }
-.cr-thanks { font-family: 'Libre Baskerville', Georgia, serif; font-size: clamp(24px, 4vw, 34px); margin: 14px 0 6px; }
-.cr-wind { color: #9fb9b6; font-style: italic; margin: 0; }
+/* Dernier carton : le sceau et la police du logo, pour finir sur une seule voix. */
+.cr-thanks { font-family: 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(26px, 4.2vw, 38px); margin: 14px 0 6px; }
+.cr-wind { font-family: 'Stardos Stencil', Georgia, serif; font-weight: 400; color: #9fb9b6; font-size: 18px; margin: 0; }
 .cr-frame {
   position: absolute; margin: 0; width: min(340px, 24vw); opacity: 0; transform: translateY(8px) scale(0.98);
   transition: opacity 0.6s ease, transform 0.6s ease; pointer-events: none;

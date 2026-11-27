@@ -101,7 +101,7 @@ export async function openPayment(app, paymentId) {
     ]),
     // Le navire qui a livré, bien en vue (son portrait s'il est toujours dans la flotte).
     h('div.pay-ship', [
-      shipNow ? h('span.pay-ship-art', { html: artForShip(state, shipNow, { sky: false }) }) : null,
+      shipNow ? h('span.pay-ship-art', { html: artForShip(state, shipNow, { sky: false, slot: 'thumb' }) }) : null,
       h('div', [h('div.pay-ship-name', { 'data-no-tr': '' }, p.shipName), h('div.pay-ship-sub', `vient de livrer à ${portName(p.to)}`)]),
     ]),
     h('p', [h('b', `${GOODS[p.good].icon} ${tonnes(p.qty)} de ${GOODS[p.good].name.toLowerCase()}`), ` livrés à ${portName(p.to)} par le ${p.shipName} le ${date(p.deliveredT, true)}.`]),

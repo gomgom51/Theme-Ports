@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Planche des visuels Steam et des icônes : tools/brand/render.mjs l'ouvre, appelle draw(), puis photographie #cap. -->
+<style>
+  @font-face { font-family: 'Stardos Stencil'; font-weight: 700; src: url('/web/fonts/stardos-stencil-latin-700-normal.woff2') format('woff2'); }
+  html, body { margin: 0; background: transparent; }
+  #cap { position: relative; overflow: hidden; }
+  #cap > * { position: absolute; }
+  #cap svg, #cap canvas { display: block; }
+</style>
+<body>
+<div id="cap"></div>
+<script type="module">
+import { plaqueSVG, plaqueBox, appIconSVG, appIcon16SVG, sealSVG } from '/web/js/ui/brand.js';
+import { sunsetCanvas } from '/tools/brand/sunset.js';
+
+const root = document.getElementById('cap');
+const el = (html) => { const d = document.createElement('div'); d.innerHTML = html.trim(); return d; };
+// Pose un élément centré sur (cx, cy), en fraction de la taille du visuel.
+function place(node, W, H, cx, cy) {
+  root.append(node);
+  const r = node.getBoundingClientRect();
+  node.style.left = `${Math.round(cx * W - r.width / 2)}px`;
+  node.style.top = `${Math.round(cy * H - r.height / 2)}px`;
+}
+function backdrop(W, H, o) { const c = sunsetCanvas(W, H, o); c.style.left = '0'; c.style.top = '0'; root.append(c); }
+
+// Chaque visuel : (W, H) → contenu de #cap.
+const ASSETS = {
+  // Icône d'application (coins arrondis transparents) ; plein cadre pour Steam.
+  icon: (W) => place(el(appIconSVG(W)), W, W, 0.5, 0.5),
+  iconSquare: (W) => place(el(appIconSVG(W, { radius: 0 })), W, W, 0.5, 0.5),
+  // 16 px : dessinée au pixel.
+  icon16: () => place(el(appIcon16SVG()), 16, 16, 0.5, 0.5),
+  icon16Square: () => place(el(appIcon16SVG({ round: false })), 16, 16, 0.5, 0.5),
+  // Petite capsule Steam : la plaque sans accroche sur le couchant (le texte doit rester lisible à 231 px).
+  capsuleSmall: (W, H) => {
+    backdrop(W, H, { px: 3, sunX: 0.86, horizon: 0.8, port: false, birds: false, sunR: 0.3 });
+    place(el(plaqueSVG({ width: Math.round(W * 0.85), tagline: '', seal: 80 })), W, H, 0.5, 0.53);
+  },
+  // Logo de la bibliothèque Steam : la plaque complète sur fond transparent, aussi large que possible.
+  libraryLogo: (W, H) => {
+    const { VH } = plaqueBox();
+    const w = Math.min(W, Math.floor(H * 600 / VH));
+    place(el(plaqueSVG({ width: w })), W, H, 0.5, 0.5);
+  },
+  // Plaque seule, détourée (presse, site, réseaux).
+  plaque: (W, H) => place(el(plaqueSVG({ width: W })), W, H, 0.5, 0.5),
+  plaqueNoTagline: (W, H) => place(el(plaqueSVG({ width: W, tagline: '' })), W, H, 0.5, 0.5),
+  seal: (W) => place(el(sealSVG(W)), W, W, 0.5, 0.5),
+};
+
+window.draw = async (kind, W, H) => {
+  root.innerHTML = '';
+  root.style.width = `${W}px`; root.style.height = `${H}px`;
+  ASSETS[kind](W, H);
+  await document.fonts.load("700 20px 'Stardos Stencil'");
+  await document.fonts.ready;
+};
+window.ready = true;
+</script>
+</body>

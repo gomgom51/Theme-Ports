@@ -64,7 +64,7 @@ export function inspectShip({ typeId, condition = 100, age = 0, name = '', color
   };
   drawChips();
   const body = h('div.inspect', [
-    h('div.inspect-art', { html: shipSVG(typeId, { condition, age, color, logo, name, laden, seed: seed ?? name }) }),
+    h('div.inspect-art', { html: shipSVG(typeId, { condition, age, color, logo, name, laden, seed: seed ?? name, slot: 'big' }) }),
     h('div.inspect-row', [
       h('div', [radar, chips]),
       h('div.inspect-specs', [
@@ -119,8 +119,8 @@ export function fleetPanel(app) {
     body.append(h('div.list.compact', list.map((s) => {
       const T = SHIP_TYPES[s.type];
       return h('button.row.selectable.with-thumb', { onclick: () => { app.open('ship', s.id); app.focusShip(s.id); } }, [
-        h('span.thumb', { html: artForShip(state, s, { sky: false }) }),
-        h('span.grow', [h('b', s.name), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s)), shipRoute(state, ctx, s, true)]),
+        h('span.thumb', { html: artForShip(state, s, { sky: false, slot: 'thumb' }) }),
+        h('span.grow', [h('b.nm', s.name), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s)), shipRoute(state, ctx, s, true)]),
         h('span.mini', [h('span.muted.small', 'état'), bar(s.condition / 100, { good: 0.7, warn: 0.45 })]),
         h('span.mini', [h('span.muted.small', 'fuel'), bar(s.fuel / T.tank, { good: 0.4, warn: 0.15 })]),
       ]);
@@ -256,7 +256,7 @@ function usedTab(app) {
         if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id); app.boughtShip?.(r.ship); }
       };
       return h('div.card.with-art', { class: affordable ? '' : 'disabled' }, [
-        h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipSVG(l.type, look) }),
+        h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipSVG(l.type, { ...look, slot: 'card' }) }),
         h('div.card-main', [
           h('div.card-title', [l.name, h('span.tag', T.name)]),
           h('div.card-sub', typeSpecs(T)),
@@ -294,7 +294,7 @@ function newTab(app) {
       if (v === 'buy') app.act(() => act.orderNewShip(state, company.id, id, yard), { sound: 'pay' });
     };
     box.append(h('div.card.with-art', { class: price > company.cash ? 'disabled' : '' }, [
-      h('button.card-art', { title: 'Inspecter', 'aria-label': `Inspecter : ${T.name}`, onclick: () => order(), html: shipSVG(id, look) }),
+      h('button.card-art', { title: 'Inspecter', 'aria-label': `Inspecter : ${T.name}`, onclick: () => order(), html: shipSVG(id, { ...look, slot: 'card' }) }),
       h('div.card-main', [
         h('div.card-title', [T.name, h('span.tag', T.category)]),
         h('div.card-sub', T.blurb),
@@ -391,7 +391,7 @@ function insuranceSection(app) {
 export function officePanel(app, _id, tab) {
   const c = app.company();
   return {
-    title: 'Bureau', subtitle: c.name, color: c.color, badge: [c.logo, c.color],
+    title: 'Bureau', subtitle: c.name, nameSub: true, color: c.color, badge: [c.logo, c.color],
     top: officeHero(app),
     tabs: [
       ['finances', 'Finances', () => financeTab(app)],
@@ -648,7 +648,7 @@ function rankingTab(app) {
 export function marketsPanel(app, _id, tab) {
   return {
     title: 'Marchés',
-    tabs: [['indices', 'Indices', () => indicesTab(app)], ['produits', 'Marchandises', () => goodsTab(app)]],
+    tabs: [['produits', 'Marchandises', () => goodsTab(app)], ['indices', 'Indices', () => indicesTab(app)]], // s'ouvre sur les marchandises
     tab,
   };
 }

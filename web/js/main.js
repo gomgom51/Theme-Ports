@@ -29,6 +29,7 @@ import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
+import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
 import { darkOfferDialog, seizedDialog } from './ui/dark.js';
@@ -207,7 +208,7 @@ function renderPanel() {
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
       app.ui.history?.length ? h('button.icon-btn.panel-back', { 'aria-label': 'Retour', title: 'Retour au panneau précédent', onclick: () => app.back() }, '←') : null,
       def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 44) }) : null),
-      h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', def.subtitle) : null]),
+      h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', { class: def.nameSub ? 'nm' : '' }, def.subtitle) : null]),
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
     ]),
     tabs ? h('div.tabs', { role: 'tablist' }, tabs.map(([id, label]) => h('button.tab', {
@@ -245,11 +246,12 @@ function updateStandings(s, me) {
     h('span.standings-logo', { html: logoBadge(r.company.logo, r.company.color, 22) }),
     h('span.standings-name', r.company.name),
     h('span.standings-worth', r.company.bankrupt ? 'faillite' : money(r.worth)),
-    // Réputation (la plus basse des deux), confiance et vertu : la plus basse en rouge.
-    r.company.bankrupt ? null : h('span.standings-rep', { title: 'Réputation (la plus basse des deux) · confiance · vertu' }, [
-      h('span', [h('span.star', '★'), `${Math.floor(r.company.reputation)}`]), ' ',
-      h('span', { class: repLimit(r.company) === 'trust' ? 'low' : '' }, `🤝${Math.floor(r.company.confidence)}`), ' ',
-      h('span', { class: repLimit(r.company) === 'virtue' ? 'low' : '' }, `💚${Math.floor(r.company.virtue)}`),
+    // Réputation (la plus basse des deux), confiance et vertu, une colonne chacune (alignées d'une
+    // ligne à l'autre) : la plus basse des deux en rouge.
+    ...(r.company.bankrupt ? [h('span'), h('span'), h('span')] : [
+      h('span.standings-rep', { title: 'Réputation (la plus basse des deux)' }, [h('span.star', '★'), `${Math.floor(r.company.reputation)}`]),
+      h('span.standings-rep', { title: 'Confiance', class: repLimit(r.company) === 'trust' ? 'low' : '' }, `🤝${Math.floor(r.company.confidence)}`),
+      h('span.standings-rep', { title: 'Vertu', class: repLimit(r.company) === 'virtue' ? 'low' : '' }, `💚${Math.floor(r.company.virtue)}`),
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
 }
@@ -892,7 +894,7 @@ function loop(now) {
   if (app.mode === 'game' && app.speed === 0) acc = 0;
   autoResume();
   timeSounds();
-  app.map.frame(app.mode === 'game' && app.speed > 0 ? acc : 0);
+  app.map.frame(app.mode === 'game' && app.speed > 0 ? acc : 0, app.mode === 'game' && app.speed > 0);
   updateHud();
   if (app.mode === 'game') guideTick(app);
   requestAnimationFrame(loop);
@@ -1029,6 +1031,7 @@ async function gameMenu() {
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
       { label: `Son : ${soundLabel()}`, value: 'sound' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
+      { label: shipStyle() === 'chunky' ? 'Navires : gros pixels' : 'Navires : pixels fins', value: 'ships' },
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
@@ -1050,6 +1053,7 @@ async function gameMenu() {
   else if (v === 'sound') { await soundDialog(); app.speed = wasSpeed; }
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
+  else if (v === 'ships') { setShipStyle(shipStyle() === 'chunky' ? 'fine' : 'chunky'); app.speed = wasSpeed; }
   else if (v === 'parcels') { app.state.settings.noParcelOffers = !app.state.settings.noParcelOffers; app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'guide') { toggleGuide(app); app.speed = wasSpeed; }

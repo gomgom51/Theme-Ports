@@ -258,6 +258,12 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   localhost or with `?dev`, the game warns in the console about every text still in
   French (`window.__i18nMissing`). Mark an element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
+- Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (proportions in metres, beam `B`). Detail
+  views (inspect, ship sheet, broker cards, thumbnails) use `ui/pixelship.js` (a `<span class="px-ship">` that gets a
+  canvas, slot `big` animated at 8 fps); the map uses side-view sprites from `ui/mapships.js` (laden = company hull,
+  empty = pale hull with a company stripe, wake length follows speed, routes dashed in the company colour). Two styles,
+  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. `shipSVG` with `attrs`
+  still returns the old vector drawing (office shelf model).
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
   Keep these attributes when reworking those buttons, or the tour silently loses its targets.
@@ -265,6 +271,12 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   tile under the side rail (own colour, bottom progress bar) (`.vic-rail`, `data-victory`) opening panel `victory` with tabs: `course` plus
   domination → `concurrents`, `classement`; reputation → `hauts-faits`; legend → `records`; shadow → `mefaits`.
   The reputation star ★ is always gold (`--star` / `.star` in `style.css`).
+- Logo (`web/js/ui/brand.js`, owner's choice): the sunset-anchor seal crowning a sea-chart plaque, name in Stardos Stencil
+  (`web/fonts/`, OFL), tagline "Your fleet awaits, Captain" in English in both languages. One master anchor (`anchorShapes`)
+  for the logo, app icon, cursor stock and Steam assets; the "Ancre" company emblem (`logos.js`) is a separate drawing.
+  Title card, intro and credits draw the plaque with `brandTitle` (`data-no-tr`). Icons and the logo-only Steam assets are
+  made by `node tools/brand/render.mjs` (Playwright, not in CI) into `web/icon.svg`, `web/icons/` and `store/`
+  (`store/README.md` says which file goes in which Steamworks slot). Ask the owner for direction before drawing new art.
 - End credits (`web/js/ui/credits.js`): film-style roll on `musique/generique.mp3`, every game animation fading in
   and out around it (captions use the player's own figures), after the victory screen and from the title screen.
   `AUTHOR` holds the name shown for the author; add a scene to `NOT_ALONE` if it cannot draw without game data.

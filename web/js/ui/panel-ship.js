@@ -132,7 +132,7 @@ export function shipPanel(app, id, tab) {
   const age = eco.ageYears(state, ship);
 
   const art = h('div.ship-hero', [
-    h('div.ship-hero-art', { html: artForShip(state, ship), title: `${T.name} — ${SHIP_ART[ship.type].L} m` }),
+    h('div.ship-hero-art', { html: artForShip(state, ship, { slot: 'hero' }), title: `${T.name} — ${SHIP_ART[ship.type].L} m` }),
     radarEl(shipStats(ship.type, { condition: ship.condition, age }), { color: company.color, size: 280 }),
   ]);
   const header = h('div.ship-head', [
