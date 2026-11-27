@@ -29,6 +29,7 @@ import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
+import { registerStateShips, watchShipNames } from './ui/shipnames.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
@@ -890,7 +891,7 @@ function loop(now) {
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
   // Noms de navires et de compagnies : la traduction les reconnaît, quels qu'ils soient.
-  if (now - lastNames > 1000) { lastNames = now; registerGameNames(app.mode === 'game' ? app.state : app.demo); }
+  if (now - lastNames > 1000) { lastNames = now; registerGameNames(app.mode === 'game' ? app.state : app.demo); if (app.mode === 'game') registerStateShips(app.state); }
   if (app.mode === 'title' && app.demo) {
     acc += dt * 10;
     const n = Math.floor(acc);
@@ -926,6 +927,7 @@ function enterGame(state) {
   document.querySelectorAll('.scene-wrap').forEach((w) => w.remove()); // scènes de la partie précédente
   pruneDismissed(state);
   registerGameNames(state);
+  registerStateShips(state);
   app.state = state;
   app.mode = 'game';
   app.speed = 0;
@@ -1120,6 +1122,7 @@ $('#standings').addEventListener('click', () => app.open('victory', 'domination'
 // ---------- Lancement ----------
 initTooltips();
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
+watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });

@@ -978,6 +978,8 @@ export default {
   "Café et cacao": "Coffee and cocoa",
   "Bois": "Timber",
   "Produits chimiques": "Chemicals",
+  "P. raffinés": "Refined",
+  "P. chimiques": "Chemicals",
   "GPL (butane, propane)": "LPG (butane, propane)",
   "Gaz naturel liquéfié": "Liquefied natural gas",
   "Véhicules": "Vehicles",
