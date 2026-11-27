@@ -10,6 +10,7 @@ import { pointAlong } from '../sim/routing.js';
 import { flagImage } from './flags.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { ZONES } from '../data/zones.js';
+import { zoneRings } from '../sim/pollution.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
 import { mapShipSprite, drawMapShip } from './mapships.js';
 
@@ -547,19 +548,21 @@ export class MapView {
     const ui = this.ui || {};
     const kmToPx = scale / 60; // 1 mille nautique ≈ 1/60 de degré
 
-    // Côtes sensibles : teinte verte unie, bord continu (une pollution y coûte bien plus cher).
+    // Côtes sensibles : leur vrai contour, teinte verte unie, bord continu (une pollution y coûte bien plus cher).
     g.save();
     for (const z of ZONES) {
+      // Vrai contour (celui que lit la simulation), lissé ; lon/lat placent le nom.
+      g.beginPath();
+      let drawn = 0;
+      for (const ring of zoneRings(z)) drawn += this.zonePath(g, ring);
+      if (!drawn) continue;
       const [x, y] = this.toScreen(z.lon, z.lat);
-      const r = Math.max(6, z.r * kmToPx);
-      if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
       g.fillStyle = `rgba(46,140,110,${0.1 + z.factor * 0.012})`; g.fill();
       g.lineWidth = 1.6; g.strokeStyle = 'rgba(30,110,85,0.7)'; g.stroke();
       if (scale > 7) {
         g.font = 'italic 600 10px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
-        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
+        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y);
+        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y);
       }
     }
     // Zones de piraterie : leur vrai contour (celui que lit la simulation), lissé, teinte rouge unie et bord continu.
