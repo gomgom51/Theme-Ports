@@ -883,6 +883,16 @@ select.input { width: auto; max-width: 100%; }
 .codex-art svg { width: 46px; height: 60px; }
 .codex-icon { flex: none; width: 46px; text-align: center; font-size: 30px; }
 .standing-log { margin: 4px 0 2px; }
+/* Guide → Réputation : une carte par note (reputation.js). */
+.rep-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin: 8px 0; }
+.rep-card { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-2); }
+.rep-card-head { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.rep-card-head .codex-icon { width: 36px; font-size: 26px; }
+.rep-value { font-size: 18px; }
+.rep-card h4 { margin: 10px 0 2px; font-size: 13px; }
+.rep-card p { margin: 6px 0 0; }
+.rep-card ul { margin: 2px 0 0; padding-left: 18px; }
+.rep-card li { margin: 3px 0; font-size: 13px; }
 /* Bureau → Compagnie : confiance et vertu. */
 .standing-row { margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); }
 .standing-row.low { border-color: var(--bad); }
