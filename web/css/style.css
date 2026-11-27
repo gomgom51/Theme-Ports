@@ -1,6 +1,9 @@
 /* Thème « carte marine » : papier crème, mer pâle, encre marine, rouge et vert des feux de navigation. */
 @font-face { font-family: 'Libre Baskerville'; font-weight: 700; font-style: normal; font-display: swap; src: url('../fonts/libre-baskerville-latin-700-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Libre Baskerville'; font-weight: 400; font-style: italic; font-display: swap; src: url('../fonts/libre-baskerville-latin-400-italic.woff2') format('woff2'); }
+/* Stardos Stencil : la police du logo (ui/brand.js), lettres de pochoir comme sur les caisses et les conteneurs. */
+@font-face { font-family: 'Stardos Stencil'; font-weight: 700; font-style: normal; font-display: swap; src: url('../fonts/stardos-stencil-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Stardos Stencil'; font-weight: 400; font-style: normal; font-display: swap; src: url('../fonts/stardos-stencil-latin-400-normal.woff2') format('woff2'); }
 
 :root {
   --sea: #cde1e9;
@@ -47,10 +50,11 @@ body {
 button, input, select { font: inherit; color: inherit; }
 /* Curseurs : une ancre renversée en forme de flèche (la couronne fait la pointe), marine
    bordée de blanc pour rester visible sur fond clair comme sombre, orange sur ce qui se
-   clique. Le point de clic est la pointe, en haut à gauche. */
+   clique. Le jas finit en boules, comme l’ancre du logo (web/js/ui/brand.js). Le point de
+   clic est la pointe, en haut à gauche. */
 :root {
-  --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%231c3d52'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23e8743b' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, auto;
-  --cursor-click: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%23e8743b'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23ffd877' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, pointer;
+  --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%231c3d52'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23e8743b' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, auto;
+  --cursor-click: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='translate%28-4.2 -0.8%29 rotate%28-35 16 16%29' stroke-linejoin='miter' stroke-miterlimit='6'%3E%3Cg fill='%23fff' stroke='%23fff' stroke-width='3.2'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23fff' stroke-width='5.4'/%3E%3Cg fill='%23e8743b'%3E%3Cpath d='M16 1.6 C18.6 5.2 21.8 9.4 25.2 15.6 L21.4 13.9 C19.9 11.6 18.3 9.9 17.3 9.1 L17.3 23 L14.7 23 L14.7 9.1 C13.7 9.9 12.1 11.6 10.6 13.9 L6.8 15.6 C10.2 9.4 13.4 5.2 16 1.6 Z'/%3E%3Cpath d='M11.2 19.2 H20.8 V21.6 H11.2 Z'/%3E%3Ccircle cx='11.2' cy='20.4' r='2'/%3E%3Ccircle cx='20.8' cy='20.4' r='2'/%3E%3C/g%3E%3Ccircle cx='16' cy='26.4' r='2.9' fill='none' stroke='%23ffd877' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") 4 4, pointer;
 }
 html { cursor: var(--cursor); }
 input, textarea, [contenteditable] { cursor: text; }
@@ -546,11 +550,9 @@ select.input { width: auto; max-width: 100%; }
 }
 .title-card.wide { width: min(520px, 100%); text-align: left; }
 .title-card h2 { margin-bottom: 12px; }
-.logo { margin-bottom: 18px; }
-.logo-anchor { font-size: 38px; display: block; line-height: 1; color: var(--navy); }
-.logo-anchor svg { width: 54px; height: 54px; }
-.logo h1 { font-size: 32px; color: var(--navy); }
-.tagline { color: var(--teal); margin: 6px 0 0; letter-spacing: 0.2em; text-transform: uppercase; font-size: 11.5px; font-weight: 800; }
+/* Logo : la plaque de carte marine couronnée du sceau (ui/brand.js), un peu plus large que la carte. */
+.logo { margin: -6px -14px 14px; line-height: 0; }
+.brand-plaque svg { display: block; width: 100%; height: auto; }
 .title-buttons { display: flex; flex-direction: column; gap: 10px; }
 .title-card .list { margin-bottom: 12px; }
 .credits { color: var(--muted); font-size: 11px; margin-top: 16px; }
@@ -571,12 +573,10 @@ select.input { width: auto; max-width: 100%; }
 }
 .intro.leaving { opacity: 0; pointer-events: none; }
 .intro-canvas { position: absolute; left: 0; top: 0; image-rendering: pixelated; image-rendering: crisp-edges; }
-.intro-title { position: absolute; left: 0; right: 0; top: 9%; padding: 0 16px; text-align: center; color: #fff1d0; pointer-events: none; text-shadow: 0 3px 0 #120b1e, 0 0 22px rgba(255, 180, 100, .35); }
-.intro-title h1 { color: inherit; font-size: clamp(34px, 7vw, 68px); }
-.intro-title p { margin: 6px 0 0; font-size: clamp(11px, 2vw, 15px); font-weight: 800; letter-spacing: .25em; text-transform: uppercase; opacity: .85; }
+.intro-title { position: absolute; left: 0; right: 0; top: 6%; margin: 0 auto; width: min(560px, 46vw, 66vh); min-width: 240px; pointer-events: none; line-height: 0; }
 .intro-prompt {
   position: absolute; left: 0; right: 0; bottom: 8%; padding: 0 16px; text-align: center; pointer-events: none;
-  color: #fff1d0; font-weight: 800; font-size: clamp(16px, 3vw, 22px); text-shadow: 0 2px 0 #120b1e;
+  color: #fff1d0; font-family: 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(18px, 3vw, 26px); letter-spacing: 0.04em; text-shadow: 0 2px 0 #120b1e;
   animation: intro-blink 1.2s steps(1) infinite;
 }
 .intro.sailing .intro-prompt { display: none; }
@@ -993,8 +993,8 @@ select.input { width: auto; max-width: 100%; }
 .cr-roll { width: min(520px, 92vw); margin: 0 auto; text-align: center; padding-bottom: 20vh; will-change: transform; }
 .cr-viewport.static .cr-roll { padding: 12vh 0 16vh; }
 .cr-head { padding: 4vh 0 7vh; }
-.cr-head h1 { font-family: 'Libre Baskerville', Georgia, serif; font-size: clamp(30px, 5vw, 46px); margin: 8px 0 4px; letter-spacing: 0.5px; }
-.cr-anchor svg { width: 64px; height: 64px; fill: #e0614f; }
+.cr-head h1 { width: min(440px, 100%); margin: 0 auto 10px; line-height: 0; }
+.cr-anchor svg { width: 64px; height: 64px; }
 .cr-tag { color: #9fb9b6; font-style: italic; margin: 4px 0; }
 .cr-company { display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; font-size: 18px; }
 .cr-section { margin: 0 0 9vh; }
@@ -1003,8 +1003,9 @@ select.input { width: auto; max-width: 100%; }
 .cr-line span { display: block; font-size: 19px; }
 .cr-line small { display: block; color: #9fb9b6; font-size: 13px; margin-top: 2px; }
 .cr-end { padding: 6vh 0 0; }
-.cr-thanks { font-family: 'Libre Baskerville', Georgia, serif; font-size: clamp(24px, 4vw, 34px); margin: 14px 0 6px; }
-.cr-wind { color: #9fb9b6; font-style: italic; margin: 0; }
+/* Dernier carton : le sceau et la police du logo, pour finir sur une seule voix. */
+.cr-thanks { font-family: 'Stardos Stencil', Georgia, serif; font-weight: 700; font-size: clamp(26px, 4.2vw, 38px); margin: 14px 0 6px; }
+.cr-wind { font-family: 'Stardos Stencil', Georgia, serif; font-weight: 400; color: #9fb9b6; font-size: 18px; margin: 0; }
 .cr-frame {
   position: absolute; margin: 0; width: min(340px, 24vw); opacity: 0; transform: translateY(8px) scale(0.98);
   transition: opacity 0.6s ease, transform 0.6s ease; pointer-events: none;

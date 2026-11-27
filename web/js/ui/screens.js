@@ -16,6 +16,7 @@ const HOME_PORTS = [...PORT_IDS];
 import { h, money, num1, pct, lineChart } from './dom.js';
 import { listSaves, SLOT_LABEL, hasSave } from './save.js';
 import { creditsScreen } from './credits.js';
+import { brandTitle } from './brand.js';
 
 // Noms fictifs qui font un clin d'œil à de grands armateurs (Marseille, Hambourg, Taïwan, Genève)
 // sans reprendre leur nom.
@@ -78,7 +79,7 @@ export function titleScreen(app) {
   screen('title', h('div.title-card', [
     langToggle(),
     toggle,
-    h('div.logo', [h('span.logo-anchor', { html: `<svg viewBox="0 0 64 64" aria-hidden="true">${LOGOS.ancre.svg}</svg>` }), h('h1', 'Port d\'Attache'), h('p.tagline', 'Armateur au long cours')]),
+    brandTitle('h1.logo'),
     h('div.title-buttons', [
       hasSave('auto') ? h('button.btn.primary.big', { onclick: () => app.loadSlot('auto') }, 'Continuer') : null,
       h('button.btn.big', { class: hasSave('auto') ? '' : 'primary', onclick: () => setupScreen(app) }, 'Nouvelle partie'),

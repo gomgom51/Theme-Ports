@@ -271,6 +271,12 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   tile under the side rail (own colour, bottom progress bar) (`.vic-rail`, `data-victory`) opening panel `victory` with tabs: `course` plus
   domination → `concurrents`, `classement`; reputation → `hauts-faits`; legend → `records`; shadow → `mefaits`.
   The reputation star ★ is always gold (`--star` / `.star` in `style.css`).
+- Logo (`web/js/ui/brand.js`, owner's choice): the sunset-anchor seal crowning a sea-chart plaque, name in Stardos Stencil
+  (`web/fonts/`, OFL), tagline "Your fleet awaits, Captain" in English in both languages. One master anchor (`anchorShapes`)
+  for the logo, app icon, cursor stock and Steam assets; the "Ancre" company emblem (`logos.js`) is a separate drawing.
+  Title card, intro and credits draw the plaque with `brandTitle` (`data-no-tr`). Icons and the logo-only Steam assets are
+  made by `node tools/brand/render.mjs` (Playwright, not in CI) into `web/icon.svg`, `web/icons/` and `store/`
+  (`store/README.md` says which file goes in which Steamworks slot). Ask the owner for direction before drawing new art.
 - End credits (`web/js/ui/credits.js`): film-style roll on `musique/generique.mp3`, every game animation fading in
   and out around it (captions use the player's own figures), after the victory screen and from the title screen.
   `AUTHOR` holds the name shown for the author; add a scene to `NOT_ALONE` if it cannot draw without game data.
