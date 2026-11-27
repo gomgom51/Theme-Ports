@@ -21,6 +21,7 @@ import { shipStatusText, shipRoute } from './panel-ship.js';
 import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog, searchBox } from './dom.js';
 import { shipSVG, artForShip, SHIP_ART } from './shipart.js';
 import { shipStats, radarSVG, AXES } from './radar.js';
+import { rolesEl } from './shiproles.js';
 import { LOGO_IDS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
 import { officeSVG, OFFICE_TIERS, shownTier, MUSIC_LOW } from './officeart.js';
@@ -42,15 +43,33 @@ const badge = (c, size = 28) => h('span.badge-wrap', { html: logoBadge(c.logo, c
 
 const LIVERIES = ['#5d6b75', '#7a5c3e', '#3f5e4a', '#6b4f6b', '#4a5f7a', '#8a6d2f'];
 
-// Grande fiche d'un navire : dessin, radar et caractéristiques.
-export function inspectShip({ typeId, condition = 100, age = 0, name = '', color, logo, laden = false, seed, subtitle = '', buy = null }) {
+// Grande fiche d'un navire : dessin, radar, atouts et défauts, caractéristiques.
+// compare : [{ label, stats }] : séries qu'on peut superposer au radar (en pointillés) pour comparer.
+export function inspectShip({ typeId, condition = 100, age = 0, name = '', color, logo, laden = false, seed, subtitle = '', buy = null, compare = [] }) {
   const T = SHIP_TYPES[typeId];
+  const stats = shipStats(typeId, { condition, age });
+  const radar = h('div.radar-wrap', { html: radarSVG(stats, { color, size: 320 }) });
+  let picked = null;
+  const chips = compare.length ? h('div.chips.compare-chips') : null;
+  const drawChips = () => {
+    if (!chips) return;
+    chips.replaceChildren(h('span.muted.small', 'Comparer avec :'), ...[null, ...compare].map((c, i) => h('button.chip', {
+      class: (c ? picked === i - 1 : picked === null) ? 'active' : '',
+      onclick: () => {
+        picked = c ? i - 1 : null;
+        radar.innerHTML = radarSVG(stats, { color, size: 320, compare: c ? c.stats : null });
+        drawChips();
+      },
+    }, c ? c.label : 'rien')));
+  };
+  drawChips();
   const body = h('div.inspect', [
     h('div.inspect-art', { html: shipSVG(typeId, { condition, age, color, logo, name, laden, seed: seed ?? name }) }),
     h('div.inspect-row', [
-      h('div.radar-wrap', { html: radarSVG(shipStats(typeId, { condition, age }), { color, size: 320 }) }),
+      h('div', [radar, chips]),
       h('div.inspect-specs', [
         h('p.blurb', T.blurb),
+        rolesEl(typeId, { age }),
         h('div.ship-stats', [
           ['Longueur', `${SHIP_ART[typeId].L} m`], ['Capacité', tonnes(T.dwt)], ['Vitesse', `${num1(T.speed)} nœuds (max ${num1(T.maxSpeed)})`],
           ['Consommation', `${T.burn} t/jour`], ['Soutes', tonnes(T.tank)], ['Tirant d\'eau', `${num1(T.draft)} m`],
@@ -195,9 +214,20 @@ function typeSpecs(T) {
   return `${tonnes(T.dwt)} · ${num1(T.speed)} nœuds · ${T.burn} t/j · tirant d'eau ${num1(T.draft)} m · ${T.holds.map((x) => HOLDS[x].toLowerCase()).join(', ')}`;
 }
 
-// Diagramme miniature d'une carte du courtier : la forme pour comparer, les notes au survol.
-function miniRadar(stats, color) {
-  return h('div.card-radar', { title: AXES.map((a) => `${a.label} ${stats[a.id]}`).join(' · '), html: radarSVG(stats, { color, size: 78, labels: false }) });
+// Diagramme miniature d'une carte du courtier : la forme pour comparer, les notes au survol ;
+// un appui ouvre la grande fiche (radar lisible, comparaison).
+function miniRadar(stats, color, open) {
+  return h('button.card-radar', { title: AXES.map((a) => `${a.label} ${stats[a.id]}`).join(' · '), 'aria-label': 'Voir la fiche du navire', onclick: open, html: radarSVG(stats, { color, size: 78, labels: false }) });
+}
+// Séries à superposer au radar de la fiche : le même modèle neuf (navire d'occasion), puis vos navires.
+function compareSets(app, typeId, used) {
+  const { state } = app;
+  const out = [];
+  if (used) out.push({ label: 'le même, neuf', stats: shipStats(typeId) });
+  for (const s of shipsOf(state, app.ui.activeCompany).slice(0, 5)) {
+    out.push({ label: s.name, stats: shipStats(s.type, { condition: s.condition, age: eco.ageYears(state, s) }) });
+  }
+  return out;
 }
 
 // Remise en état à 85 % à prévoir après l'achat (au prix d'un chantier courant).
@@ -220,7 +250,7 @@ function usedTab(app) {
       const look = { typeId: l.type, condition: l.condition, age: l.age, name: l.name, color: LIVERIES[l.id % LIVERIES.length], logo: LOGO_IDS[l.id % LOGO_IDS.length], seed: l.id + l.name };
       const affordable = l.price <= company.cash;
       const buy = async () => {
-        const v = await inspectShip({ ...look, subtitle: `À vendre à ${portName(l.port)} pour ${money(l.price)}. Il vous attend dans ce port.`, buy: affordable ? { label: `Acheter · ${money(l.price)}` } : null });
+        const v = await inspectShip({ ...look, compare: compareSets(app, l.type, true), subtitle: `À vendre à ${portName(l.port)} pour ${money(l.price)}. Il vous attend dans ce port.`, buy: affordable ? { label: `Acheter · ${money(l.price)}` } : null });
         if (v !== 'buy') return;
         const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)), { sound: 'pay' });
         if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id); app.boughtShip?.(r.ship); }
@@ -233,9 +263,10 @@ function usedTab(app) {
           h('div.card-sub', [`${num1(l.age)} ans · état `, h('b', pct(l.condition)), ` · à ${portName(l.port)}`, l.port === company.homePort ? h('span.tag.good', 'votre port') : null]),
           h('div.card-sub', [surveyTag(state, look), repairsToExpect(state, l)]),
           bar(l.condition / 100, { good: 0.7, warn: 0.45 }),
+          rolesEl(l.type, { age: l.age }),
         ]),
         h('div.card-side', [
-          miniRadar(shipStats(l.type, { condition: l.condition, age: l.age }), look.color),
+          miniRadar(shipStats(l.type, { condition: l.condition, age: l.age }), look.color, buy),
           h('div.price', money(l.price)),
           h('button.btn.primary.small', { 'data-guide': 'buy', disabled: !affordable, onclick: buy }, 'Acheter'),
         ]),
@@ -259,7 +290,7 @@ function newTab(app) {
     const price = act.newBuildPrice(state, company, id, yard);
     const look = { typeId: id, condition: 100, age: 0, name: '', color: company.color, logo: company.logo, laden: true, seed: id };
     const order = async () => {
-      const v = await inspectShip({ ...look, subtitle: `Neuf, aux couleurs de ${company.name} : ${money(price)} payés à la commande, livraison à ${portName(yard)} dans ${act.YARDS[yard].days} jours.`, buy: price <= company.cash ? { label: `Commander · ${money(price)}` } : null });
+      const v = await inspectShip({ ...look, compare: compareSets(app, id, false), subtitle: `Neuf, aux couleurs de ${company.name} : ${money(price)} payés à la commande, livraison à ${portName(yard)} dans ${act.YARDS[yard].days} jours.`, buy: price <= company.cash ? { label: `Commander · ${money(price)}` } : null });
       if (v === 'buy') app.act(() => act.orderNewShip(state, company.id, id, yard), { sound: 'pay' });
     };
     box.append(h('div.card.with-art', { class: price > company.cash ? 'disabled' : '' }, [
@@ -268,9 +299,10 @@ function newTab(app) {
         h('div.card-title', [T.name, h('span.tag', T.category)]),
         h('div.card-sub', T.blurb),
         h('div.card-sub.muted', typeSpecs(T)),
+        rolesEl(id),
       ]),
       h('div.card-side', [
-        miniRadar(shipStats(id), company.color),
+        miniRadar(shipStats(id), company.color, () => order()),
         h('div.price', money(price)),
         h('button.btn.small', { disabled: price > company.cash, onclick: () => order() }, 'Commander'),
       ]),

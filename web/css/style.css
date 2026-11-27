@@ -300,7 +300,23 @@ p { margin: 6px 0; }
 .card-sub { color: var(--ink-2); font-size: 12.5px; margin-top: 3px; }
 .card-why { color: var(--warn); font-size: 12.5px; margin-top: 3px; }
 .card-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
-.card-radar { line-height: 0; }
+.card-radar { line-height: 0; padding: 0; border: 0; background: none; border-radius: 8px; cursor: var(--cursor-click, pointer); }
+.card-radar:hover, .card-radar:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+/* Atouts et défauts d'un navire (courtier, fiche) : deux colonnes, + en vert, − en rouge. */
+.ship-roles { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; margin-top: 6px; font-size: 12.5px; line-height: 1.35; }
+.ship-roles ul { list-style: none; margin: 0; padding: 0; }
+.ship-roles li { position: relative; padding-left: 14px; margin: 1px 0; color: var(--ink-2); }
+.ship-roles li::before { position: absolute; left: 0; font-weight: 800; }
+.roles-pros li::before { content: '+'; color: var(--good); }
+.roles-cons li::before { content: '−'; color: var(--bad); }
+.inspect-specs .ship-roles { margin: 8px 0 10px; }
+.ship-head .ship-roles { margin: 4px 0 8px; }
+@media (max-width: 520px) { .ship-roles { grid-template-columns: 1fr; } }
+.compare-chips { justify-content: center; align-items: center; margin-top: 4px; }
+/* Discrétion d'un navire face à la douane (propositions de colis, affaires noires). */
+.conceal { background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; margin: 6px 0 10px; font-size: 13px; }
+.conceal-dots { letter-spacing: 2px; color: var(--teal); }
+.conceal.lv1 .conceal-dots, .conceal.lv2 .conceal-dots { color: var(--warn); }
 .loan-terms { font-size: 12.5px; color: var(--ink-2); background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 10px; }
 .loan-terms b { color: var(--ink); }
 .unread-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2f6fb0; margin-right: 6px; vertical-align: 1px; }

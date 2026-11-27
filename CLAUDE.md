@@ -76,7 +76,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   30-day offer, six-month reprieve odds, AI ratios and margins) in `web/js/sim/takeover.js`, rivalry moves (`ATTACKS`:
   cost, certain reputation loss, scandal odds, effects, parry prices; `AI_ATTACK_CHANCE`) in `web/js/sim/plots.js`,
   blacklist (`BLACKLIST`: infamy line, warning, shadow bank) in `web/js/sim/shadow.js`, AI leanings (`AI_LEANINGS`,
-  `AI_BUILDER_FLEET`) in `web/js/sim/ai.js`.
+  `AI_BUILDER_FLEET`) in `web/js/sim/ai.js`; ship cranes `GEAR_SIZE` (the smallest port size a geared ship loads at)
+  in `economy.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
   (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
   margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads
@@ -168,6 +169,14 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   thresholds sit high; a shadow AI must ignore its flag's embargo stance, seek dark ports, avoid gang grudges and refuse
   jobs over 22 % customs risk, or it either never gets dark jobs or loses its fleet to seizures; an AI with no ship
   must be allowed to buy one despite its debt, or it idles forever.
+- Ship readability (owner's design): broker cards and ship sheets list pros and cons as scales, never figures
+  (`SHIP_ROLES` in `ui/shiproles.js`), so new players stop picking the biggest radar star (the radar's capacity,
+  economy and range axes all grow with size). The ship's discretion at customs is shown as a 5-step scale with its
+  sources on every parcel and dark-job offer. Ship cranes (`gear`) load at medium-port speed in small ports, the
+  1970s tanker is single-hulled (strict ports closed until a reinforced hull is fitted), and the small general cargo
+  ships come with a switchable transponder, off by default. Owner's call: no built-in hiding places (players can
+  commit further by fitting them). To check in the final pass: `BALLAST_HOLD` pays the empty-return premium on every
+  oil, gas and fruit contract, even when the ship chains loaded legs (refined products: 22 exporters, 29 importers).
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 - Ice (rule 1): freeze/thaw dates are random each year but the window is always shown,

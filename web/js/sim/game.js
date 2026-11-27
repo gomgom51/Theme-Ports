@@ -18,7 +18,7 @@ import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 import { noteDelivery, reportClient, clientsDaily, aiDenounces } from './clients.js';
 import { heldOnArrival, plotsDaily, aiPlots, hireLawyer } from './plots.js';
-import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection } from './incidents.js';
+import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection, isStrict } from './incidents.js';
 import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 import { equipMod, equipUpkeep } from './equipment.js';
@@ -174,7 +174,8 @@ function refreshUsedMarket(state, rng, initial = false) {
   while (state.used.length < 16 + state.companies.length) {
     const typeId = rng.weighted(types);
     const T = SHIP_TYPES[typeId];
-    const ports = PORT_IDS.filter((p) => eco.servesType(p, typeId) && !isSeasonal(p)); // pas de navire à vendre dans les glaces
+    // Pas de navire à vendre dans les glaces, ni de simple coque là où il est interdit.
+    const ports = PORT_IDS.filter((p) => eco.servesType(p, typeId) && !isSeasonal(p) && !(T.singleHull && isStrict(p)));
     if (T.vintage) state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [26, 42], [35, 72]));
     else state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [2, T.life - 4], [45, 96]));
   }
@@ -224,7 +225,7 @@ function portHour(state, ctx, rng, ship, notes) {
     const what = ship.busyWhat;
     ship.busyWhat = null;
     if (['saisie', 'otages', 'confisqué', 'recrutement'].includes(what) && ship.pendingDelivery && ship.cargo) {
-      act.startBusy(state, ship, 'déchargement', eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty));
+      act.startBusy(state, ship, 'déchargement', eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty, ship.type));
       return;
     }
     if (what === 'démarchage') { resolveProspect(state, ctx, rng, ship, notes); return; } // ses commerciaux ont fini : le résultat suffit
@@ -488,7 +489,7 @@ function arrive(state, ctx, ship, notes, rng) {
   if (ship.cargo?.contractId) {
     ship.pendingDelivery = ship.cargo.contractId;
     // Navire saisi par la douane : le déchargement attendra sa libération.
-    if (ship.busyWhat !== 'saisie') act.startBusy(state, ship, 'déchargement', eco.handlingHours(to, ship.cargo.hold, ship.cargo.qty));
+    if (ship.busyWhat !== 'saisie') act.startBusy(state, ship, 'déchargement', eco.handlingHours(to, ship.cargo.hold, ship.cargo.qty, ship.type));
     const strike = state.strikes[to] > state.t ? ' (grève en cours : déchargement retardé)' : '';
     if (!ship.detention) note(state, notes, 'arrival', ship, `Le ${ship.name} est arrivé à ${portName(to)} et décharge${strike}.`);
   } else if (ship.detention) {

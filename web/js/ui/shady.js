@@ -8,6 +8,8 @@ import { detectionChance, seizureFine, sanctionRisk, sanctionPreview, taintActiv
 import { h, money, date, dialog, toast } from './dom.js';
 import { flagEl } from './flags.js';
 import { showScene, scenesOn } from './scenes.js';
+import { concealEl } from './shiproles.js';
+import { hasEquip, equipOff } from '../sim/equipment.js';
 
 const fr = (x, d = 0) => x.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
 // Le risque, dit par l'équipage : avis général, arrondi, ou précis selon son expérience.
@@ -34,16 +36,23 @@ export function shadyLines(state, ship, to, { general = true } = {}) {
     const r = to ? sanctionRisk(state, ship, to) : null;
     const where = `⚖ Le ${ship.name} a commercé avec un pays sous embargo (${FLAGS[PORTS[taint.port].flag].name}, le ${date(taint.t, true)}) : sanctionnable jusqu'au ${date(taint.t + TAINT_DAYS * 24, true)}.`;
     if (r) out.push(h('div.risk-line.warn-text', [h('span', where), ' ', h('span', `${FLAGS[PORTS[to].flag].name} applique les sanctions : risque d'amende ${riskWords(r.odds, 2)} (${money(r.fine)}).`)]));
+    if (r && beaconIdle(ship)) out.push(beaconHint());
     else if (general) {
       const p = sanctionPreview(state, ship, 0);
       out.push(h('div.risk-line.warn-text', [h('span', where), ' ', h('span', `Chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie : risque d'amende ${riskWords(p.odds, 2)} (${money(p.fine)}).`)]));
     }
   }
+  if (ship.contraband && to && beaconIdle(ship) && !(taint && sanctionRisk(state, ship, to))) out.push(beaconHint());
   if (to) {
     if (isEmbargoed(to)) out.push(h('div.risk-line.warn-text', `⚖ ${FLAGS[PORTS[to].flag].name} est sous embargo : y commercer marquera le navire pendant ${Math.round(TAINT_DAYS / 30)} mois. Pendant ce temps, chaque escale en Europe, en Amérique du Nord, au Japon, en Corée ou en Océanie peut coûter une amende.`));
   }
   return out;
 }
+
+// Transpondeur « discret » installé mais coupé : le rappeler quand il servirait (règle n° 1 : le joueur
+// sait ce qu'il peut faire contre le risque).
+const beaconIdle = (ship) => hasEquip(ship, 'brouilleur') && equipOff(ship, 'brouilleur');
+const beaconHint = () => h('div.risk-line', '📡 Le transpondeur « discret » est coupé. Allumé (onglet Équipement), il rend les amendes et les contrôles en mer plus rares, mais augmente le risque d\'abordage.');
 
 // Propositions discrètes du port (onglet Contrats).
 export function offersSection(app, ship) {
@@ -54,6 +63,7 @@ export function offersSection(app, ship) {
   const box = h('div');
   box.append(h('h3', '🤫 Propositions discrètes'));
   box.append(h('p.hint', 'Un intermédiaire cherche un navire pour un petit colis, à cacher à bord en plus de votre cargaison. Payé en liquide à la livraison. Les cargos le cachent bien mieux que les pétroliers ; un équipage aguerri est plus discret.'));
+  box.append(concealEl(ship));
   if (ship.contraband) { box.append(h('p.muted', `Un colis est déjà caché à bord (pour ${portName(ship.contraband.to)}).`)); return box; }
   if (!offers.length) { box.append(h('p.muted', 'Personne ne vous a approché aujourd\'hui.')); return box; }
   for (const o of offers) {
@@ -95,6 +105,7 @@ export async function maybeProposeParcel(app, ship, to) {
         ? `L'intermédiaire revient à la charge : il double la mise, ${money(offer.pay)} en liquide pour le même colis.`
         : `Sur le quai, un intermédiaire vous aborde : un petit colis à glisser dans la cargaison du ${ship.name}, pour ${portName(offer.to)}, payé ${money(offer.pay)} en liquide à la livraison (avant le ${date(offer.deadline, true)}).`),
       h('p', [`Risque de fouille à l'arrivée : `, h('b', { class: levelClass(p) }, riskWords(p, ship.crew || 0)), ` (et à chaque escale en route). Si la douane le trouve : amende de ${money(seizureFine(offer.pay))}, 10 à 25 jours d'immobilisation, vertu entachée.`]),
+      concealEl(ship),
     ]);
     const buttons = [
       ...(insisting ? [] : [{ label: 'Ne plus me proposer', value: 'jamais', kind: 'ghost' }]),

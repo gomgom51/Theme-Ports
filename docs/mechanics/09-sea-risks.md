@@ -41,6 +41,8 @@ becomes debt; contract removed.
 ## Port-state inspection and detention
 
 - Threshold `inspectionThreshold(age)` = 55 (62 if > 20 y). Above it: never inspected.
+- Single-hull tankers (`singleHull`, vieux pétrolier) never enter strict-flag ports without a reinforced hull
+  (`hullBarred`): refused when planning, shown on the broker card and the destination list.
 - `inspect = min(0.95, RISK.inspections × (strict ? min(0.95, 0.3 + gap/50) : min(0.5, 0.06 + gap/150)) × inspectVirtueK)`;
   `detainIfInspected = clamp(gap/35, 0.08, 0.95)`. Strict flags: NL DE FR GR US CA JP AU KR SG.
   Image ports (NL DE FR CA AU SG JP) scale inspection by virtue (×1.3 at 0 … ×0.6 at 100).

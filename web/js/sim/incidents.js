@@ -3,10 +3,10 @@
 // bien plus, mais même un bon navire n'est jamais à l'abri d'un naufrage.
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
-import { PORTS } from '../data/ports.js';
+import { PORTS, FLAGS } from '../data/ports.js';
 import { HOURS_PER_DAY } from './util.js';
 import * as eco from './economy.js';
-import { equipMod } from './equipment.js';
+import { equipMod, hasEquip } from './equipment.js';
 import { SEAWORTHY, coverage } from './insurance.js';
 export { SEAWORTHY };
 
@@ -132,6 +132,11 @@ export function inspectVirtueK(port, virtue = 50) {
   return virtue >= 50 ? 1 + (INSPECT_VIRTUE.high - 1) * (virtue - 50) / 50 : 1 + (INSPECT_VIRTUE.low - 1) * (50 - virtue) / 50;
 }
 export const isStrict = (port) => STRICT_FLAGS.has(PORTS[port].flag);
+// Simple coque (SHIP_TYPES.singleHull) : les pays exigeants ferment leurs ports aux vieux pétroliers,
+// sauf s'ils ont reçu une coque renforcée (double_coque). Annoncé au courtier, refusé au départ.
+export const singleHull = (ship) => !!SHIP_TYPES[ship.type]?.singleHull && !hasEquip(ship, 'double_coque');
+export const hullBarred = (ship, port) => singleHull(ship) && isStrict(port);
+export const hullBarredWhy = (port) => `Simple coque : ${FLAGS[PORTS[port].flag].name} refuse les pétroliers à simple coque. Une coque renforcée, posée au chantier, lui ouvre ses ports.`;
 // Probabilités d'inspection et de détention à l'arrivée (affichées au joueur avant le départ).
 export function inspectionOdds(condition, port, age, virtue = 50) {
   const threshold = inspectionThreshold(age);

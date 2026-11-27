@@ -21,6 +21,7 @@ import { onTradeSale } from './honours.js';
 import { payCut } from './plots.js';
 import { SHADY_PORTS } from '../data/sanctions.js';
 import { closedPort } from './shadow.js';
+import { hullBarred, hullBarredWhy } from './incidents.js';
 
 // why : la raison, quand l'interface doit y réagir (« carburant-fonds » : pas de quoi payer le plein).
 const fail = (msg, why = null) => ({ ok: false, msg, why });
@@ -102,6 +103,7 @@ export function planVoyage(state, ctx, ship, to, speed) {
     return { error: `${FLAGS[PORTS[to].flag].name} interdit ses ports à votre compagnie jusqu'au ${formatDate(bannedUntil(company, PORTS[to].flag))} (pollution).` };
   }
   if (closedPort(company, to)) return { error: `Liste noire : ${FLAGS[PORTS[to].flag].name} saisirait le navire à son arrivée.` };
+  if (hullBarred(ship, to)) return { error: hullBarredWhy(to) };
   if (ship.cargo) {
     if (ship.cargo.contractId) {
       const c = contractById(state, ship.cargo.contractId);
@@ -251,6 +253,7 @@ export function checkContract(state, ctx, ship, contract) {
   if (closedPort(companyOf(state, ship), contract.to)) return `Liste noire : ${FLAGS[PORTS[contract.to].flag].name} saisirait le navire à son arrivée.`;
   if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
   if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
+  if (hullBarred(ship, contract.to)) return hullBarredWhy(contract.to);
   if (contract.ice && !iceClass(ship)) return `Fin de saison à ${portName(contract.to)} : le chargeur exige un navire de classe glace.`;
   const refusal = clientRefusal(state, company, contract);
   if (refusal?.kind === 'rancune') return `${refusal.name} ne travaille plus avec vous depuis que vous l'avez dénoncé (jusqu'au ${formatDate(refusal.until)}).`;
@@ -287,7 +290,7 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   if (c.golden) (state.queuedNotes ??= []).push({ kind: 'goldenTaken', contractId: c.id, by: ship.owner, text: `${companyOf(state, ship).name} a pris l'affaire en or de ${portName(c.from)} (${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)}).` });
   ship.cargo = { good: c.good, qty: c.qty, hold, contractId: c.id };
   taintShip(state, ship, c.from, c.pay);
-  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, c.qty));
+  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, c.qty, ship.type));
   ship.plan = { to: c.to, speed: p.speed, autoRefuel: opts.autoRefuel ?? true };
   shipLog(state, ship, `Contrat : ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} avant le ${formatDate(c.deadline)}`);
   return { ok: true };
@@ -357,7 +360,7 @@ export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
     if (isEmbargoed(terms.port)) taintShip(state, ship, terms.port, ship.cargo.loan.amount); // argent d'un pays sous embargo
   }
   taintShip(state, ship, ship.port, q.total);
-  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty));
+  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty, ship.type));
   shipLog(state, ship, `Achat de ${qty.toLocaleString('fr-FR')} t de ${GOODS[good].name.toLowerCase()} à ${portName(ship.port)} (${fmtM(q.total)})`);
   return { ok: true, qty, total: q.total };
 }
@@ -422,7 +425,7 @@ export function sellCargo(state, ctx, shipId) {
   onTradeSale(state, company, { qty: ship.cargo.qty, good: ship.cargo.good, value: q.net });
   if (OIL_GOODS.includes(ship.cargo.good)) changeVirtue(company, -oilVirtueLoss(company), 'pétrole'); // l'image d'un transporteur de pétrole
   shipLog(state, ship, `Vente de ${ship.cargo.qty.toLocaleString('fr-FR')} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${fmtM(Math.abs(q.profit))}`);
-  const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty);
+  const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty, ship.type);
   ship.cargo = null;
   startBusy(state, ship, 'déchargement', hours);
   return { ok: true, ...q };

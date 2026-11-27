@@ -7,7 +7,7 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { haversineNm } from './routing.js';
 import { money, news, changeVirtue, shipLog, companyOf } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
-import { equipMod, hasEquip } from './equipment.js';
+import { equipMod, equipActive } from './equipment.js';
 import { seizureFine, crewDiscretion } from './shady.js';
 
 const D = HOURS_PER_DAY;
@@ -42,7 +42,7 @@ export function patrolsAlong(route) {
 }
 // Les deux phases : échapper au contrôle, puis résister à la fouille.
 function phases(ship, speed) {
-  const evade = Math.max(0.05, Math.min(0.8, 0.12 + Math.max(0, speed - 14) * 0.05 + (hasEquip(ship, 'brouilleur') ? 0.2 : 0)));
+  const evade = Math.max(0.05, Math.min(0.8, 0.12 + Math.max(0, speed - 14) * 0.05 + (equipActive(ship, 'brouilleur') ? 0.2 : 0)));
   const hidden = Math.max(0.05, Math.min(0.9, 1 - 0.75 * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal')));
   return { evade, hidden };
 }

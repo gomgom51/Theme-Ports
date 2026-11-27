@@ -47,10 +47,11 @@ async function embargoOk(app, ship, port, value = 0) {
   ]), 'Oui, commercer');
 }
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
-import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence } from '../sim/equipment.js';
+import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence, equipOff, toggleEquipment } from '../sim/equipment.js';
+import { rolesEl } from './shiproles.js';
 import { CREW_LEVELS } from '../data/ships.js';
 import { payCut } from '../sim/plots.js';
-import { inspectionThreshold } from '../sim/incidents.js';
+import { inspectionThreshold, hullBarred } from '../sim/incidents.js';
 
 const STATUS_ICON = { sea: '🌊', port: '⚓', laidup: '💤' };
 
@@ -114,7 +115,7 @@ function tripEstimate(app, ship, to, speed, qty = 0, hold = null) {
   if (p.error && !p.route) return p;
   const T = SHIP_TYPES[ship.type];
   const company = state.companies[ship.owner];
-  const portH = qty && hold ? eco.handlingHours(ship.port, hold, qty) + eco.handlingHours(to, hold, qty) : 0;
+  const portH = qty && hold ? eco.handlingHours(ship.port, hold, qty, ship.type) + eco.handlingHours(to, hold, qty, ship.type) : 0;
   const totalDays = p.seaDays + portH / 24;
   const fixed = eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship), ship.crew) * totalDays;
   return { ...p, totalDays, cost: p.fuelCost + p.fees + fixed, portH };
@@ -136,6 +137,7 @@ export function shipPanel(app, id, tab) {
   const header = h('div.ship-head', [
     art,
     h('div.ship-caption', [h('b', T.name), ` · ${SHIP_ART[ship.type].L} m · ${tonnes(T.dwt)} · ${num1(T.speed)} nœuds`]),
+    rolesEl(ship.type, { ship, age }),
     h('div.ship-stats', [
       stat('État', pct(ship.condition), bar(ship.condition / 100, { good: 0.7, warn: 0.45 })),
       h('div.stat.stat-gauge', [h('div.stat-label', 'Carburant'), fuelGaugeEl(ship.fuel / T.tank, { size: 92, compact: true }), h('div.stat-value', `${num(ship.fuel)} / ${num(T.tank)} t`)]),
@@ -144,7 +146,7 @@ export function shipPanel(app, id, tab) {
       stat('Âge', `${num1(age)} ans`),
       stat('Valeur', money(eco.shipValue(state, ship))),
       stat('Équipage', crewInfo(ship).short, ship.captainName ? h('div.stat-sub', { 'data-no-tr': '' }, `🧑‍✈️ ${ship.captainName}`) : null),
-      stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).map((id) => EQUIPMENT[id].icon).join(' ') : 'aucun'),
+      stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).filter((id) => !equipOff(ship, id)).map((id) => EQUIPMENT[id].icon).join(' ') || 'coupé' : 'aucun'),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
     shipRoute(state, ctx, ship), // destination et dates bien en vue
@@ -339,7 +341,7 @@ function tradeTab(app, ship) {
     const outlets = [];
     const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
     for (const p of PORT_IDS) {
-      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
+      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type) || hullBarred(ship, p)) continue;
       const est = tripEstimate(app, ship, p, T.speed);
       if (est.error || !est.nm) continue;
       const fq = quoteSellAt(state, p, ship.cargo.good, sound, est.totalDays, ship.id);
@@ -377,7 +379,7 @@ function tradeTab(app, ship) {
     // Meilleures destinations pour une cale pleine (appels d'offres compris).
     const dests = [];
     for (const p of PORT_IDS) {
-      if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type) || !eco.portHandles(p, hold)) continue;
+      if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type) || hullBarred(ship, p) || !eco.portHandles(p, hold)) continue;
       const qty = Math.max(100, full);
       const est = tripEstimate(app, ship, p, T.speed, qty, hold);
       if (est.error || !est.nm) continue;
@@ -635,14 +637,20 @@ function portCallTab(app, ship) {
   box.append(h('p.hint', `Défense contre un abordage : ${num1(defence(ship))} point${defence(ship) >= 2 ? 's' : ''}.${P.repair ? '' : ` Pas de chantier à ${P.name} : installation impossible ici.`}`));
   box.append(h('div.list', EQUIPMENT_IDS.filter((id) => canEquip(ship, id)).map((id) => {
     const E = EQUIPMENT[id], on = hasEquip(ship, id), price = equipPrice(ship, id);
+    const off = on && equipOff(ship, id);
+    // Équipement qu'on allume ou coupe (transpondeur « discret ») : sans effet, ni bon ni mauvais, une fois coupé.
+    const toggle = on && E.switchable
+      ? h('button.btn.small', { class: off ? '' : 'primary', onclick: () => app.act(() => toggleEquipment(state, ship.id, id)) }, off ? 'Allumer' : 'Couper')
+      : null;
     return h('div.card', { class: on ? 'highlight' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [`${E.icon} ${E.name}`, on ? h('span.tag.good', 'installé') : null]),
+        h('div.card-title', [`${E.icon} ${E.name}`, on ? h('span.tag', { class: off ? '' : 'good' }, off ? 'installé, coupé' : E.switchable ? 'en service' : 'installé') : null]),
         h('div.card-sub', E.blurb),
+        E.switchable && on ? h('div.card-sub.muted', 'S\'allume ou se coupe à tout moment, même en mer. Coupé, il n\'a aucun effet.') : null,
         h('div.card-sub.muted', [E.defence ? `défense +${E.defence}` : null, E.upkeep ? `${money(E.upkeep)}/jour` : null, `${Math.max(1, Math.round(E.hours / 24))} j d'installation`].filter(Boolean).join(' · ')),
       ]),
       h('div.card-side', on
-        ? [h('button.btn.small.ghost', { onclick: () => app.act(() => removeEquipment(state, ship.id, id)) }, 'Retirer')]
+        ? [toggle, h('button.btn.small.ghost', { onclick: () => app.act(() => removeEquipment(state, ship.id, id)) }, 'Retirer')]
         : [h('div.price', money(price)), h('button.btn.small', { disabled: !P.repair || !!ship.busyWhat || price > company.cash, onclick: () => app.act(() => installEquipment(state, ship.id, id), { sound: 'pay' }) }, 'Installer')]),
     ]);
   })));
@@ -798,6 +806,7 @@ function departTab(app, ship) {
     const info = ctx.distanceInfo(ship.port, p, closed);
     let why = null;
     if (!eco.fitsPort(p, ship.type)) why = `tirant d'eau ${num1(eco.portDraft(p, ship.type))} m`;
+    else if (hullBarred(ship, p)) why = 'simple coque interdite';
     else if (ship.cargo && !eco.portHandles(p, ship.cargo.hold)) why = 'ne peut pas décharger';
     else if (!info) why = 'inaccessible';
     const nm = info?.nm || 0;
@@ -810,7 +819,7 @@ function departTab(app, ship) {
     const contracts = here.length;
     // Ceux que ce navire pourrait prendre (capacité, tirant d'eau, vitesse, terminaux) : les autres
     // restent affichés, ils donnent envie d'un autre navire.
-    const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
+    const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && !hullBarred(ship, c.to) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
     const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
     return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info, famBlock };
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);

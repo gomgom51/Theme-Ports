@@ -10,42 +10,47 @@
 //  price      : prix neuf (millions de $) ; life : durée de vie (années)
 //  tank       : capacité des soutes (t de fuel) ; gt : jauge brute (taxes portuaires)
 //  vintage    : modèle ancien, plus construit : seulement d'occasion, et très âgé
+//  gear       : grues de bord (ou mâts de charge) : charge et décharge à bonne cadence même
+//               dans un petit port (economy.js, GEAR_SIZE)
+//  singleHull : pétrolier à simple coque : refusé dans les ports exigeants (STRICT_FLAGS) sans
+//               coque renforcée (incidents.js, hullBarred)
+//  stock      : équipement livré avec le navire (core.js, createShip), coupé au départ
 export const SHIP_TYPES = {
   // ---------- Marchandises diverses ----------
   caboteur: {
     name: 'Caboteur', category: 'Cargo', dwt: 6000, holds: ['divers', 'vrac'],
-    speed: 11.5, maxSpeed: 12.5, burn: 8.5, idleBurn: 1.2, draft: 6.5, crew: 9,
+    speed: 11.5, maxSpeed: 12.5, burn: 8.5, idleBurn: 1.2, draft: 6.5, crew: 9, gear: true, stock: ['brouilleur'],
     opex: 2200, price: 8, life: 30, tank: 260, gt: 3000,
     blurb: 'Petit et économique. Entre partout, idéal pour démarrer.',
   },
   cargo_ancien: {
     name: 'Vieux cargo', category: 'Cargo', dwt: 9000, holds: ['divers', 'vrac'], vintage: true,
-    speed: 12, maxSpeed: 13.5, burn: 15, idleBurn: 2.2, draft: 8.2, crew: 18,
+    speed: 12, maxSpeed: 13.5, burn: 15, idleBurn: 2.2, draft: 8.2, crew: 18, gear: true, stock: ['brouilleur'],
     opex: 1900, price: 12, life: 45, tank: 620, gt: 7000,
     blurb: 'Un cargo des années 60 aux mâts de charge. Donné, mais gourmand en fuel et en marins.',
   },
   polyvalent: {
     name: 'Cargo polyvalent', category: 'Cargo', dwt: 12500, holds: ['divers', 'vrac', 'conteneurs'],
-    speed: 14, maxSpeed: 15.5, burn: 20, idleBurn: 2.5, draft: 8.6, crew: 14,
+    speed: 14, maxSpeed: 15.5, burn: 20, idleBurn: 2.5, draft: 8.6, crew: 14, gear: true, stock: ['brouilleur'],
     opex: 4000, price: 26, life: 28, tank: 750, gt: 9000,
     blurb: 'Transporte presque tout, avec ses propres grues.',
   },
   colis_lourds: {
     name: 'Navire colis lourds', category: 'Cargo', dwt: 14000, holds: ['lourd', 'divers', 'conteneurs'],
-    speed: 15, maxSpeed: 16.5, burn: 26, idleBurn: 3, draft: 8.5, crew: 18,
+    speed: 15, maxSpeed: 16.5, burn: 26, idleBurn: 3, draft: 8.5, crew: 18, gear: true,
     opex: 5200, price: 38, life: 25, tank: 950, gt: 12000,
     blurb: 'Deux grues géantes pour les turbines, chaudières et engins hors normes. Seul à prendre les colis lourds.',
   },
   // ---------- Vraquiers ----------
   vraquier_handy: {
     name: 'Vraquier Handysize', category: 'Vraquier', dwt: 35000, holds: ['vrac'],
-    speed: 13.5, maxSpeed: 14.5, burn: 24, idleBurn: 3, draft: 10.2, crew: 19,
+    speed: 13.5, maxSpeed: 14.5, burn: 24, idleBurn: 3, draft: 10.2, crew: 19, gear: true,
     opex: 4200, price: 27, life: 28, tank: 1300, gt: 21000,
     blurb: 'Le cheval de trait du vrac : céréales, minerai, charbon, engrais.',
   },
   vraquier_supramax: {
     name: 'Vraquier Supramax', category: 'Vraquier', dwt: 58000, holds: ['vrac'],
-    speed: 14, maxSpeed: 15, burn: 30, idleBurn: 3.5, draft: 12.8, crew: 21,
+    speed: 14, maxSpeed: 15, burn: 30, idleBurn: 3.5, draft: 12.8, crew: 21, gear: true,
     opex: 5000, price: 32, life: 28, tank: 1800, gt: 32000,
     blurb: 'Plus grand, toujours équipé de grues : il charge et décharge partout.',
   },
@@ -64,7 +69,7 @@ export const SHIP_TYPES = {
   // ---------- Pétroliers et chimiquiers ----------
   petrolier_ancien: {
     name: 'Vieux pétrolier', category: 'Pétrolier', dwt: 32000, holds: ['liquide'], vintage: true,
-    speed: 14.5, maxSpeed: 15.5, burn: 30, idleBurn: 4, draft: 11.2, crew: 26,
+    speed: 14.5, maxSpeed: 15.5, burn: 30, idleBurn: 4, draft: 11.2, crew: 26, singleHull: true,
     opex: 3900, price: 35, life: 45, tank: 1800, gt: 20000,
     blurb: 'Passerelle au milieu, machine à l\'arrière : un pétrolier des années 70. Bon marché, assoiffé.',
   },

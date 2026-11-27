@@ -82,6 +82,10 @@ Used ship sale = `shipValue × 0.95`; bank seizure = × 0.75.
 ## Handling time
 
 `handlingRate = HANDLING[hold] × size^0.8 × max(1, qty/20000)^0.6` t/day; `handlingHours ≥ 6`.
+**Ship cranes** (`SHIP_TYPES.gear`: caboteur, vieux cargo, polyvalent, colis lourds, Handysize, Supramax):
+the ship handles itself, so `size` counts as at least `GEAR_SIZE` 3 (14 size-1/2 ports load 1.4–2.4× faster).
+Contract pay is priced with port cranes (`voyageEstimate(..., gear: false)` in `makeContract`), so a geared
+ship keeps the time it saves in small ports; the player's and the AI's own estimates count the cranes.
 Loading/unloading is lengthened by strikes (`startBusy` waits for the strike end) and shortened by
 logistics skill (−8 %/rank).
 
