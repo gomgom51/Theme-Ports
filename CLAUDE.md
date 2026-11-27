@@ -173,8 +173,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   (`SHIP_ROLES` in `ui/shiproles.js`), so new players stop picking the biggest radar star (the radar's capacity,
   economy and range axes all grow with size). The ship's discretion at customs is shown as a 5-step scale with its
   sources on every parcel and dark-job offer; every graded scale uses one rising-bars icon (`ui/grade.js`, owner's call). Ship cranes (`gear`) load at medium-port speed in small ports, the
-  1970s tanker is single-hulled (owner's call: no refusal, but a 35 % check at each strict-port call, fine and trust
-  loss like a detention, `HULL_CHECK` in `incidents.js`, until a reinforced hull is fitted), and the small general cargo
+  1970s tanker is single-hulled (owner's call: no refusal, but a 49 % check at each strict-port call, fine (doubled in
+  the three cleanest: Valdez, Le Havre, Yokohama) and trust loss like a detention, `HULL_CHECK` in `incidents.js`, until a reinforced hull is fitted), and the small general cargo
   ships come with a switchable transponder, off by default. Owner's call: no built-in hiding places (players can
   commit further by fitting them). To check in the final pass: `BALLAST_HOLD` pays the empty-return premium on every
   oil, gas and fruit contract, even when the ship chains loaded legs (refined products: 22 exporters, 29 importers).

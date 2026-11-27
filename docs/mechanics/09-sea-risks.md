@@ -41,8 +41,8 @@ becomes debt; contract removed.
 ## Port-state inspection and detention
 
 - Threshold `inspectionThreshold(age)` = 55 (62 if > 20 y). Above it: never inspected.
-- Single-hull tankers (`singleHull`, vieux pétrolier) without a reinforced hull: at every strict-flag call, 35 %
-  chance of a check (`HULL_CHECK`): fine `max(250 k, 12 × gt)`, trust −3, stain; shown before the contract and the
+- Single-hull tankers (`singleHull`, vieux pétrolier) without a reinforced hull: at every strict-flag call, 49 %
+  chance of a check (`HULL_CHECK`): fine `max(250 k, 12 × gt)`, doubled at Valdez, Le Havre and Yokohama, trust −3, stain; shown before the contract and the
   departure (`hullLine` in `ui/risk.js`).
 - `inspect = min(0.95, RISK.inspections × (strict ? min(0.95, 0.3 + gap/50) : min(0.5, 0.06 + gap/150)) × inspectVirtueK)`;
   `detainIfInspected = clamp(gap/35, 0.08, 0.95)`. Strict flags: NL DE FR GR US CA JP AU KR SG.

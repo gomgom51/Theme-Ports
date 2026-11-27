@@ -91,7 +91,8 @@ export function riskLines(state, ship, { seaDays = null, to = null, route = null
 export function hullLine(ship, to) {
   const r = hullRisk(ship, to);
   if (!r) return null;
-  return h('div.risk-line.warn-text', `🛢 Simple coque : ${FLAGS[r.flag].name} contrôle les vieux pétroliers. Risque ${Math.round(r.odds * 100)} % d'une amende de ${money(r.fine)} et d'une perte de confiance à chaque escale. Une coque renforcée, posée au chantier, l'évite.`);
+  const clean = r.clean ? ` ${PORTS[to].name}, sur une côte très protégée, double l'amende.` : '';
+  return h('div.risk-line.warn-text', `🛢 Simple coque : ${FLAGS[r.flag].name} contrôle les vieux pétroliers. Risque ${Math.round(r.odds * 100)} % d'une amende de ${money(r.fine)} et d'une perte de confiance à chaque escale.${clean} Une coque renforcée, posée au chantier, l'évite.`);
 }
 
 // Avis rapide d'un expert maritime sur un navire d'occasion (avant l'achat).

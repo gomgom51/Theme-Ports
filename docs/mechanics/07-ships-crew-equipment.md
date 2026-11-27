@@ -36,8 +36,8 @@ cons `ui/shiproles.js`.
 Other fields: `idleBurn`, `tank`, `category`, `blurb`. `vintage` models are never built, only sold
 used (26–42 years old) and are never contract reference ships. `gear` = ship cranes (faster handling in
 small ports, see [04](04-economy-market.md)). `singleHull` (vieux pétrolier): at every call in one of the 18
-strict-flag ports (`STRICT_FLAGS`) without `double_coque`, 35 % chance of a check: fine `max(250 k, 12 × gt)` and
-trust −3, like a detention (`HULL_CHECK`, `hullRisk`, `hullCheck` in `incidents.js`). Shown on the broker card, the
+strict-flag ports (`STRICT_FLAGS`) without `double_coque`, 49 % chance of a check: fine `max(250 k, 12 × gt)` (doubled in
+the three cleanest strict ports, on the most sensitive coasts: Valdez, Le Havre, Yokohama) and trust −3, like a detention (`HULL_CHECK`, `hullRisk`, `hullCheck` in `incidents.js`). Shown on the broker card, the
 contract card and the departure risks; the AI simply avoids strict ports with such a ship. `stock`: equipment delivered with every new or used ship
 (`createShip`): the small general cargo ships get the transponder, switched off. `CONCEALMENT` (parcel hiding, lower
 is better): small general cargo ships 0.45–0.6 … gas carriers 1.3–1.35 → general cargo ships are the
