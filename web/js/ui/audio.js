@@ -4,6 +4,7 @@
 import { eggFor } from '../data/eggs.js';
 import * as S from './sounds.js';
 import { SHIP_TYPES } from '../data/ships.js';
+import { unlockTracks } from './profile.js';
 
 const KEY = 'portdattache.audio';
 // Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
@@ -94,19 +95,9 @@ function loadSettings() {
   catch { return defaults; }
 }
 
-// Juke-box du bureau : les morceaux déjà entendus (toutes parties confondues) sont débloqués.
-const HEARD_KEY = 'pda-jukebox';
-export function heardTracks() {
-  try { return new Set(JSON.parse(localStorage.getItem(HEARD_KEY) || '[]')); } catch { return new Set(); }
-}
-function markHeard(name) {
-  try {
-    const set = heardTracks();
-    if (set.has(name)) return;
-    set.add(name);
-    localStorage.setItem(HEARD_KEY, JSON.stringify([...set]));
-  } catch { /* stockage indisponible */ }
-}
+// Juke-box du bureau : un morceau entendu est débloqué pour toutes les parties (profil du joueur).
+// Ceux de la partie se débloquent aussi à leur étape, même sans le son (jukebox.js).
+const markHeard = (name) => unlockTracks([name]);
 export const trackSrc = (name) => TRACKS[name]?.src || null;
 const EGG_SYNTH = { sonar: S.sonar, ghost: S.ghost, fanfare: S.fanfare };
 
