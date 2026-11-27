@@ -10,6 +10,7 @@ import { pointAlong } from '../sim/routing.js';
 import { flagImage } from './flags.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { ZONES } from '../data/zones.js';
+import { zoneRings } from '../sim/pollution.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
 import { mapShipSprite, drawMapShip, mapSize } from './mapships.js';
 
@@ -375,6 +376,29 @@ export class MapView {
   }
 
   // ---------- Dessin ----------
+  // Contour lissé d'une zone (spline de Catmull-Rom fermée : la courbe passe par chaque point, ni cercle
+  // ni dents de scie), ajouté au chemin courant pour chaque copie visible du monde. Une copie place tout
+  // le contour d'un bloc : choisir la copie point par point (toScreen) coupait en deux une zone à cheval
+  // sur le bord opposé de la vue, et ses deux moitiés se rejoignaient par une bande à travers la carte.
+  // Renvoie le nombre de copies tracées (0 : zone hors écran).
+  zonePath(g, poly) {
+    const { cx, cy, scale } = this.view;
+    let drawn = 0;
+    this.copies((off) => {
+      const pts = poly.map(([lo, la]) => [this.w / 2 + (lo + off - cx) * scale, this.h / 2 + (-la - cy) * scale]);
+      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+      if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) return;
+      const n = pts.length, P = (i) => pts[(i + n) % n];
+      g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 0; i < n; i++) {
+        const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+        g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+      }
+      g.closePath();
+      drawn++;
+    });
+    return drawn;
+  }
   copies(fn) {
     const { cx, scale } = this.view;
     const span = this.w / scale / 2 + 5;
@@ -563,36 +587,29 @@ export class MapView {
     const T = (n) => Math.round(n * mapSize().ui * 2) / 2;
     const kmToPx = scale / 60; // 1 mille nautique ≈ 1/60 de degré
 
-    // Côtes sensibles : teinte verte unie, bord continu (une pollution y coûte bien plus cher).
+    // Côtes sensibles : leur vrai contour, teinte verte unie, bord continu (une pollution y coûte bien plus cher).
     g.save();
     for (const z of ZONES) {
+      // Vrai contour (celui que lit la simulation), lissé ; lon/lat placent le nom.
+      g.beginPath();
+      let drawn = 0;
+      for (const ring of zoneRings(z)) drawn += this.zonePath(g, ring);
+      if (!drawn) continue;
       const [x, y] = this.toScreen(z.lon, z.lat);
-      const r = Math.max(6, z.r * kmToPx);
-      if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
       g.fillStyle = `rgba(46,140,110,${0.1 + z.factor * 0.012})`; g.fill();
       g.lineWidth = 1.6; g.strokeStyle = 'rgba(30,110,85,0.7)'; g.stroke();
       if (scale > 7) {
         g.font = `italic 600 ${T(10)}px PdaIcons, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
-        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
+        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y);
+        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y);
       }
     }
     // Zones de piraterie : leur vrai contour (celui que lit la simulation), lissé, teinte rouge unie et bord continu.
     const flagT = REDUCE_MOTION?.matches ? 0 : performance.now() / 1000;
     for (const [zi, z] of PIRACY_ZONES.entries()) {
-      const pts = z.poly.map(([lo, la]) => this.toScreen(lo, la));
-      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
-      if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) continue;
+      g.beginPath();
+      if (!this.zonePath(g, z.poly)) continue;
       const [x, y] = this.toScreen(z.lon, z.lat);
-      // Spline de Catmull-Rom fermée : la courbe passe par chaque point (ni cercle, ni dents de scie).
-      const n = pts.length, P = (i) => pts[(i + n) % n];
-      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 0; i < n; i++) {
-        const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-        g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
-      }
-      g.closePath();
       g.fillStyle = `rgba(200,50,40,${0.1 + z.rate * 3})`; g.fill();
       g.lineWidth = 1.8; g.strokeStyle = 'rgba(170,40,32,0.8)'; g.stroke();
       const bs = (scale > 4 ? 1.15 : 0.85) * mapSize().ui;

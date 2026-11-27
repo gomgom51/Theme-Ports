@@ -65,6 +65,12 @@ Nothing is paid if the ship left port below `SEAWORTHY` (40) condition.
 
 ## Pollution (`sim/pollution.js`, `data/zones.js`)
 
+The 18 sensitive coasts are polygons (`poly`, or `polys` for a zone in several pieces: Tokyo Bay + Inland Sea,
+San Andrés islands + Cartagena coast) drawn where the reefs, mangroves and fragile coasts really are; the map draws the
+same outline smoothed (`MapView.zonePath`, flat green tint) and `zoneAt` tests the polygon, so the cleanup factor follows
+the drawn shape (rule 1). `lon`/`lat` only place the name. They used to be circles (`r` in nm), whose drawn size was
+wrong at high latitudes; the shapes cover less open sea and no inland, so a spill falls in a zone a little less often.
+
 Pollution tonnes = cargo qty × `GOODS.pollution` × share × equip `spill` (+ 80 % of bunker fuel
 when sinking). Ignored under 50 t. Cost = tonnes × 600 $ × factor (zone 1.5–5, near coast 0.6,
 open sea 0.15). Insured (P&I, seaworthy): deductible `clamp(5 %, 100 k, 5 M)`; else up to
