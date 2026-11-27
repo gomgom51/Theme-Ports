@@ -9,6 +9,7 @@ import { concealFactor, concealLevel } from '../sim/shady.js';
 import { hasEquip } from '../sim/equipment.js';
 import { rank } from '../sim/crew.js';
 import { h } from './dom.js';
+import { gradeEl } from './grade.js';
 
 const OIL_VIRTUE = 'Le pétrole fait baisser la vertu';
 const OIL_CRISIS = 'Sans contrats pendant les crises du raffinage';
@@ -106,7 +107,6 @@ export const SHIP_ROLES = {
 
 // Échelle de discrétion (1 voyant … 5 insoupçonnable), la même partout : courtier, colis, affaires noires.
 export const CONCEAL_WORDS = ['', 'voyant', 'ordinaire', 'discret', 'très discret', 'insoupçonnable'];
-export const dots = (n, max = 5) => '●'.repeat(n) + '○'.repeat(max - n);
 export const typeConcealLevel = (typeId) => concealLevel(CONCEALMENT[typeId] ?? 1);
 
 // Atouts et défauts d'un modèle. ship : navire réel (simple coque déjà renforcée ?) ; age : annonce d'occasion.
@@ -118,19 +118,21 @@ export function shipRoles(typeId, { ship = null, age = 0 } = {}) {
   if (T.singleHull && !(ship && hasEquip(ship, 'double_coque'))) cons.push('Simple coque : interdit dans les ports exigeants, sauf avec une coque renforcée');
   if (T.stock?.includes('brouilleur')) pros.push('Transpondeur « discret » fourni');
   const lv = typeConcealLevel(typeId);
-  if (lv >= 4) pros.push('Très discret à la douane');
-  else if (lv === 3) pros.push('Discret à la douane');
+  if (lv >= 4) pros.push({ t: 'Très discret à la douane', grade: lv });
+  else if (lv === 3) pros.push({ t: 'Discret à la douane', grade: lv });
   pros.push(...R.pros);
   cons.push(...R.cons);
   if (!T.vintage && age > 20) cons.push('Plus de vingt ans : pannes et inspections plus fréquentes');
   return { pros, cons };
 }
 
+// Une ligne : un texte, ou { t, grade } pour la discrétion (même échelle que sur les propositions de colis).
+const roleItem = (x) => (typeof x === 'string' ? h('li', x) : h('li', [x.t, ' ', gradeEl(x.grade, { title: `Discrétion : ${CONCEAL_WORDS[x.grade]}` })]));
 export function rolesEl(typeId, opts = {}) {
   const { pros, cons } = shipRoles(typeId, opts);
   return h('div.ship-roles', [
-    h('ul.roles-pros', pros.map((t) => h('li', t))),
-    h('ul.roles-cons', cons.map((t) => h('li', t))),
+    h('ul.roles-pros', pros.map(roleItem)),
+    h('ul.roles-cons', cons.map(roleItem)),
   ]);
 }
 
@@ -148,7 +150,7 @@ export function concealEl(ship) {
   const r = rank(ship, 'contrebande');
   if (r) parts.push(`contrebande rang ${r}`);
   return h('div.conceal', { class: `lv${lv}` }, [
-    h('div', [`🕵 Discrétion du ${ship.name} : `, h('span.conceal-dots', { 'data-no-tr': '' }, dots(lv)), ' ', h('b', CONCEAL_WORDS[lv])]),
+    h('div', [`🕵 Discrétion du ${ship.name} : `, gradeEl(lv, { cls: lv <= 2 ? 'warn' : '', title: `Discrétion : ${CONCEAL_WORDS[lv]}` }), ' ', h('b', CONCEAL_WORDS[lv])]),
     h('div.muted.small', `${parts.join(' · ')}. Plus il est discret, moins la douane trouve le colis.`),
   ]);
 }

@@ -2740,6 +2740,7 @@ export default {
   "Comparer avec :": "Compare with:",
   "Voir la fiche du navire": "See the ship's sheet",
   "le même, neuf": "the same, new",
+  "Discrétion : {0}": "Discretion: {0}",
   "rien": "nothing",
   "📡 Le transpondeur « discret » est coupé. Allumé (onglet Équipement), il rend les amendes et les contrôles en mer plus rares, mais augmente le risque d'abordage.": "📡 The \"discreet\" transponder is switched off. Switched on (Equipment tab), it makes fines and checks at sea rarer, but raises the risk of collision.",
   // Comprendre la réputation (ui/reputation.js, aide, bureau, visite guidée).

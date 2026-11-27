@@ -49,6 +49,7 @@ async function embargoOk(app, ship, port, value = 0) {
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
 import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence, equipOff, toggleEquipment } from '../sim/equipment.js';
 import { rolesEl } from './shiproles.js';
+import { gradeEl } from './grade.js';
 import { CREW_LEVELS } from '../data/ships.js';
 import { payCut } from '../sim/plots.js';
 import { inspectionThreshold, hullBarred } from '../sim/incidents.js';
@@ -541,7 +542,7 @@ function crewSkillsTab(app, ship) {
     const S = crew.SKILLS[id], r = crew.rank(ship, id);
     return h('div.card', { class: r ? 'highlight' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [`${S.icon} ${S.name}`, h('span.skill-pips', { title: `Niveau ${r} sur ${crew.MAX_RANK}` }, '●'.repeat(r) + '○'.repeat(crew.MAX_RANK - r))]),
+        h('div.card-title', [`${S.icon} ${S.name}`, gradeEl(r, { max: crew.MAX_RANK, title: `Niveau ${r} sur ${crew.MAX_RANK}` })]),
         h('div.card-sub', S.text),
       ]),
       h('div.card-side', free && r < crew.MAX_RANK ? [h('button.btn.small.primary', { onclick: () => app.act(() => crew.train(state, ship.id, id)) }, 'Former')] : []),
