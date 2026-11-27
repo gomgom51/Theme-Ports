@@ -108,7 +108,7 @@ export function shipResults(app) {
       const line = [f.trips > 1 ? `${num(f.trips)} voyages` : `${num(f.trips)} voyage`, `actif ${pct(f.active * 100)}`];
       if (f.annual != null && !f.early) line.push(`rentabilité ${pct(f.annual * 100)}/an`);
       list.append(h('button.row.selectable.with-thumb.ship-result-row', { class: open ? 'selected' : '', 'aria-expanded': open ? 'true' : 'false', onclick: () => { app.form.shipOpen = open ? null : ship.id; app.refresh(); } }, [
-        h('span.thumb', { html: artForShip(state, ship, { sky: false }) }),
+        h('span.thumb', { html: artForShip(state, ship, { sky: false, slot: 'thumb' }) }),
         h('span.grow', [h('b', ship.name), ' ', h('span.muted.small', T.name), h('div.small.muted', dotted(line))]),
         h('span.ship-result-figure', f.early
           ? [h('span.muted.small', 'Trop tôt pour juger'), h('span.small', signed(f.result))]

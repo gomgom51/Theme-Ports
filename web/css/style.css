@@ -264,6 +264,9 @@ p { margin: 6px 0; }
 
 /* ---------- Illustrations des navires ---------- */
 .ship-art { display: block; width: 100%; height: auto; }
+/* Navire en pixel art (pixelship.js) : le canevas est posé à la taille du cadre, en pixels entiers. */
+.px-ship { position: relative; aspect-ratio: 400 / 110; overflow: hidden; }
+.px-ship canvas { position: absolute; image-rendering: pixelated; }
 .ship-hero { display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }
 .ship-hero-art { flex: 1; min-width: 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; }
 .ship-hero .radar-wrap { flex: none; }

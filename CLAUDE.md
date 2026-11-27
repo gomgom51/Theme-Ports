@@ -258,6 +258,12 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   localhost or with `?dev`, the game warns in the console about every text still in
   French (`window.__i18nMissing`). Mark an element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
+- Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (proportions in metres, beam `B`). Detail
+  views (inspect, ship sheet, broker cards, thumbnails) use `ui/pixelship.js` (a `<span class="px-ship">` that gets a
+  canvas, slot `big` animated at 8 fps); the map uses side-view sprites from `ui/mapships.js` (laden = company hull,
+  empty = pale hull with a company stripe, wake length follows speed, routes dashed in the company colour). Two styles,
+  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. `shipSVG` with `attrs`
+  still returns the old vector drawing (office shelf model).
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
   Keep these attributes when reworking those buttons, or the tour silently loses its targets.

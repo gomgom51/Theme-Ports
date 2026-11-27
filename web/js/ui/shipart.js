@@ -5,8 +5,9 @@
 // rouille, aux rayures, aux bosses, à la peinture arrachée, aux trous et à la suie.
 import { SHIP_TYPES } from '../data/ships.js';
 import { logoMarkup, emblemOnWhite } from './logos.js';
+import { pixelShipMarkup } from './pixelship.js';
 
-// Dimensions en mètres (L longueur, D creux, T tirant d'eau en charge, Tb à vide).
+// Dimensions en mètres (B largeur, L longueur, D creux, T tirant d'eau en charge, Tb à vide).
 //  era    : classic (ancien), eighties (années 80), modern
 //  bow    : straight (étrave droite), bulb (bulbe), flared (évasée avec bulbe)
 //  stern  : cruiser (arrondie), transom (tableau)
@@ -14,7 +15,7 @@ import { logoMarkup, emblemOnWhite } from './logos.js';
 //  livery : couleurs fixes du modèle (coque, œuvres vives, superstructure, liseré, apparaux)
 export const SHIP_ART = {
   caboteur: {
-    L: 88, D: 8.8, T: 6.4, Tb: 4.8, fc: 1.8, poop: 1.0, sheer: 1.6,
+    B: 14, L: 88, D: 8.8, T: 6.4, Tb: 4.8, fc: 1.8, poop: 1.0, sheer: 1.6,
     era: 'classic', bow: 'straight', stern: 'cruiser',
     livery: { hull: '#24292d', boot: '#7d2c21', house: '#ece2c9', trim: null, gear: '#d8cdb0', hatch: '#4f5a4b' },
     house: { x: 0.05, w: 0.18, decks: 3, style: 'classic' },
@@ -23,16 +24,16 @@ export const SHIP_ART = {
     lifeboats: 'davit',
   },
   polyvalent: {
-    L: 132, D: 11.6, T: 8.6, Tb: 6.4, fc: 2.4, poop: 1.3, sheer: 0.9,
+    B: 20, L: 132, D: 11.6, T: 8.6, Tb: 6.4, fc: 2.4, poop: 1.3, sheer: 0.9,
     era: 'eighties', bow: 'bulb', stern: 'transom',
     livery: { hull: '#244233', boot: '#8b3025', house: '#f2efe6', trim: '#f2efe6', gear: '#e2ad35', hatch: '#3d5a4a' },
     house: { x: 0.11, w: 0.14, decks: 4, style: 'classic' },
     hatches: [[0.29, 0.47], [0.5, 0.68], [0.72, 0.9]], hatchH: 1.8,
-    gear: [{ kind: 'crane', x: 0.485, h: 20 }, { kind: 'crane', x: 0.7, h: 20 }, { kind: 'derrick', x: 0.27, h: 15, boom: 0.6, aft: true }, { kind: 'mast', x: 0.94, h: 10 }],
+    gear: [{ kind: 'crane', x: 0.485, h: 20 }, { kind: 'crane', x: 0.7, h: 20 }, { kind: 'derrick', x: 0.27, h: 15, boom: 0.6 }, { kind: 'mast', x: 0.94, h: 10 }],
     lifeboats: 'davit',
   },
   vraquier_handy: {
-    L: 180, D: 15, T: 10.2, Tb: 7.6, fc: 2.6, poop: 1.4, sheer: 0,
+    B: 28, L: 180, D: 15, T: 10.2, Tb: 7.6, fc: 2.6, poop: 1.4, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#2f3438', boot: '#a4362a', house: '#f6f4ee', trim: null, gear: '#f1eee6', hatch: '#5c6e55' },
     house: { x: 0.03, w: 0.12, decks: 5, style: 'modern' },
@@ -41,7 +42,7 @@ export const SHIP_ART = {
     lifeboats: 'freefall',
   },
   petrolier_mr: {
-    L: 183, D: 18, T: 12.2, Tb: 9, fc: 2.4, poop: 1.2, sheer: 0,
+    B: 32, L: 183, D: 18, T: 12.2, Tb: 9, fc: 2.4, poop: 1.2, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#722823', boot: '#30363b', house: '#f6f4ee', trim: null, gear: '#f6f4ee', deck: '#4a7a56' },
     house: { x: 0.03, w: 0.12, decks: 5, style: 'modern' },
@@ -52,7 +53,7 @@ export const SHIP_ART = {
   },
   // Aperçus de l'étape 2 : méthanier (cuves sphériques) et gazier (cuves cylindriques).
   methanier: {
-    L: 290, D: 26, T: 11.8, Tb: 9.6, fc: 3, poop: 1.4, sheer: 0,
+    B: 48, L: 290, D: 26, T: 11.8, Tb: 9.6, fc: 3, poop: 1.4, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#f1efe8', boot: '#24405f', house: '#f7f7f3', trim: '#0f6f76', gear: '#f7f7f3', deck: '#4a7a56' },
     house: { x: 0.025, w: 0.1, decks: 6, style: 'modern' },
@@ -62,7 +63,7 @@ export const SHIP_ART = {
     lifeboats: 'freefall',
   },
   gazier: {
-    L: 180, D: 17, T: 10.5, Tb: 8.4, fc: 2.6, poop: 1.2, sheer: 0,
+    B: 28, L: 180, D: 17, T: 10.5, Tb: 8.4, fc: 2.6, poop: 1.2, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#285a4b', boot: '#9c3328', house: '#f6f4ee', trim: '#f6f4ee', gear: '#f6f4ee', deck: '#4a7a56' },
     house: { x: 0.03, w: 0.12, decks: 5, style: 'modern' },
@@ -72,7 +73,7 @@ export const SHIP_ART = {
     lifeboats: 'freefall',
   },
   feeder: {
-    L: 170, D: 14, T: 10, Tb: 7.6, fc: 3, poop: 1.2, sheer: 0,
+    B: 27, L: 170, D: 14, T: 10, Tb: 7.6, fc: 3, poop: 1.2, sheer: 0,
     era: 'modern', bow: 'flared', stern: 'transom',
     livery: { hull: '#1d3a5e', boot: '#a8392b', house: '#f7f7f3', trim: '#f7f7f3', gear: '#f7f7f3', hatch: '#33506b' },
     house: { x: 0.075, w: 0.1, decks: 6, style: 'modern' },
@@ -83,7 +84,7 @@ export const SHIP_ART = {
   // ---------- Étape 2 : le reste de la flotte ----------
   // Cargo de ligne des années 60 : château au milieu, mâts de charge partout, forte tonture.
   cargo_ancien: {
-    L: 140, D: 11, T: 8.2, Tb: 5.8, fc: 2.2, poop: 1.5, sheer: 2.6,
+    B: 19, L: 140, D: 11, T: 8.2, Tb: 5.8, fc: 2.2, poop: 1.5, sheer: 2.6,
     era: 'classic', bow: 'straight', stern: 'cruiser',
     livery: { hull: '#1e1f22', boot: '#7a2a20', house: '#efe6cf', trim: null, gear: '#c9b48a', hatch: '#5a4c3a' },
     house: { x: 0.4, w: 0.15, decks: 3, style: 'classic' },
@@ -94,7 +95,7 @@ export const SHIP_ART = {
   },
   // Colis lourds : passerelle à l'avant, deux grues géantes, cale ouverte pour les turbines.
   colis_lourds: {
-    L: 150, D: 13, T: 8.5, Tb: 6.2, fc: 2.4, poop: 1.3, sheer: 0,
+    B: 23, L: 150, D: 13, T: 8.5, Tb: 6.2, fc: 2.4, poop: 1.3, sheer: 0,
     era: 'eighties', bow: 'bulb', stern: 'transom',
     livery: { hull: '#c44a2c', boot: '#2a3238', house: '#f6f4ee', trim: '#f6f4ee', gear: '#2f3a42', hatch: '#6b3a2c' },
     house: { x: 0.8, w: 0.12, decks: 5, style: 'modern' },
@@ -104,7 +105,7 @@ export const SHIP_ART = {
     lifeboats: 'none',
   },
   vraquier_supramax: {
-    L: 199, D: 18, T: 12.8, Tb: 8.2, fc: 2.6, poop: 1.4, sheer: 0,
+    B: 32, L: 199, D: 18, T: 12.8, Tb: 8.2, fc: 2.6, poop: 1.4, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#24435f', boot: '#a4362a', house: '#f6f4ee', trim: null, gear: '#e8b23a', hatch: '#4c6478' },
     house: { x: 0.03, w: 0.11, decks: 6, style: 'modern' },
@@ -114,7 +115,7 @@ export const SHIP_ART = {
   },
   // Panamax : pas de grues, sept panneaux bien alignés.
   vraquier_panamax: {
-    L: 225, D: 19.8, T: 14.4, Tb: 8.8, fc: 2.8, poop: 1.5, sheer: 0,
+    B: 32.3, L: 225, D: 19.8, T: 14.4, Tb: 8.8, fc: 2.8, poop: 1.5, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#4a2c2a', boot: '#2b3036', house: '#f6f4ee', trim: '#d8cfbf', gear: '#f6f4ee', hatch: '#6d5a3f' },
     house: { x: 0.03, w: 0.1, decks: 6, style: 'modern' },
@@ -124,7 +125,7 @@ export const SHIP_ART = {
   },
   // Capesize : le géant du minerai, coque noire et double liseré.
   vraquier_capesize: {
-    L: 292, D: 24.7, T: 18.2, Tb: 11, fc: 3, poop: 1.6, sheer: 0,
+    B: 45, L: 292, D: 24.7, T: 18.2, Tb: 11, fc: 3, poop: 1.6, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#15202c', boot: '#a4362a', house: '#f7f7f3', trim: '#f2efe6', trim2: '#b8382c', gear: '#f7f7f3', hatch: '#3d4a57' },
     house: { x: 0.025, w: 0.09, decks: 7, style: 'modern' },
@@ -134,7 +135,7 @@ export const SHIP_ART = {
   },
   // Pétrolier des années 70 : passerelle au milieu, machine et cheminée à l'arrière.
   petrolier_ancien: {
-    L: 200, D: 15, T: 11.2, Tb: 7.6, fc: 2.4, poop: 1.8, sheer: 1.6,
+    B: 30, L: 200, D: 15, T: 11.2, Tb: 7.6, fc: 2.4, poop: 1.8, sheer: 1.6,
     era: 'classic', bow: 'straight', stern: 'cruiser',
     livery: { hull: '#1b1c1e', boot: '#7d2c21', house: '#ece2c9', trim: null, gear: '#ece2c9', deck: '#6a5a44' },
     house: { x: 0.5, w: 0.09, decks: 3, style: 'classic', noFunnel: true, noBoats: true },
@@ -146,7 +147,7 @@ export const SHIP_ART = {
   },
   // Chimiquier : forêt de tuyaux colorés, petites citernes de pont, nombreuses vannes.
   chimiquier: {
-    L: 148, D: 13, T: 9.8, Tb: 7, fc: 2.4, poop: 1.2, sheer: 0,
+    B: 23, L: 148, D: 13, T: 9.8, Tb: 7, fc: 2.4, poop: 1.2, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#2f6d8c', boot: '#2a3238', house: '#f6f4ee', trim: null, gear: '#f6f4ee', deck: '#5b7f6a' },
     house: { x: 0.03, w: 0.14, decks: 5, style: 'modern' },
@@ -156,7 +157,7 @@ export const SHIP_ART = {
     lifeboats: 'freefall',
   },
   petrolier_aframax: {
-    L: 245, D: 21, T: 15, Tb: 9.4, fc: 2.6, poop: 1.4, sheer: 0,
+    B: 42, L: 245, D: 21, T: 15, Tb: 9.4, fc: 2.6, poop: 1.4, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#9b2f24', boot: '#2b3036', house: '#f6f4ee', trim: null, gear: '#f6f4ee', deck: '#4a7a56' },
     house: { x: 0.03, w: 0.1, decks: 6, style: 'modern' },
@@ -166,7 +167,7 @@ export const SHIP_ART = {
     lifeboats: 'freefall',
   },
   petrolier_suezmax: {
-    L: 275, D: 23.5, T: 17, Tb: 10.2, fc: 2.8, poop: 1.5, sheer: 0,
+    B: 48, L: 275, D: 23.5, T: 17, Tb: 10.2, fc: 2.8, poop: 1.5, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#5b1f2a', boot: '#2b3036', house: '#f7f7f3', trim: '#f2efe6', gear: '#f7f7f3', deck: '#4a7a56' },
     house: { x: 0.028, w: 0.095, decks: 7, style: 'modern' },
@@ -177,7 +178,7 @@ export const SHIP_ART = {
   },
   // Superpétrolier : coque noire, double liseré rouge et blanc.
   petrolier_vlcc: {
-    L: 333, D: 31, T: 21.5, Tb: 11.5, fc: 3, poop: 1.6, sheer: 0,
+    B: 58, L: 333, D: 31, T: 21.5, Tb: 11.5, fc: 3, poop: 1.6, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#16181b', boot: '#a8392b', house: '#f7f7f3', trim: '#f2efe6', trim2: '#b8382c', gear: '#f7f7f3', deck: '#4a7a56' },
     house: { x: 0.025, w: 0.085, decks: 8, style: 'modern' },
@@ -188,7 +189,7 @@ export const SHIP_ART = {
   },
   // Le géant des mers : bleu nuit, liserés turquoise et blanc, le navire le plus long du jeu.
   petrolier_ulcc: {
-    L: 380, D: 34, T: 24, Tb: 12.5, fc: 3.2, poop: 1.7, sheer: 0,
+    B: 68, L: 380, D: 34, T: 24, Tb: 12.5, fc: 3.2, poop: 1.7, sheer: 0,
     era: 'modern', bow: 'bulb', stern: 'transom',
     livery: { hull: '#122a40', boot: '#a8392b', house: '#f7f7f3', trim: '#f2efe6', trim2: '#1f9a96', gear: '#f7f7f3', deck: '#3f6f62' },
     house: { x: 0.022, w: 0.08, decks: 8, style: 'modern' },
@@ -198,7 +199,7 @@ export const SHIP_ART = {
     lifeboats: 'freefall',
   },
   pc_panamax: {
-    L: 294, D: 21.5, T: 13.5, Tb: 9.4, fc: 3.2, poop: 1.3, sheer: 0,
+    B: 32.3, L: 294, D: 21.5, T: 13.5, Tb: 9.4, fc: 3.2, poop: 1.3, sheer: 0,
     era: 'modern', bow: 'flared', stern: 'transom',
     livery: { hull: '#1f4e79', boot: '#a8392b', house: '#f7f7f3', trim: '#f7f7f3', gear: '#f7f7f3', hatch: '#33506b' },
     house: { x: 0.2, w: 0.07, decks: 8, style: 'modern' },
@@ -208,7 +209,7 @@ export const SHIP_ART = {
   },
   // Porte-conteneurs géant : passerelle à l'avant, cheminée à l'arrière, neuf rangées de boîtes.
   pc_geant: {
-    L: 400, D: 30, T: 16, Tb: 11, fc: 3.6, poop: 1.4, sheer: 0,
+    B: 59, L: 400, D: 30, T: 16, Tb: 11, fc: 3.6, poop: 1.4, sheer: 0,
     era: 'modern', bow: 'flared', stern: 'transom',
     livery: { hull: '#16365c', boot: '#a8392b', house: '#f7f7f3', trim: '#f7f7f3', trim2: '#1f9a96', gear: '#f7f7f3', hatch: '#2c4a6a' },
     house: { x: 0.64, w: 0.055, decks: 10, style: 'modern', noFunnel: true },
@@ -219,7 +220,7 @@ export const SHIP_ART = {
   },
   // Transporteur de voitures : une boîte blanche flottante, rampe arrière et bande bleue.
   porte_voitures: {
-    L: 200, D: 31, T: 10, Tb: 8.6, fc: 0, poop: 0, sheer: 0,
+    B: 32, L: 200, D: 31, T: 10, Tb: 8.6, fc: 0, poop: 0, sheer: 0,
     era: 'modern', bow: 'flared', stern: 'transom',
     livery: { hull: '#f2f1ec', boot: '#203a63', house: '#f2f1ec', trim: null, gear: '#f2f1ec' },
     box: { band: '#203a63', bridge: 0.86 },
@@ -231,7 +232,7 @@ export const SHIP_ART = {
   },
   // Navire frigorifique : coque blanche, grues jaunes, ligne élancée.
   frigorifique: {
-    L: 150, D: 13.5, T: 9.5, Tb: 7, fc: 2.6, poop: 1.4, sheer: 0.7,
+    B: 22, L: 150, D: 13.5, T: 9.5, Tb: 7, fc: 2.6, poop: 1.4, sheer: 0.7,
     era: 'eighties', bow: 'bulb', stern: 'transom',
     livery: { hull: '#f3f1ea', boot: '#2b5f75', house: '#f7f7f3', trim: '#1e8a6e', gear: '#e2ad35', hatch: '#c9c4b4' },
     house: { x: 0.07, w: 0.14, decks: 5, style: 'classic' },
@@ -285,10 +286,25 @@ function blob(r, cx, cy, rx, ry, n = 9) {
 }
 
 /**
+ * Illustration d'un navire, en pixel art (pixelship.js) dans le style choisi par le joueur.
+ * opts : condition, age (années), color et logo (compagnie : cheminée), name, laden, seed,
+ *        title (texte lu par les lecteurs d'écran), sky (false : pas de ciel, vignettes),
+ *        slot ('big' : grand cadre animé ; 'hero', 'card', 'thumb' : fixes).
+ * Avec attrs (dessin inséré dans un autre SVG, la maquette du bureau) ou vector, on garde le
+ * dessin vectoriel d'origine.
+ */
+export function shipSVG(typeId, opts = {}) {
+  if (opts.attrs || opts.vector) return vectorSVG(typeId, opts);
+  const { condition = 100, age = 0 } = opts;
+  return pixelShipMarkup(typeId, { ...opts, wear: wearOf(typeId, condition, age), dmg: (100 - condition) / 100 });
+}
+
+/**
+ * Dessin vectoriel (ancien style, gardé pour la maquette du bureau).
  * opts : condition, age (années), color et logo (compagnie : cheminée), name, laden,
  *        seed, sky (fond), water (mer, sinon socle de maquette), attrs (attributs SVG).
  */
-export function shipSVG(typeId, opts = {}) {
+function vectorSVG(typeId, opts = {}) {
   const A = SHIP_ART[typeId] || SHIP_ART.caboteur;
   const { condition = 100, age = 0, color = '#3e8ef7', logo = 'ancre', name = '', laden = false, sky = true, water = true, attrs = '', fit = false } = opts;
   const r = rand(opts.seed ?? (name || typeId));

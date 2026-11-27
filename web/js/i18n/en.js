@@ -1245,6 +1245,8 @@ export default {
   "La banque saisit un navire": "The bank seizes a ship",
   "Illustrations : oui": "Event scenes: on",
   "Illustrations : non": "Event scenes: off",
+  "Navires : pixels fins": "Ships: fine pixels",
+  "Navires : gros pixels": "Ships: chunky pixels",
   "Votre trésorerie limite l'achat à {0} (cale : {1}).": "Your cash limits the purchase to {0} (hold: {1}).",
   "Le stock du port limite l'achat à {0} (cale : {1}).": "The port's stock limits the purchase to {0} (hold: {1}).",
   "Votre banquier s'impatiente : découvert de {0} k$, à 20 % d'intérêts. Au-delà de {1} k$, la banque saisira et vendra votre navire le moins cher.": "Your banker is losing patience: overdraft of {0} k$, at 20% interest. Beyond {1} k$, the bank will seize and sell your cheapest ship.",

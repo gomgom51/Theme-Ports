@@ -11,6 +11,7 @@ import { flagImage } from './flags.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { ZONES } from '../data/zones.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
+import { mapShipSprite, drawMapShip } from './mapships.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
 const LABEL_PLACE = {
@@ -108,11 +109,8 @@ function buildPath(str) {
   return path;
 }
 
-const SHIP_SHAPE = (() => {
-  const p = new Path2D();
-  p.moveTo(0, -8); p.lineTo(4.2, -1.5); p.lineTo(3.6, 6); p.lineTo(-3.6, 6); p.lineTo(-4.2, -1.5); p.closePath();
-  return p;
-})();
+// Couleur de la compagnie avec transparence (routes en tirets).
+const alpha = (hex, a) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',')},${a})`;
 
 export class MapView {
   constructor(root, handlers = {}) {
@@ -644,7 +642,9 @@ export class MapView {
       if (!mine && !selected) continue;
       const route = ctx.shipRoute(ship);
       if (!route) continue;
-      this.polyline(g, route.points, ship.voyage.progress, selected ? 'rgba(28,42,51,0.85)' : 'rgba(28,42,51,0.3)', selected ? [6, 4] : [3, 5], selected ? 2 : 1.2, route);
+      // Tirets carrés aux couleurs de la compagnie ; plus marqués pour le navire choisi.
+      const co = state.companies[ship.owner].color;
+      this.polyline(g, route.points, ship.voyage.progress, alpha(co, selected ? 0.95 : 0.5), selected ? [6, 4] : [4, 4], selected ? 2.2 : 1.4, route);
     }
 
     // Navires.
@@ -666,9 +666,9 @@ export class MapView {
       const [x, y] = this.toScreen(pos.lon, pos.lat);
       if (x < -20 || x > this.w + 20 || y < -20 || y > this.h + 20) continue;
       const own = ship.owner === active;
-      this.drawShip(g, x, y, pos.heading, company.color, !!ship.cargo, own, ship.id === ui.selectedShip);
+      const half = this.drawShip(g, x, y, ship, pos.heading, company.color, own, ship.id === ui.selectedShip, moving ? v.speed : 0);
       this.shipScreenPos.push({ id: ship.id, x, y, own });
-      if (ship.id === ui.selectedShip || (own && scale > 7)) this.label(g, x + 9, y - 9, ship.name);
+      if (ship.id === ui.selectedShip || (own && scale > 7)) this.label(g, x + Math.min(9, half.hw * 0.5), y - half.hh - 6, ship.name);
     }
     // Navires à quai : pictogramme aux couleurs de la compagnie, et pour les vôtres une
     // pastille qui dit ce qu'ils font (chargement, déchargement, réparation, attente…).
@@ -689,7 +689,7 @@ export class MapView {
         const x = px + Math.cos(ang) * rr, y = py + Math.sin(ang) * rr;
         const own = ship.owner === active;
         const kind = portActivity(ship);
-        this.drawDocked(g, x, y, state.companies[ship.owner].color, own, kind === 'laidup', ship.id === ui.selectedShip);
+        this.drawDocked(g, x, y, ship, state.companies[ship.owner].color, own, kind === 'laidup', ship.id === ui.selectedShip);
         if (own) this.statusBadge(g, x + 9, y - 8, kind, now);
         this.shipScreenPos.push({ id: ship.id, x, y, own });
         if (ship.id === ui.selectedShip) this.label(g, x + 17, y + 2, ship.name);
@@ -755,22 +755,22 @@ export class MapView {
     g.restore();
   }
 
-  drawShip(g, x, y, heading, color, laden, own, selected) {
-    g.save();
-    g.translate(x, y);
+  // Navire en mer : sprite de profil en pixel art (mapships.js), tourné vers l'est ou l'ouest
+  // selon le cap, avec un sillage qui s'allonge avec la vitesse (nœuds, 0 à l'arrêt).
+  drawShip(g, x, y, ship, heading, color, own, selected, speed) {
+    const spr = mapShipSprite(ship.type, color, !!ship.cargo, own);
+    // Cap nord ou sud : on garde le sens d'avant, pour que le sprite ne clignote pas.
+    const s = Math.sin(heading), facing = this.facing || (this.facing = new Map());
+    let left = facing.get(ship.id);
+    if (left === undefined || Math.abs(s) > 0.25) left = s < 0;
+    facing.set(ship.id, left);
+    // Très près, les pixels doublent : le navire garde sa place à l'échelle de la mer.
+    const half = drawMapShip(g, this.dpr, x, y, spr, { left, moving: speed > 0, speed, t: this.animT || 0, seed: (ship.id * 0.618) % 1 * 6.28, smoke: this.view.scale >= 10, zoom: this.view.scale >= 50 ? 2 : 1 });
     if (selected) {
-      g.beginPath(); g.arc(0, 0, 13, 0, Math.PI * 2);
+      g.beginPath(); g.arc(x, y, Math.max(13, half.r + 3), 0, Math.PI * 2);
       g.strokeStyle = C.portHl; g.lineWidth = 2.2; g.stroke();
     }
-    g.rotate(heading);
-    const s = own ? 1.15 : 0.9;
-    g.scale(s, s);
-    g.fillStyle = laden ? color : 'rgba(251,248,241,0.95)';
-    g.fill(SHIP_SHAPE);
-    g.lineWidth = laden ? 1.3 : 2;
-    g.strokeStyle = laden ? C.ink : color;
-    g.stroke(SHIP_SHAPE);
-    g.restore();
+    return half;
   }
 
   // Insigne de piraterie : crâne et tibias blancs sur disque sombre cerclé de rouge.
@@ -808,23 +808,11 @@ export class MapView {
     g.restore();
   }
 
-  // Navire à quai vu de profil (cap à droite) ; désarmé : grisé.
-  drawDocked(g, x, y, color, own, laidup, selected) {
-    g.save();
-    g.translate(x, y);
-    const s = own ? 1.1 : 0.72;
-    if (selected) { g.beginPath(); g.arc(0, 0, 14, 0, Math.PI * 2); g.strokeStyle = C.portHl; g.lineWidth = 2.4; g.stroke(); }
-    g.scale(s, s);
-    g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.lineTo(7, 4.5); g.lineTo(-9, 4.5); g.closePath();
-    g.fillStyle = laidup ? '#a9a59c' : color; g.fill();
-    g.lineWidth = 1.3; g.strokeStyle = C.ink; g.stroke();
-    g.fillStyle = laidup ? '#d8d4ca' : '#fbf8f1';
-    g.fillRect(-7, -4.5, 6, 4.5); g.strokeRect(-7, -4.5, 6, 4.5);
-    g.fillStyle = laidup ? '#a9a59c' : color;
-    g.fillRect(-5.5, -8, 2.6, 3.5); g.strokeRect(-5.5, -8, 2.6, 3.5);
-    g.beginPath(); g.moveTo(3, 0); g.lineTo(3, -6); g.lineTo(7.5, -3); g.stroke(); // mât de charge
-    g.restore();
+  // Navire à quai : petit sprite de profil (cap à droite) ; désarmé : grisé.
+  drawDocked(g, x, y, ship, color, own, laidup, selected) {
+    const spr = mapShipSprite(ship.type, color, !!ship.cargo, own, { docked: true, laidup });
+    const { r } = drawMapShip(g, this.dpr, x, y, spr);
+    if (selected) { g.beginPath(); g.arc(x, y, Math.max(14, r + 3), 0, Math.PI * 2); g.strokeStyle = C.portHl; g.lineWidth = 2.4; g.stroke(); }
   }
 
   // Pastille d'activité d'un navire à quai.
@@ -987,7 +975,10 @@ export class MapView {
     g.fillStyle = C.ink; g.fillText(text, x, y);
   }
 
-  frame(frac) {
+  frame(frac, running = frac > 0) {
+    const now = performance.now() / 1000;
+    if (running) this.animT = (this.animT || 0) + Math.min(0.1, now - (this.lastT || now));
+    this.lastT = now;
     if (this.dirty) this.drawBase();
     this.drawOverlay(frac);
   }
