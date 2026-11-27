@@ -211,28 +211,37 @@ function part(v, depth) {
   if (!core || TOKEN_ONLY.test(core)) return v;
   // Un nom propre absent du dictionnaire (navire, compagnie) reste tel quel : « Île de Batz ».
   if (looksLikeName(core) && !EXACT.has(core) && !LOWER.has(core.toLowerCase())) return v.replace(core, englishFormats(core));
-  const r = /[A-Za-zÀ-ÿ]/.test(core) ? lookup(core, depth) ?? loose(core, depth) : null;
+  const r = /[A-Za-zÀ-ÿ]/.test(core) ? best(core, depth) : null;
   return v.replace(core, r == null ? englishFormats(core) : r);
 }
 // Libellés composés, traduits morceau par morceau : listes (« A, B »), « A · B », « ⛽ Nom ».
 const STRONG = /( · | — | → | \/ )/;
+const SEMI = /([\s\u202f\u00a0];\s)/;
 const COMMA = /(, )/;
 function loose(t, depth) {
   if (depth > 4) return null;
   const m = /^([^A-Za-zÀ-ÿ]*)([\s\S]*?[A-Za-zÀ-ÿ.)])([^A-Za-zÀ-ÿ.)]*)$/.exec(t);
   if (m && (m[1] || m[3])) {
     const r = lookup(m[2], depth + 1);
-    if (r != null) return englishFormats(m[1]) + r + englishFormats(m[3]);
+    if (r != null && !looksFrench(r)) return englishFormats(m[1]) + r + englishFormats(m[3]);
   }
-  return bySeparator(t, STRONG, depth) ?? bySentence(t, depth) ?? bySeparator(t, COMMA, depth);
+  // Le premier découpage qui ne laisse pas de français ; sinon le premier qui traduit quelque chose.
+  let first = null;
+  for (const cut of [() => bySeparator(t, STRONG, depth), () => bySentence(t, depth), () => bySeparator(t, SEMI, depth), () => bySeparator(t, COMMA, depth)]) {
+    const r = cut();
+    if (r == null) continue;
+    if (!looksFrench(r)) return r;
+    first ??= r;
+  }
+  return first;
 }
 function bySeparator(t, sep, depth) {
   const pieces = t.split(sep);
   if (pieces.length < 2) return null;
   let changed = false;
   const out = pieces.map((p, i) => {
-    if (i % 2 || !/[A-Za-zÀ-ÿ]{2}/.test(p)) return i % 2 ? p : englishFormats(p);
-    const r = lookup(p.trim(), depth + 1) ?? loose(p.trim(), depth + 1);
+    if (i % 2 || !/[A-Za-zÀ-ÿ]{2}/.test(p)) return englishFormats(p);
+    const r = best(p.trim(), depth + 1);
     if (r == null) return englishFormats(p);
     changed = true;
     return p.replace(p.trim(), r);
@@ -248,13 +257,16 @@ function bySentence(t, depth) {
   const out = [];
   let changed = false;
   for (let i = 0; i < s.length;) {
-    let done = false;
-    for (let n = Math.min(3, s.length - i); n >= 1 && !done; n--) {
+    // Le plus grand groupe de phrases qui se traduit sans laisser de français ; sinon le premier trouvé.
+    let pick = null;
+    for (let n = Math.min(3, s.length - i); n >= 1; n--) {
       const chunk = s.slice(i, i + n).join(' ');
-      const r = lookup(chunk, depth + 1) ?? (n === 1 ? loose(chunk, depth + 1) : null);
-      if (r != null) { out.push(r); i += n; changed = true; done = true; }
+      const r = n === 1 ? best(chunk, depth + 1) : lookup(chunk, depth + 1);
+      if (r == null) continue;
+      if (!looksFrench(r)) { pick = { r, n }; break; }
+      pick ??= { r, n };
     }
-    if (!done) { out.push(englishFormats(s[i])); i++; }
+    if (pick) { out.push(pick.r); i += pick.n; changed = true; } else { out.push(englishFormats(s[i])); i++; }
   }
   return changed ? out.join(' ') : null;
 }
@@ -292,15 +304,27 @@ export function tr(s) {
   return out;
 }
 function translate(t) {
-  const exact = lookup(t, 0);
-  if (exact != null) return exact;
+  const whole = lookup(t, 0);
+  if (whole != null && !looksFrench(whole)) return whole;
   // Les noms connus deviennent des jetons : « Le (E)(D) Ferdinand a terminé… » se découpe sans hésiter.
   const p = protect(t);
+  let named = null;
   if (p !== t) {
-    const r = lookup(p, 0) ?? loose(p, 0);
-    if (r != null) return unprotect(r);
+    named = best(p, 0);
+    if (named != null) { named = unprotect(named); if (!looksFrench(named)) return named; }
   }
-  return loose(t, 0) ?? englishFormats(t);
+  const pieces = loose(t, 0);
+  if (pieces != null && !looksFrench(pieces)) return pieces;
+  return whole ?? named ?? pieces ?? englishFormats(t);
+}
+// Traduction d'un bloc : le texte entier d'abord ; s'il laisse du français (motif mal tombé),
+// le découpage morceau par morceau peut faire mieux.
+function best(t, depth) {
+  const whole = lookup(t, depth);
+  if (whole != null && !looksFrench(whole)) return whole;
+  const pieces = loose(t, depth);
+  if (pieces != null && !looksFrench(pieces)) return pieces;
+  return whole ?? pieces;
 }
 
 // ---------- Texte resté en français ----------

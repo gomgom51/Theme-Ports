@@ -48,7 +48,7 @@ const years = Number(process.argv[2] || 2);
 const { makeContext } = await import('../web/js/sim/context.js');
 const { newGame, tick } = await import('../web/js/sim/game.js');
 const { aiShipIdle } = await import('../web/js/sim/ai.js');
-const { Rng } = await import('../web/js/sim/util.js');
+const { Rng, formatDate } = await import('../web/js/sim/util.js');
 const { isIdle, shipsOf } = await import('../web/js/sim/core.js');
 const TRAPS = ['(E)(D) Ferdinand', 'la belle poule', 'Étoile du Port', 'Le Havre II', 'St. Malo Express', 'Vent', 'Mer du Nord', 'Sans-Souci'];
 const ctx = makeContext();
@@ -91,7 +91,20 @@ for (let d = 0; d < years * 365 && !state.over; d++) {
   }
   for (const ship of shipsOf(state, 0)) if (isIdle(ship)) aiShipIdle(state, ctx, rng, ship);
 }
-for (const n of state.news) keep(n.text, 'journal');
+// Le journal tel qu'il s'affiche aussi dans les listes : « 19 janv. 2027 · Crise mondiale… ».
+for (const n of state.news) { keep(n.text, 'journal'); keep(`${formatDate(n.t, true)} · ${n.text}`, 'journal daté'); }
+// Chaque événement mondial, même ceux que la partie n'a pas tirés (sur une copie de la partie).
+const { EVENTS } = await import('../web/js/sim/events.js');
+for (const ev of EVENTS) for (let k = 0; k < 4; k++) {
+  const copy = structuredClone(state);
+  if (ev.possible && !ev.possible(copy)) continue;
+  try {
+    const r = ev.run(copy, new Rng(1000 + k));
+    keep(`${r.title} — ${r.text}`, `événement ${ev.id}`);
+    keep(`${formatDate(copy.t, true)} · ${r.title} — ${r.text}`, `événement ${ev.id}`);
+    for (const n of copy.news.slice(0, 3)) keep(n.text, `événement ${ev.id}`);
+  } catch (e) { console.log(`événement ${ev.id} : ${e.message}`); }
+}
 // Autres textes gardés dans la sauvegarde (historiques, journaux de bord).
 walk(state, 'état');
 let runtime = 0;

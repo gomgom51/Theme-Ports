@@ -353,7 +353,9 @@ function sailHour(state, ctx, rng, ship, notes) {
       spill(state, ship, company, pos, share, { nearCoast, notes, note });
       ship.cargo.qty = Math.round(ship.cargo.qty * (1 - share));
     }
-    shipLog(state, ship, text.split('.')[0]);
+    // Première phrase seulement, sans couper un nom de navire qui contient un point (« St. Malo »).
+    const cut = text.replace(ship.name, '\u0000').split('.')[0].replace('\u0000', () => ship.name);
+    shipLog(state, ship, cut);
     if (inc.severe && rng.chance(sinkChance(ship.condition, wx.force, ship.crew) * (inc.kind === 'incendie' ? equipMod(ship, 'fireSink') : 1))) {
       sink(state, ctx, ship, notes, pos, wx, inc, rng);
       return;

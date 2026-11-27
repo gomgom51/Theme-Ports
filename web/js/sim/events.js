@@ -12,7 +12,7 @@ const D = HOURS_PER_DAY;
 export const OIL_CRISIS = { days: [14, 28] };
 
 // Chaque événement modifie l'économie ; certains durent (canal fermé, grève).
-const EVENTS = [
+export const EVENTS = [
   {
     id: 'petrole_hausse', weight: 3,
     run(state, rng) {

@@ -2708,4 +2708,7 @@ export default {
   "cargos": "general cargo ships",
   "gaziers": "gas carriers",
   "spécialisés": "specialised ships",
+  "Vous : {0} / {1} / {2} / {3}": "You: {0} / {1} / {2} / {3}",
+  "{0} familles": "{0} families",
+  "{0} marchandises": "{0} goods",
 };
