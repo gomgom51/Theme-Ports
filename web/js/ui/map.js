@@ -10,8 +10,9 @@ import { pointAlong } from '../sim/routing.js';
 import { flagImage } from './flags.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { ZONES } from '../data/zones.js';
+import { zoneRings } from '../sim/pollution.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
-import { mapShipSprite, drawMapShip } from './mapships.js';
+import { mapShipSprite, drawMapShip, mapSize } from './mapships.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
 // Animations d'ambiance (pavillons pirates) : figées si le joueur a demandé moins de mouvement.
@@ -121,11 +122,16 @@ export class MapView {
     this.handlers = handlers;
     this.base = document.createElement('canvas');
     this.over = document.createElement('canvas');
+    // Noms des ports : dessinés à part (refaits avec le fond), puis posés par-dessus les navires à
+    // chaque image, sous le navire choisi et les pastilles : ils restent lisibles quand un navire
+    // passe ou attend à quai.
+    this.names = document.createElement('canvas');
     this.base.className = 'map-layer';
     this.over.className = 'map-layer';
     root.append(this.base, this.over);
     this.bctx = this.base.getContext('2d');
     this.octx = this.over.getContext('2d');
+    this.nctx = this.names.getContext('2d');
     this.paths = { detailed: buildPath(LAND_DETAILED), coarse: buildPath(LAND_COARSE), borders: buildLines(BORDERS) };
     this.waters = buildWatersImage();
     // Les drapeaux sont des images : redessiner le fond quand elles sont prêtes.
@@ -137,6 +143,8 @@ export class MapView {
     this.dirty = true;
     // Icônes (police PdaIcons, limitée aux émojis du jeu) : redessiner quand elle est chargée.
     document.fonts?.load('16px PdaIcons', '⚓☠🌿❄').then(() => { this.dirty = true; }, () => {});
+    // Taille de l'interface changée (écran, menu ☰) : navires et noms de ports suivent.
+    window.addEventListener('uiscale', () => { this.dirty = true; });
     this.pointers = new Map();
     this.preview = null;
     this.highlightPorts = null;
@@ -151,7 +159,7 @@ export class MapView {
     const r = this.root.getBoundingClientRect();
     this.w = Math.max(1, r.width); this.h = Math.max(1, r.height);
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
-    for (const c of [this.base, this.over]) {
+    for (const c of [this.base, this.over, this.names]) {
       c.width = Math.round(this.w * this.dpr); c.height = Math.round(this.h * this.dpr);
       c.style.width = this.w + 'px'; c.style.height = this.h + 'px';
     }
@@ -303,7 +311,7 @@ export class MapView {
   }
 
   tap(x, y) {
-    let best = null, bestD = 18;
+    let best = null, bestD = 18 * mapSize().ship;
     for (const s of this.shipScreenPos || []) {
       const d = Math.hypot(s.x - x, s.y - y) - (s.own ? 4 : 0);
       if (d < bestD) { bestD = d; best = { kind: 'ship', id: s.id }; }
@@ -368,6 +376,29 @@ export class MapView {
   }
 
   // ---------- Dessin ----------
+  // Contour lissé d'une zone (spline de Catmull-Rom fermée : la courbe passe par chaque point, ni cercle
+  // ni dents de scie), ajouté au chemin courant pour chaque copie visible du monde. Une copie place tout
+  // le contour d'un bloc : choisir la copie point par point (toScreen) coupait en deux une zone à cheval
+  // sur le bord opposé de la vue, et ses deux moitiés se rejoignaient par une bande à travers la carte.
+  // Renvoie le nombre de copies tracées (0 : zone hors écran).
+  zonePath(g, poly) {
+    const { cx, cy, scale } = this.view;
+    let drawn = 0;
+    this.copies((off) => {
+      const pts = poly.map(([lo, la]) => [this.w / 2 + (lo + off - cx) * scale, this.h / 2 + (-la - cy) * scale]);
+      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+      if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) return;
+      const n = pts.length, P = (i) => pts[(i + n) % n];
+      g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 0; i < n; i++) {
+        const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+        g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+      }
+      g.closePath();
+      drawn++;
+    });
+    return drawn;
+  }
   copies(fn) {
     const { cx, scale } = this.view;
     const span = this.w / scale / 2 + 5;
@@ -415,7 +446,8 @@ export class MapView {
     g.setLineDash([]);
 
     // Noms des mers.
-    g.font = `italic ${scale > 6 ? 14 : 12}px PdaIcons, 'Libre Baskerville', Georgia, serif`;
+    const T = (n) => Math.round(n * mapSize().ui * 2) / 2; // textes de la carte : suivent la taille de l'écran
+    g.font = `italic ${T(scale > 6 ? 14 : 12)}px PdaIcons, 'Libre Baskerville', Georgia, serif`;
     g.fillStyle = C.ocean;
     g.textAlign = 'center';
     if ('letterSpacing' in g) g.letterSpacing = '2px';
@@ -446,7 +478,7 @@ export class MapView {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Noms des pays (les grands d'abord visibles, les petits en zoomant).
-    g.font = '700 9.5px PdaIcons, system-ui, sans-serif';
+    g.font = `700 ${T(9.5)}px PdaIcons, system-ui, sans-serif`;
     g.fillStyle = C.country;
     g.textAlign = 'center';
     if ('letterSpacing' in g) g.letterSpacing = '1.5px';
@@ -459,9 +491,15 @@ export class MapView {
     if ('letterSpacing' in g) g.letterSpacing = '0px';
     g.textAlign = 'left';
 
-    // Ports.
-    g.font = '600 11px PdaIcons, system-ui, sans-serif';
-    g.textBaseline = 'middle';
+    // Ports. Leurs noms vont sur le calque du dessus (this.names).
+    const ng = this.nctx, fs = mapSize().city, k = fs / 11;
+    ng.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ng.clearRect(0, 0, this.w, this.h);
+    ng.font = `600 ${fs}px PdaIcons, system-ui, sans-serif`;
+    ng.textBaseline = 'middle';
+    ng.lineJoin = 'round';
+    const FW = Math.round(15 * k), FH = Math.round(10 * k); // drapeau à la taille du texte
+    const dots = [];
     for (const id of PORT_IDS) {
       const P = PORTS[id];
       const [x, y] = this.toScreen(P.lon, P.lat);
@@ -477,6 +515,7 @@ export class MapView {
       g.stroke();
       // Pays sous embargo : halo rouge, anneau rouge continu liseré de blanc, point rouge, et ⚖ devant le nom.
       const emb = !!EMBARGOED[P.flag];
+      dots.push({ id, P, x, y, r: r + (emb ? 7 : hl ? 2 : 0), hl, emb });
       if (emb) {
         g.save();
         const hg = g.createRadialGradient(x, y, r + 2, x, y, r + 13);
@@ -487,30 +526,51 @@ export class MapView {
         g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = '#b8322a'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#fff'; g.stroke();
         g.restore();
       }
-      // Les grands ports sont nommés dès le départ, les petits quand on zoome.
-      if (hl || P.size >= 5 || scale > (P.size >= 4 ? 3 : 4.2)) {
-        const flag = flagImage(P.flag);
-        const [side, dy] = LABEL_PLACE[id] || ['right', 0];
-        const ly = y + dy * Math.max(0.4, Math.min(1, 6 / scale));
-        const hasFlag = flag.complete && flag.naturalWidth;
-        const label = emb ? `⚖ ${tr(P.name)}` : tr(P.name);
-        const tw = g.measureText(label).width;
-        // À droite du point (par défaut) ou à gauche, pour les ports trop proches d'un voisin.
-        let fx = side === 'left' ? x - r - 4 - 15 : x + r + 4;
-        let tx = side === 'left' ? fx - (hasFlag ? 4 : -15) - tw : fx + (hasFlag ? 19 : 0);
-        if (hasFlag) {
-          g.fillStyle = C.halo;
-          g.fillRect(fx - 1, ly - 6, 17, 12);
-          g.drawImage(flag, fx, ly - 5, 15, 10);
-          g.strokeStyle = 'rgba(28,42,51,0.35)'; g.lineWidth = 0.6;
-          g.strokeRect(fx, ly - 5, 15, 10);
-        }
-        g.lineWidth = 3;
-        g.strokeStyle = C.halo;
-        g.strokeText(label, tx, ly);
-        g.fillStyle = hl ? C.portHl : emb ? '#b8322a' : C.ink;
-        g.fillText(label, tx, ly);
+    }
+    // Noms : les ports les plus importants d'abord, chacun du côté prévu (LABEL_PLACE), sinon à la
+    // première place libre autour du point ; un petit port sans place libre n'est pas nommé
+    // (il le sera en zoomant).
+    const placed = dots.map((d) => ({ x1: d.x - d.r - 1, x2: d.x + d.r + 1, y1: d.y - d.r - 1, y2: d.y + d.r + 1, id: d.id }));
+    const free = (b, id) => !placed.some((o) => o.id !== id && b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
+    const gap = Math.round(4 * k), half = Math.ceil(Math.max(FH, fs) / 2) + 1;
+    this.labelSide = new Map();
+    const order = dots.filter((d) => d.hl || d.P.size >= 5 || scale > (d.P.size >= 4 ? 3 : 4.2))
+      .sort((a, b) => (b.hl - a.hl) || (b.P.size - a.P.size));
+    for (const d of order) {
+      const { id, P, x, y, r, hl, emb } = d;
+      const flag = flagImage(P.flag);
+      const hasFlag = flag.complete && flag.naturalWidth;
+      const label = emb ? `⚖ ${tr(P.name)}` : tr(P.name);
+      const tw = ng.measureText(label).width, bw = (hasFlag ? FW + gap : 0) + tw + 2;
+      const [pside, pdy] = LABEL_PLACE[id] || ['right', 0];
+      const other = pside === 'left' ? 'right' : 'left';
+      const tries = [[pside, pdy * k * Math.max(0.4, Math.min(1, 6 / scale))], [other, 0], [pside, -fs], [pside, fs], [other, -fs], [other, fs]];
+      const box = (side, dy) => {
+        const ly = y + dy, x1 = side === 'left' ? x - r - gap - bw : x + r + gap - 1;
+        return { x1, x2: x1 + bw, y1: ly - half, y2: ly + half, ly, side };
+      };
+      let pick = null;
+      for (const [side, dy] of tries) { const b = box(side, dy); if (free(b, id)) { pick = b; break; } }
+      if (!pick) { if (!(hl || P.size >= 5)) continue; pick = box(...tries[0]); }
+      placed.push({ ...pick, id });
+      this.labelSide.set(id, pick.side);
+      const ly = pick.ly;
+      // À droite du point : drapeau puis nom ; à gauche : nom puis drapeau, contre le point.
+      const fx = pick.side === 'left' ? x - r - gap - FW : x + r + gap;
+      const tx = pick.side === 'left' ? (hasFlag ? fx - gap - tw : x - r - gap - tw) : fx + (hasFlag ? FW + gap : 0);
+      if (hasFlag) {
+        const fy = Math.round(ly - FH / 2);
+        ng.fillStyle = C.halo;
+        ng.fillRect(fx - 1, fy - 1, FW + 2, FH + 2);
+        ng.drawImage(flag, fx, fy, FW, FH);
+        ng.strokeStyle = 'rgba(28,42,51,0.35)'; ng.lineWidth = 0.6;
+        ng.strokeRect(fx, fy, FW, FH);
       }
+      ng.lineWidth = 3 * Math.sqrt(k);
+      ng.strokeStyle = C.halo;
+      ng.strokeText(label, tx, ly);
+      ng.fillStyle = hl ? C.portHl : emb ? '#b8322a' : C.ink;
+      ng.fillText(label, tx, ly);
     }
     this.dirty = false;
   }
@@ -519,47 +579,43 @@ export class MapView {
     const g = this.octx, dpr = this.dpr, state = this.state, ctx = this.ctx;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, this.w, this.h);
-    if (!state) return;
+    const names = () => { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(this.names, 0, 0); g.restore(); };
+    if (!state) { names(); return; }
     const { scale } = this.view;
     const ui = this.ui || {};
+    const late = []; // dessiné après les noms des ports : navire choisi, pastilles
+    const T = (n) => Math.round(n * mapSize().ui * 2) / 2;
     const kmToPx = scale / 60; // 1 mille nautique ≈ 1/60 de degré
 
-    // Côtes sensibles : teinte verte unie, bord continu (une pollution y coûte bien plus cher).
+    // Côtes sensibles : leur vrai contour, teinte verte unie, bord continu (une pollution y coûte bien plus cher).
     g.save();
     for (const z of ZONES) {
+      // Vrai contour (celui que lit la simulation), lissé ; lon/lat placent le nom.
+      g.beginPath();
+      let drawn = 0;
+      for (const ring of zoneRings(z)) drawn += this.zonePath(g, ring);
+      if (!drawn) continue;
       const [x, y] = this.toScreen(z.lon, z.lat);
-      const r = Math.max(6, z.r * kmToPx);
-      if (x + r < 0 || x - r > this.w || y + r < 0 || y - r > this.h) continue;
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
       g.fillStyle = `rgba(46,140,110,${0.1 + z.factor * 0.012})`; g.fill();
       g.lineWidth = 1.6; g.strokeStyle = 'rgba(30,110,85,0.7)'; g.stroke();
       if (scale > 7) {
-        g.font = 'italic 600 10px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
-        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y - r * 0.55);
+        g.font = `italic 600 ${T(10)}px PdaIcons, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 3; g.strokeStyle = 'rgba(244,239,227,0.85)'; g.strokeText(`🌿 ${tr(z.name)}`, x, y);
+        g.fillStyle = 'rgba(22,95,72,0.95)'; g.fillText(`🌿 ${tr(z.name)}`, x, y);
       }
     }
     // Zones de piraterie : leur vrai contour (celui que lit la simulation), lissé, teinte rouge unie et bord continu.
     const flagT = REDUCE_MOTION?.matches ? 0 : performance.now() / 1000;
     for (const [zi, z] of PIRACY_ZONES.entries()) {
-      const pts = z.poly.map(([lo, la]) => this.toScreen(lo, la));
-      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
-      if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) continue;
+      g.beginPath();
+      if (!this.zonePath(g, z.poly)) continue;
       const [x, y] = this.toScreen(z.lon, z.lat);
-      // Spline de Catmull-Rom fermée : la courbe passe par chaque point (ni cercle, ni dents de scie).
-      const n = pts.length, P = (i) => pts[(i + n) % n];
-      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 0; i < n; i++) {
-        const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-        g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
-      }
-      g.closePath();
       g.fillStyle = `rgba(200,50,40,${0.1 + z.rate * 3})`; g.fill();
       g.lineWidth = 1.8; g.strokeStyle = 'rgba(170,40,32,0.8)'; g.stroke();
-      const bs = scale > 4 ? 1.15 : 0.85;
+      const bs = (scale > 4 ? 1.15 : 0.85) * mapSize().ui;
       this.pirateBadge(g, x, y, bs, flagT && flagT + zi * 1.7);
       if (scale > 4) {
-        g.font = '700 12px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = `700 ${T(12)}px PdaIcons, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.lineWidth = 3.5; g.strokeStyle = 'rgba(244,239,227,0.9)'; g.strokeText(tr(z.name), x, y + 17 * bs + 4);
         g.fillStyle = 'rgba(150,32,26,0.98)'; g.fillText(tr(z.name), x, y + 17 * bs + 4);
       }
@@ -572,7 +628,7 @@ export class MapView {
       g.save(); g.globalAlpha = 0.78; g.imageSmoothingEnabled = true;
       this.copies((off) => g.drawImage(ice, this.w / 2 + (-180 + off - cx) * scale, this.h / 2 + (-90 - cy) * scale, 360 * scale, 180 * scale));
       g.restore();
-      g.font = '700 12px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `700 ${T(12)}px PdaIcons, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const id of ICE_PLACES) {
         if (!PORTS[id] || iceOpen(state, id)) continue;
         const [x, y] = this.toScreen(PORTS[id].lon, PORTS[id].lat);
@@ -585,7 +641,7 @@ export class MapView {
     for (const [port, until] of Object.entries(me?.grudge || {})) {
       if (until <= state.t || !PORTS[port]) continue;
       const [x, y] = this.toScreen(PORTS[port].lon, PORTS[port].lat);
-      g.font = '800 12px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `800 ${T(12)}px PdaIcons, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText('⚠', x + 9, y - 9);
       g.fillStyle = '#b8322a'; g.fillText('⚠', x + 9, y - 9);
     }
@@ -684,11 +740,15 @@ export class MapView {
       const moving = !v.waitCanal && !(v.stalledUntil > state.t);
       const pos = pointAlong(route, Math.min(route.nm, v.progress + (moving ? v.speed * frac : 0)));
       const [x, y] = this.toScreen(pos.lon, pos.lat);
-      if (x < -20 || x > this.w + 20 || y < -20 || y > this.h + 20) continue;
+      if (x < -60 || x > this.w + 60 || y < -40 || y > this.h + 40) continue;
       const own = ship.owner === active;
-      const half = this.drawShip(g, x, y, ship, pos.heading, company.color, own, ship.id === ui.selectedShip, moving ? v.speed : 0);
+      const half = this.drawShip(g, x, y, ship, pos.heading, company.color, own, false, moving ? v.speed : 0);
       this.shipScreenPos.push({ id: ship.id, x, y, own });
-      if (ship.id === ui.selectedShip || (own && scale > 7)) this.label(g, x + Math.min(9, half.hw * 0.5), y - half.hh - 6, ship.name);
+      if (ship.id === ui.selectedShip) late.push(() => {
+        // Le navire choisi repasse au-dessus des noms des ports, avec son anneau et son nom.
+        this.drawShip(g, x, y, ship, pos.heading, company.color, own, true, moving ? v.speed : 0);
+        this.label(g, x + Math.min(9, half.hw * 0.5), y - half.hh - 7, ship.name);
+      });
     }
     // Navires à quai : pictogramme aux couleurs de la compagnie, et pour les vôtres une
     // pastille qui dit ce qu'ils font (chargement, déchargement, réparation, attente…).
@@ -701,21 +761,28 @@ export class MapView {
       ships.sort((a, b) => (b.owner === active) - (a.owner === active));
       // En arcs autour du port, en laissant libre le côté où s'écrit son nom (la droite, ou la
       // gauche pour les ports serrés contre un voisin : l'arc est alors retourné).
-      const A0 = 0.95, SPAN = Math.PI * 2 - 2 * A0, flip = (LABEL_PLACE[port] || ['right'])[0] === 'left' ? -1 : 1;
+      const A0 = 0.95, SPAN = Math.PI * 2 - 2 * A0, flip = (this.labelSide?.get(port) || (LABEL_PLACE[port] || ['right'])[0]) === 'left' ? -1 : 1;
+      const zs = mapSize().ship; // les arcs s'écartent avec la taille des navires
       let ring = 0, slot = 0;
       ships.forEach((ship) => {
-        const rr = 25 + ring * 18, slots = Math.max(4, Math.floor((rr * SPAN) / 30));
+        const rr = (25 + ring * 18) * zs, slots = Math.max(4, Math.floor((rr * SPAN) / (30 * zs)));
         const ang = A0 + ((slot + 0.5) * SPAN) / slots;
         if (++slot >= slots) { slot = 0; ring++; }
         const x = px + flip * Math.cos(ang) * rr, y = py + Math.sin(ang) * rr;
         const own = ship.owner === active;
         const kind = portActivity(ship);
-        this.drawDocked(g, x, y, ship, state.companies[ship.owner].color, own, kind === 'laidup', ship.id === ui.selectedShip);
-        if (own) this.statusBadge(g, x + 9, y - 8, kind, now);
+        const color = state.companies[ship.owner].color, laidup = kind === 'laidup';
+        const half = this.drawDocked(g, x, y, ship, color, own, laidup, false);
+        if (own) late.push(() => this.statusBadge(g, x + Math.max(9, half.hw * 0.7), y - Math.max(8, half.hh + 2), kind, now));
         this.shipScreenPos.push({ id: ship.id, x, y, own });
-        if (ship.id === ui.selectedShip) this.label(g, x + 17, y + 2, ship.name);
+        if (ship.id === ui.selectedShip) late.push(() => {
+          this.drawDocked(g, x, y, ship, color, own, laidup, true);
+          this.label(g, x + half.hw + 5, y + 2, ship.name);
+        });
       });
     }
+    names();
+    for (const f of late) f();
     // Navire recherché (« Centrer sur la carte », liste de la flotte) : il clignote un instant.
     if (this.flash) {
       const f = this.flash, el = performance.now() - f.t0;
@@ -833,8 +900,9 @@ export class MapView {
   // Navire à quai : petit sprite de profil (cap à droite) ; désarmé : grisé.
   drawDocked(g, x, y, ship, color, own, laidup, selected) {
     const spr = mapShipSprite(ship.type, color, !!ship.cargo, own, { docked: true, laidup });
-    const { r } = drawMapShip(g, this.dpr, x, y, spr);
-    if (selected) { g.beginPath(); g.arc(x, y, Math.max(14, r + 3), 0, Math.PI * 2); g.strokeStyle = C.portHl; g.lineWidth = 2.4; g.stroke(); }
+    const half = drawMapShip(g, this.dpr, x, y, spr);
+    if (selected) { g.beginPath(); g.arc(x, y, Math.max(14, half.r + 3), 0, Math.PI * 2); g.strokeStyle = C.portHl; g.lineWidth = 2.4; g.stroke(); }
+    return half;
   }
 
   // Pastille d'activité d'un navire à quai.
@@ -843,6 +911,7 @@ export class MapView {
     if (!S) return;
     g.save();
     g.translate(x, y);
+    const u = mapSize().ui; g.scale(u, u);
     if (kind === 'idle') { // en attente d'ordres : une onde qui attire l'œil
       const k = (now % 1.4) / 1.4;
       g.beginPath(); g.arc(0, 0, 6.5 + k * 7, 0, Math.PI * 2);
@@ -978,6 +1047,7 @@ export class MapView {
 
   badge(g, x, y, text, color, size = 11) {
     text = tr(text);
+    size = Math.round(size * mapSize().ui * 2) / 2;
     g.font = `700 ${size}px PdaIcons, system-ui, sans-serif`;
     const w = g.measureText(text).width + 8;
     g.fillStyle = 'rgba(251,248,241,0.92)';
@@ -989,12 +1059,15 @@ export class MapView {
     g.textAlign = 'left';
   }
 
+  // Nom du navire sélectionné (lui seul, choix du propriétaire), au pochoir comme partout ailleurs.
   label(g, x, y, text) {
-    g.font = '600 11px PdaIcons, system-ui, sans-serif';
+    g.save();
+    g.font = `700 ${Math.round(15 * mapSize().ui)}px PdaIcons, "Stardos Stencil", Georgia, serif`;
     g.textBaseline = 'middle';
-    g.lineWidth = 3; g.strokeStyle = C.halo;
+    g.lineJoin = 'round'; g.lineWidth = 3.5; g.strokeStyle = C.halo;
     g.strokeText(text, x, y);
     g.fillStyle = C.ink; g.fillText(text, x, y);
+    g.restore();
   }
 
   frame(frac, running = frac > 0) {

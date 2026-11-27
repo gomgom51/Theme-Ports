@@ -10,6 +10,7 @@ import { portName, shipsOf } from '../sim/core.js';
 import { h, money, tonnes, date, days } from './dom.js';
 import { etaOf } from './panel-ship.js';
 import { logoBadge } from './logos.js';
+import { localRect, viewport } from './scale.js';
 
 const D = 24;
 const TAKEN_SHOWN = 3 * D; // « prise par … » reste affiché trois jours (ou jusqu'à fermeture)
@@ -240,9 +241,10 @@ export function renderOpps(app) {
   for (const o of list) (co.seenOpps ??= {})[o.key] ??= state.t;
   // Toute la hauteur entre le bandeau des nouvelles et le classement, à la largeur du classement.
   const st = document.getElementById('standings');
-  const r = st && !st.hidden ? st.getBoundingClientRect() : null;
-  root.style.bottom = `${r && r.height ? Math.round(innerHeight - r.top + 8) : 46}px`;
-  const tk = document.getElementById('ticker')?.getBoundingClientRect();
+  const r = st && !st.hidden ? localRect(st) : null; // en px de l'interface (zoom de ui/scale.js)
+  root.style.bottom = `${r && r.height ? Math.round(viewport().h - r.top + 8) : 46}px`;
+  const tkEl = document.getElementById('ticker');
+  const tk = tkEl ? localRect(tkEl) : null;
   root.style.top = `${tk && tk.height ? Math.round(tk.bottom + 10) : 64}px`;
   root.style.width = `${Math.max(372, Math.round(r?.width || 0))}px`;
   let collapsed = false;

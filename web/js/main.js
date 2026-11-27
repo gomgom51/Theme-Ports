@@ -31,6 +31,7 @@ import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
 import { registerStateShips, watchShipNames } from './ui/shipnames.js';
+import { initPanelSize, gripAfter } from './ui/panelsize.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
@@ -42,6 +43,7 @@ import { honourSVG } from './ui/trophyart.js';
 import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
+import { initScale, localRect, UI_SIZES, uiSize, setUiSize } from './ui/scale.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Vitesse par défaut, choisie par le joueur (double-clic sur ▶, ▶▶ ou ▶▶▶) et gardée sur l'appareil : c'est à elle que
@@ -69,6 +71,7 @@ const app = {
 dialogHooks.onStamp = (delay) => app.audio.play('stamp', delay);
 
 // ---------- Carte ----------
+initScale(); // taille de l'interface : suit la taille de l'écran (et le réglage du menu ☰), avant tout dessin
 app.map = new MapView($('#map'), {
   onShip: (id) => {
     if (app.mode !== 'game') return;
@@ -237,7 +240,7 @@ function renderPanel() {
   panelEl.dataset.tab = curTab;
   panelEl.hidden = false;
   document.body.classList.add('panel-open');
-  if (motion === 'in' || (motion === 'swap' && outMs >= 0)) drawerIn(panelEl, Math.max(0, outMs));
+  if (motion === 'in' || (motion === 'swap' && outMs >= 0)) gripAfter(drawerIn(panelEl, Math.max(0, outMs))?.finished);
   else if (motion === 'tab' && tabs) {
     const ix = (id) => tabs.findIndex((t) => t[0] === id);
     wipeTab(panelEl, oldBody, body, Math.sign(ix(curTab) - ix(prevTab)), oldScroll, def.top instanceof Element ? def.top : null);
@@ -245,7 +248,7 @@ function renderPanel() {
   }
   if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
   if (typing) { const el = body.querySelector(`[data-focus-key="${typing.k}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(typing.a, typing.b); } catch { /* champ sans sélection */ } } }
-  // Section demandée (ex. « La zone » depuis la fiche d'un navire) : on y va, elle s'illumine.
+  // Section demandée (ex. « La Mafia » depuis la fiche d'un navire) : on y va, elle s'illumine.
   // Plusieurs classes : on défile jusqu'à la première trouvée, toutes s'illuminent.
   if (p.focus) {
     const secs = p.focus.split(' ').map((c) => body.querySelector(`.${c}`)).filter(Boolean);
@@ -394,7 +397,7 @@ function standingFloats(c, trEl, viEl) {
   if (!prev) { standingSeen.set(c, { t: c.confidence, v: c.virtue }); return; }
   let delay = 0;
   const float = (el, d, icon) => {
-    const r = el.getBoundingClientRect();
+    const r = localRect(el); // en px de l'interface (zoom de ui/scale.js)
     const f = h('span.float-delta', { class: d > 0 ? 'pos' : 'neg', style: { left: `${Math.round(r.left + r.width / 2)}px`, top: `${Math.round(r.bottom + 6 + (delay / 180) * 24)}px` } }, `${d > 0 ? '+' : '−'}${num1(Math.abs(d))} ${icon}`);
     document.body.append(f);
     setTimeout(() => f.remove(), 1700);
@@ -1059,6 +1062,7 @@ async function gameMenu() {
       { label: `Son : ${soundLabel()}`, value: 'sound' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
       { label: shipStyle() === 'chunky' ? 'Navires : gros pixels' : 'Navires : pixels fins', value: 'ships' },
+      { label: `Interface : ${uiSize().label}`, value: 'uisize' },
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
@@ -1081,6 +1085,13 @@ async function gameMenu() {
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
   else if (v === 'ships') { setShipStyle(shipStyle() === 'chunky' ? 'fine' : 'chunky'); app.speed = wasSpeed; }
+  else if (v === 'uisize') {
+    // Taille de l'interface : « Normale » suit la taille de l'écran (pensé pour 1920 × 1080), les autres l'ajustent.
+    const cur = uiSize().id;
+    const id = await dialog({ title: 'Taille de l\'interface', vertical: true, buttons: UI_SIZES.map((s) => ({ label: s.label, value: s.id, kind: s.id === cur ? 'primary' : '' })) });
+    if (id) setUiSize(id);
+    app.speed = wasSpeed;
+  }
   else if (v === 'parcels') { app.state.settings.noParcelOffers = !app.state.settings.noParcelOffers; app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'guide') { toggleGuide(app); app.speed = wasSpeed; }
@@ -1127,6 +1138,7 @@ $('#standings').addEventListener('click', () => app.open('victory', 'domination'
 initTooltips();
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
+initPanelSize(); // largeur du panneau, réglable à sa poignée
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });

@@ -4,7 +4,7 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
 import { haversineNm } from './routing.js';
 import { money, news, changeTrust, shipLog, companyOf, shipById, costStat } from './core.js';
-import { HOURS_PER_DAY } from './util.js';
+import { HOURS_PER_DAY, inPoly } from './util.js';
 import { EQUIPMENT } from '../data/equipment.js';
 import { hasCitadel, hasEquip } from './equipment.js';
 import * as eco from './economy.js';
@@ -37,15 +37,6 @@ export const ATTACKERS = [
 ];
 const attackerName = (s) => ATTACKERS.find((a) => s <= a.max).name;
 
-// Point dans un contour (lon/lat à plat : les zones sont petites et loin de l'antiméridien).
-function inPoly(lon, lat, poly) {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, yi] = poly[i], [xj, yj] = poly[j];
-    if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-}
 export function piracyZoneAt(lon, lat) {
   return PIRACY_ZONES.find((z) => inPoly(lon, lat, z.poly)) || null;
 }

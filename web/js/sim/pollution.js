@@ -6,9 +6,8 @@ import { ZONES } from '../data/zones.js';
 import { GOODS } from '../data/goods.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS, FLAGS } from '../data/ports.js';
-import { haversineNm } from './routing.js';
 import { money, news, changeVirtue, costStat } from './core.js';
-import { HOURS_PER_DAY } from './util.js';
+import { HOURS_PER_DAY, inPoly } from './util.js';
 import { coverage } from './insurance.js';
 import { equipMod } from './equipment.js';
 import { onSpill } from './honours.js';
@@ -18,10 +17,11 @@ export const OPEN_SEA_FACTOR = 0.15; // déversement au large, loin des côtes
 export const BAN_DAYS = 365;
 export const FUEL_POLLUTION = 1;     // fuel lourd des soutes : aussi tenace que le brut
 
-// Zone sensible où se trouve un point (la plus coûteuse s'il y en a plusieurs).
+// Zone sensible où se trouve un point (la plus coûteuse s'il y en a plusieurs) : le contour dessiné sur la carte.
+export const zoneRings = (z) => z.polys || [z.poly];
 export function zoneAt(lon, lat) {
   let best = null;
-  for (const z of ZONES) if (haversineNm(lon, lat, z.lon, z.lat) <= z.r && (!best || z.factor > best.factor)) best = z;
+  for (const z of ZONES) if ((!best || z.factor > best.factor) && zoneRings(z).some((r) => inPoly(lon, lat, r))) best = z;
   return best;
 }
 // Zones sensibles traversées par un tracé de route.

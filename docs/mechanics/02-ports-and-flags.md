@@ -43,7 +43,7 @@ Derived from `rating` (`data/sanctions.js`):
 | dark ports = embargoed ∩ shady | bandar_abbas, puerto_la_cruz, novorossiysk, nampo | gangs' trust, dark jobs, grudges; = the 4 shadow home ports |
 | `STRICT_FLAGS` (incidents.js) | NL, DE, FR, GR, US, CA, JP, AU, KR, SG | high inspection odds on worn ships |
 | `IMAGE_PORT_FLAGS` | NL, DE, FR, CA, AU, SG, JP | inspection odds × (1.3 at virtue 0 … 0.6 at 100) |
-| pollution `ZONES` (data/zones.js) | 18 sensitive coasts with cost factor 1.5–5 and a flag | spill cost, port ban for negligent polluter |
+| pollution `ZONES` (data/zones.js) | 18 sensitive coasts (real outlines) with cost factor 1.5–5 and a flag | spill cost, port ban for negligent polluter |
 | piracy zones (piracy.js) | aden, guinee (strong), malacca, sulu (medium), venezuela (weak) | attacks |
 
 ## The 66 ports

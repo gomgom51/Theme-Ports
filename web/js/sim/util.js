@@ -24,6 +24,16 @@ export class Rng {
   }
 }
 
+// Point dans un contour [[lon, lat], ...] (à plat : les zones sont petites et loin de l'antiméridien).
+export function inPoly(lon, lat, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 export const HOURS_PER_DAY = 24;
 export const START_YEAR = 2027;
 const START = Date.UTC(START_YEAR, 0, 1);
