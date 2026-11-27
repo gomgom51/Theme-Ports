@@ -43,6 +43,10 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 
 ### Balance tools (final pass only — not run in CI)
 
+- **Comparing versions** (what a change does to players): `node tools/balance/compare.mjs --ref main=origin/main
+  --ref pr=origin/<branch> --suite full` runs population, strategies, fleet and victories on the same seeds for
+  each version and writes a side-by-side report. Process, metrics and how to read them: `docs/balance/README.md`;
+  past reports in `docs/balance/reports/`.
 - `node tests/fleet.test.mjs` — every ship model profitable in a normal market.
 - `node tests/strategies.test.mjs` — no strategy dominates across seeds; each
   one wins in some markets.
@@ -76,7 +80,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   30-day offer, six-month reprieve odds, AI ratios and margins) in `web/js/sim/takeover.js`, rivalry moves (`ATTACKS`:
   cost, certain reputation loss, scandal odds, effects, parry prices; `AI_ATTACK_CHANCE`) in `web/js/sim/plots.js`,
   blacklist (`BLACKLIST`: infamy line, warning, shadow bank) in `web/js/sim/shadow.js`, AI leanings (`AI_LEANINGS`,
-  `AI_BUILDER_FLEET`) in `web/js/sim/ai.js`.
+  `AI_BUILDER_FLEET`) in `web/js/sim/ai.js`; ship cranes `GEAR_SIZE` (the smallest port size a geared ship loads at)
+  in `economy.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
   (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
   margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads
@@ -105,8 +110,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   each of the first five of eight deeds raises the cap by one; level 4; then held six months without falling below 95,
   so rivals warned at 75–90 % have a window to strike), legendary (hold 5 of 8 exclusive records;
   numbered records can be broken, "complete" ones stay with the first), shadow fleet (years on the international
-  blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (one ring
-  icon per victory under the side rail, opening that path's page) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
+  blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (one tile
+  per victory under the side rail, opening that path's page) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
   (award scene), misdeeds are grim proofs on a dark side table; a blacklisted company's office turns ostentatious
   (night outside, velvet, chandelier, gold bust, full safe: `officeSVG` option `shadow`). Office levels are sticky (company maturity) and gate
   takeovers (buy only a company of your level or below), the reputation victory, and bank pressure.
@@ -133,7 +138,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   shown on the contract, fixed at signing), and image-minded ports (`IMAGE_PORT_FLAGS`: NL, DE, FR, CA, AU, SG, JP)
   scale the chance of inspecting a worn ship from ×1.3 at virtue 0 to ×0.6 at 100 (`INSPECT_VIRTUE` in
   `incidents.js`, shown in the departure risks); detention once inspected still depends only on the ship.
-  Carrying oil (crude, refined) costs virtue on every delivery (`VIRTUE_SOURCES.oil`), so an oil fleet cannot win the
+  Carrying oil (crude, refined) costs virtue on every loaded departure (`VIRTUE_SOURCES.oil`, once per cargo, so the hit and its harp come as the ship sails), so an oil fleet cannot win the
   reputation victory; and a world event, the global refinery crisis (weight 1.5 in `EVENTS`, about one every 18 months,
   2 to 4 weeks: `OIL_CRISIS` in `events.js`), removes every oil contract and tender outside embargoed countries
   (signed contracts honoured), announced with its end date in the news, the important notifications and the tankers'
@@ -168,6 +173,15 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   thresholds sit high; a shadow AI must ignore its flag's embargo stance, seek dark ports, avoid gang grudges and refuse
   jobs over 22 % customs risk, or it either never gets dark jobs or loses its fleet to seizures; an AI with no ship
   must be allowed to buy one despite its debt, or it idles forever.
+- Ship readability (owner's design): broker cards and ship sheets list pros and cons as scales, never figures
+  (`SHIP_ROLES` in `ui/shiproles.js`), so new players stop picking the biggest radar star (the radar's capacity,
+  economy and range axes all grow with size). The ship's discretion at customs is shown as a 5-step scale with its
+  sources on every parcel and dark-job offer; every graded scale uses one rising-bars icon (`ui/grade.js`, owner's call). Ship cranes (`gear`) load at medium-port speed in small ports, the
+  1970s tanker is single-hulled (owner's call: no refusal, but a 49 % check at each strict-port call, fine (doubled in
+  the three cleanest: Valdez, Le Havre, Yokohama) and trust loss like a detention, `HULL_CHECK` in `incidents.js`, until a reinforced hull is fitted), and the small general cargo
+  ships come with a switchable transponder, off by default. Owner's call: no built-in hiding places (players can
+  commit further by fitting them). To check in the final pass: `BALLAST_HOLD` pays the empty-return premium on every
+  oil, gas and fruit contract, even when the ship chains loaded legs (refined products: 22 exporters, 29 importers).
 - Lesson (shippers): a client's loyal-partner reservations must be extra offers on
   top of a port's contract pool, never take its slots, or idle fleets pile up.
 - Ice (rule 1): freeze/thaw dates are random each year but the window is always shown,
@@ -243,7 +257,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   (`data-guide="buy|accept|dest|sail|collect"`, panel tabs' `data-tab`, rail `data-panel`).
   Keep these attributes when reworking those buttons, or the tour silently loses its targets.
 - Office keeps 4 tabs (Finances with insurance at the bottom, Résultats, Compagnie, Chargeurs). Each victory has a
-  ring icon under the side rail (`.vic-rail`, `data-victory`) opening panel `victory` with tabs: `course` plus
+  tile under the side rail (own colour, bottom progress bar) (`.vic-rail`, `data-victory`) opening panel `victory` with tabs: `course` plus
   domination → `concurrents`, `classement`; reputation → `hauts-faits`; legend → `records`; shadow → `mefaits`.
   The reputation star ★ is always gold (`--star` / `.star` in `style.css`).
 - End credits (`web/js/ui/credits.js`): film-style roll on `musique/generique.mp3`, every game animation fading in

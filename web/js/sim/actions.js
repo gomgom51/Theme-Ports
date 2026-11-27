@@ -176,6 +176,11 @@ function launch(state, ctx, ship, plan) {
   st.n++;
   if (ship.cargo || ship.dark) st.nmL += p.nm; else st.nmB += p.nm;
   commitOnDeparture(state, ship, plan.to, p.eta); // appel d'offres à destination : l'engagement s'annonce
+  // Pétrole : l'image d'un transporteur de pétrole se paie au départ, une fois par cargaison.
+  if (ship.cargo && OIL_GOODS.includes(ship.cargo.good) && !ship.cargo.oilShame) {
+    ship.cargo.oilShame = true;
+    changeVirtue(company, -oilVirtueLoss(company), 'pétrole');
+  }
   shipLog(state, ship, `Départ de ${portName(ship.port)} pour ${portName(plan.to)} (${Math.round(p.nm)} milles, ${p.speed} nœuds)`);
   ship.status = 'sea';
   ship.port = null;
@@ -287,7 +292,7 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   if (c.golden) (state.queuedNotes ??= []).push({ kind: 'goldenTaken', contractId: c.id, by: ship.owner, text: `${companyOf(state, ship).name} a pris l'affaire en or de ${portName(c.from)} (${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)}).` });
   ship.cargo = { good: c.good, qty: c.qty, hold, contractId: c.id };
   taintShip(state, ship, c.from, c.pay);
-  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, c.qty));
+  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, c.qty, ship.type));
   ship.plan = { to: c.to, speed: p.speed, autoRefuel: opts.autoRefuel ?? true };
   shipLog(state, ship, `Contrat : ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} avant le ${formatDate(c.deadline)}`);
   return { ok: true };
@@ -357,7 +362,7 @@ export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
     if (isEmbargoed(terms.port)) taintShip(state, ship, terms.port, ship.cargo.loan.amount); // argent d'un pays sous embargo
   }
   taintShip(state, ship, ship.port, q.total);
-  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty));
+  startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty, ship.type));
   shipLog(state, ship, `Achat de ${qty.toLocaleString('fr-FR')} t de ${GOODS[good].name.toLowerCase()} à ${portName(ship.port)} (${fmtM(q.total)})`);
   return { ok: true, qty, total: q.total };
 }
@@ -420,9 +425,8 @@ export function sellCargo(state, ctx, shipId) {
   if (tr && tr.rev == null && tr.to === ship.port) tr.rev = Math.round(q.net - (ship.cargo.cost || 0)); // marge du négoce
   taintShip(state, ship, ship.port, q.net);
   onTradeSale(state, company, { qty: ship.cargo.qty, good: ship.cargo.good, value: q.net });
-  if (OIL_GOODS.includes(ship.cargo.good)) changeVirtue(company, -oilVirtueLoss(company), 'pétrole'); // l'image d'un transporteur de pétrole
   shipLog(state, ship, `Vente de ${ship.cargo.qty.toLocaleString('fr-FR')} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${fmtM(Math.abs(q.profit))}`);
-  const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty);
+  const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty, ship.type);
   ship.cargo = null;
   startBusy(state, ship, 'déchargement', hours);
   return { ok: true, ...q };

@@ -7,11 +7,22 @@ import { skillDefence } from './crew.js';
 
 const fail = (msg) => ({ ok: false, msg });
 export const hasEquip = (ship, id) => !!ship?.equipment?.includes(id);
-// Produit des multiplicateurs d'un effet sur tous les équipements installés.
+// Équipement qu'on allume ou coupe à volonté (EQUIPMENT.switchable), même en mer : coupé, il n'a aucun effet.
+export const equipOff = (ship, id) => !!ship?.equipOff?.includes(id);
+export const equipActive = (ship, id) => hasEquip(ship, id) && !equipOff(ship, id);
+// Produit des multiplicateurs d'un effet sur tous les équipements installés (et allumés).
 export function equipMod(ship, key) {
   let m = 1;
-  for (const id of ship?.equipment || []) m *= EQUIPMENT[id]?.mods?.[key] ?? 1;
+  for (const id of ship?.equipment || []) if (!equipOff(ship, id)) m *= EQUIPMENT[id]?.mods?.[key] ?? 1;
   return m;
+}
+export function toggleEquipment(state, shipId, id) {
+  const ship = shipById(state, shipId);
+  if (!ship || !hasEquip(ship, id) || !EQUIPMENT[id]?.switchable) return fail('Rien à allumer ici.');
+  const on = equipOff(ship, id);
+  ship.equipOff = on ? ship.equipOff.filter((x) => x !== id) : [...(ship.equipOff || []), id];
+  shipLog(state, ship, `${EQUIPMENT[id].name} : ${on ? 'en service' : 'coupé'}`);
+  return { ok: true, on };
 }
 // Points de défense contre un abordage : équipements, plus un peu pour un équipage aguerri.
 export function defence(ship) {
@@ -53,6 +64,7 @@ export function removeEquipment(state, shipId, id) {
   if (!ship || !hasEquip(ship, id)) return fail('Rien à retirer.');
   if (ship.status === 'sea') return fail('Impossible en mer.');
   ship.equipment = ship.equipment.filter((x) => x !== id);
+  if (ship.equipOff) ship.equipOff = ship.equipOff.filter((x) => x !== id);
   shipLog(state, ship, `Retiré : ${EQUIPMENT[id].name.toLowerCase()}`);
   return { ok: true };
 }
