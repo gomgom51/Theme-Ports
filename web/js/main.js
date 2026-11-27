@@ -40,7 +40,7 @@ import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
-// Vitesse par défaut, choisie par le joueur (menu ☰) et gardée sur l'appareil : c'est à elle que
+// Vitesse par défaut, choisie par le joueur (double-clic sur ▶, ▶▶ ou ▶▶▶) et gardée sur l'appareil : c'est à elle que
 // le temps repart, quelle que soit la cause (fenêtre fermée, Espace, dernier navire qui reçoit ses ordres).
 const SPEED_KEY = 'port-dattache-speed';
 function defaultSpeed() {
@@ -414,7 +414,11 @@ function updateHud() {
     : lim === 'trust' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre confiance la retient.`
     : `Réputation ${R} : confiance et vertu à égalité.`;
   $('#hud-date').textContent = formatDate(s.t);
-  document.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', +b.dataset.speed === app.speed));
+  const defSpeed = defaultSpeed();
+  document.querySelectorAll('[data-speed]').forEach((b) => {
+    b.classList.toggle('active', +b.dataset.speed === app.speed);
+    b.classList.toggle('default', +b.dataset.speed === defSpeed);
+  });
   // Compteurs rouges (comme des courriels non lus), notifications importantes et standing
   // (musique) : recalculés au plus deux fois par seconde.
   const now = performance.now();
@@ -479,6 +483,15 @@ app.setSpeed = (v) => {
 $('#hud').addEventListener('click', (e) => {
   const b = e.target.closest('[data-speed]');
   if (b) app.setSpeed(+b.dataset.speed);
+});
+// Double-clic sur ▶, ▶▶ ou ▶▶▶ : devient la vitesse par défaut (contour rouge sombre). La pause ne peut pas l'être.
+$('#hud').addEventListener('dblclick', (e) => {
+  const b = e.target.closest('[data-speed]');
+  const v = b ? +b.dataset.speed : 0;
+  if (v < 1 || v > 3) return;
+  setDefaultSpeed(v);
+  updateHud();
+  toast(`Vitesse par défaut : ${'▶'.repeat(v)}`, { timeout: 2000 });
 });
 $('#hud-company').addEventListener('click', () => {
   const humans = app.state.companies.filter((c) => c.human && !c.bankrupt);
@@ -936,7 +949,7 @@ app.newGame = (opts) => {
           ? h('li', `Achetez un premier navire chez le courtier 🏗️ : votre port est pris par les glaces, deux bateaux abordables vous attendent à ${portName(startPort(app.company().homePort))}.`)
           : h('li', 'Achetez un premier navire chez le courtier 🏗️ : deux bateaux abordables attendent dans votre port.'),
         h('li', 'Touchez votre navire puis acceptez un contrat : il chargera et partira tout seul.'),
-        h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres, et repart tout seul quand le dernier les a reçues (vitesse par défaut : menu ☰).'),
+        h('li', 'Lancez le temps avec ▶. Le jeu se met en pause quand un navire attend vos ordres, et repart tout seul quand le dernier les a reçues (vitesse par défaut : double-clic sur la vitesse).'),
         h('li', 'Survolez un bouton ou un chiffre pour une explication. Sur téléphone ou tablette : gardez le doigt appuyé dessus.'),
       ]),
     ]),
@@ -1014,7 +1027,6 @@ async function gameMenu() {
       { label: 'Charger', value: 'load' },
       ...(app.canImport ? [{ label: 'Exporter un fichier', value: 'export' }] : []),
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
-      { label: `Vitesse par défaut : ${'▶'.repeat(defaultSpeed())}`, value: 'defspeed' },
       { label: `Son : ${soundLabel()}`, value: 'sound' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
@@ -1035,12 +1047,6 @@ async function gameMenu() {
     if (slot && (await confirmBox('Charger cette partie ?', 'La partie en cours non sauvegardée sera perdue.', 'Charger'))) app.loadSlot(slot);
   } else if (v === 'export') exportFile(app.state);
   else if (v === 'pause') { app.state.settings.autoPause = !app.state.settings.autoPause; toast(`Pause automatique ${app.state.settings.autoPause ? 'activée' : 'désactivée'}.`, { timeout: 2500 }); }
-  else if (v === 'defspeed') {
-    const next = defaultSpeed() % 3 + 1;
-    setDefaultSpeed(next);
-    toast(`Vitesse par défaut : ${next}. Le temps repartira à cette vitesse.`, { timeout: 3000 });
-    app.speed = wasSpeed;
-  }
   else if (v === 'sound') { await soundDialog(); app.speed = wasSpeed; }
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
