@@ -52,16 +52,17 @@ export function virtueEffects(company) {
 
 // Ce que « ★ 37 » veut dire dans le milieu : une phrase par palier de réputation, avec le nom
 // de la compagnie, et une seconde quand les deux notes divergent fort.
-const QUOTES = [
+const QUOTES = [ // [borne haute exclue, phrase] ; 100 = victoire, jamais affichée seule
   [10, (n) => `« Les assureurs se signent quand ${n} les appelle. »`],
   [20, (n) => `« Au déjeuner, les cadres sourient dès qu'on prononce le nom de ${n}. »`],
-  [35, (n) => `« ${n} ? Jamais entendu parler. »`],
-  [50, (n) => `« ${n} ? Ah oui… ceux qui ont des bateaux, je crois. »`],
-  [65, (n) => `« Sur les quais, on connaît ${n} : sérieux, sans plus. »`],
-  [80, (n) => `« Quand une cargaison compte, les chargeurs appellent ${n} en premier. »`],
-  [90, (n) => `« Les journaux citent ${n} en exemple, et ses concurrents l'imitent. »`],
-  [100, (n) => `« Les ministres veulent être photographiés sur le pont d'un navire de ${n}. »`],
-  [Infinity, (n) => `« Quand ${n} parle, tout le monde maritime se tait pour écouter. »`],
+  [30, (n) => `« ${n} ? C'est une nouvelle série ? »`],
+  [40, (n) => `« ${n} ? Les bateaux ou les camions ? »`],
+  [50, (n) => `« Sur ${n}, y a pas grand-chose à dire. »`],
+  [60, (n) => `« Sur les quais, on connaît ${n}. »`],
+  [70, (n) => `« Sur les quais, on demande ${n}. »`],
+  [80, (n) => `« Contrairement aux journaux, les concurrents n'apprécient pas ${n}. Ils se contentent de les copier. »`],
+  [96, (n) => `« Les ministres veulent être photographiés sur le pont d'un navire de ${n}. Les gens compétents aussi. »`],
+  [Infinity, (n) => `« Si Dieu avait disposé de ${n} à l'époque, Noé serait resté fermier. »`],
 ];
 export const REP_GAP = 20; // écart entre les deux notes à partir duquel la phrase le dit
 export function repQuote(company) {
