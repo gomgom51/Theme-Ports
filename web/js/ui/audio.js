@@ -88,7 +88,8 @@ export const HORN_SYNTH = {
 const SCENE_SOUNDS = new Set([]);
 
 function loadSettings() {
-  const defaults = { ambience: true, sfx: true, music: true, volume: 0.8 };
+  // volume : réserve fixe du mélange ; master, musicVol, ambVol, sfxVol : réglages du joueur (0 à 1, menu ☰).
+  const defaults = { ambience: true, sfx: true, music: true, volume: 0.8, master: 1, musicVol: 1, ambVol: 1, sfxVol: 1 };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
   catch { return defaults; }
 }
@@ -155,15 +156,19 @@ export class AudioManager {
     try { this.ctx = new AC(); } catch { return; }
     const c = this.ctx;
     this.master = c.createGain();
-    this.master.gain.value = this.settings.volume;
+    this.master.gain.value = this.settings.volume * this.settings.master;
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.25;
     this.master.connect(comp).connect(c.destination);
+    // Bus d'ambiance (baissé quand la musique joue) puis son volume réglé par le joueur.
+    this.ambVol = c.createGain();
+    this.ambVol.gain.value = this.settings.ambVol;
+    this.ambVol.connect(this.master);
     this.ambBus = c.createGain();
     this.ambBus.gain.value = 1;
-    this.ambBus.connect(this.master);
+    this.ambBus.connect(this.ambVol);
     this.sfxBus = c.createGain();
-    this.sfxBus.gain.value = 1;
+    this.sfxBus.gain.value = this.settings.sfxVol;
     this.sfxBus.connect(this.master);
     this.reverb = S.makeReverb(c);
     const wet = c.createGain();
@@ -364,6 +369,42 @@ export class AudioManager {
     this.setScene(scene);
   }
   setSfx(on) { this.settings.sfx = on; this.save(); }
+  // Volume (0 à 1) : 'master' (général), 'music', 'ambience' ou 'sfx'. À zéro, la piste est coupée.
+  level(kind) {
+    const st = this.settings;
+    if (kind === 'master') return st.master;
+    if (!st[kind]) return 0;
+    return { music: st.musicVol, ambience: st.ambVol, sfx: st.sfxVol }[kind];
+  }
+  setLevel(kind, v) {
+    v = Math.max(0, Math.min(1, v));
+    const st = this.settings, c = this.ctx;
+    const ramp = (node, to) => { if (node && c) node.gain.setTargetAtTime(to, c.currentTime, 0.05); };
+    if (kind === 'master') {
+      st.master = v;
+      ramp(this.master, st.volume * v);
+    } else {
+      const key = { music: 'musicVol', ambience: 'ambVol', sfx: 'sfxVol' }[kind];
+      if (!key) return;
+      if (v > 0) st[key] = v;
+      if (kind === 'ambience') ramp(this.ambVol, v);
+      if (kind === 'sfx') ramp(this.sfxBus, v);
+      const on = v > 0;
+      if (st[kind] !== on) {
+        if (kind === 'music') this.setMusic(on);
+        else if (kind === 'ambience') this.setAmbience(on);
+        else this.setSfx(on);
+      }
+    }
+    if (kind === 'master' || kind === 'music') this.applyMusicVolume();
+    this.save();
+  }
+  // Volume d'un morceau : le sien, multiplié par le général et celui de la musique.
+  musicLevel(base) { return base * this.settings.master * this.settings.musicVol; }
+  applyMusicVolume() {
+    const el = this.music;
+    if (el && el.musicBase != null && !el.fading) el.volume = Math.min(1, this.musicLevel(el.musicBase));
+  }
   // Juke-box : id (clé de TRACKS), mode 'one' (en boucle) ou 'all' (à la suite), next(id) → id suivant.
   playJuke(id, mode, next) {
     this.juke = { id, mode, next };
@@ -431,6 +472,7 @@ export class AudioManager {
     const el = new Audio(track.src);
     el.loop = loop;
     el.volume = 0;
+    el.musicBase = track.volume;
     // Juke-box « à la suite » : le morceau fini, on passe au suivant débloqué.
     el.addEventListener('ended', () => {
       if (this.music !== el || !this.juke || this.juke.mode !== 'all') return;
@@ -458,7 +500,7 @@ export class AudioManager {
       if (this.music !== el) { el.pause(); this.live.delete(el); return; }
       this.stopOthers(el); // le nouveau morceau joue : tous les autres s'effacent
       markHeard(name); // débloqué pour le juke-box
-      this.fade(el, track.volume, 2500);
+      this.fade(el, () => this.musicLevel(track.volume), 2500);
       // La musique couvre un peu l'ambiance.
       if (this.ambBus) this.ambBus.gain.setTargetAtTime(0.6, this.ctx.currentTime, 1);
     }).catch(() => {});
@@ -480,12 +522,16 @@ export class AudioManager {
     if (this.ambBus) this.ambBus.gain.setTargetAtTime(1, this.ctx.currentTime, 1);
     this.stopOthers(null);
   }
+  // to : volume visé, ou fonction qui le donne (suit un réglage changé pendant le fondu).
   fade(el, to, ms, done) {
-    const from = el.volume, start = performance.now();
+    const from = el.volume, start = performance.now(), id = {};
+    el.fading = id;
     const step = () => {
+      if (el.fading !== id) return; // un autre fondu a pris la main
       const k = Math.min(1, (performance.now() - start) / ms);
-      el.volume = Math.max(0, Math.min(1, from + (to - from) * k));
-      if (k < 1) requestAnimationFrame(step); else done?.();
+      const target = typeof to === 'function' ? to() : to;
+      el.volume = Math.max(0, Math.min(1, from + (target - from) * k));
+      if (k < 1) requestAnimationFrame(step); else { el.fading = null; done?.(); }
     };
     requestAnimationFrame(step);
   }

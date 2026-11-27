@@ -958,6 +958,27 @@ app.continueEndless = () => {
 };
 
 // ---------- Menu ----------
+// Son : volume général, puis musique, ambiance et bruitages (à zéro, la piste est coupée).
+const SOUND_ROWS = [['master', 'Général'], ['music', 'Musique'], ['ambience', 'Ambiance'], ['sfx', 'Bruitages']];
+const pct = (v) => `${Math.round(v * 100)} %`;
+function soundLabel() {
+  const a = app.audio;
+  return a.level('master') && ['music', 'ambience', 'sfx'].some((k) => a.level(k)) ? pct(a.level('master')) : 'coupé';
+}
+function soundDialog() {
+  const a = app.audio;
+  const rows = SOUND_ROWS.map(([kind, label]) => {
+    const out = h('span.vol-val', pct(a.level(kind)));
+    const slider = h('input.range', {
+      type: 'range', min: 0, max: 100, step: 5, value: Math.round(a.level(kind) * 100), 'aria-label': label,
+      oninput: () => { a.setLevel(kind, slider.value / 100); out.textContent = pct(a.level(kind)); },
+      onchange: () => { if (kind === 'sfx' || kind === 'master') a.play('bell'); }, // aperçu au relâché
+    });
+    return [h('span', label), slider, out];
+  });
+  return dialog({ title: 'Son', body: h('div.vol-grid', rows.flat()), buttons: [{ label: 'OK', value: true, kind: 'primary' }] });
+}
+
 async function gameMenu() {
   const wasSpeed = app.speed;
   app.speed = 0;
@@ -970,9 +991,7 @@ async function gameMenu() {
       ...(app.canImport ? [{ label: 'Exporter un fichier', value: 'export' }] : []),
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
       { label: `Vitesse par défaut : ${'▶'.repeat(defaultSpeed())}`, value: 'defspeed' },
-      { label: app.audio.settings.ambience ? 'Ambiance sonore : oui' : 'Ambiance sonore : non', value: 'ambience' },
-      { label: app.audio.settings.sfx ? 'Bruitages : oui' : 'Bruitages : non', value: 'sfx' },
-      { label: app.audio.settings.music ? 'Musique : oui' : 'Musique : non', value: 'music' },
+      { label: `Son : ${soundLabel()}`, value: 'sound' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
@@ -998,9 +1017,7 @@ async function gameMenu() {
     toast(`Vitesse par défaut : ${next}. Le temps repartira à cette vitesse.`, { timeout: 3000 });
     app.speed = wasSpeed;
   }
-  else if (v === 'ambience') { app.audio.setAmbience(!app.audio.settings.ambience); app.speed = wasSpeed; }
-  else if (v === 'sfx') { app.audio.setSfx(!app.audio.settings.sfx); app.speed = wasSpeed; }
-  else if (v === 'music') { app.audio.setMusic(!app.audio.settings.music); app.speed = wasSpeed; }
+  else if (v === 'sound') { await soundDialog(); app.speed = wasSpeed; }
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
   else if (v === 'parcels') { app.state.settings.noParcelOffers = !app.state.settings.noParcelOffers; app.speed = wasSpeed; }

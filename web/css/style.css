@@ -463,6 +463,10 @@ select.input { width: auto; max-width: 100%; }
 .dialog-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 .dialog-buttons.vertical { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .dialog-buttons.vertical .btn { width: 100%; white-space: normal; } /* un libellé long passe à la ligne */
+/* Menu ☰ → Son : libellé, curseur, valeur alignés en colonnes */
+.vol-grid { display: grid; grid-template-columns: auto 1fr 3.2em; gap: 4px 12px; align-items: center; min-width: min(320px, 70vw); }
+.vol-grid .range { min-width: 0; }
+.vol-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
 /* Scènes d'événements : image en pixels nets, croix de fermeture comme une fenêtre. */
 .scene-dialog { position: relative; }
 .scene-dialog.bad { border-top-color: var(--bad); }
