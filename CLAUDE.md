@@ -133,7 +133,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   shown on the contract, fixed at signing), and image-minded ports (`IMAGE_PORT_FLAGS`: NL, DE, FR, CA, AU, SG, JP)
   scale the chance of inspecting a worn ship from ×1.3 at virtue 0 to ×0.6 at 100 (`INSPECT_VIRTUE` in
   `incidents.js`, shown in the departure risks); detention once inspected still depends only on the ship.
-  Carrying oil (crude, refined) costs virtue on every delivery (`VIRTUE_SOURCES.oil`), so an oil fleet cannot win the
+  Carrying oil (crude, refined) costs virtue on every loaded departure (`VIRTUE_SOURCES.oil`, once per cargo, so the hit and its harp come as the ship sails), so an oil fleet cannot win the
   reputation victory; and a world event, the global refinery crisis (weight 1.5 in `EVENTS`, about one every 18 months,
   2 to 4 weeks: `OIL_CRISIS` in `events.js`), removes every oil contract and tender outside embargoed countries
   (signed contracts honoured), announced with its end date in the news, the important notifications and the tankers'

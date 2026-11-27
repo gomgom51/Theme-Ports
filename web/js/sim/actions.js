@@ -176,6 +176,11 @@ function launch(state, ctx, ship, plan) {
   st.n++;
   if (ship.cargo || ship.dark) st.nmL += p.nm; else st.nmB += p.nm;
   commitOnDeparture(state, ship, plan.to, p.eta); // appel d'offres à destination : l'engagement s'annonce
+  // Pétrole : l'image d'un transporteur de pétrole se paie au départ, une fois par cargaison.
+  if (ship.cargo && OIL_GOODS.includes(ship.cargo.good) && !ship.cargo.oilShame) {
+    ship.cargo.oilShame = true;
+    changeVirtue(company, -oilVirtueLoss(company), 'pétrole');
+  }
   shipLog(state, ship, `Départ de ${portName(ship.port)} pour ${portName(plan.to)} (${Math.round(p.nm)} milles, ${p.speed} nœuds)`);
   ship.status = 'sea';
   ship.port = null;
@@ -420,7 +425,6 @@ export function sellCargo(state, ctx, shipId) {
   if (tr && tr.rev == null && tr.to === ship.port) tr.rev = Math.round(q.net - (ship.cargo.cost || 0)); // marge du négoce
   taintShip(state, ship, ship.port, q.net);
   onTradeSale(state, company, { qty: ship.cargo.qty, good: ship.cargo.good, value: q.net });
-  if (OIL_GOODS.includes(ship.cargo.good)) changeVirtue(company, -oilVirtueLoss(company), 'pétrole'); // l'image d'un transporteur de pétrole
   shipLog(state, ship, `Vente de ${ship.cargo.qty.toLocaleString('fr-FR')} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${fmtM(Math.abs(q.profit))}`);
   const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty);
   ship.cargo = null;

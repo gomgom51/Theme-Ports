@@ -33,7 +33,7 @@ export const GOODS = {
 // marchandises utiles en rapportent un peu sur tout contrat livré à l'heure.
 export const FOSSIL_GOODS = ['brut', 'raffines', 'charbon', 'gpl', 'gnl'];
 export const USEFUL_GOODS = ['cereales', 'cafe_cacao', 'fruits', 'bois'];
-// Le pétrole (brut et produits raffinés) : chaque livraison coûte un peu de vertu (sim/core.js, oilVirtueLoss).
+// Le pétrole (brut et produits raffinés) : chaque départ chargé coûte un peu de vertu (sim/core.js, oilVirtueLoss).
 export const OIL_GOODS = ['brut', 'raffines'];
 export const isCleanGood = (g) => !FOSSIL_GOODS.includes(g) && (GOODS[g]?.pollution || 0) < 0.2;
 

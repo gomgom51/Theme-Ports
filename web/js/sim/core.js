@@ -148,7 +148,7 @@ export const STANDING = { cleanMonthly: 2.5, cleanDays: 180, forgiveTo: 50, forg
 //  tenderTrust : appel d'offres servi (confiance, quelle que soit la marchandise) ;
 //  slow        : allure économique, à l'arrivée — entier sous slowFull × la vitesse de service, rien
 //                au-dessus de slowStart, et proportionnel aux jours de mer jusqu'à slowDays.
-//  oil         : perte par livraison de pétrole (contrat ou vente), × (oilFloor + vertu / 100) : elle mord
+//  oil         : perte à chaque départ chargé de pétrole (contrat ou négoce, une fois par cargaison), × (oilFloor + vertu / 100) : elle mord
 //                tant que l'image est bonne, moins quand on est déjà connu comme transporteur de pétrole.
 export const VIRTUE_SOURCES = { useful: 0.8, opportunity: 2, tenderTrust: 1.5, slow: 1.2, slowStart: 0.95, slowFull: 0.75, slowDays: 10, oil: 1, oilFloor: 0.2 };
 export const oilVirtueLoss = (company) => VIRTUE_SOURCES.oil * (VIRTUE_SOURCES.oilFloor + standing(company).virtue / 100);
@@ -169,10 +169,18 @@ function syncReputation(company) {
   company.reputation = Math.min(company.confidence, company.virtue);
 }
 // Bilan du mois : chaque variation (après plafonds) est notée par cause, pour le résumé mensuel.
+// Lente dérive quotidienne (conduite propre, oubli) : pas de son ni de chiffre à chaque pas.
+export const STANDING_DRIFT = new Set(['conduite propre', 'on oublie']);
 function logStanding(company, key, src, applied) {
   if (!src || Math.abs(applied) < 1e-6) return;
   const L = (company.standingMonth ??= { confidence: {}, virtue: {} });
   (L[key] ??= {})[src] = (L[key][src] || 0) + applied;
+  // Événement ponctuel chez un joueur : la barre du haut le montre aussitôt (chiffre et son),
+  // même pour moins d'un point (ex. pétrole : −0,7 vertu au départ).
+  if (company.human && !STANDING_DRIFT.has(src)) {
+    const P = (company.standingPings ??= { confidence: 0, virtue: 0 });
+    P[key] = (P[key] || 0) + applied;
+  }
 }
 export function changeTrust(company, delta, src) {
   standing(company);

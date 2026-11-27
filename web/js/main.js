@@ -357,23 +357,36 @@ function levelUp(co, from, to) {
   playScene('office', { title: several ? `Un nouveau bureau pour ${co.name} !` : 'Un nouveau bureau !', text: `Niveau ${to + 1}/${n} atteint : ${T.name}. ${T.text}`, color: co.color, variant: { from: img(from), to: img(to), level: to + 1 } });
 }
 
-// Confiance et vertu : quand une note bouge d'un point ou plus (cumulé depuis le dernier affichage),
-// un petit chiffre s'envole au-dessus d'elle, avec un son (hausse ou baisse, confiance ou vertu).
+// Confiance et vertu : chaque événement ponctuel (pétrole au départ, amende, aide…) fait s'envoler
+// un petit chiffre au-dessus de la note, avec son son (hausse ou baisse), même sous un point.
+// La lente dérive quotidienne (conduite propre, oubli) reste muette : son chiffre n'apparaît
+// qu'à chaque point cumulé.
 const standingSeen = new WeakMap();
 function standingFloats(c, trEl, viEl) {
+  const pings = c.standingPings || { confidence: 0, virtue: 0 };
+  c.standingPings = { confidence: 0, virtue: 0 };
   const prev = standingSeen.get(c);
   if (!prev) { standingSeen.set(c, { t: c.confidence, v: c.virtue }); return; }
   let delay = 0;
-  for (const [k, el, icon, up, down] of [['t', trEl, '🤝', 'trustUp', 'trustDown'], ['v', viEl, '💚', 'virtueUp', 'virtueDown']]) {
-    const d = (k === 't' ? c.confidence : c.virtue) - prev[k];
-    if (Math.abs(d) < 1) continue;
-    prev[k] += d;
+  const float = (el, d, icon) => {
     const r = el.getBoundingClientRect();
     const f = h('span.float-delta', { class: d > 0 ? 'pos' : 'neg', style: { left: `${Math.round(r.left + r.width / 2)}px`, top: `${Math.round(r.bottom + 6 + (delay / 180) * 24)}px` } }, `${d > 0 ? '+' : '−'}${num1(Math.abs(d))} ${icon}`);
     document.body.append(f);
     setTimeout(() => f.remove(), 1700);
-    setTimeout(() => app.audio.play(d > 0 ? up : down), delay);
     delay += 180;
+  };
+  for (const [k, key, el, icon, up, down] of [['t', 'confidence', trEl, '🤝', 'trustUp', 'trustDown'], ['v', 'virtue', viEl, '💚', 'virtueUp', 'virtueDown']]) {
+    const e = pings[key] || 0;
+    if (Math.abs(e) >= 0.05) {
+      const at = delay;
+      float(el, e, icon);
+      setTimeout(() => app.audio.play(e > 0 ? up : down), at);
+    }
+    prev[k] += e;
+    const d = c[key] - prev[k]; // dérive lente, sans son
+    if (Math.abs(d) < 1) continue;
+    prev[k] += d;
+    float(el, d, icon);
   }
 }
 function updateHud() {
