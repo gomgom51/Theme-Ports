@@ -74,8 +74,13 @@ open sea 0.15). Insured (P&I, seaworthy): deductible `clamp(5 %, 100 k, 5 M)`; e
 
 ## Piracy (`sim/piracy.js`)
 
-Zones: aden (rate 1 %/day, strength 2–7), guinee (1.2 %, 3–8), malacca (0.3 %, 1–4), sulu (0.4 %, 2–5),
-venezuela (0.3 %, 1–4). A rival's paid pirates multiply the rate ×4 and strength +1.5.
+Zones are polygons (`poly`, lon/lat) drawn where attacks really happen: the map draws the same outline, smoothed
+(closed Catmull-Rom spline, flat red tint, solid edge), and `piracyZoneAt` tests a point against the polygon, so the
+risk follows the drawn shape (rule 1). `lon`/`lat` only place the pirate flag. Zones: aden (rate 1.6 %/day,
+strength 2–7), guinee (1.4 %, 3–8), malacca (0.33 %, 1–4), sulu (0.64 %, 2–5), venezuela (0.52 %, 1–4). The rates
+were raised when the old circles became polygons so the average exposure over every port-to-port route stays the same
+(the polygons are tighter: fewer miles inside); ports inside a zone did not change (Djibouti, Lagos, Tema, Singapore,
+Port Klang, Puerto La Cruz). A rival's paid pirates multiply the rate ×4 and strength +1.5.
 
 Three phases, each `p = clamp(0.2 + 0.18 × (def − att), 0.05, 0.95)`; the first success repels:
 - approach: def `max(0, (speed − 13)/2.5) + navigation 0.7`, att `s/3`

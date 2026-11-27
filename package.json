@@ -5,7 +5,8 @@
   "description": "Port d'Attache : jeu de gestion de compagnie maritime (Android et navigateur).",
   "scripts": {
     "start": "python3 -m http.server 8080 --directory web",
-    "test": "node tests/routing.test.mjs && node tests/sim.test.mjs 3 12345 && node tools/i18n-check.mjs",
+    "test": "node tests/routing.test.mjs && node tests/sim.test.mjs 3 12345 && node tools/i18n-check.mjs && node tools/icons-check.mjs",
+    "build:icons": "node tools/icons/build.mjs",
     "balance": "node tests/fleet.test.mjs && node tests/strategies.test.mjs",
     "build:world": "node tools/build_world.mjs && node tools/build_countries.mjs && node tools/build_distances.mjs",
     "build:distances": "node tools/build_distances.mjs"

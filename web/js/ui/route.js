@@ -1,5 +1,5 @@
 // Destination et dates d'un trajet, bien en vue (et non perdues au milieu d'une phrase) :
-// « → 🇳🇬 Lagos · arrivée le 13 févr. · livraison avant le 20 févr. ».
+// « → [drapeau] Lagos · arrivée le 13 févr. · livraison avant le 20 févr. ».
 import { PORTS, FLAGS } from '../data/ports.js';
 import { portName } from '../sim/core.js';
 import { h, date } from './dom.js';
