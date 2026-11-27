@@ -13,7 +13,6 @@ import { portName, companyOf, shipLog } from './core.js';
 import { relationOf } from './clients.js';
 import { rank } from './crew.js';
 import { familyBlocked } from './home.js';
-import { hullBarred } from './incidents.js';
 
 const D = HOURS_PER_DAY;
 export const PROSPECT = {
@@ -41,7 +40,7 @@ export const loadsAt = (port, type) => Object.keys(PORTS[port].exp).some((g) => 
 function nearbyPorts(state, ctx, ship) {
   const T = SHIP_TYPES[ship.type];
   const company = companyOf(state, ship);
-  return PORT_IDS.filter((q) => q !== ship.port && eco.fitsPort(q, ship.type) && !hullBarred(ship, q) && loadsAt(q, ship.type) && !familyBlocked(state, company, q)) // pas de piste au port familial d'un concurrent qui nous vise
+  return PORT_IDS.filter((q) => q !== ship.port && eco.fitsPort(q, ship.type) && loadsAt(q, ship.type) && !familyBlocked(state, company, q)) // pas de piste au port familial d'un concurrent qui nous vise
     .map((q) => ({ q, nm: ctx.distanceInfo(ship.port, q, ctx.closedCanals(state, T.draft, ship))?.nm ?? Infinity }))
     .filter((x) => x.nm <= PROSPECT.leadNm);
 }

@@ -18,7 +18,7 @@ import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 import { noteDelivery, reportClient, clientsDaily, aiDenounces } from './clients.js';
 import { heldOnArrival, plotsDaily, aiPlots, hireLawyer } from './plots.js';
-import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection, isStrict } from './incidents.js';
+import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection, hullCheck } from './incidents.js';
 import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 import { equipMod, equipUpkeep } from './equipment.js';
@@ -174,8 +174,7 @@ function refreshUsedMarket(state, rng, initial = false) {
   while (state.used.length < 16 + state.companies.length) {
     const typeId = rng.weighted(types);
     const T = SHIP_TYPES[typeId];
-    // Pas de navire à vendre dans les glaces, ni de simple coque là où il est interdit.
-    const ports = PORT_IDS.filter((p) => eco.servesType(p, typeId) && !isSeasonal(p) && !(T.singleHull && isStrict(p)));
+    const ports = PORT_IDS.filter((p) => eco.servesType(p, typeId) && !isSeasonal(p)); // pas de navire à vendre dans les glaces
     if (T.vintage) state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [26, 42], [35, 72]));
     else state.used.push(makeListing(state, rng, rng.pick(ports), typeId, [2, T.life - 4], [45, 96]));
   }
@@ -476,6 +475,17 @@ function arrive(state, ctx, ship, notes, rng) {
     news(state, `Le ${ship.name} (${company.name}) est retenu à ${portName(to)} : navire jugé dangereux par les inspecteurs.`, { company: company.id, kind: 'disaster' });
     note(state, notes, 'detention', ship, `Le ${ship.name} est retenu à ${portName(to)} par les inspecteurs : amende de ${Math.round(insp.fine / 1000)} k$ et remise en état obligatoire à ${insp.target} % (${Math.round(insp.cost / 1000).toLocaleString('fr-FR')} k$, ${days} j).`);
     ship.detention = { hours: insp.hours };
+  }
+  // Pétrolier à simple coque dans un port exigeant : contrôle possible, amende et confiance perdue.
+  const hull = rng && ship.busyWhat !== 'saisie' ? hullCheck(rng, ship, to) : null;
+  if (hull) {
+    money(state, company, -hull.fine, 'sinistres', ship);
+    costStat(state, 'detentions', hull.fine);
+    changeTrust(company, hull.trust, 'simple coque');
+    onStain(state, company);
+    shipLog(state, ship, `Amende pour simple coque à ${portName(to)}`);
+    news(state, `Le ${ship.name} (${company.name}), un pétrolier à simple coque, est verbalisé à ${portName(to)}.`, { company: company.id, kind: 'disaster' });
+    note(state, notes, 'sanction', ship, `Contrôle à ${portName(to)} : le ${ship.name} est un pétrolier à simple coque. Amende de ${Math.round(hull.fine / 1000).toLocaleString('fr-FR')} k$ et confiance en baisse. Une coque renforcée, posée au chantier, met fin à ces contrôles.`);
   }
   // Autorités achetées par un concurrent : le navire est retenu sans motif sérieux.
   const held = rng && !ship.detention && ship.busyWhat !== 'saisie' ? heldOnArrival(state, rng, ship, to) : null;

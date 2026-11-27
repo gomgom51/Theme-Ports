@@ -19,7 +19,7 @@ import { flagEl } from './flags.js';
 import { watersLabel } from './waters.js';
 import { clientLine, riskLine } from './payment.js';
 import { fuelGaugeEl, animateNeedle } from './gauge.js';
-import { riskLines, crewInfo, isStrict } from './risk.js';
+import { riskLines, crewInfo, isStrict, hullLine } from './risk.js';
 import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
 import { attackTags, hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
@@ -52,7 +52,7 @@ import { rolesEl } from './shiproles.js';
 import { gradeEl } from './grade.js';
 import { CREW_LEVELS } from '../data/ships.js';
 import { payCut } from '../sim/plots.js';
-import { inspectionThreshold, hullBarred } from '../sim/incidents.js';
+import { inspectionThreshold } from '../sim/incidents.js';
 
 const STATUS_ICON = { sea: '🌊', port: '⚓', laidup: '💤' };
 
@@ -274,6 +274,7 @@ function contractsBase(app, ship) {
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(state, company, c.client)]) : null,
         c.charity ? h('div.card-sub', [`❤ ${c.charity.name} : aide d'urgence, payée à prix coûtant partiel. Réputation +${c.charity.rep} si elle arrive à l'heure.`, repCap(company) < 100 ? ` Plafond de votre réputation : ${repCap(company)}.` : null]) : null,
         c.client ? riskLine(state, company, c.client, c.pay) : null,
+        hullLine(ship, c.to),
         why ? h('div.card-why', why) : h('div.card-sub', [
           `Voyage ≈ ${days(est.totalDays)} · coûts ≈ ${money(est.cost)} · `,
           h('b', { class: profit >= 0 ? 'pos' : 'neg' }, `bénéfice ${money(profit, true)}`),
@@ -342,7 +343,7 @@ function tradeTab(app, ship) {
     const outlets = [];
     const sound = ship.cargo.qty * (1 - (ship.cargo.damage || 0));
     for (const p of PORT_IDS) {
-      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type) || hullBarred(ship, p)) continue;
+      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type)) continue;
       const est = tripEstimate(app, ship, p, T.speed);
       if (est.error || !est.nm) continue;
       const fq = quoteSellAt(state, p, ship.cargo.good, sound, est.totalDays, ship.id);
@@ -380,7 +381,7 @@ function tradeTab(app, ship) {
     // Meilleures destinations pour une cale pleine (appels d'offres compris).
     const dests = [];
     for (const p of PORT_IDS) {
-      if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type) || hullBarred(ship, p) || !eco.portHandles(p, hold)) continue;
+      if (p === here || !(PORTS[p].imp[g] > 0) || !eco.fitsPort(p, ship.type) || !eco.portHandles(p, hold)) continue;
       const qty = Math.max(100, full);
       const est = tripEstimate(app, ship, p, T.speed, qty, hold);
       if (est.error || !est.nm) continue;
@@ -807,7 +808,6 @@ function departTab(app, ship) {
     const info = ctx.distanceInfo(ship.port, p, closed);
     let why = null;
     if (!eco.fitsPort(p, ship.type)) why = `tirant d'eau ${num1(eco.portDraft(p, ship.type))} m`;
-    else if (hullBarred(ship, p)) why = 'simple coque interdite';
     else if (ship.cargo && !eco.portHandles(p, ship.cargo.hold)) why = 'ne peut pas décharger';
     else if (!info) why = 'inaccessible';
     const nm = info?.nm || 0;
@@ -820,7 +820,7 @@ function departTab(app, ship) {
     const contracts = here.length;
     // Ceux que ce navire pourrait prendre (capacité, tirant d'eau, vitesse, terminaux) : les autres
     // restent affichés, ils donnent envie d'un autre navire.
-    const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && !hullBarred(ship, c.to) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
+    const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
     const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
     return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info, famBlock };
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);

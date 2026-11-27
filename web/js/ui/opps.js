@@ -9,7 +9,6 @@ import * as eco from '../sim/economy.js';
 import { portName, shipsOf } from '../sim/core.js';
 import { h, money, tonnes, date, days } from './dom.js';
 import { etaOf } from './panel-ship.js';
-import { hullBarred } from '../sim/incidents.js';
 
 const D = 24;
 const TAKEN_SHOWN = 3 * D; // « prise par … » reste affiché trois jours (ou jusqu'à fermeture)
@@ -79,7 +78,7 @@ export function opportunities(state, ctx, cid) {
 function shipsFor(state, cid, c) {
   return shipsOf(state, cid).filter((s) => {
     const T = SHIP_TYPES[s.type], hold = eco.holdFor(s.type, c.good);
-    return hold && T.dwt >= c.qty && eco.fitsPort(c.from, s.type) && eco.fitsPort(c.to, s.type) && !hullBarred(s, c.to)
+    return hold && T.dwt >= c.qty && eco.fitsPort(c.from, s.type) && eco.fitsPort(c.to, s.type)
       && eco.portHandles(c.from, hold) && eco.portHandles(c.to, hold) && (!c.minSpeed || T.maxSpeed >= c.minSpeed);
   });
 }

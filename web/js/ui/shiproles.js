@@ -115,7 +115,7 @@ export function shipRoles(typeId, { ship = null, age = 0 } = {}) {
   const R = SHIP_ROLES[typeId] || { pros: [], cons: [] };
   const pros = [], cons = [];
   if (T.gear) pros.push('Grues de bord : charge vite même dans les petits ports');
-  if (T.singleHull && !(ship && hasEquip(ship, 'double_coque'))) cons.push('Simple coque : interdit dans les ports exigeants, sauf avec une coque renforcée');
+  if (T.singleHull && !(ship && hasEquip(ship, 'double_coque'))) cons.push('Simple coque : amendes dans les ports exigeants, sauf avec une coque renforcée');
   if (T.stock?.includes('brouilleur')) pros.push('Transpondeur « discret » fourni');
   const lv = typeConcealLevel(typeId);
   if (lv >= 4) pros.push({ t: 'Très discret à la douane', grade: lv });

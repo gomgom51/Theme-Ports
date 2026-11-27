@@ -21,7 +21,6 @@ import { onTradeSale } from './honours.js';
 import { payCut } from './plots.js';
 import { SHADY_PORTS } from '../data/sanctions.js';
 import { closedPort } from './shadow.js';
-import { hullBarred, hullBarredWhy } from './incidents.js';
 
 // why : la raison, quand l'interface doit y réagir (« carburant-fonds » : pas de quoi payer le plein).
 const fail = (msg, why = null) => ({ ok: false, msg, why });
@@ -103,7 +102,6 @@ export function planVoyage(state, ctx, ship, to, speed) {
     return { error: `${FLAGS[PORTS[to].flag].name} interdit ses ports à votre compagnie jusqu'au ${formatDate(bannedUntil(company, PORTS[to].flag))} (pollution).` };
   }
   if (closedPort(company, to)) return { error: `Liste noire : ${FLAGS[PORTS[to].flag].name} saisirait le navire à son arrivée.` };
-  if (hullBarred(ship, to)) return { error: hullBarredWhy(to) };
   if (ship.cargo) {
     if (ship.cargo.contractId) {
       const c = contractById(state, ship.cargo.contractId);
@@ -253,7 +251,6 @@ export function checkContract(state, ctx, ship, contract) {
   if (closedPort(companyOf(state, ship), contract.to)) return `Liste noire : ${FLAGS[PORTS[contract.to].flag].name} saisirait le navire à son arrivée.`;
   if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
   if (!eco.fitsPort(contract.to, ship.type)) return `Tirant d'eau trop important pour ${portName(contract.to)}.`;
-  if (hullBarred(ship, contract.to)) return hullBarredWhy(contract.to);
   if (contract.ice && !iceClass(ship)) return `Fin de saison à ${portName(contract.to)} : le chargeur exige un navire de classe glace.`;
   const refusal = clientRefusal(state, company, contract);
   if (refusal?.kind === 'rancune') return `${refusal.name} ne travaille plus avec vous depuis que vous l'avez dénoncé (jusqu'au ${formatDate(refusal.until)}).`;

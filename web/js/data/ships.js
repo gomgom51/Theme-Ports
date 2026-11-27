@@ -12,8 +12,8 @@
 //  vintage    : modèle ancien, plus construit : seulement d'occasion, et très âgé
 //  gear       : grues de bord (ou mâts de charge) : charge et décharge à bonne cadence même
 //               dans un petit port (economy.js, GEAR_SIZE)
-//  singleHull : pétrolier à simple coque : refusé dans les ports exigeants (STRICT_FLAGS) sans
-//               coque renforcée (incidents.js, hullBarred)
+//  singleHull : pétrolier à simple coque : risque d'amende et de confiance perdue à chaque escale
+//               dans un port exigeant (STRICT_FLAGS) sans coque renforcée (incidents.js, HULL_CHECK)
 //  stock      : équipement livré avec le navire (core.js, createShip), coupé au départ
 export const SHIP_TYPES = {
   // ---------- Marchandises diverses ----------

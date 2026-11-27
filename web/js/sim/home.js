@@ -14,7 +14,6 @@ import { standing, netWorth, SHADOW_LENDER } from './core.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import * as eco from './economy.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
-import { hullBarred } from './incidents.js';
 
 export const HOME = {
   hubs: ['rotterdam', 'dubai', 'singapour', 'shanghai', 'new_york', 'houston', 'los_angeles', 'hong_kong'],
@@ -65,7 +64,7 @@ export function familyContract(state, ctx, rng, ship) {
   if (!company || company.bankrupt || homeKind(company.homePort) !== 'famille') return null;
   if (ship.status !== 'port' || ship.port !== company.homePort || ship.cargo || ship.dark || ship.busyWhat) return null;
   const T = SHIP_TYPES[ship.type];
-  const fits = (c) => c.from === ship.port && c.takenBy === null && eco.holdFor(ship.type, c.good) && c.qty <= T.dwt && !hullBarred(ship, c.to);
+  const fits = (c) => c.from === ship.port && c.takenBy === null && eco.holdFor(ship.type, c.good) && c.qty <= T.dwt;
   if (state.contracts.some((c) => fits(c) && c.family && c.reservedFor === company.id && c.reservedUntil > state.t)) return null;
   for (let tries = 0; tries < 8; tries++) {
     const k = eco.makeContract(state, ctx, rng, ship.port, ship.type);

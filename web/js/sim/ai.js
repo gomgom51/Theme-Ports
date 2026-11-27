@@ -8,7 +8,7 @@ import * as eco from './economy.js';
 import * as act from './actions.js';
 import { shipsOf, fleetValue, creditLimit, contractById, bookTotal, netWorth } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
-import { INCIDENT_BASE, wearRisk, inspectionThreshold, hullBarred } from './incidents.js';
+import { INCIDENT_BASE, wearRisk, inspectionThreshold, hullRisk } from './incidents.js';
 import { ENFORCING } from '../data/sanctions.js';
 import { hasEquip, installEquipment } from './equipment.js';
 import { acceptOffer, detectionChance, sanctionFine, taintActive } from './shady.js';
@@ -86,7 +86,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
     const sale = act.quoteSale(state, ship);
     let best = { port: here, value: sale && sale.possible ? sale.net : -Infinity };
     for (const p of PORT_IDS) {
-      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type) || hullBarred(ship, p)) continue;
+      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
       // Même prudence qu'à l'achat : pas de détour par un pays sous embargo si l'on s'en abstient,
       // et sinon l'amende possible est comptée (sans quoi l'IA y vend dès que le cours y est meilleur).
       const emb = eco.isEmbargoedPort(p);
@@ -120,7 +120,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
   if (ship.condition < 52 && PORTS[here].repair < 2) {
     let best = null;
     for (const p of PORT_IDS) {
-      if (p === here || PORTS[p].repair < 2 || !eco.fitsPort(p, ship.type) || hullBarred(ship, p)) continue;
+      if (p === here || PORTS[p].repair < 2 || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
       const d = ctx.distanceInfo(here, p)?.nm;
       if (d && (!best || d < best.d)) best = { p, d };
     }
@@ -135,6 +135,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (act.checkContract(state, ctx, ship, c)) continue;
     if (hostilePort(state, company.id, c.to)) continue; // autorités achetées contre nous : on évite
     if (grudgeAt(state, company, c.to)) continue; // un gang nous y attend
+    if (hullRisk(ship, c.to)) continue; // simple coque : l'IA évite les ports exigeants plutôt que de risquer l'amende
     const loadH = eco.handlingHours(here, c.hold, c.qty, ship.type) + eco.handlingHours(c.to, c.hold, c.qty, ship.type);
     const trip = tripCost(state, ctx, ship, c.to, loadH);
     if (!trip || trip.plan.error) continue;
@@ -178,7 +179,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
       for (const p of PORT_IDS) {
         if (eco.isEmbargoedPort(p) && avoidsEmbargo(state, company)) continue;
         if (grudgeAt(state, company, p)) continue; // un gang nous y attend
-        if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type) || hullBarred(ship, p)) continue;
+        if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
         const loadH = eco.handlingHours(here, hold, qty, ship.type) + eco.handlingHours(p, hold, qty, ship.type);
         const trip = tripCost(state, ctx, ship, p, loadH);
         if (!trip || trip.plan.error) continue;
@@ -248,7 +249,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
   //    le navire sait transporter (même loin s'il n'y a rien à proximité), ou attendre.
   const candidates = [];
   for (const p of PORT_IDS) {
-    if (p === here || !eco.fitsPort(p, ship.type) || hullBarred(ship, p)) continue;
+    if (p === here || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
     const d = ctx.distanceInfo(here, p)?.nm;
     if (!d) continue;
     if (isSeasonal(p) && act.planVoyage(state, ctx, ship, p, T.speed * 0.9).iceRisk > 0) continue; // pas vers les glaces
