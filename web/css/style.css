@@ -139,6 +139,8 @@ p { margin: 6px 0; }
   min-width: 38px; height: 32px; border-radius: 999px; padding: 0 8px;
 }
 .speed button.active { background: var(--navy); color: #fff; font-weight: 800; }
+/* Vitesse par défaut (double-clic) : contour rouge sombre, que cette vitesse tourne ou non. */
+.speed button.default { box-shadow: inset 0 0 0 2px #8e1c1c; }
 .icon-btn {
   border: 1px solid var(--line); background: var(--paper-2); color: var(--ink);
   width: 36px; height: 36px; border-radius: 9px; font-size: 16px; flex: none;

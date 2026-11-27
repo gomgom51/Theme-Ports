@@ -120,7 +120,7 @@ const STEPS = [
     done: (app) => app.speed > 0,
     show: () => {
       const b = shown($('.speed [data-speed="1"]'));
-      return b && { el: b, text: 'Lancez le temps avec ▶ (▶▶ et ▶▶▶ vont plus vite). Le jeu se met en pause tout seul quand un navire a besoin de vous, et repart à la vitesse par défaut (menu ☰) dès que le dernier a ses ordres.' };
+      return b && { el: b, text: 'Lancez le temps avec ▶ (▶▶ et ▶▶▶ vont plus vite). Le jeu se met en pause tout seul quand un navire a besoin de vous, et repart à la vitesse par défaut (double-clic sur une vitesse, contour rouge) dès que le dernier a ses ordres.' };
     },
   },
   {
