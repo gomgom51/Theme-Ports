@@ -4,7 +4,8 @@
 import { h, tonnes, num } from './dom.js';
 import { SCENES } from './scenes.js';
 import { W, H } from './pixel.js';
-import { LOGOS, logoBadge } from './logos.js';
+import { logoBadge } from './logos.js';
+import { brandTitle, sealSVG } from './brand.js';
 
 // L'auteur du jeu (nom choisi par lui pour le générique).
 export const AUTHOR = 'Clement Gomes';
@@ -25,7 +26,7 @@ const SECTIONS = [
     ['Tous sur Pixabay', 'la mer, les mouettes, les cornes et le reste sont synthétisés par le jeu'],
   ]],
   ['Carte', [['Natural Earth', 'domaine public, via world-atlas'], ['Noms des pays', 'i18n-iso-countries']]],
-  ['Police des titres', [['Libre Baskerville', 'SIL Open Font License']]],
+  ['Polices', [['Stardos Stencil', 'logo, par Vernon Adams, SIL Open Font License'], ['Libre Baskerville', 'titres du jeu, SIL Open Font License']]],
   ['Tests', ['Les testeurs insomniaques de la Galaxie']],
   ['', ['Aucun pétrolier n\'a été coulé pendant le tournage.', 'Toute ressemblance avec des armateurs existants serait purement fortuite.']],
 ];
@@ -66,15 +67,13 @@ export function creditsScreen(app, { company = null, header = null, onDone = () 
 
   const line = (l) => (Array.isArray(l) ? h('div.cr-line', [h('span', l[0]), h('small', l[1])]) : h('div.cr-line', h('span', l)));
   const endCard = h('div.cr-end', [
-    h('span.cr-anchor', { html: `<svg viewBox="0 0 64 64" aria-hidden="true">${LOGOS.ancre.svg}</svg>` }),
+    h('span.cr-anchor', { html: sealSVG(64) }),
     h('p.cr-thanks', 'Merci d\'avoir joué !'),
     h('p.cr-wind', 'Bon vent.'),
   ]);
   const roll = h('div.cr-roll', [
     h('div.cr-head', [
-      h('span.cr-anchor', { html: `<svg viewBox="0 0 64 64" aria-hidden="true">${LOGOS.ancre.svg}</svg>` }),
-      h('h1', 'Port d\'Attache'),
-      h('p.cr-tag', 'Armateur au long cours'),
+      brandTitle('h1'),
       company ? h('div.cr-company', [h('span.badge-wrap', { html: logoBadge(company.logo, company.color, 40) }), h('b', { 'data-no-tr': '' }, company.name)]) : null,
       header ? h('p.cr-tag', header) : null,
     ]),

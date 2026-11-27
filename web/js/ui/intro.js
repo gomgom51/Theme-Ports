@@ -5,6 +5,7 @@
 // bateau appareille vers le soleil et le menu apparaît. Quand le son est déjà
 // permis (application Android, site autorisé), le bateau part tout de suite.
 import { h } from './dom.js';
+import { brandTitle } from './brand.js';
 
 // Ciel du zénith à l'horizon, mer de l'horizon vers le rivage.
 const SKY = ['#1b1035', '#2b1544', '#461b55', '#6c2459', '#982f53', '#c44a44', '#e7783c', '#f6aa4c', '#fbd06a'];
@@ -123,7 +124,7 @@ export function playIntro(app) {
   const canvas = h('canvas.intro-canvas', { 'aria-hidden': 'true' });
   const root = h('div.intro', { role: 'button', tabindex: '0', 'aria-label': 'Embarquer' }, [
     canvas,
-    h('div.intro-title', [h('h1', 'Port d\'Attache'), h('p', 'Armateur au long cours')]),
+    brandTitle('h1.intro-title'),
     h('div.intro-prompt', touch ? '⚓ Touchez l\'écran pour embarquer' : '⚓ Cliquez pour embarquer'),
     h('div.intro-skip', touch ? 'Toucher pour passer' : 'Cliquer pour passer'),
   ]);
