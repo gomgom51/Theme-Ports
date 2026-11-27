@@ -23,8 +23,3 @@ jobs:
         run: node tests/sim.test.mjs 3 12345
       - name: Version anglaise (aucun texte resté en français)
         run: node tools/i18n-check.mjs
-      # Le même contrôle sur les vrais écrans : partie jouée en anglais dans Chrome (déjà sur la machine).
-      - name: Version anglaise à l'écran (navigateur caché)
-        run: |
-          npm install --no-save --no-package-lock --ignore-scripts playwright-core@1.63.0
-          node tools/i18n-screens.mjs

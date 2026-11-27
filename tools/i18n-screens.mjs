@@ -13,7 +13,8 @@
 // passés par tr() (mode développeur, window.__i18nMissing).
 //
 // Usage : node tools/i18n-screens.mjs [jours de partie, 730 par défaut] [graine, 4242 par défaut]
-// Il faut Playwright (déjà là dans les sessions Claude Code ; en CI : playwright-core + Chrome).
+// Il faut Playwright (déjà là dans les sessions Claude Code). Pas dans la CI (choix du propriétaire) :
+// lancé à chaque version groupée, avec `npm test`. Sans Playwright installé : playwright-core + Chrome.
 // Exceptions : tools/i18n-ignore.json, comme pour tools/i18n-check.mjs.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
