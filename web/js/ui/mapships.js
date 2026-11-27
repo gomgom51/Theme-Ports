@@ -8,6 +8,7 @@
 // En mer, le sillage s'allonge avec la vitesse ; à quai, le navire est plus petit (cap à droite).
 import { SHIP_ART } from './shipart.js';
 import { shipStyle, ramp, mix, rng } from './pixelship.js';
+import { uiScale } from './scale.js';
 
 const INK = '#1c2a33', PAPER = 'rgba(251,248,241,0.95)';
 const WHITE = '#f3efe4', GLASS = '#26343c', STEEL = '#9aa3a8', RED = '#c4362c', SOOT = '#1a1f23';
@@ -18,26 +19,40 @@ const GREY = '#9a9890';
 
 const cache = new Map();
 
+// Taille des navires et des noms de ports sur la carte pour un écran de 1920 × 1080 (×1,5 et
+// 13 px) ; sur un écran plus grand, tout grandit avec l'interface (uiScale :
+// ×1,33 en 2560 × 1440, réglable dans le menu ☰). ui : facteur des autres textes de la carte.
+const MAP_SHIPS = 1.5, CITY_PX = 13;
+export function mapSize() {
+  const ui = uiScale();
+  return { ship: MAP_SHIPS * ui, city: Math.round(CITY_PX * ui), ui };
+}
+
 /**
  * Sprite (canevas, 1 pixel = 1 pixel du dessin) et repères : waterline (ligne de flottaison),
  * stern / bow (colonnes de la poupe et de l'étrave), funnel ([x, y] du haut de la cheminée).
  */
 export function mapShipSprite(typeId, color, laden, own, { docked = false, laidup = false } = {}) {
-  const st = shipStyle();
-  const key = `${st}|${typeId}|${color}|${laden ? 1 : 0}|${own ? 1 : 0}|${docked ? 1 : 0}|${laidup ? 1 : 0}`;
+  const st = shipStyle(), sz = mapSize().ship;
+  const key = `${st}|${sz}|${typeId}|${color}|${laden ? 1 : 0}|${own ? 1 : 0}|${docked ? 1 : 0}|${laidup ? 1 : 0}`;
   let spr = cache.get(key);
-  if (!spr) { spr = build(typeId, color, laden, own, docked, laidup, st === 'fine'); cache.set(key, spr); }
+  if (!spr) { spr = build(typeId, color, laden, own, docked, laidup, st === 'fine', sz); cache.set(key, spr); }
   return spr;
 }
 
-function build(typeId, color, laden, own, docked, laidup, fine) {
+function build(typeId, color, laden, own, docked, laidup, fine, size = 1) {
   const A = SHIP_ART[typeId] || SHIP_ART.caboteur;
   // Longueur en pixels du dessin. Gros pixels : moitié moins de pixels, affichés deux fois plus gros,
-  // pour le même encombrement à l'écran.
-  const Ls = fine
+  // pour le même encombrement à l'écran. Plus grand (size) : plus de pixels (même dessin, plus
+  // détaillé) ; les gros pixels passent aussi de 2 à 3 pixels d'écran, pas au-delà (voir px).
+  const cpx = size >= 1.25 ? 3 : 2;
+  const s = fine ? size : (size * 2) / cpx;
+  const L1 = fine
     ? Math.round(docked ? 12 + A.L * 0.034 : 19 + A.L * 0.066)
     : Math.round(docked ? 7 + A.L * 0.019 : 10 + A.L * 0.034);
-  const small = Ls < 18; // peu de pixels : on simplifie (fenêtres, flèches de grue…)
+  const Ls = Math.round(L1 * s);
+  const V = (n) => Math.max(1, Math.round(n * s)); // hauteurs : suivent l'agrandissement
+  const small = L1 < 18; // peu de pixels : on simplifie (fenêtres, flèches de grue…)
   const col = (fr) => Math.max(0, Math.min(Ls - 1, Math.round(fr * (Ls - 1))));
   const r = rng(typeId);
   const px = new Map(); // "x,y" → couleur ; y = 0 : haut de la coque, négatif au-dessus
@@ -47,13 +62,13 @@ function build(typeId, color, laden, own, docked, laidup, fine) {
   const gear = CL.gear && CL.gear !== '#f7f7f3' && CL.gear !== '#f6f4ee' && CL.gear !== '#f1eee6' ? CL.gear : '#d8d4c8';
 
   // ---------- Coque ----------
-  const hr = (Ls >= 30 ? 4 : Ls >= 20 ? 3 : 2) + (laden ? 0 : 1);
+  const hr = V(L1 >= 30 ? 4 : L1 >= 20 ? 3 : 2) + (laden ? 0 : V(1));
   for (let y = 0; y < hr; y++) {
     const bot = y === hr - 1;
     let xs = 0, xe = Ls - 1;
     if (A.box) xe = Ls - 1 - (y === 0 ? 1 : Math.round(y * 0.5));
     else xe = Ls - 1 - Math.round(y * (A.bow === 'straight' ? 1.2 : 0.9));
-    if (A.stern === 'cruiser') xs = Math.round(y * 0.8); else if (bot) xs = 1;
+    if (A.stern === 'cruiser') xs = Math.round(y * 0.8); else if (bot) xs = V(1);
     for (let x = xs; x <= xe; x++) {
       let c;
       if (laden) c = y === 0 ? (fine ? CO[3] : CO[2]) : bot ? CO[1] : CO[2];
@@ -67,20 +82,20 @@ function build(typeId, color, laden, own, docked, laidup, fine) {
   let funnel = null;
   const house = (hsp, bridge) => {
     let x1 = col(hsp.x), x2 = col(hsp.x + hsp.w);
-    const minW = small ? 2 : 3;
+    const minW = V(small ? 2 : 3);
     if (x2 - x1 + 1 < minW) x2 = x1 + minW - 1;
-    const hh = Math.max(2, Math.min(small ? 3 : Ls >= 30 ? 6 : 5, Math.round(hsp.decks * 0.5) + (small ? 0 : 1)));
+    const hh = V(Math.max(2, Math.min(small ? 3 : L1 >= 30 ? 6 : 5, Math.round(hsp.decks * 0.5) + (small ? 0 : 1))));
     for (let k = 0; k < hh; k++) {
       const y = deckTop - k, top = k === hh - 1;
-      const a = hsp.style === 'classic' && top && hh > 2 ? x1 + 1 : x1;
+      const a = hsp.style === 'classic' && k >= hh - V(1) && hh > 2 ? x1 + V(1) : x1;
       for (let x = a; x <= x2; x++) set(x, y, WHITE);
-      if (bridge && top && x2 - a >= 2) for (let x = a + 1; x <= x2; x++) set(x, y, GLASS);
-      else if (!small && k > 0 && k < hh - 1 && fine) for (let x = a + 1; x < x2; x += 2) set(x, y, GLASS);
+      if (bridge && k === hh - V(1) && x2 - a >= 2) for (let x = a + 1; x <= x2; x++) set(x, y, GLASS);
+      else if (!small && k > 0 && k < hh - V(1) && fine && (s === 1 || k % 2 === 1)) for (let x = a + 1; x < x2; x += 2) set(x, y, GLASS);
     }
     if (!hsp.noFunnel) {
-      const fw = x2 - x1 >= 4 ? 2 : 1, fx = x1 + (hsp.style === 'classic' ? 0 : 0), fh = hsp.style === 'classic' ? (small ? 2 : 3) : Ls >= 30 ? 3 : 2;
-      const base = deckTop - hh + (hsp.style === 'classic' && hh > 2 ? 1 : 0);
-      for (let k = 0; k < fh; k++) for (let x = fx; x < fx + fw; x++) set(x, base - k, k === fh - 1 ? SOOT : CO[2]);
+      const fw = x2 - x1 >= V(4) ? V(2) : V(1), fx = x1, fh = V(hsp.style === 'classic' ? (small ? 2 : 3) : L1 >= 30 ? 3 : 2);
+      const base = deckTop - hh + (hsp.style === 'classic' && hh > 2 ? V(1) : 0);
+      for (let k = 0; k < fh; k++) for (let x = fx; x < fx + fw; x++) set(x, base - k, k >= fh - V(1) ? SOOT : CO[2]);
       funnel = [fx, base - fh];
     }
     return { x1, x2, hh };
@@ -89,35 +104,36 @@ function build(typeId, color, laden, own, docked, laidup, fine) {
   const H = A.house ? house(A.house, true) : null;
   if (A.funnelTower) {
     const t = A.funnelTower, x = col(t.x);
-    const th = A.box ? 0 : Math.max(2, Math.min(4, Math.round(t.h / 7)));
-    for (let k = 0; k < th; k++) set(x, deckTop - k, WHITE);
-    const base = deckTop - th - (A.box ? (small ? 2 : 3) : 0);
-    for (let k = 0; k < 2; k++) { set(x, base - k, k === 1 ? SOOT : CO[2]); if (A.box) set(x + 1, base - k, k === 1 ? SOOT : CO[2]); }
-    funnel = [x, base - 2];
+    const th = A.box ? 0 : V(Math.max(2, Math.min(4, Math.round(t.h / 7))));
+    const tw = V(1);
+    for (let k = 0; k < th; k++) for (let i = 0; i < tw; i++) set(x + i, deckTop - k, WHITE);
+    const base = deckTop - th - (A.box ? V(small ? 2 : 3) : 0), fh = V(2), fw = V(A.box ? 2 : 1);
+    for (let k = 0; k < fh; k++) for (let i = 0; i < fw; i++) set(x + i, base - k, k >= fh - V(1) ? SOOT : CO[2]);
+    funnel = [x, base - fh];
   }
 
   // ---------- Cargaison ----------
   if (A.box) {
-    const rows = small ? 2 : 3;
-    for (let k = 0; k < rows; k++) for (let x = col(0.02); x <= Ls - 2 - (k === rows - 1 ? 1 : 0); x++) {
+    const rows = V(small ? 2 : 3);
+    for (let k = 0; k < rows; k++) for (let x = col(0.02); x <= Ls - 2 - (k === rows - 1 ? V(1) : 0); x++) {
       let c = WHITE;
-      if (k === 1 && !small && x % 2 === 0 && x < col(0.84)) c = '#c9c7bd';
+      if (k % V(2) === Math.floor(V(2) / 2) && k < rows - 1 && !small && x % V(2) === 0 && x < col(0.84)) c = '#c9c7bd';
       if (k === rows - 1 && x >= col(A.box.bridge)) c = GLASS;
       set(x, deckTop - k, c);
     }
   }
   if (A.hatches) {
     const hc = CL.hatch || '#3d5a4a';
-    for (const [a, b] of A.hatches) for (let x = col(a) + 1; x <= col(b) - (small ? 0 : 1); x++) if (!get(x, deckTop)) set(x, deckTop, hc);
+    for (const [a, b] of A.hatches) for (let x = col(a) + 1; x <= col(b) - (small ? 0 : 1); x++) for (let k = 0; k < V(1); k++) if (!get(x, deckTop - k)) set(x, deckTop - k, hc);
   }
-  if (A.project && laden && !small) for (const c of A.project) for (let x = col(c.x); x <= col(c.x + c.w); x++) { set(x, deckTop - 1, c.kind === 'boiler' ? '#e3b23c' : '#b4875a'); }
+  if (A.project && laden && !small) for (const c of A.project) for (let x = col(c.x); x <= col(c.x + c.w); x++) for (let k = 0; k < V(1); k++) set(x, deckTop - V(1) - k, c.kind === 'boiler' ? '#e3b23c' : '#b4875a');
   if (A.containers) {
     const c = A.containers;
     const segs = c.segments || [[c.from, c.to], ...(c.aft ? [c.aft] : [])];
-    const tr = Math.max(1, Math.min(small ? 2 : 4, Math.round(c.tiers * (small ? 0.3 : 0.45))));
+    const tr = V(Math.max(1, Math.min(small ? 2 : 4, Math.round(c.tiers * (small ? 0.3 : 0.45)))));
     for (const [a, b] of segs) {
       for (let x = col(a); x <= col(b); x += 2) {
-        const rows = laden ? tr - (r() < 0.25 ? 1 : 0) : (r() < 0.3 ? 1 : 0);
+        const rows = laden ? tr - (r() < 0.25 ? V(1) : 0) : (r() < 0.3 ? V(1) : 0);
         for (let k = 0; k < rows; k++) {
           const bc = BOXES[Math.floor(r() * BOXES.length)];
           set(x, deckTop - k, bc); if (x + 1 <= col(b)) set(x + 1, deckTop - k, fine ? mix(bc, INK, 0.18) : bc);
@@ -128,10 +144,11 @@ function build(typeId, color, laden, own, docked, laidup, fine) {
   const aft = A.aftHouse || A.house;
   if (A.tanker || A.chem) {
     const start = aft ? col(aft.x + aft.w) + 1 : 2;
-    for (let x = start; x <= Ls - 3; x++) if (!get(x, deckTop)) set(x, deckTop, A.chem && fine ? (x % 3 === 0 ? '#e3b23c' : x % 3 === 1 ? '#3a78b5' : STEEL) : STEEL);
+    const q = V(1), tk = A.chem ? Math.max(3, V(3)) : 3;
+    for (let x = start; x <= Ls - 3; x++) for (let k = 0; k < q; k++) if (!get(x, deckTop - k)) set(x, deckTop - k, A.chem && fine ? (x % tk < tk / 3 ? '#e3b23c' : x % tk < (2 * tk) / 3 ? '#3a78b5' : STEEL) : STEEL);
     const mx = col(A.tanker ? A.tanker.manifold : A.chem.manifold);
-    set(mx, deckTop - 1, RED);
-    if (A.chem && !small) for (let x = start + 2; x <= Ls - 4; x += 3) if (Math.abs(x - mx) > 1) set(x, deckTop - 1, '#d6dadb');
+    for (let i = 0; i < q; i++) for (let k = 0; k < q; k++) set(mx + i, deckTop - q - k, RED);
+    if (A.chem && !small) for (let x = start + 2; x <= Ls - 4; x += tk) if (Math.abs(x - mx) > q) for (let k = 0; k < q; k++) set(x, deckTop - q - k, '#d6dadb');
   }
   if (A.spheres) {
     const sp = A.spheres, gap = ((sp.to - sp.from) * (Ls - 1)) / sp.count;
@@ -146,27 +163,28 @@ function build(typeId, color, laden, own, docked, laidup, fine) {
     }
   }
   if (A.cylinders) {
-    const cy = A.cylinders, gap = ((cy.to - cy.from) * (Ls - 1)) / cy.count, rows = small ? 1 : 2;
+    const cy = A.cylinders, gap = ((cy.to - cy.from) * (Ls - 1)) / cy.count, rows = V(small ? 1 : 2);
     for (let k = 0; k < cy.count; k++) {
-      const a = Math.round(cy.from * (Ls - 1) + gap * k), b = Math.round(cy.from * (Ls - 1) + gap * (k + 1)) - 2;
-      for (let j = 0; j < rows; j++) for (let x = a + (j === rows - 1 && rows > 1 ? 1 : 0); x <= b - (j === rows - 1 && rows > 1 ? 1 : 0); x++) set(x, deckTop - j, fine && j === 0 ? '#c9ccc6' : '#dfe2dd');
+      const a = Math.round(cy.from * (Ls - 1) + gap * k), b = Math.round(cy.from * (Ls - 1) + gap * (k + 1)) - V(2);
+      for (let j = 0; j < rows; j++) for (let x = a + (j === rows - 1 && rows > 1 ? 1 : 0); x <= b - (j === rows - 1 && rows > 1 ? 1 : 0); x++) set(x, deckTop - j, fine && j < rows / 2 ? '#c9ccc6' : '#dfe2dd');
     }
   }
   // ---------- Apparaux ----------
   for (const g of A.gear || []) {
     const x = col(g.x);
     if (g.kind === 'mast') {
-      const hgt = small ? 1 : 2;
-      for (let k = 0; k < hgt; k++) set(x, deckTop - k - (A.fc ? 0 : 0), fine ? '#e8e4d6' : WHITE);
+      const hgt = V(small ? 1 : 2);
+      for (let k = 0; k < hgt; k++) set(x, deckTop - k, fine ? '#e8e4d6' : WHITE);
       continue;
     }
-    const post = g.kind === 'heavy' ? (small ? 3 : 5) : g.kind === 'derrick' ? (small ? 2 : 3) : (small ? 1 : 2);
-    for (let k = 0; k < post; k++) set(x, deckTop - k, gear);
-    if (!small) {
-      const dir = g.aft ? -1 : (g.dir ?? 1);
-      const top = deckTop - post + 1;
-      set(x + dir, top - 1, gear);
-      if (g.kind === 'heavy') { set(x + dir * 2, top - 2, gear); set(x + dir * 2, top - 1, null); }
+    const post = V(g.kind === 'heavy' ? (small ? 3 : 5) : g.kind === 'derrick' ? (small ? 2 : 3) : (small ? 1 : 2));
+    const pw = s >= 2 ? 2 : 1; // le fût s'épaissit quand on agrandit beaucoup
+    for (let k = 0; k < post; k++) for (let i = 0; i < pw; i++) set(x + i, deckTop - k, gear);
+    if (!small) { // flèche : un trait en diagonale, plus long quand on agrandit
+      const dir = g.aft ? -1 : (g.dir ?? 1), top = deckTop - post + 1, o = dir > 0 ? pw - 1 : 0;
+      const jib = V(g.kind === 'heavy' ? 2 : 1);
+      for (let i = 1; i <= jib; i++) set(x + o + dir * i, top - i, gear);
+      if (g.kind === 'heavy') for (let i = 0; i < V(1); i++) set(x + o + dir * jib, top - jib + 1 + i, null);
     }
   }
 
@@ -203,7 +221,7 @@ function build(typeId, color, laden, own, docked, laidup, fine) {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const c = cell[y * w + x]; if (c) { g.fillStyle = c; g.fillRect(x, y, 1, 1); } }
   const ox = pad - minX, oy = pad - minY;
   return {
-    canvas: cv, w, h, px: fine ? 1 : 2, waterline: hr - 1 + oy + 1, stern: ox, bow: Ls - 1 + ox,
+    canvas: cv, w, h, px: fine ? 1 : cpx, size, waterline: hr - 1 + oy + 1, stern: ox, bow: Ls - 1 + ox,
     funnel: funnel ? [funnel[0] + ox, funnel[1] + oy] : null, house: H,
   };
 }
@@ -232,7 +250,7 @@ export function drawMapShip(g, dpr, x, y, spr, { left = false, moving = false, s
   if (moving && speed > 0) {
     // Sillage : écume à la flottaison derrière la poupe. Plus le navire va vite, plus elle est
     // longue, blanche et rapide ; en vitesse économique, une courte traînée pâle.
-    const u = spr.px;                                       // gros pixels : moitié moins de pixels
+    const u = spr.px / (spr.size || 1);                     // gros pixels : moitié moins de pixels
     const len = Math.max(3, Math.round((speed * 0.8) / u)); // en pixels du dessin
     const vivid = Math.min(1, 0.55 + speed / 25);
     const wy = dy + (spr.waterline - 1) * k - bob * k;      // dernière rangée de la coque
