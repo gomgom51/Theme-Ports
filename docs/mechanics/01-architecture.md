@@ -152,6 +152,7 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `map.js`, `waters.js` | world map canvas, national waters |
 | `scenes*.js`, `pixel.js`, `shipart.js`, `officeart.js`, `trophyart.js`, `logos.js`, `flags.js` | art |
 | `audio.js`, `sounds.js`, `jukebox.js`, `intro.js`, `credits.js` | sound, music, intro, end credits |
+| `motion.js` | interface motion (owner's picks, "mechanical but smooth"): panels slide out from under the rail like a drawer and stop firmly (the old panel slides back in first), a brass bar sweeps a new tab in (the underline slides), dialogs are stamped onto the map with a small jolt and a soft synthesized thud (`stamp` in `sounds.js`, effects volume; drawer and wiper stay silent). Only opening, closing, switching panel or tab animates, never the 1.2 s refresh; nothing moves under `prefers-reduced-motion`. Timings in `MOTION` |
 | `guide.js` | guided tour (keep `data-guide` markers) |
 | `save.js` | localStorage slots, export/import, `migrateState` on load |
 

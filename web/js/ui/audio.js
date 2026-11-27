@@ -355,6 +355,9 @@ export class AudioManager {
     } else if (name === 'trustUp' || name === 'trustDown' || name === 'virtueUp' || name === 'virtueDown') {
       // Confiance et vertu : fichiers de SAMPLES (sons/confiance-plus.mp3…) ; synthèse si l'un manque.
       if (!this.playSample(name, { gain: name === 'trustUp' ? 0.6 : 0.5, fadeOut: 0.3 })) S.standingCue(c, out, t, { kind: name.startsWith('trust') ? 'trust' : 'virtue', up: name.endsWith('Up') });
+    } else if (name === 'stamp') {
+      // Une boîte de dialogue est pressée sur la carte : arg = délai (s) jusqu'au contact.
+      S.stamp(c, out, t + (arg || 0), { gain: 0.22 });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     }

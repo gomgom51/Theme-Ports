@@ -7,7 +7,8 @@ import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
 import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName } from './sim/core.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
-import { h, $, money, toast, dialog, confirmBox, num1 } from './ui/dom.js';
+import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
+import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
@@ -61,6 +62,9 @@ const app = {
   canImport: !isAndroid(),
   audio: new AudioManager(),
 };
+
+// Boîtes de dialogue : le bruit du tampon, calé sur le contact (volume des bruitages).
+dialogHooks.onStamp = (delay) => app.audio.play('stamp', delay);
 
 // ---------- Carte ----------
 app.map = new MapView($('#map'), {
@@ -176,7 +180,10 @@ app.focusShip = (id) => {
 
 function renderPanel() {
   const p = app.ui.panel;
-  if (!p || app.mode !== 'game') { panelEl.hidden = true; panelEl.replaceChildren(); document.body.classList.remove('panel-open'); app.ui.openedType = null; return; }
+  if (!p || app.mode !== 'game') {
+    if (app.mode === 'game') drawerOutCopy(panelEl); // le tiroir rentre sous le rail
+    panelEl.hidden = true; panelEl.replaceChildren(); panelEl.dataset.ident = ''; document.body.classList.remove('panel-open'); app.ui.openedType = null; return;
+  }
   // Ouvrir un panneau, c'est lire : les alertes, la flotte, un navire, les paiements.
   const cid = app.ui.activeCompany;
   if (app.ui.openedType !== p.type) {
@@ -195,7 +202,13 @@ function renderPanel() {
   // Champ en cours de saisie (recherche) : on le retrouve après le rafraîchissement, curseur compris.
   const typing = document.activeElement?.closest?.('#panel') && document.activeElement.dataset?.focusKey ? { k: document.activeElement.dataset.focusKey, a: document.activeElement.selectionStart, b: document.activeElement.selectionEnd } : null;
   const oldBody = panelEl.querySelector('.panel-body');
-  if (oldBody && panelEl.dataset.key) scrollMemory.set(panelEl.dataset.key, oldBody.scrollTop);
+  const oldScroll = oldBody?.scrollTop ?? 0;
+  if (oldBody && panelEl.dataset.key) scrollMemory.set(panelEl.dataset.key, oldScroll);
+  // Mouvement : seulement si l'on ouvre, change de panneau ou d'onglet (jamais au rafraîchissement).
+  const ident = `${p.type}:${p.id}`, prevIdent = panelEl.hidden ? '' : (panelEl.dataset.ident || '');
+  const prevTab = panelEl.dataset.tab || '', curTab = String(tabId ?? '');
+  const motion = !prevIdent ? 'in' : prevIdent !== ident ? 'swap' : prevTab !== curTab ? 'tab' : null;
+  const outMs = motion === 'swap' ? panelSwapBegin(panelEl) : 0; // l'ancien panneau rentre d'abord
 
   const body = h('div.panel-body');
   if (def.top) body.append(def.top);
@@ -218,8 +231,16 @@ function renderPanel() {
     body,
   ].filter(Boolean));
   panelEl.dataset.key = key;
+  panelEl.dataset.ident = ident;
+  panelEl.dataset.tab = curTab;
   panelEl.hidden = false;
   document.body.classList.add('panel-open');
+  if (motion === 'in' || (motion === 'swap' && outMs >= 0)) drawerIn(panelEl, Math.max(0, outMs));
+  else if (motion === 'tab' && tabs) {
+    const ix = (id) => tabs.findIndex((t) => t[0] === id);
+    wipeTab(panelEl, oldBody, body, Math.sign(ix(curTab) - ix(prevTab)), oldScroll);
+    slideTabLine(panelEl.querySelector('.tabs'), prevTab, curTab);
+  }
   if (scrollMemory.has(key)) body.scrollTop = scrollMemory.get(key);
   if (typing) { const el = body.querySelector(`[data-focus-key="${typing.k}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(typing.a, typing.b); } catch { /* champ sans sélection */ } } }
   // Section demandée (ex. « La zone » depuis la fiche d'un navire) : on y va, elle s'illumine.

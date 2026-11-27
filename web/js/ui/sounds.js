@@ -260,6 +260,27 @@ export function crate(ctx, out, t, { gain = 0.5, pan = 0, size = 1, reverb = nul
   if (Math.random() < 0.6) thump(t + 0.1 + Math.random() * 0.08, gain * 0.45); // la caisse rebondit
 }
 
+// Tampon posé sur un papier, sur un bureau en bois : un choc sourd et bref, le claquement du papier.
+// Sec (sans réverbération) et court, car il revient à chaque boîte de dialogue.
+export function stamp(ctx, out, t, { gain = 0.22 } = {}) {
+  const bus = ctx.createGain();
+  bus.connect(out);
+  const o = ctx.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(55, t + 0.07);
+  o.connect(envelope(ctx, t, { attack: 0.002, decay: 0.13, peak: gain })).connect(bus);
+  o.start(t); o.stop(t + 0.2);
+  const n = noiseSource(ctx, 'white', t, 0.08);
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 1400;
+  n.connect(lp).connect(envelope(ctx, t, { attack: 0.001, decay: 0.035, peak: gain * 0.5 })).connect(bus);
+  const body = noiseSource(ctx, 'white', t, 0.18);
+  const res = ctx.createBiquadFilter();
+  res.type = 'bandpass'; res.frequency.value = 240; res.Q.value = 9;
+  body.connect(res).connect(envelope(ctx, t, { attack: 0.002, decay: 0.12, peak: gain * 1.6 })).connect(bus);
+}
+
 // Conteneur métallique qui cogne : partiels inharmoniques qui résonnent.
 export function clank(ctx, out, t, { gain = 0.3, pan = 0, base = 150, reverb = null } = {}) {
   const dest = panner(ctx, pan, out);
