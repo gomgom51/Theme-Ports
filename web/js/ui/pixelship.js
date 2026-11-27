@@ -12,6 +12,7 @@
 // du dessin (net à 125 % ou 150 %). Seul le grand cadre (inspection, achat) s'anime.
 import { SHIP_ART } from './shipart.js';
 import { logoMarkup, emblemInk } from './logos.js';
+import { pixelRatio } from './scale.js';
 
 // ---------- Réglage du joueur ----------
 const STYLE_KEY = 'pda-ship-style';
@@ -1198,7 +1199,7 @@ function paint(el) {
   try { data = JSON.parse(el.dataset.px); } catch { return; }
   const w = el.clientWidth, h = el.clientHeight;
   if (!w || !h) return;
-  const dpr = window.devicePixelRatio || 1, st = shipStyle();
+  const dpr = pixelRatio(), st = shipStyle(); // pixels de l'écran par px CSS, zoom de l'interface compris
   const dev = Math.max(1, Math.round(cssScale(st, w) * dpr));
   const W = Math.ceil((w * dpr) / dev), H = Math.ceil((h * dpr) / dev);
   let cv = el.querySelector('canvas');
@@ -1272,6 +1273,7 @@ if (typeof document !== 'undefined' && typeof MutationObserver === 'function') {
       for (const el of mounted) if (!el.isConnected) { mounted.delete(el); animated.delete(el); ro?.unobserve(el); }
     }).observe(document.body, { childList: true, subtree: true });
     scan(document.body);
+    window.addEventListener('uiscale', repaintAll); // la taille de l'interface change : on redessine au nouveau pas
   };
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 }

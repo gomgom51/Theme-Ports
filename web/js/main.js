@@ -42,6 +42,7 @@ import { honourSVG } from './ui/trophyart.js';
 import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
+import { initScale, localRect, UI_SIZES, uiSize, setUiSize } from './ui/scale.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Vitesse par défaut, choisie par le joueur (double-clic sur ▶, ▶▶ ou ▶▶▶) et gardée sur l'appareil : c'est à elle que
@@ -69,6 +70,7 @@ const app = {
 dialogHooks.onStamp = (delay) => app.audio.play('stamp', delay);
 
 // ---------- Carte ----------
+initScale(); // taille de l'interface : suit la taille de l'écran (et le réglage du menu ☰), avant tout dessin
 app.map = new MapView($('#map'), {
   onShip: (id) => {
     if (app.mode !== 'game') return;
@@ -394,7 +396,7 @@ function standingFloats(c, trEl, viEl) {
   if (!prev) { standingSeen.set(c, { t: c.confidence, v: c.virtue }); return; }
   let delay = 0;
   const float = (el, d, icon) => {
-    const r = el.getBoundingClientRect();
+    const r = localRect(el); // en px de l'interface (zoom de ui/scale.js)
     const f = h('span.float-delta', { class: d > 0 ? 'pos' : 'neg', style: { left: `${Math.round(r.left + r.width / 2)}px`, top: `${Math.round(r.bottom + 6 + (delay / 180) * 24)}px` } }, `${d > 0 ? '+' : '−'}${num1(Math.abs(d))} ${icon}`);
     document.body.append(f);
     setTimeout(() => f.remove(), 1700);
@@ -1059,6 +1061,7 @@ async function gameMenu() {
       { label: `Son : ${soundLabel()}`, value: 'sound' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
       { label: shipStyle() === 'chunky' ? 'Navires : gros pixels' : 'Navires : pixels fins', value: 'ships' },
+      { label: `Interface : ${uiSize().label}`, value: 'uisize' },
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
       { label: getLang() === 'fr' ? 'Langue : Français' : 'Langue : English', value: 'lang' },
       { label: 'Comment jouer', value: 'help' },
@@ -1081,6 +1084,13 @@ async function gameMenu() {
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
   else if (v === 'ships') { setShipStyle(shipStyle() === 'chunky' ? 'fine' : 'chunky'); app.speed = wasSpeed; }
+  else if (v === 'uisize') {
+    // Taille de l'interface : « Normale » suit la taille de l'écran (pensé pour 1920 × 1080), les autres l'ajustent.
+    const cur = uiSize().id;
+    const id = await dialog({ title: 'Taille de l\'interface', vertical: true, buttons: UI_SIZES.map((s) => ({ label: s.label, value: s.id, kind: s.id === cur ? 'primary' : '' })) });
+    if (id) setUiSize(id);
+    app.speed = wasSpeed;
+  }
   else if (v === 'parcels') { app.state.settings.noParcelOffers = !app.state.settings.noParcelOffers; app.speed = wasSpeed; }
   else if (v === 'help') app.open('help');
   else if (v === 'guide') { toggleGuide(app); app.speed = wasSpeed; }

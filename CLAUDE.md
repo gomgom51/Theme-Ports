@@ -264,6 +264,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   localhost or with `?dev`, the game warns in the console about every text still in
   French (`window.__i18nMissing`). Mark an element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
+- Interface size (`web/js/ui/scale.js`): the page is zoomed by `uiScale()` (1 at 1920 × 1080, 1.33 at 2560 × 1440, adjustable
+  in the ☰ menu). Write `calc(N * var(--vw))` / `var(--vh)` instead of `vw` / `vh`, convert screen coordinates with `localRect()` /
+  `viewport()` before positioning an element, and size a canvas with `pixelRatio()`; the map stays `.unzoom` and scales its own drawings.
 - Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (proportions in metres, beam `B`). Detail
   views (inspect, ship sheet, broker cards, thumbnails) use `ui/pixelship.js` (a `<span class="px-ship">` that gets a
   canvas, slot `big` animated at 8 fps); the map uses side-view sprites from `ui/mapships.js` (laden = company hull,

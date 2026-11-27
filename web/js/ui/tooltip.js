@@ -4,6 +4,8 @@
 // Pendant le survol, le title est retiré (sinon la bulle du navigateur s'affiche en plus),
 // puis remis à la sortie, déjà traduit : la traduction anglaise n'est pas refaite.
 
+import { localRect, viewport } from './scale.js';
+
 const DELAY = 200; // ms avant d'afficher au survol
 const LONG_PRESS = 450; // ms d'appui pour l'afficher au doigt
 const TOUCH_SHOW = 4000; // ms d'affichage après un appui long
@@ -39,12 +41,13 @@ function place(el) {
   const b = bubble();
   b.textContent = held;
   b.classList.add('show');
-  const r = el.getBoundingClientRect();
+  const r = localRect(el); // en px de l'interface (zoom de ui/scale.js)
+  const { w: W, h: H } = viewport();
   const w = b.offsetWidth, hgt = b.offsetHeight, m = 8;
   let x = r.left + r.width / 2 - w / 2;
-  x = Math.max(m, Math.min(innerWidth - w - m, x));
+  x = Math.max(m, Math.min(W - w - m, x));
   let y = r.bottom + 8; // dessous, sinon dessus
-  if (y + hgt > innerHeight - m) y = Math.max(m, r.top - hgt - 8);
+  if (y + hgt > H - m) y = Math.max(m, r.top - hgt - 8);
   b.style.left = `${Math.round(x)}px`;
   b.style.top = `${Math.round(y)}px`;
 }
