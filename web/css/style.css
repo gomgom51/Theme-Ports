@@ -162,23 +162,34 @@ p { margin: 6px 0; }
 .rail-label { font-size: 10.5px; color: var(--ink-2); font-weight: 600; }
 /* Icônes de victoire, sous les boutons : un anneau qui se remplit avec votre progression. */
 .vic-rail { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 6px; margin-top: 4px; }
+/* Tuiles de victoire : même forme que les boutons, une couleur par chemin, barre de progression en bas. */
 .rail .vic-btn {
-  --p: 0; --ring: var(--teal);
-  width: 44px; height: 44px; padding: 3px; border-radius: 50%; border: none;
-  background: conic-gradient(var(--ring) calc(var(--p) * 1%), rgba(28, 42, 51, 0.14) 0);
-  box-shadow: 0 2px 8px rgba(28, 42, 51, 0.12); display: block;
+  --p: 0; --c: var(--teal); --glow: rgba(29, 122, 120, 0.4);
+  width: 46px; height: 40px; padding: 0 0 4px; border-radius: 10px; display: grid; place-items: center;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(var(--c), var(--c)) left bottom / calc(var(--p) * 1%) 4px no-repeat,
+    linear-gradient(rgba(28, 42, 51, 0.1), rgba(28, 42, 51, 0.1)) left bottom / 100% 4px no-repeat,
+    rgba(251, 248, 241, 0.96);
 }
-.rail .vic-btn.warm { --ring: #d39b2a; }
-.rail .vic-btn.hot { --ring: #c4362c; }
+.rail .vic-btn[data-victory="domination"] { --c: #1f3d63; --glow: rgba(31, 61, 99, 0.45); }  /* ⚓ marine */
+.rail .vic-btn[data-victory="reputation"] { --c: var(--star); --glow: rgba(201, 146, 31, 0.5); } /* ★ l'or de l'étoile */
+.rail .vic-btn[data-victory="legend"] { --c: #7a4bb0; --glow: rgba(122, 75, 176, 0.45); }      /* 🏆 violet */
+.rail .vic-btn[data-victory="shadow"] { --c: #3a3a40; --glow: rgba(58, 58, 64, 0.45); }      /* 🗡 anthracite */
+.rail .vic-btn:hover { border-color: var(--c); }
+/* À 75 % : un halo doux de sa couleur ; à 90 % : plus fort, et il respire. */
+.rail .vic-btn.warm { box-shadow: 0 0 0 2px var(--glow), 0 0 10px var(--glow); }
+.rail .vic-btn.hot { box-shadow: 0 0 0 2px var(--c), 0 0 14px var(--c); animation: vic-glow 1.6s ease-in-out infinite; }
+@keyframes vic-glow { 50% { box-shadow: 0 0 0 2px var(--c), 0 0 4px var(--c); } }
 .rail .vic-btn.off { opacity: 0.45; filter: grayscale(1); }
-.rail .vic-btn:hover .vic-btn-icon { box-shadow: inset 0 0 0 2px var(--teal); }
-.vic-btn-icon {
-  display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%;
-  background: rgba(251, 248, 241, 0.98); font-size: 18px; line-height: 1;
-}
+.vic-btn-icon { font-size: 18px; line-height: 1; }
 .vic-btn-icon.star { font-size: 21px; font-weight: 800; }
-.vic-dot { position: absolute; top: 0; right: 0; width: 11px; height: 11px; border-radius: 50%; background: var(--bad); border: 2px solid var(--paper); }
+/* Point rouge : un concurrent à 75 % ; il bat à 90 %. */
+.vic-dot { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: var(--bad); border: 2px solid var(--paper); }
+.vic-dot.hot { animation: vic-dot 1s ease-in-out infinite; }
+@keyframes vic-dot { 50% { transform: scale(1.35); } }
 .vic-dot[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .rail .vic-btn.hot, .vic-dot.hot { animation: none; } }
 .vic-panel-icon { font-size: 34px; line-height: 1; width: 44px; text-align: center; flex: none; }
 .vic-shadow-status { margin-top: 12px; }
 .badge {
@@ -589,10 +600,10 @@ select.input { width: auto; max-width: 100%; }
   .rail-label { font-size: 9.5px; }
   /* Écran bas (téléphone couché) : les quatre victoires en carré de 2 × 2 pour tenir en hauteur. */
   .vic-rail { grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 2px; }
-  .rail .vic-btn { width: 25px; height: 25px; padding: 2px; }
+  .rail .vic-btn { width: 25px; height: 25px; padding: 0 0 3px; border-radius: 7px; background-size: calc(var(--p) * 1%) 3px, 100% 3px, auto; }
   .vic-btn-icon { font-size: 11px; }
   .vic-btn-icon.star { font-size: 13px; }
-  .vic-dot { width: 8px; height: 8px; border-width: 1px; top: -1px; right: -1px; }
+  .vic-dot { width: 8px; height: 8px; border-width: 1px; top: -2px; right: -2px; }
   .speed button { min-width: 32px; height: 30px; padding: 0 6px; }
   .panel-body { padding: 10px 12px 20px; }
   .ship-stats { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }

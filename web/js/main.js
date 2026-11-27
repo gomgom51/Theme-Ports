@@ -253,8 +253,8 @@ function updateStandings(s, me) {
     ]),
   ])), levelLine(netWorth(s, me), s.companies[me]));
 }
-// Icônes de victoire (sous les boutons latéraux) : l'anneau suit votre progression (orange à 75 %,
-// rouge à 90 %), le point rouge signale un concurrent à 75 % ou plus. Recalculé une fois par jour de jeu.
+// Tuiles de victoire (sous les boutons latéraux) : la barre du bas suit votre progression (halo à 75 %,
+// halo qui respire à 90 %), le point rouge signale un concurrent à 75 % ou plus (il bat à 90 %). Recalculé une fois par jour de jeu.
 function updateVictoryRail(s, c) {
   const key = `${c.id}:${Math.floor(s.t / 24)}:${s.victoryClaimed ? 1 : 0}:${getLang()}`;
   const rail = $('.vic-rail');
@@ -272,6 +272,7 @@ function updateVictoryRail(s, c) {
     b.classList.toggle('warm', on && f >= VICTORY.alerts[0] && f < VICTORY.alerts[1]);
     b.classList.toggle('hot', on && f >= VICTORY.alerts[1]);
     b.querySelector('.vic-dot').hidden = !(on && rival >= VICTORY.alerts[0]);
+    b.querySelector('.vic-dot').classList.toggle('hot', on && rival >= VICTORY.alerts[1]);
     const label = !on ? `${info.name} : ${s.victoryClaimed ? 'une victoire a déjà été remportée' : 'désactivée pour cette partie'}`
       : `${info.name} : vous en êtes à ${Math.round(f * 100)} %, le concurrent le plus avancé à ${Math.round(Math.min(1, rival) * 100)} %`;
     b.title = label;
