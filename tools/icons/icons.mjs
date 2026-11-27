@@ -8,6 +8,7 @@ const C = {
   oil: ['#1f272d', '#2e383f', '#56636c'], sea: ['#4f8fb5', '#79a8bf', '#a3c2d1'], orange: ['#9c3f10', '#d45f1b', '#f39a4c'],
   coffee: ['#3b2014', '#5a3320', '#7a4a2c'], teal: ['#1a6365', '#1f8a88', '#55a49d'],
 };
+const GREY = ['#555e64', '#8b959b', '#bcc4c8'];
 const S = (w = 3) => `stroke="${K}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 let uid = 0;
 // Forme pleine avec contour, plus ombre (côté bas-droit) et reflet découpés dans la forme.
@@ -46,14 +47,14 @@ function medalRank(n, col) {
 }
 
 export const EM = {
-  // Médaillons de victoire : disque émaillé sombre, liseré de laiton perlé, éclat en haut à droite.
-  vic_domination: () => medal('#1f3d63', '#2b5486') + `<g transform="translate(32 32) scale(1.06) translate(-32 -32.5)">` +
+  // Médaillons de victoire : disque émaillé (rouge, blanc, violet, noir), liseré de laiton perlé, éclat en haut à droite.
+  vic_domination: () => medal('#8f2a24', '#b8392f') + `<g transform="translate(32 32) scale(1.06) translate(-32 -32.5)">` +
     shape(circ(32, 44, 10.5), C.sea, { shade: 'M32 30H50V60H32Z', light: 'M24 40Q26 35 31 34.5Q27 38 26.5 43Z' }) +
     `<path d="M25 41.5Q29 39 32 41T38 43M27 48Q31 46.5 35 48.5" fill="none" stroke="${C.green[1]}" stroke-width="3" stroke-linecap="round"/>` +
     `<path d="M32 44V14" stroke="${K}" stroke-width="5" stroke-linecap="round"/><path d="M32 44V14" stroke="${C.brass[2]}" stroke-width="2"/>` +
-    shape('M33 15H49L44.5 20.5L49 26H33Z', C.red, { shade: 'M33 22H50V27H33Z', light: 'M34.5 16.5H44V18H34.5Z' }) +
+    shape('M33 15H49L44.5 20.5L49 26H33Z', C.blue, { shade: 'M33 22H50V27H33Z', light: 'M34.5 16.5H44V18H34.5Z' }) +
     shape(circ(32, 13, 2.6), C.brass) + `</g>`,
-  vic_reputation: () => medal('#6e4a10', '#8f6417') + `<g transform="translate(32 32) scale(1.14) translate(-32 -32)">` +
+  vic_reputation: () => medal('#e2d9c4', '#fbf7ec') + `<g transform="translate(32 32) scale(1.14) translate(-32 -32)">` +
     `<g fill="${C.green[1]}" stroke="${K}" stroke-width="1.8">` +
     [0, 1, 2, 3].map((i) => `<ellipse cx="${17 - i * 0.6}" cy="${44 - i * 8}" rx="2.6" ry="4.6" transform="rotate(${-30 + i * 14} ${17 - i * 0.6} ${44 - i * 8})"/><ellipse cx="${47 + i * 0.6}" cy="${44 - i * 8}" rx="2.6" ry="4.6" transform="rotate(${30 - i * 14} ${47 + i * 0.6} ${44 - i * 8})"/>`).join('') + `</g>` +
     shape('M32 13L36.6 23.4L47.9 24.5L39.4 32L41.9 43.1L32 37.3L22.1 43.1L24.6 32L16.1 24.5L27.4 23.4Z', C.brass,
@@ -80,36 +81,18 @@ export const EM = {
     `<ellipse cx="40" cy="32" rx="3.2" ry="12" fill="${C.red[0]}"/>` +
     shape(rect(5, 23, 8, 18, 2.5), C.steel, { shade: rect(9, 20, 6, 24) }) +
     shape('M16 40L22 42.5L19 54Q18.5 56 16.5 55.4L13.5 54.4Q12 53.8 12.5 52Z', C.oil),
-  appel_b: () => shape('M14 8H46Q52 8 52 14V50H20Q14 50 14 44Z', C.card, { shade: 'M44 6H54V52H44Z', light: rect(16.5, 10.5, 3, 34) }) +
-    shape('M14 44Q14 50 20 50H26Q20 50 20 44Q20 38 14 38Z', C.card) +
-    `<path d="M21 16H44M21 22H44M21 28H38" stroke="${C.coffee[1]}" stroke-width="2.8" stroke-linecap="round"/>` +
-    `<path d="M38 44L35 59L40 56L44 60L45 46" fill="${C.red[1]}" ${S(2.4)}/>` +
-    shape(circ(41, 42, 8.5), C.red, { shade: 'M41 42L52 36V54H41Z', light: circ(38, 39, 2.4) }) +
-    `<path d="M37.5 42L40.2 44.6L45 39.4" fill="none" stroke="${C.red[0]}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`,
-  // Voiture moderne, vue de profil comme un vieux sprite : A berline électrique, B SUV.
+  // Voiture moderne vue de profil comme un vieux sprite : un SUV gris (choix du propriétaire).
   vehicules: () => {
-    const wheel = (x, y) => `<path d="M${x - 9.5} ${y}A9.5 9.5 0 0 1 ${x + 9.5} ${y}Z" fill="${K}"/>` +
-      shape(circ(x, y, 7.4), C.oil, {}) + shape(circ(x, y, 4.9), C.steel, { w: 1.4, shade: `M${x} ${y - 7}H${x + 7}V${y + 7}H${x}Z`, light: circ(x - 1.6, y - 1.6, 1.4) }) +
-      `<path d="${[0, 72, 144, 216, 288].map((a) => { const r = (a - 90) * Math.PI / 180; return `M${x} ${y}L${(x + 3.6 * Math.cos(r)).toFixed(2)} ${(y + 3.6 * Math.sin(r)).toFixed(2)}`; }).join('')}" stroke="${C.steel[0]}" stroke-width="1.4" stroke-linecap="round"/>` +
-      `<circle cx="${x}" cy="${y}" r="1.4" fill="${C.oil[1]}"/>`;
-    return shape('M5 42V36.5Q5 33.5 8 32.8L15 30.6Q20 23.6 26 21.6Q33 19.8 40 20.8Q44 21.4 47 24.4L51 29.6L57 31.4Q60.5 32.5 60.5 37V42Q60.5 45 57.5 45H8Q5 45 5 42Z', C.red,
-        { shade: 'M0 38.6H64V50H0Z', light: 'M8 35Q22 31.6 51 31.4V33Q22 33.4 8 36.6Z' }) +
-      shape('M18.5 30Q22.4 24.8 27.2 23.4Q33 22.1 39.4 22.9Q42.4 23.4 44.6 25.8L47.6 30Z', C.blue, { shade: 'M38 21H50V31H38Z', light: 'M24.5 30L30.5 23H33.2L27.2 30Z' }) +
-      `<path d="M33.5 22.6V43.5" stroke="${K}" stroke-width="2"/><path d="M36.5 34H40" stroke="${K}" stroke-width="1.8" stroke-linecap="round"/>` +
-      `<path d="M53.6 32.6L59.6 34.4" stroke="#fffbe8" stroke-width="2.2" stroke-linecap="round"/><path d="M5.6 35.4L10.6 34" stroke="${C.red[2]}" stroke-width="2.2" stroke-linecap="round"/>` +
-      wheel(16.5, 45) + wheel(49, 45);
-  },
-  vehicules_b: () => {
     const wheel = (x, y) => `<path d="M${x - 10} ${y}A10 10 0 0 1 ${x + 10} ${y}Z" fill="${K}"/>` +
       shape(circ(x, y, 8), C.oil, {}) + shape(circ(x, y, 5.3), C.steel, { w: 1.4, shade: `M${x} ${y - 7}H${x + 7}V${y + 7}H${x}Z`, light: circ(x - 1.6, y - 1.6, 1.4) }) +
       `<path d="${[0, 72, 144, 216, 288].map((a) => { const r = (a - 90) * Math.PI / 180; return `M${x} ${y}L${(x + 4 * Math.cos(r)).toFixed(2)} ${(y + 4 * Math.sin(r)).toFixed(2)}`; }).join('')}" stroke="${C.steel[0]}" stroke-width="1.4" stroke-linecap="round"/>` +
       `<circle cx="${x}" cy="${y}" r="1.5" fill="${C.oil[1]}"/>`;
     return `<path d="M21 15H43" stroke="${K}" stroke-width="2.6" stroke-linecap="round"/>` +
-      shape('M5 43V31Q5 28 8 27.5L12.5 27L17.5 19Q19 17 21.5 17H43Q46 17 48 19.5L53 26.5L57.5 28Q60.5 29 60.5 33V43Q60.5 46 57.5 46H8Q5 46 5 43Z', C.red,
+      shape('M5 43V31Q5 28 8 27.5L12.5 27L17.5 19Q19 17 21.5 17H43Q46 17 48 19.5L53 26.5L57.5 28Q60.5 29 60.5 33V43Q60.5 46 57.5 46H8Q5 46 5 43Z', GREY,
         { shade: 'M0 38.5H64V50H0Z', light: 'M8 30.5H54V32.2H8Z' }) +
       shape('M15 27L19.6 20.4Q20.4 19.3 21.8 19.3H42.6Q44.5 19.3 45.8 21L50 26.8H15Z', C.blue, { shade: 'M40 18H52V28H40Z', light: 'M21 27L25.5 19.5H27.6L23.1 27Z' }) +
       `<path d="M28.6 19V44M39.6 19V44" stroke="${K}" stroke-width="2"/><path d="M31 31.5H34.5M42 31.5H45.5" stroke="${K}" stroke-width="1.8" stroke-linecap="round"/>` +
-      `<path d="M55 29.2L59.8 30.6" stroke="#fffbe8" stroke-width="2.4" stroke-linecap="round"/><path d="M5.6 30.6V34.4" stroke="${C.red[2]}" stroke-width="2.4" stroke-linecap="round"/>` +
+      `<path d="M55 29.2L59.8 30.6" stroke="#fffbe8" stroke-width="2.4" stroke-linecap="round"/><path d="M5.6 30.6V34.4" stroke="#e0473a" stroke-width="2.4" stroke-linecap="round"/>` +
       wheel(16.5, 46) + wheel(49, 46);
   },
 
@@ -206,7 +189,15 @@ export const EM = {
     const d = 'M15 13C15 33 28 50 50 51C55 51 57 48 54 46C36 43 25 31 22 13Z';
     const ban = (r) => `<g transform="rotate(${r} 17 12)">` + shape(d, C.brass, { shade: 'M22 30C30 42 40 47 56 47L58 56L20 56Z', light: 'M16.5 16C17 26 20 33 24 38L19 24Z' }) +
       `<path d="M52 46.5L57 47.5" stroke="${C.coffee[1]}" stroke-width="3" stroke-linecap="round"/></g>`;
-    return ban(-14) + ban(4) + ban(22) + shape('M13 4H21L22 15H14Z', C.green, { shade: rect(18, 0, 6, 20) });
+    const FAT = ['#d8bfac', '#f4e4d7', '#fff7ef'], MEAT = ['#7e1f1c', '#b8352d', '#de6b5d'];
+    // Le steak, posé à côté du régime : liseré de gras, persillé et petit os.
+    return `<g transform="translate(-3 -2) scale(0.74)">` + ban(-14) + ban(4) + ban(22) + shape('M13 4H21L22 15H14Z', C.green, { shade: rect(18, 0, 6, 20) }) + `</g>` +
+      `<g transform="rotate(-12 44 46)">` +
+      shape('M25 45C24 37 31 32 38 33C43 33.6 46 30.5 51.5 30.5C58 30.5 62.5 35.5 61.5 42.5C60.5 51.5 52.5 58 42 58C32.5 58 26 52.5 25 45Z', FAT, { shade: 'M46 26H66V62H42Z', light: 'M28 42C29 37.5 32.5 35.4 36.5 35.6C33 37.5 31 40 30.5 44Z' }) +
+      shape('M29.5 45C29 39.5 33.5 36.6 38.5 37.2C43.5 37.8 46.5 34.6 51.5 34.6C56 34.6 58.3 38.2 57.6 43C56.8 50 50.6 54.2 42.2 54.2C35 54.2 30 50.6 29.5 45Z', MEAT,
+        { shade: 'M48 32H62V58H46Z', light: 'M32.5 44.5C32.5 41.5 34.5 39.6 37.5 39.8C35.4 41.4 34.6 43 34.6 45.6Z', w: 2.4 }) +
+      `<path d="M45 41Q48.5 42.6 52.5 41M46.5 49.5Q50 48 54 49.6M38 49.5Q40 51 42.5 50.6" fill="none" stroke="${MEAT[2]}" stroke-width="1.6" stroke-linecap="round"/>` +
+      shape(circ(39, 44.6, 3.6), FAT, { w: 2 }) + `<circle cx="39" cy="44.6" r="1.4" fill="${FAT[0]}"/></g>`;
   },
   minerai: () => shape('M5 52Q8 38 18 33L27 26Q33 22 39 26L48 32Q57 38 59 52Z', C.wood, { shade: 'M34 24H64V56H34Z', light: 'M10 46Q13 38 19 35L17 42Z' }) +
     shape('M17 40L25 34L31 40L26 47L18 47Z', C.wood, { shade: 'M24 41H34V50H24Z' }) + shape('M33 31L41 29L46 36L40 41L33 38Z', C.wood, { shade: 'M40 34H48V43H40Z' }) +
@@ -248,9 +239,17 @@ export const EM = {
       `<path d="M9 36.5H25" stroke="${C.steel[2]}" stroke-width="1.6" stroke-linecap="round"/>`;
   },
   bois: () => {
-    const log = (x, y, r) => shape(circ(x, y, r), C.wood, { shade: `M${x} ${y - r - 2}H${x + r + 2}V${y + r + 2}H${x - r}Z` }) +
-      shape(circ(x, y, r - 3.2), C.card, {}) + `<circle cx="${x}" cy="${y}" r="${(r - 3.2) * 0.55}" fill="none" stroke="${C.card[0]}" stroke-width="1.8"/><circle cx="${x}" cy="${y}" r="1.4" fill="${C.wood[0]}"/>`;
-    return log(19, 44, 13) + log(45, 44, 13) + log(32, 22, 13);
+    const END = ['#c49a5e', '#e6c88f', '#f6e2b6'];
+    const log = (x, y, r) => {
+      const rx = r * 0.72, dx = 24, dy = -11;
+      const body = `M${x} ${y - r}L${x + dx} ${y - r + dy}A${rx} ${r} 0 0 1 ${x + dx} ${y + r + dy}L${x} ${y + r}Z`;
+      const ell = `M${x - rx} ${y}a${rx} ${r} 0 1 0 ${2 * rx} 0a${rx} ${r} 0 1 0 ${-2 * rx} 0Z`;
+      return shape(body, C.wood, { shade: `M${x} ${y + 1}L${x + dx} ${y + dy + 1}L${x + dx + rx + 3} ${y + dy + r + 3}L${x} ${y + r + 3}Z`, light: `M${x} ${y - r + 1.6}L${x + dx} ${y - r + dy + 1.6}V${y - r + dy + 3.4}L${x} ${y - r + 3.4}Z` }) +
+        `<path d="M${x + 9} ${y - 1.6}L${x + 16} ${y - 4.8}M${x + 12} ${y + 4}L${x + 20} ${y + 0.4}" stroke="${C.wood[0]}" stroke-width="1.5" stroke-linecap="round"/>` +
+        shape(ell, END, { light: `M${x - rx} ${y - r}H${x}V${y}H${x - rx}Z`, w: 2.6 }) +
+        `<ellipse cx="${x}" cy="${y}" rx="${(rx * 0.55).toFixed(2)}" ry="${(r * 0.55).toFixed(2)}" fill="none" stroke="${END[0]}" stroke-width="1.4"/><circle cx="${x}" cy="${y}" r="1.3" fill="${C.wood[0]}"/>`;
+    };
+    return log(14, 47, 8.5) + log(30, 47, 8.5) + log(22, 32.5, 8.5);
   },
   chimie: () => shape('M26 6H38V22L52 50Q54 56 48 56H16Q10 56 12 50L26 22Z', C.white, { shade: 'M36 4H56V58H36Z', light: 'M28 9H30V23L18 47H16Z' }) +
     `<clipPath id="fl"><path d="M26 6H38V22L52 50Q54 56 48 56H16Q10 56 12 50L26 22Z"/></clipPath>` +

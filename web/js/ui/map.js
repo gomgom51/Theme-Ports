@@ -14,6 +14,9 @@ import { PIRACY_ZONES } from '../sim/piracy.js';
 import { mapShipSprite, drawMapShip } from './mapships.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
+// Animations d'ambiance (pavillons pirates) : figées si le joueur a demandé moins de mouvement.
+const REDUCE_MOTION = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+
 const LABEL_PLACE = {
   ras_tanura: ['left', -6], ras_laffan: ['left', 7], dubai: ['right', 4], bandar_abbas: ['right', -8], karachi: ['right', -10],
   durban: ['left', 4], richards_bay: ['right', -4],
@@ -537,7 +540,8 @@ export class MapView {
       }
     }
     // Zones de piraterie : leur vrai contour (celui que lit la simulation), lissé, teinte rouge unie et bord continu.
-    for (const z of PIRACY_ZONES) {
+    const flagT = REDUCE_MOTION?.matches ? 0 : performance.now() / 1000;
+    for (const [zi, z] of PIRACY_ZONES.entries()) {
       const pts = z.poly.map(([lo, la]) => this.toScreen(lo, la));
       const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
       if (Math.max(...xs) < 0 || Math.min(...xs) > this.w || Math.max(...ys) < 0 || Math.min(...ys) > this.h) continue;
@@ -553,7 +557,7 @@ export class MapView {
       g.fillStyle = `rgba(200,50,40,${0.1 + z.rate * 3})`; g.fill();
       g.lineWidth = 1.8; g.strokeStyle = 'rgba(170,40,32,0.8)'; g.stroke();
       const bs = scale > 4 ? 1.15 : 0.85;
-      this.pirateBadge(g, x, y, bs);
+      this.pirateBadge(g, x, y, bs, flagT && flagT + zi * 1.7);
       if (scale > 4) {
         g.font = '700 12px PdaIcons, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.lineWidth = 3.5; g.strokeStyle = 'rgba(244,239,227,0.9)'; g.strokeText(tr(z.name), x, y + 17 * bs + 4);
@@ -792,9 +796,11 @@ export class MapView {
 
   // Insigne de piraterie : crâne et tibias blancs sur disque sombre cerclé de rouge.
   // Pavillon pirate : drapeau noir sur sa hampe, tête de mort et tibias croisés.
-  pirateBadge(g, x, y, s = 1) {
+  // Pavillon pirate d'une zone. t (secondes, 0 = immobile) : le badge flotte doucement et une onde court
+  // dans le pavillon, de la hampe vers le bord libre.
+  pirateBadge(g, x, y, s = 1, t = 0) {
     g.save();
-    g.translate(x, y); g.scale(s, s);
+    g.translate(x, y + (t ? Math.sin(t * 1.3) * 1.6 : 0)); g.scale(s, s);
     g.lineCap = 'round'; g.lineJoin = 'round';
     // Hampe et pommeau.
     g.lineWidth = 3.4; g.strokeStyle = 'rgba(244,239,227,0.9)';
@@ -802,17 +808,16 @@ export class MapView {
     g.lineWidth = 1.8; g.strokeStyle = '#4a3420';
     g.beginPath(); g.moveTo(-14, -14); g.lineTo(-14, 13); g.stroke();
     g.fillStyle = '#c9a24a'; g.beginPath(); g.arc(-14, -15, 1.9, 0, Math.PI * 2); g.fill();
-    // Le pavillon, légèrement ondulé, avec un liseré clair pour ressortir sur la carte.
+    // Le pavillon ondule (amplitude nulle à la hampe), avec un liseré clair pour ressortir sur la carte.
+    const wave = (px) => { const u = (px + 13) / 26; return u * (2.2 * Math.sin(px * 0.24 - t * 3.2) + 0.8); };
     g.beginPath();
-    g.moveTo(-13, -13);
-    g.quadraticCurveTo(-2, -16.5, 13, -12);
-    g.lineTo(13, 5);
-    g.quadraticCurveTo(-2, 9, -13, 5);
+    for (let i = 0; i <= 10; i++) { const px = -13 + i * 2.6; g[i ? 'lineTo' : 'moveTo'](px, -13 + wave(px)); }
+    for (let i = 10; i >= 0; i--) { const px = -13 + i * 2.6; g.lineTo(px, 5 + wave(px)); }
     g.closePath();
     g.fillStyle = '#17110f'; g.fill();
     g.lineWidth = 1.5; g.strokeStyle = '#f4efe3'; g.stroke();
-    // Tête de mort et tibias croisés, au centre du pavillon.
-    g.translate(0, -4.2); g.scale(0.82, 0.82);
+    // Tête de mort et tibias croisés, portés par l'onde au centre du pavillon.
+    g.translate(0, -4.2 + wave(0)); g.rotate(Math.atan((wave(1.5) - wave(-1.5)) / 3)); g.scale(0.82, 0.82);
     g.strokeStyle = '#f4efe3'; g.fillStyle = '#f4efe3';
     g.lineWidth = 2;
     g.beginPath(); g.moveTo(-6.5, -2); g.lineTo(6.5, 7); g.moveTo(6.5, -2); g.lineTo(-6.5, 7); g.stroke();

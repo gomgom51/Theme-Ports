@@ -5,7 +5,7 @@ export const CPS = {
   confiance: ['🤝'], vertu: ['💚'], etoile: ['★', '⭐'], embargo: ['⚖'], cereales: ['🌾'], brut: ['🛢'], raffines: ['⛽'],
   manufactures: ['📦'], cafe: ['☕'], fruits: ['🍌'], minerai: ['⛰'], charbon: ['⚫'], engrais: ['🧪'], machines: ['⚙'],
   acier: ['🔩'], bois: ['🪵'], chimie: ['⚗'], gpl: ['🔥'], gnl: ['💧'], vehicules: ['🚗'], colis: ['🏭'], ancre: ['⚓'],
-  vic_domination: ['🚩'], vic_reputation: ['🌟'], vic_legend: ['🏆'], vic_shadow: ['🗡'], appel_b: [], vehicules_b: [], aide: ['❤'], famille: ['♥'], appel: ['📣'], dossier: ['📋'],
+  vic_domination: ['🚩'], vic_reputation: ['🌟'], vic_legend: ['🏆'], vic_shadow: ['🗡'], aide: ['❤'], famille: ['♥'], appel: ['📣'], dossier: ['📋'],
   medaille1: ['🥇'], medaille2: ['🥈'], medaille3: ['🥉'], eco: ['🌿'], glace: ['❄'], danger: ['⚠'],
   pirates: ['☠'], infamie: ['💀'], interdit: ['⛔'], refus: ['🚫'], toxique: ['☣'], police: ['🚔'], alarme: ['🚨'], gardes: ['🔫'], combat: ['⚔'],
   defense: ['🛡'], bombe: ['💣'], sabotage: ['🧨'], drogue: ['💊'],

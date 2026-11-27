@@ -186,7 +186,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
   width: 50px; height: 50px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center;
   background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(28, 42, 51, 0.16) 0);
 }
-.rail .vic-btn[data-victory="domination"] { --c: #1f3d63; --glow: rgba(31, 61, 99, 0.45); }  /* 🚩 marine */
+.rail .vic-btn[data-victory="domination"] { --c: #b8392f; --glow: rgba(184, 57, 47, 0.45); } /* 🚩 rouge (pavillon bleu) */
 .rail .vic-btn[data-victory="reputation"] { --c: var(--star); --glow: rgba(201, 146, 31, 0.5); } /* 🌟 l'or de l'étoile */
 .rail .vic-btn[data-victory="legend"] { --c: #7a4bb0; --glow: rgba(122, 75, 176, 0.45); }      /* 🏆 violet */
 .rail .vic-btn[data-victory="shadow"] { --c: #3a3a40; --glow: rgba(58, 58, 64, 0.45); }      /* 🗡 anthracite */
