@@ -77,8 +77,17 @@ export function crewDiscretion(ship) { return [1, 0.9, 0.8][ship.crew || 0]; }
 // home : port d'attache du propriétaire (port de l'ombre : la douane y regarde ailleurs).
 export function detectionChance(ship, port, home = null) {
   const k = home === port && homeKind(port) === 'ombre' ? HOME.customs : 1;
-  return k * customsLevel(PORTS[port].flag) * (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal') * skillConceal(ship);
+  return k * customsLevel(PORTS[port].flag) * concealFactor(ship);
 }
+// Ce qui, à bord, cache un colis (plus bas = mieux caché) : la coque (CONCEALMENT), l'équipage,
+// les cachettes aménagées et le savoir-faire en contrebande. La douane multiplie par sa sévérité.
+export function concealFactor(ship) {
+  return (CONCEALMENT[ship.type] ?? 1) * crewDiscretion(ship) * equipMod(ship, 'conceal') * skillConceal(ship);
+}
+// Échelle de discrétion affichée au joueur (1 voyant … 5 insoupçonnable), pour un facteur ci-dessus
+// ou la seule coque d'un modèle (courtier).
+export const CONCEAL_STEPS = [0.3, 0.5, 0.7, 1.0];
+export const concealLevel = (f) => 5 - CONCEAL_STEPS.filter((x) => f > x).length;
 export const seizureFine = (pay) => Math.max(500000, pay * 3);
 
 export function refreshOffers(state, ctx, rng) {

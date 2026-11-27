@@ -19,7 +19,7 @@ import { flagEl } from './flags.js';
 import { watersLabel } from './waters.js';
 import { clientLine, riskLine } from './payment.js';
 import { fuelGaugeEl, animateNeedle } from './gauge.js';
-import { riskLines, crewInfo, isStrict } from './risk.js';
+import { riskLines, crewInfo, isStrict, hullLine } from './risk.js';
 import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
 import { attackTags, hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
@@ -47,7 +47,9 @@ async function embargoOk(app, ship, port, value = 0) {
   ]), 'Oui, commercer');
 }
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
-import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence } from '../sim/equipment.js';
+import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence, equipOff, toggleEquipment } from '../sim/equipment.js';
+import { rolesEl } from './shiproles.js';
+import { gradeEl } from './grade.js';
 import { CREW_LEVELS } from '../data/ships.js';
 import { payCut } from '../sim/plots.js';
 import { inspectionThreshold } from '../sim/incidents.js';
@@ -114,7 +116,7 @@ function tripEstimate(app, ship, to, speed, qty = 0, hold = null) {
   if (p.error && !p.route) return p;
   const T = SHIP_TYPES[ship.type];
   const company = state.companies[ship.owner];
-  const portH = qty && hold ? eco.handlingHours(ship.port, hold, qty) + eco.handlingHours(to, hold, qty) : 0;
+  const portH = qty && hold ? eco.handlingHours(ship.port, hold, qty, ship.type) + eco.handlingHours(to, hold, qty, ship.type) : 0;
   const totalDays = p.seaDays + portH / 24;
   const fixed = eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship), ship.crew) * totalDays;
   return { ...p, totalDays, cost: p.fuelCost + p.fees + fixed, portH };
@@ -136,6 +138,7 @@ export function shipPanel(app, id, tab) {
   const header = h('div.ship-head', [
     art,
     h('div.ship-caption', [h('b', T.name), ` · ${SHIP_ART[ship.type].L} m · ${tonnes(T.dwt)} · ${num1(T.speed)} nœuds`]),
+    rolesEl(ship.type, { ship, age }),
     h('div.ship-stats', [
       stat('État', pct(ship.condition), bar(ship.condition / 100, { good: 0.7, warn: 0.45 })),
       h('div.stat.stat-gauge', [h('div.stat-label', 'Carburant'), fuelGaugeEl(ship.fuel / T.tank, { size: 92, compact: true }), h('div.stat-value', `${num(ship.fuel)} / ${num(T.tank)} t`)]),
@@ -144,7 +147,7 @@ export function shipPanel(app, id, tab) {
       stat('Âge', `${num1(age)} ans`),
       stat('Valeur', money(eco.shipValue(state, ship))),
       stat('Équipage', crewInfo(ship).short, ship.captainName ? h('div.stat-sub', { 'data-no-tr': '' }, `🧑‍✈️ ${ship.captainName}`) : null),
-      stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).map((id) => EQUIPMENT[id].icon).join(' ') : 'aucun'),
+      stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).filter((id) => !equipOff(ship, id)).map((id) => EQUIPMENT[id].icon).join(' ') || 'coupé' : 'aucun'),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
     shipRoute(state, ctx, ship), // destination et dates bien en vue
@@ -271,6 +274,7 @@ function contractsBase(app, ship) {
         c.client ? h('div.card-sub', ['Chargeur : ', clientLine(state, company, c.client)]) : null,
         c.charity ? h('div.card-sub', [`❤ ${c.charity.name} : aide d'urgence, payée à prix coûtant partiel. Réputation +${c.charity.rep} si elle arrive à l'heure.`, repCap(company) < 100 ? ` Plafond de votre réputation : ${repCap(company)}.` : null]) : null,
         c.client ? riskLine(state, company, c.client, c.pay) : null,
+        hullLine(ship, c.to),
         why ? h('div.card-why', why) : h('div.card-sub', [
           `Voyage ≈ ${days(est.totalDays)} · coûts ≈ ${money(est.cost)} · `,
           h('b', { class: profit >= 0 ? 'pos' : 'neg' }, `bénéfice ${money(profit, true)}`),
@@ -539,7 +543,7 @@ function crewSkillsTab(app, ship) {
     const S = crew.SKILLS[id], r = crew.rank(ship, id);
     return h('div.card', { class: r ? 'highlight' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [`${S.icon} ${S.name}`, h('span.skill-pips', { title: `Niveau ${r} sur ${crew.MAX_RANK}` }, '●'.repeat(r) + '○'.repeat(crew.MAX_RANK - r))]),
+        h('div.card-title', [`${S.icon} ${S.name}`, gradeEl(r, { max: crew.MAX_RANK, title: `Niveau ${r} sur ${crew.MAX_RANK}` })]),
         h('div.card-sub', S.text),
       ]),
       h('div.card-side', free && r < crew.MAX_RANK ? [h('button.btn.small.primary', { onclick: () => app.act(() => crew.train(state, ship.id, id)) }, 'Former')] : []),
@@ -635,14 +639,20 @@ function portCallTab(app, ship) {
   box.append(h('p.hint', `Défense contre un abordage : ${num1(defence(ship))} point${defence(ship) >= 2 ? 's' : ''}.${P.repair ? '' : ` Pas de chantier à ${P.name} : installation impossible ici.`}`));
   box.append(h('div.list', EQUIPMENT_IDS.filter((id) => canEquip(ship, id)).map((id) => {
     const E = EQUIPMENT[id], on = hasEquip(ship, id), price = equipPrice(ship, id);
+    const off = on && equipOff(ship, id);
+    // Équipement qu'on allume ou coupe (transpondeur « discret ») : sans effet, ni bon ni mauvais, une fois coupé.
+    const toggle = on && E.switchable
+      ? h('button.btn.small', { class: off ? '' : 'primary', onclick: () => app.act(() => toggleEquipment(state, ship.id, id)) }, off ? 'Allumer' : 'Couper')
+      : null;
     return h('div.card', { class: on ? 'highlight' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [`${E.icon} ${E.name}`, on ? h('span.tag.good', 'installé') : null]),
+        h('div.card-title', [`${E.icon} ${E.name}`, on ? h('span.tag', { class: off ? '' : 'good' }, off ? 'installé, coupé' : E.switchable ? 'en service' : 'installé') : null]),
         h('div.card-sub', E.blurb),
+        E.switchable && on ? h('div.card-sub.muted', 'S\'allume ou se coupe à tout moment, même en mer. Coupé, il n\'a aucun effet.') : null,
         h('div.card-sub.muted', [E.defence ? `défense +${E.defence}` : null, E.upkeep ? `${money(E.upkeep)}/jour` : null, `${Math.max(1, Math.round(E.hours / 24))} j d'installation`].filter(Boolean).join(' · ')),
       ]),
       h('div.card-side', on
-        ? [h('button.btn.small.ghost', { onclick: () => app.act(() => removeEquipment(state, ship.id, id)) }, 'Retirer')]
+        ? [toggle, h('button.btn.small.ghost', { onclick: () => app.act(() => removeEquipment(state, ship.id, id)) }, 'Retirer')]
         : [h('div.price', money(price)), h('button.btn.small', { disabled: !P.repair || !!ship.busyWhat || price > company.cash, onclick: () => app.act(() => installEquipment(state, ship.id, id), { sound: 'pay' }) }, 'Installer')]),
     ]);
   })));

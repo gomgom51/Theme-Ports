@@ -7,6 +7,7 @@
 //            (risque qu'une fouille trouve un colis), sanction (risque d'amende après un
 //            embargo), burn (consommation)
 //  hours   : durée d'installation
+//  switchable : s'allume ou se coupe à volonté, même en mer (coupé : aucun effet ; ship.equipOff)
 export const EQUIPMENT = {
   barbeles: {
     name: 'Barbelés et lances à eau', icon: '🪝', defence: 1, upkeep: 0, hours: 12,
@@ -54,7 +55,7 @@ export const EQUIPMENT = {
     blurb: 'Hélice optimisée et peinture de carène lisse : 8 % de carburant en moins.',
   },
   brouilleur: {
-    name: 'Transpondeur « discret »', icon: '📡', defence: 0, upkeep: 0, hours: 6,
+    name: 'Transpondeur « discret »', icon: '📡', defence: 0, upkeep: 0, hours: 6, switchable: true,
     price: () => 25000,
     mods: { sanction: 0.5, collision: 1.3 },
     blurb: 'Coupe la balise de position quand il le faut : les escales dans les pays sous embargo passent plus inaperçues, mais naviguer sans balise augmente le risque d\'abordage.',

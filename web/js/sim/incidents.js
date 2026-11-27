@@ -3,10 +3,10 @@
 // bien plus, mais même un bon navire n'est jamais à l'abri d'un naufrage.
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
-import { PORTS } from '../data/ports.js';
+import { PORTS, FLAGS } from '../data/ports.js';
 import { HOURS_PER_DAY } from './util.js';
 import * as eco from './economy.js';
-import { equipMod } from './equipment.js';
+import { equipMod, hasEquip } from './equipment.js';
 import { SEAWORTHY, coverage } from './insurance.js';
 export { SEAWORTHY };
 
@@ -132,6 +132,24 @@ export function inspectVirtueK(port, virtue = 50) {
   return virtue >= 50 ? 1 + (INSPECT_VIRTUE.high - 1) * (virtue - 50) / 50 : 1 + (INSPECT_VIRTUE.low - 1) * (50 - virtue) / 50;
 }
 export const isStrict = (port) => STRICT_FLAGS.has(PORTS[port].flag);
+// Simple coque (SHIP_TYPES.singleHull) : à chaque escale dans un port exigeant, un vieux pétrolier
+// risque un contrôle : amende et confiance perdue (comme une détention). Une coque renforcée
+// (double_coque) lève le risque. Annoncé au courtier, sur les contrats et dans les risques du départ.
+// cleanPorts : les trois ports exigeants les plus propres, sur les côtes les plus sensibles (ZONES : Valdez
+// au détroit du Prince-William, Le Havre en Manche, Yokohama en baie de Tokyo) : amende × cleanK.
+export const HULL_CHECK = { odds: 0.49, fineMin: 250000, finePerGt: 12, trust: -3, cleanPorts: ['valdez', 'le_havre', 'yokohama'], cleanK: 2 };
+export const singleHull = (ship) => !!SHIP_TYPES[ship.type]?.singleHull && !hasEquip(ship, 'double_coque');
+export function hullRisk(ship, port) {
+  if (!singleHull(ship) || !isStrict(port)) return null;
+  const clean = HULL_CHECK.cleanPorts.includes(port);
+  const fine = Math.round(Math.max(HULL_CHECK.fineMin, HULL_CHECK.finePerGt * SHIP_TYPES[ship.type].gt) * (clean ? HULL_CHECK.cleanK : 1) / 1000) * 1000;
+  return { odds: Math.min(0.95, HULL_CHECK.odds * RISK.inspections), fine, trust: HULL_CHECK.trust, flag: PORTS[port].flag, clean };
+}
+// Tirage à l'arrivée : le contrôle (ou null).
+export function hullCheck(rng, ship, port) {
+  const r = hullRisk(ship, port);
+  return r && rng.chance(r.odds) ? r : null;
+}
 // Probabilités d'inspection et de détention à l'arrivée (affichées au joueur avant le départ).
 export function inspectionOdds(condition, port, age, virtue = 50) {
   const threshold = inspectionThreshold(age);

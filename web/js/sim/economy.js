@@ -226,12 +226,19 @@ const HANDLING = {
   vrac: 6000, liquide: 14000, divers: 2500, conteneurs: 7000,
   chimique: 9000, gpl: 10000, gnl: 16000, vehicules: 3000, frigo: 3000, lourd: 1500,
 };
-export function handlingRate(p, hold, qty = 0) {
-  return HANDLING[hold] * Math.pow(PORTS[p].size, 0.8) * Math.pow(Math.max(1, qty / 20000), 0.6);
+// Grues de bord (SHIP_TYPES.gear) : le navire se sert lui-même, un petit port le charge aussi vite
+// qu'un port moyen (taille GEAR_SIZE). Au-delà, les portiques du port font mieux que ses grues.
+export const GEAR_SIZE = 3;
+export const geared = (typeId) => !!SHIP_TYPES[typeId]?.gear;
+export function handlingRate(p, hold, qty = 0, typeId = null) {
+  const size = geared(typeId) ? Math.max(PORTS[p].size, GEAR_SIZE) : PORTS[p].size;
+  return HANDLING[hold] * Math.pow(size, 0.8) * Math.pow(Math.max(1, qty / 20000), 0.6);
 }
-export function handlingHours(p, hold, qty) {
-  return Math.max(6, Math.ceil((qty / handlingRate(p, hold, qty)) * HOURS_PER_DAY));
+export function handlingHours(p, hold, qty, typeId = null) {
+  return Math.max(6, Math.ceil((qty / handlingRate(p, hold, qty, typeId)) * HOURS_PER_DAY));
 }
+// Les grues de bord accélèrent-elles la manutention dans ce port ?
+export const gearHelps = (p, typeId) => geared(typeId) && PORTS[p].size < GEAR_SIZE;
 
 // Tirant d'eau admis pour un type de navire : certains ports ont des terminaux
 // plus profonds que leurs quais principaux (bouées pétrolières au large, quais minéraliers).
@@ -264,11 +271,13 @@ export function upkeepPerSeaDay(state, T, age) {
   return wearPerHour(age) * HOURS_PER_DAY * T.price * 1e6 * 0.0011 * 1.17 * repairIndex(state);
 }
 
-export function voyageEstimate(state, { typeId, flag, from, to, qty = 0, hold = 'vrac', speed, nm, canals = [], age = 0 }) {
+// gear = false : manutention par les grues du port, même pour un navire qui a les siennes (prix du fret).
+export function voyageEstimate(state, { typeId, flag, from, to, qty = 0, hold = 'vrac', speed, nm, canals = [], age = 0, gear = true }) {
   const T = SHIP_TYPES[typeId];
   const v = speed || T.speed;
   const seaDays = nm / (24 * v);
-  const portDays = (qty ? (handlingHours(from, hold, qty) + handlingHours(to, hold, qty)) / HOURS_PER_DAY : 0) + 0.5;
+  const hType = gear ? typeId : null;
+  const portDays = (qty ? (handlingHours(from, hold, qty, hType) + handlingHours(to, hold, qty, hType)) / HOURS_PER_DAY : 0) + 0.5;
   const fuelT = burnPerDay(T, v, age) * seaDays + T.idleBurn * portDays;
   const fuelCost = fuelT * fuelPrice(state, from);
   const fixed = fixedDayCost(T, flag, 'active', age) * (seaDays + portDays);
@@ -357,7 +366,9 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
     if (R.dwt < qty) continue;
     const rr = id === typeId ? route : ctx.distanceInfo(from, to, ctx.closedCanals(state, R.draft));
     if (!rr) continue;
-    const e = voyageEstimate(state, { typeId: id, flag: null, from, to, qty, hold: holdFor(id, good), nm: rr.nm, canals: rr.canals, age: 8 });
+    // Le chargeur paie la manutention au rythme des grues du port : un navire qui a les siennes
+    // gagne le temps économisé dans les petits ports.
+    const e = voyageEstimate(state, { typeId: id, flag: null, from, to, qty, hold: holdFor(id, good), nm: rr.nm, canals: rr.canals, age: 8, gear: false });
     e.total += portFee(R, from);
     if (!est || e.total < est.total) est = e;
   }

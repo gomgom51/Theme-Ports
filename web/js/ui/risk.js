@@ -3,12 +3,12 @@
 // risques vient de l'équipage : avis général, fourchettes ou chiffres précis
 // selon son expérience.
 import { CREW_LEVELS } from '../data/ships.js';
-import { PORTS } from '../data/ports.js';
-import { riskProfile, voyageRisk, inspectionOdds, inspectionThreshold, isStrict, isImagePort, inspectVirtueK, SEAWORTHY } from '../sim/incidents.js';
+import { PORTS, FLAGS } from '../data/ports.js';
+import { riskProfile, voyageRisk, inspectionOdds, inspectionThreshold, isStrict, isImagePort, inspectVirtueK, SEAWORTHY, hullRisk } from '../sim/incidents.js';
 import { ageYears } from '../sim/economy.js';
 import { worstCase, isPolluting } from '../sim/pollution.js';
 import { planOf } from '../sim/insurance.js';
-import { h } from './dom.js';
+import { h, money } from './dom.js';
 
 const fr = (x, d = 0) => x.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
 const pctTxt = (p) => (p < 0.001 ? 'moins de 0,1 %' : p < 0.01 ? `${fr(p * 100, 1)} %` : `${fr(p * 100)} %`);
@@ -79,10 +79,20 @@ export function riskLines(state, ship, { seaDays = null, to = null, route = null
       const k = inspectVirtueK(to, V);
       if (isImagePort(to) && Math.abs(k - 1) >= 0.02) out.push(h('div.risk-line.small', k < 1 ? `💚 ${name} soigne son image : votre vertu (${Math.floor(V)}) y réduit les inspections de ${Math.round((1 - k) * 100)} %.` : `💚 ${name} soigne son image : votre vertu (${Math.floor(V)}) y attire ${Math.round((k - 1) * 100)} % d'inspections en plus.`));
     }
+    const hl = hullLine(ship, to);
+    if (hl) out.push(hl);
   } else if (ship.condition < threshold) {
     out.push(h('div.risk-line.warn-text', `⚠ Sous ${threshold} %, les ports exigeants (Europe, Amérique du Nord, Japon, Corée, Australie, Singapour) peuvent retenir ce navire.`));
   }
   return out;
+}
+
+// Pétrolier à simple coque vers un port exigeant : risque de contrôle, dit avant le contrat et le départ.
+export function hullLine(ship, to) {
+  const r = hullRisk(ship, to);
+  if (!r) return null;
+  const clean = r.clean ? ` ${PORTS[to].name}, sur une côte très protégée, double l'amende.` : '';
+  return h('div.risk-line.warn-text', `🛢 Simple coque : ${FLAGS[r.flag].name} contrôle les vieux pétroliers. Risque ${Math.round(r.odds * 100)} % d'une amende de ${money(r.fine)} et d'une perte de confiance à chaque escale.${clean} Une coque renforcée, posée au chantier, l'évite.`);
 }
 
 // Avis rapide d'un expert maritime sur un navire d'occasion (avant l'achat).

@@ -26,8 +26,12 @@ best tools for grey and black trade (`CONCEALMENT`, `darkCapable`).
 - Spontaneous proposal when accepting a contract: 35 % in shady ports, 15 % in corrupt ports, 4 %
   elsewhere; same destination; 30 % "insist".
 - At **every** arrival with a parcel (`contrabandOnArrival`):
-  `detectionChance = customsLevel(flag) × CONCEALMENT[type] × crewDiscretion × equip conceal ×
-  skillConceal × (own shadow home ? 0.3 : 1)`; a rival's tip-off raises it to ≥ 0.8.
+  `detectionChance = customsLevel(flag) × concealFactor(ship) × (own shadow home ? 0.3 : 1)`, with
+  `concealFactor = CONCEALMENT[type] × crewDiscretion × equip conceal × skillConceal`; a rival's tip-off
+  raises it to ≥ 0.8. The player sees `concealFactor` as a 5-step scale (`concealLevel`, steps 0.3 / 0.5 /
+  0.7 / 1.0: voyant … insoupçonnable) with its sources (hull, hiding places, crew, smuggling rank) on every
+  parcel offer, spontaneous proposal and dark job (`concealEl` in `ui/shiproles.js`); the broker shows the
+  hull's level as a pro.
   - Found → fine `max(500 k, 3 × pay)`, ship held 10–25 days, virtue −15, stain. In a corrupt port
     (corruption > 0.15) a human chooses: pay, or **bribe** (35 % of the fine, success = corruption
     level; success: virtue −2, out in 12 h; failure: fine ×1.5, 1.5× days, virtue −5 more).

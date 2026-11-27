@@ -9,6 +9,7 @@ import { h, money, date, dialog, confirmBox, toast } from './dom.js';
 import { riskWords } from './shady.js';
 import { crossesLine, BLACKLIST } from '../sim/shadow.js';
 import { showScene, scenesOn } from './scenes.js';
+import { concealEl } from './shiproles.js';
 
 const pc = (x) => `${Math.round(x * 100)} %`;
 
@@ -50,6 +51,7 @@ export async function darkOfferDialog(app, note) {
     h('p', ['Payé ', h('b.pos', money(o.pay)), ' en liquide à la livraison. La marchandise occupe toute la cale : pas d\'autre chargement pendant ce voyage.']),
     h('p.warn-text', `☠ Point de non-retour : infamie +${K.infamy}. Votre confiance et votre vertu ne pourront plus jamais dépasser ${cap}/100 (confiance aujourd'hui : ${Math.round(company.confidence ?? company.reputation)}). Moins de confiance : moins de bons contrats, des prêts plus chers.`),
     h('p', `Douane à l'arrivée : risque ${riskWords(p, ship.crew || 0)} à ${portName(o.to)}, et à chaque escale en route. Si elle trouve : navire confisqué (caution de ${money(bailOf(state, ship))} pour le récupérer, ou il est perdu), amende de ${money(o.pay * 0.5)}, équipage arrêté, scandale public (infamie +${DARK.caughtInfamy}, vertu −25).`),
+    concealEl(ship),
     h('p', `En refusant : ${pc(DARK.refuseSeize)} de risque qu'ils s'emparent du navire (rançon ${money(rShip)}) ou de l'équipage (rançon ${money(rCrew)}), puis ce gang vous en voudra ${DARK.grudgeDays} jours (${pc(DARK.grudgeSeize)} de risque de saisie à chaque escale de vos navires à ${portName(o.from)}).`),
     crossesLine(company, K.infamy)
       ? h('p.warn-text', `⛔ Liste noire : cette affaire porterait votre infamie à ${Math.round((company.infamy || 0) + K.infamy)}. À ${BLACKLIST.infamy}, votre compagnie entre sur la liste noire internationale, pour toujours : ports d'Europe, d'Amérique du Nord, du Japon, de Corée et d'Océanie fermés (navires saisis), banques régulières fermées (la banque de l'ombre prête deux fois moins, 15 points plus cher), chargeurs honnêtes perdus. C'est aussi le chemin de la victoire « La flotte fantôme ».`)

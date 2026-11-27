@@ -5,6 +5,7 @@ import { portName } from '../sim/core.js';
 import { resolution, collect, paymentBase } from '../sim/payments.js';
 import { h, money, tonnes, date, dialog, dropToasts } from './dom.js';
 import { artForShip } from './shipart.js';
+import { gradeEl } from './grade.js';
 import { logoBadge } from './logos.js';
 import { clientRel, relationOf, paymentRisk, gratitudeChance, reportClient, LOYAL, RESERVE_LOYALTY, DENOUNCE_HIT, DENOUNCE_REP, GRUDGE_DAYS } from '../sim/clients.js';
 
@@ -13,10 +14,9 @@ export function starsText(reliability) {
   return '★'.repeat(n) + '☆'.repeat(5 - n);
 }
 
-// Fidélité en cinq points (deux crans par point).
+// Fidélité sur l'échelle de cinq crans du jeu (deux points de fidélité par cran).
 export function loyaltyDots(loyalty) {
-  const full = Math.floor(loyalty / 2), half = loyalty % 2;
-  return h('span.loyal-dots', { title: `Fidélité ${loyalty}/10` }, '●'.repeat(full) + (half ? '◐' : '') + '○'.repeat(5 - full - half));
+  return gradeEl(loyalty / 2, { cls: 'good', title: `Fidélité ${loyalty}/10` });
 }
 
 // Le chargeur : nom, étoiles du moment (et leur chute éventuelle), tempérament, votre fidélité.

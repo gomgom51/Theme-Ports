@@ -3,7 +3,8 @@
 Files: `data/ships.js` (`SHIP_TYPES`, `CREW_LEVELS`, `CREW_DAY_COST`, `SHIP_NAMES`),
 `game.refreshUsedMarket/makeListing/deliverOrder`, `actions.buyUsedShip/orderNewShip/sellShip/
 layUp/reactivate/setCrew/repair/renameShip`, `sim/crew.js`, `sim/equipment.js`, `data/equipment.js`,
-`data/sanctions.js` (`CONCEALMENT`). Ship sheet UI: `ui/panel-ship.js`, radar card `ui/radar.js`.
+`data/sanctions.js` (`CONCEALMENT`). Ship sheet UI: `ui/panel-ship.js`, radar card `ui/radar.js`, pros and
+cons `ui/shiproles.js`.
 
 ## The 22 models
 
@@ -33,7 +34,12 @@ layUp/reactivate/setCrew/repair/renameShip`, `sim/crew.js`, `sim/equipment.js`, 
 | frigorifique | Navire frigorifique | 12000 | frigo | 20/22 | 45 | 9.5 | 20 | 7000 | 40 | 25 | 11000 |  |
 
 Other fields: `idleBurn`, `tank`, `category`, `blurb`. `vintage` models are never built, only sold
-used (26–42 years old) and are never contract reference ships. `CONCEALMENT` (parcel hiding, lower
+used (26–42 years old) and are never contract reference ships. `gear` = ship cranes (faster handling in
+small ports, see [04](04-economy-market.md)). `singleHull` (vieux pétrolier): at every call in one of the 18
+strict-flag ports (`STRICT_FLAGS`) without `double_coque`, 49 % chance of a check: fine `max(250 k, 12 × gt)` (doubled in
+the three cleanest strict ports, on the most sensitive coasts: Valdez, Le Havre, Yokohama) and trust −3, like a detention (`HULL_CHECK`, `hullRisk`, `hullCheck` in `incidents.js`). Shown on the broker card, the
+contract card and the departure risks; the AI simply avoids strict ports with such a ship. `stock`: equipment delivered with every new or used ship
+(`createShip`): the small general cargo ships get the transponder, switched off. `CONCEALMENT` (parcel hiding, lower
 is better): small general cargo ships 0.45–0.6 … gas carriers 1.3–1.35 → general cargo ships are the
 intended grey/black-trade tool. `darkCapable`: only ships with `divers` or `conteneurs` holds.
 
@@ -47,6 +53,15 @@ intended grey/black-trade tool. `darkCapable`: only ships with `divers` or `cont
   `polyvalent` — about 2.3 M$ and 4.5 M$.
 - Buying: pay listing price, ship appears in that port; winter-port perk adds ice class; rivals
   notified (≤ once a month for used ships).
+
+## Broker cards (`ui/panels.js`, `ui/shiproles.js`)
+
+Each card (used and new) and each ship sheet lists the model's pros (+) and cons (−) as scales, no figures
+(`SHIP_ROLES`); every graded scale in the game (discretion, shipper loyalty, crew skill ranks) uses the same
+rising-bars icon (`ui/grade.js`), plus lines built from the data so they stay true: ship cranes, single hull (until a reinforced
+hull is fitted), transponder included, hull discretion level ≥ 3, and "over twenty years" on old used listings.
+The mini radar is a button opening the big sheet (labelled radar, pros/cons, specs), where a dashed outline can
+compare with the same model new (used listings) or with one of the player's own ships (`compareSets`).
 
 ## New builds (`YARDS`, `orderNewShip`)
 
@@ -107,8 +122,11 @@ Fully trained crews feed the "École de la mer" deed and "Les loups de mer" reco
 | double_coque | spill ×0.4 (tankers, chem, gas only) | 20 × gt | — |
 | cachettes | parcel detection ×0.55 | 70 k | — |
 | economiseur | fuel ×0.92 | 3.5 % of new price | — |
-| brouilleur | sanctions/patrol odds ×0.5, collision ×1.3 | 25 k | — |
+| brouilleur | sanctions/patrol odds ×0.5, collision ×1.3, patrol evasion +0.2; switchable | 25 k (free on caboteur, vieux cargo, polyvalent) | — |
 | glace (ice class) | +21 days each end of ice season, escort at 40 %, fuel ×1.03 | 150 k + 9 gt | — |
 
-`equipMod(ship, key)` multiplies the `mods` of all installed items. Removal is free (not at sea).
+`equipMod(ship, key)` multiplies the `mods` of all installed items that are switched on. A `switchable` item
+(transponder) is switched on or off anywhere, even at sea (`toggleEquipment`, `ship.equipOff`): off, it has no
+effect at all. When a tainted ship heads for an enforcing port, or a parcel is on board, with the transponder off,
+the departure risks remind the player. Removal is free (not at sea).
 AI installs barbeles (cash > 3 M$), citadelle (> 8 M$), cachettes (shadow AI).
