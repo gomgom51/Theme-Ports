@@ -117,7 +117,7 @@ export async function openPayment(app, paymentId) {
   } else {
     buttons = [{ label: 'Plus tard', value: null, kind: 'ghost' }, { label: `Encaisser ${money(finalAmount)}`, value: 'accepter', kind: 'primary', attrs: { 'data-guide': 'collect' } }];
   }
-  const choice = await dialog({ title: 'Encaissement', body, buttons, quiet: true }); // revient à chaque livraison : sans choc ni bruit
+  const choice = await dialog({ title: 'Encaissement', body, buttons, shake: false }); // revient à chaque livraison : tampon et bruit, sans secousse
   if (!choice) return;
   const r = app.withRng((rng) => collect(state, rng, p.id, choice));
   dropToasts(`pay-${p.id}`);

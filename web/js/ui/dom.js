@@ -79,15 +79,16 @@ export function toast(text, { action, onAction, kind = 'info', timeout = 6000, t
 // Bruit du tampon à l'ouverture d'une boîte (branché par main.js sur l'audio du jeu).
 export const dialogHooks = { onStamp: null };
 // La boîte est pressée sur la carte (motion.js) ; elle part tout de suite, une copie s'efface.
-// quiet : une boîte qui revient souvent (l'encaissement) se pose sans secousse ni bruit.
-function stampDialog(wrap, quiet = false) {
-  const hit = stampIn(wrap, wrap.querySelector('.dialog'), { jolt: !quiet });
-  if (hit != null && !quiet) dialogHooks.onStamp?.(hit);
+// shake : la carte encaisse le choc. Une boîte qui revient souvent (l'encaissement) garde le tampon et
+// son bruit, sans secousse (choix du propriétaire : la secousse reste aux boîtes rares).
+function stampDialog(wrap, shake = true) {
+  const hit = stampIn(wrap, wrap.querySelector('.dialog'), { jolt: shake });
+  if (hit != null) dialogHooks.onStamp?.(hit);
 }
 const unstamp = (wrap) => { stampOut(wrap); wrap.remove(); };
 
 // Boîte de dialogue simple (confirmation ou information).
-export function dialog({ title, body, buttons, vertical = false, wide = false, quiet = false }) {
+export function dialog({ title, body, buttons, vertical = false, wide = false, shake = true }) {
   return new Promise((resolve) => {
     const root = document.getElementById('dialogs');
     const close = (v) => { unstamp(wrap); resolve(v); };
@@ -99,7 +100,7 @@ export function dialog({ title, body, buttons, vertical = false, wide = false, q
       ]),
     ]);
     root.append(wrap);
-    stampDialog(wrap, quiet);
+    stampDialog(wrap, shake);
   });
 }
 export const confirmBox = (title, body, ok = 'Confirmer') =>
