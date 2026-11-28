@@ -1,7 +1,8 @@
 # 14 · Rivalry: shady deals, attacks, takeovers
 
 Files: `sim/plots.js` (plots, attacks, intel, AI), `sim/takeover.js` (takeovers, bids, AI),
-UI: `ui/plots.js`, `ui/rivals.js` (Office → Rivals). Every move against a rival is announced to the
+UI: `ui/plots.js` (shady deals, sold by « La Mafia », EN "the underworld": shady middlemen at the bottom of a
+shady port's sheet), `ui/rivals.js` (domination medal 🚩 under the side rail → Rivals tab). Every move against a rival is announced to the
 victim as a rumour with what threatens it, until when, and how to parry (rule 1).
 
 ## Shady deals (`orderPlot`, ordered from a ship docked in a shady port)

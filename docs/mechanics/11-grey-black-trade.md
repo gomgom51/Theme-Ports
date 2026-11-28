@@ -88,5 +88,6 @@ delivery. Never names real groups (store policy: people smuggling, not trafficki
 
 ## Shady-deal hub
 
-Plots (pirates, corrupt officials, sabotage) can only be ordered with a ship in a shady port — see
+Plots (pirates, corrupt officials, sabotage) are sold by « La Mafia » (EN "the underworld") and can only be
+ordered with a ship in a shady port — see
 [14](14-rivalry-takeovers.md).
