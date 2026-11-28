@@ -425,17 +425,18 @@ function warnFrench(fr, en) {
 // du / au + voyelle → de l' / à l', de / le / la + voyelle → d' / l'. Le h reste aspiré (« de Hambourg »),
 // et un Y ne s'élide que devant une consonne (« d'Ys », mais « de Yokohama »).
 // En anglais, rien ne change : le dictionnaire reconnaît les textes tels que le code les compose.
-const FR_V = "(?=(?:[AEIOUÉÈÊËÂÎÏÔŒÛÙ]|Y(?![aeiouyéèê]))[\\p{L}'’-])";
-const FR_START = "(?<=^|[\\s(«“\"—–-])";
+// Règles écrites en expressions littérales : le contrôle de traduction (tools/i18n-check.mjs) ne les lit pas comme
+// des textes affichés. Début : début de texte, espace, parenthèse, guillemet ou tiret. Voyelle : majuscule
+// accentuée ou non, ou Y suivi d'une consonne.
 const FR_RULES = [
-  [new RegExp(`${FR_START}à Le (?=\\p{Lu})`, 'gu'), 'au '],
-  [new RegExp(`${FR_START}à Les (?=\\p{Lu})`, 'gu'), 'aux '],
-  [new RegExp(`${FR_START}([dD])e Le (?=\\p{Lu})`, 'gu'), (_, d) => (d === 'D' ? 'Du ' : 'du ')],
-  [new RegExp(`${FR_START}([dD])e Les (?=\\p{Lu})`, 'gu'), (_, d) => (d === 'D' ? 'Des ' : 'des ')],
-  [new RegExp(`${FR_START}([dD])u ${FR_V}`, 'gu'), "$1e l'"],
-  [new RegExp(`${FR_START}au ${FR_V}`, 'gu'), "à l'"],
-  [new RegExp(`${FR_START}Au ${FR_V}`, 'gu'), "À l'"],
-  [new RegExp(`${FR_START}([dDlL])[ea] ${FR_V}`, 'gu'), "$1'"],
+  [/(?<=^|[\s(«“"—–-])à Le (?=\p{Lu})/gu, 'au '],
+  [/(?<=^|[\s(«“"—–-])à Les (?=\p{Lu})/gu, 'aux '],
+  [/(?<=^|[\s(«“"—–-])([dD])e Le (?=\p{Lu})/gu, '$1u '],
+  [/(?<=^|[\s(«“"—–-])([dD])e Les (?=\p{Lu})/gu, '$1es '],
+  [/(?<=^|[\s(«“"—–-])([dD])u (?=(?:[AEIOUÉÈÊËÂÎÏÔŒÛÙ]|Y(?![aeiouyéèê]))[\p{L}'’-])/gu, "$1e l'"],
+  [/(?<=^|[\s(«“"—–-])au (?=(?:[AEIOUÉÈÊËÂÎÏÔŒÛÙ]|Y(?![aeiouyéèê]))[\p{L}'’-])/gu, "à l'"],
+  [/(?<=^|[\s(«“"—–-])Au (?=(?:[AEIOUÉÈÊËÂÎÏÔŒÛÙ]|Y(?![aeiouyéèê]))[\p{L}'’-])/gu, "À l'"],
+  [/(?<=^|[\s(«“"—–-])([dDlL])[ea] (?=(?:[AEIOUÉÈÊËÂÎÏÔŒÛÙ]|Y(?![aeiouyéèê]))[\p{L}'’-])/gu, "$1'"],
 ];
 export function frenchGrammar(s) {
   if (!s || typeof s !== 'string' || !/(?:^|\s)(?:[àdDlLaA][eua]?s?) \p{Lu}/u.test(s)) return s;
