@@ -2,7 +2,7 @@
 // et ce qui s'y rattache (hauts faits, records, méfaits ; concurrents et classement dans panels.js).
 import { h, date, money } from './dom.js';
 import { logoBadge } from './logos.js';
-import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from '../sim/victory.js';
+import { VICTORY, VICTORY_INFO, victoryOn, victoryProgress } from '../sim/victory.js';
 import { DEEDS, DEED_IDS, RECORDS, RECORD_IDS, EVIL, EVIL_IDS, deedCount, recordHolder, hon } from '../sim/honours.js';
 import { repCap } from '../sim/core.js';
 import { OFFICE_TIERS } from '../data/offices.js';

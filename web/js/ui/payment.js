@@ -9,11 +9,6 @@ import { gradeEl } from './grade.js';
 import { logoBadge } from './logos.js';
 import { clientRel, relationOf, paymentRisk, gratitudeChance, reportClient, LOYAL, RESERVE_LOYALTY, DENOUNCE_HIT, DENOUNCE_REP, GRUDGE_DAYS } from '../sim/clients.js';
 
-export function starsText(reliability) {
-  const n = stars(reliability);
-  return '★'.repeat(n) + '☆'.repeat(5 - n);
-}
-
 // Fidélité sur l'échelle de cinq crans du jeu (deux points de fidélité par cran).
 export function loyaltyDots(loyalty) {
   return gradeEl(loyalty / 2, { cls: 'good', title: `Fidélité ${loyalty}/10` });

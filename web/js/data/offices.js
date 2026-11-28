@@ -13,5 +13,3 @@ export function officeTier(netWorth) {
   OFFICE_TIERS.forEach((t, i) => { if (netWorth >= t.min) k = i; });
   return k;
 }
-// Niveau affiché aux joueurs : 1 à 5.
-export const levelLabel = (tier) => `niveau ${tier + 1}`;

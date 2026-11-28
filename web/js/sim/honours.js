@@ -24,7 +24,6 @@ const M$ = (v) => `${Math.round(v / 1e6).toLocaleString('fr-FR')} M$`;
 
 // Familles de navires (cale principale) et marchandises légales : pour les records « complets ».
 export const FAMILIES = [...new Set(Object.values(SHIP_TYPES).map((T) => T.holds[0]))];
-export const FAMILY_NAMES = { divers: 'cargo', lourd: 'colis lourds', vrac: 'vraquier', liquide: 'pétrolier', chimique: 'chimiquier', gpl: 'gazier', gnl: 'méthanier', conteneurs: 'porte-conteneurs', vehicules: 'porte-voitures', frigo: 'frigorifique' };
 export const LEGAL_GOODS = Object.keys(GOODS);
 export const DARK_COUNTRIES = Object.keys(EMBARGOED);
 

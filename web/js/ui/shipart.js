@@ -861,13 +861,6 @@ function escapeXml(t) {
   return String(t).replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
 }
 
-export function shipArtEl(typeId, opts = {}, cls = '') {
-  const div = document.createElement('div');
-  div.className = 'ship-art-wrap ' + cls;
-  div.innerHTML = shipSVG(typeId, opts);
-  return div;
-}
-
 export function artForShip(state, ship, extra = {}) {
   const c = state.companies[ship.owner];
   const age = (state.t - ship.builtT) / (24 * 365);

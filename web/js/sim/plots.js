@@ -13,7 +13,7 @@ import { PORTS, PORT_IDS } from '../data/ports.js';
 import { CLIENTS } from '../data/clients.js';
 import { corruption, SHADY_PORTS } from '../data/sanctions.js';
 import { HOURS_PER_DAY } from './util.js';
-import { money, news, changeReputation, changeVirtue, shipLog, shipsOf, portName, shipById, fleetValue } from './core.js';
+import { money, news, changeReputation, changeVirtue, shipLog, shipsOf, portName, shipById, fleetValue, rivalsOf } from './core.js';
 import { formatDate } from './util.js';
 import { pointsEarned, pointsSpent, XP_STEPS, SKILL_IDS } from './crew.js';
 import * as eco from './economy.js';
@@ -266,7 +266,6 @@ export function counterPrice(state, p) {
   if (p.kind === 'crew') { const sh = shipById(state, p.ship); return round10k(80000 * Math.max(1, sh ? pointsEarned(sh) : 1)); }
   return 0;
 }
-export const ATTACK_KINDS = Object.keys(ATTACKS);
 // Effets en cours, lus par la simulation.
 export function payCut(state, cid, port) {
   return activePlots(state).some((p) => p.kind === 'pricewar' && p.target === cid && p.port === port && !p.countered) ? 1 - PRICEWAR_CUT : 1;
@@ -417,7 +416,7 @@ export function aiPlots(state, rng, company, netWorthOf) {
     if (p.counter && !p.countered && company.cash > p.counter * AI_COUNTER && rng.chance(0.6)) counterPlot(state, company.id, p.id);
   }
   if (company.cash < 2.5e6 || company.ai?.leaning === 'vertueux') return; // un vertueux pare, mais n'attaque pas
-  const rivals = state.companies.filter((c) => c.id !== company.id && !c.bankrupt);
+  const rivals = rivalsOf(state, company.id);
   if (!rivals.length) return;
   const target = aiTarget(state, company, rivals, netWorthOf);
   if (!target) return;

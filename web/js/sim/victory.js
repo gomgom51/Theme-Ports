@@ -7,7 +7,7 @@
 // Chaque compagnie voit la progression de toutes les autres (icônes de victoire de l'écran principal) ; à 75 % puis
 // à 90 % d'une victoire, tout le monde est prévenu (règle n° 1 : pas de défaite surprise).
 import { HOURS_PER_DAY } from './util.js';
-import { netWorth, news, shipsOf } from './core.js';
+import { netWorth, news, shipsOf, levelOf } from './core.js';
 import { OFFICE_TIERS, officeTier } from '../data/offices.js';
 import { hon, deedCount, recordsHeld, RECORD_IDS, DARK_COUNTRIES } from './honours.js';
 import { EMBARGOED } from '../data/sanctions.js';
@@ -38,7 +38,7 @@ export const VICTORY_INFO = {
 export const victoryOn = (state, kind) => !state.victoryClaimed && (state.settings.victories?.[kind] ?? true)
   && (kind !== 'domination' || state.companies.length > 1);
 export const activeCompanies = (state) => state.companies.filter((c) => !c.bankrupt);
-export const levelOf = (company) => company.level ?? 0;
+export { levelOf }; // (défini dans core.js)
 
 // Progression d'une compagnie vers une victoire : parts (libellé, avancement 0..1, texte) et total.
 export function victoryProgress(state, company, kind) {

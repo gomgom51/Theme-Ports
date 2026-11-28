@@ -3,7 +3,7 @@
 // bien plus, mais même un bon navire n'est jamais à l'abri d'un naufrage.
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS } from '../data/goods.js';
-import { PORTS, FLAGS } from '../data/ports.js';
+import { PORTS } from '../data/ports.js';
 import { HOURS_PER_DAY } from './util.js';
 import * as eco from './economy.js';
 import { equipMod, hasEquip } from './equipment.js';

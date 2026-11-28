@@ -167,12 +167,4 @@ export function dailyReceivables(state, notes) {
   }
 }
 
-// Valeur des créances en attente (comptée dans la valeur nette).
-export function pendingValue(state, companyId) {
-  let v = 0;
-  for (const p of state.payments) if (p.company === companyId) v += paymentBase(p);
-  for (const r of state.receivables) if (r.company === companyId) v += r.amount;
-  return v;
-}
-
 export { portName, formatDate };

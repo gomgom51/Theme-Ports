@@ -1,7 +1,6 @@
 // Interface des affaires noires (proposition, saisies) et lignes de risque associées.
 // Tous les risques sont dits avant la décision : douane, confiscation, infamie, refus.
 import { homeOf } from '../sim/home.js';
-import { SHIP_TYPES } from '../data/ships.js';
 import { portName, shipById, repCap } from '../sim/core.js';
 import * as eco from '../sim/economy.js';
 import { DARK, DARK_KINDS, acceptDark, refuseDark, resolveSeized, darkDetect, grudgeAt } from '../sim/dark.js';

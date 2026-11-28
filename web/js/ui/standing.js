@@ -25,11 +25,3 @@ export function standingSummary(log, prefix = '') {
   const t = standingPart(log, 'confidence'), v = standingPart(log, 'virtue');
   return h('span.standing-summary', [prefix ? h('span', prefix) : null, h('b', 'Bilan du mois'), t ? h('br') : null, t, v ? h('br') : null, v]);
 }
-// Détail d'une note pour le bureau : ce mois-ci et le mois dernier, toutes les causes.
-export function standingDetail(company, key) {
-  const line = (label, log) => {
-    const part = standingPart(log, key, Infinity);
-    return h('div.small.muted', [h('span', `${label} :`), ' ', part || h('span', 'rien de notable')]);
-  };
-  return h('div.standing-log', [line('Ce mois-ci', company.standingMonth), company.standingLast ? line('Le mois dernier', company.standingLast) : null]);
-}

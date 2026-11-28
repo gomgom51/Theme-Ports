@@ -2,18 +2,16 @@
 // Et, côté victime : l'offre de rachat (demander six mois, vendre), parer un coup.
 import { CLIENTS } from '../data/clients.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
-import { OFFICE_TIERS } from '../data/offices.js';
-import { netWorth, shipsOf, portName, fleetValue } from '../sim/core.js';
+import { netWorth, shipsOf, portName, rivalsOf } from '../sim/core.js';
 import { relationOf, LOYAL } from '../sim/clients.js';
 import { pointsEarned, XP_STEPS } from '../sim/crew.js';
 import * as P from '../sim/plots.js';
 import * as TK from '../sim/takeover.js';
 import { crossesLine, BLACKLIST } from '../sim/shadow.js';
-import { h, money, date, num, pct, dialog, confirmBox, toast } from './dom.js';
+import { h, money, date, pct, dialog, confirmBox, toast } from './dom.js';
 import { logoBadge } from './logos.js';
 
 const badge = (c, size = 34) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
-const rivalsOf = (state, cid) => state.companies.filter((c) => c.id !== cid && !c.bankrupt);
 
 // ---------- L'onglet ----------
 export function rivalsTab(app) {

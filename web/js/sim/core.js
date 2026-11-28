@@ -75,6 +75,10 @@ export function news(state, text, opts = {}) {
 
 export const companyOf = (state, ship) => state.companies[ship.owner];
 export const shipsOf = (state, companyId) => state.ships.filter((s) => s.owner === companyId);
+// Concurrents encore en lice (ni la compagnie elle-même, ni les faillites).
+export const rivalsOf = (state, companyId) => state.companies.filter((c) => c.id !== companyId && !c.bankrupt);
+// Niveau de bureau acquis (0 à 4) : rachats, victoire de la réputation, pression de la banque.
+export const levelOf = (company) => company.level ?? 0;
 export const shipById = (state, id) => state.ships.find((s) => s.id === id);
 export const contractById = (state, id) => state.contracts.find((c) => c.id === id);
 export const portName = (p) => PORTS[p]?.name || p;

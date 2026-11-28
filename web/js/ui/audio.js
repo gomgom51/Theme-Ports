@@ -98,7 +98,6 @@ function loadSettings() {
 // Juke-box du bureau : un morceau entendu est débloqué pour toutes les parties (profil du joueur).
 // Ceux de la partie se débloquent aussi à leur étape, même sans le son (jukebox.js).
 const markHeard = (name) => unlockTracks([name]);
-export const trackSrc = (name) => TRACKS[name]?.src || null;
 const EGG_SYNTH = { sonar: S.sonar, ghost: S.ghost, fanfare: S.fanfare };
 
 export class AudioManager {

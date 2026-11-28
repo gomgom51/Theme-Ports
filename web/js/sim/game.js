@@ -8,7 +8,7 @@ import * as eco from './economy.js';
 import * as act from './actions.js';
 import {
   money, news, emptyBook, bookTotal, companyOf, shipsOf, isIdle, fleetValue, netWorth, interestRate,
-  changeReputation, changeTrust, changeVirtue, earnVirtue, slowVirtue, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
+  changeTrust, changeVirtue, earnVirtue, slowVirtue, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
   shipTrack, shipBook, lastTrip, activityOf,
 } from './core.js';
 import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
@@ -18,7 +18,7 @@ import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
 import { noteDelivery, reportClient, clientsDaily, aiDenounces } from './clients.js';
 import { heldOnArrival, plotsDaily, aiPlots, hireLawyer } from './plots.js';
-import { rollIncident, incidentText, sinkChance, hullInsurance, SEAWORTHY, inspection, hullCheck } from './incidents.js';
+import { rollIncident, incidentText, sinkChance, hullInsurance, inspection, hullCheck } from './incidents.js';
 import { spill, isPolluting } from './pollution.js';
 import { taintShip, checkSanctions, contrabandOnArrival, refreshOffers } from './shady.js';
 import { equipMod, equipUpkeep } from './equipment.js';

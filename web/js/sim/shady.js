@@ -5,7 +5,6 @@
 //         La douane de chaque port d'escale peut le trouver : saisie, amende, immobilisation.
 import { HOME, homeKind, homeOf, shadowHome, lenderParcel } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
-import { SHIP_TYPES } from '../data/ships.js';
 import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORTS } from '../data/sanctions.js';
 import { money, news, changeVirtue, portName, shipLog, shipById, companyOf, costStat } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
@@ -64,12 +63,6 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   onNote?.('sanction', text);
   return risk;
 }
-// Les ports sous embargo paient cher ce qui leur manque et bradent ce qu'ils exportent.
-export function embargoPriceFactor(port, role) {
-  if (!isEmbargoed(port)) return 1;
-  return role > 0 ? 1.08 : role < 0 ? 0.95 : 1;
-}
-export const EMBARGO_PREMIUM = 1.25;
 
 // ---------- Colis discrets ----------
 export function crewDiscretion(ship) { return [1, 0.9, 0.8][ship.crew || 0]; }

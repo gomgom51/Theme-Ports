@@ -74,12 +74,6 @@ export function paymentRisk(state, company, id) {
     defer: (0.04 + (100 - R) / 600) * (C.style === 'lent' ? 2 : 1) * (1 - 0.04 * L),
   };
 }
-// Part du fret qu'on peut s'attendre à perdre : 65 % en cas de faillite, 12,5 % en cas de litige.
-export function expectedLoss(state, company, id) {
-  if (!id || !CLIENTS[id]) return 0.01;
-  const r = paymentRisk(state, company, id);
-  return r.bankrupt * 0.65 + r.dispute * 0.125 + r.defer * 0.01;
-}
 export function gratitudeChance(company, id) {
   return Math.min(0.9, (GRATITUDE[CLIENTS[id]?.style] ?? 0.4) + 0.03 * relationOf(company, id).loyalty);
 }

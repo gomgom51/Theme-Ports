@@ -13,7 +13,7 @@ import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
 import {
   shipsOf, portName, netWorth, fleetValue, creditLimit, interestRate, BOOK_LABELS, bookTotal,
-  standing, repLimit, trustCap, virtueCap, STANDING, VIRTUE_SOURCES,
+  standing, repLimit, trustCap, virtueCap,
 } from '../sim/core.js';
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';

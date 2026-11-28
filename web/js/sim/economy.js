@@ -237,8 +237,6 @@ export function handlingRate(p, hold, qty = 0, typeId = null) {
 export function handlingHours(p, hold, qty, typeId = null) {
   return Math.max(6, Math.ceil((qty / handlingRate(p, hold, qty, typeId)) * HOURS_PER_DAY));
 }
-// Les grues de bord accélèrent-elles la manutention dans ce port ?
-export const gearHelps = (p, typeId) => geared(typeId) && PORTS[p].size < GEAR_SIZE;
 
 // Tirant d'eau admis pour un type de navire : certains ports ont des terminaux
 // plus profonds que leurs quais principaux (bouées pétrolières au large, quais minéraliers).

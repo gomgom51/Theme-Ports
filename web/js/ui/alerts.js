@@ -21,12 +21,11 @@ import { counterDialog, bidDialog } from './rivals.js';
 import { pendingBid, canTakeover, takeoverPrice } from '../sim/takeover.js';
 import { BLACKLIST } from '../sim/shadow.js';
 import { pointsFree as crewPoints } from '../sim/crew.js';
-import { isSeasonal, iceOpen, iceRisk, iceForecast, forecastText, escortFee, ICE } from '../sim/ice.js';
+import { isSeasonal, iceRisk, iceForecast, forecastText, escortFee, ICE } from '../sim/ice.js';
 import { DARK, DARK_KINDS, darkDetect } from '../sim/dark.js';
 import { seizedDialog } from './dark.js';
 
 const LEVELS = { urgent: 0, watch: 1, info: 2 };
-export const LEVEL_TITLES = ['Urgent', 'À surveiller', 'Pour info'];
 
 // Limite de découvert au-delà de laquelle la banque saisit un navire (même règle que la simulation).
 export const seizureLimit = (state, company) => 300000 + 0.1 * fleetValue(state, company.id);

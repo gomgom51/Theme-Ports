@@ -2,14 +2,13 @@
 // les rumeurs de menace dans les notifications importantes, le débauchage d'un chargeur.
 import { CLIENTS } from '../data/clients.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
-import { portName, shipsOf } from '../sim/core.js';
+import { portName, shipsOf, rivalsOf } from '../sim/core.js';
 import { relationOf } from '../sim/clients.js';
 import * as P from '../sim/plots.js';
 import { h, money, date, dialog, confirmBox, toast } from './dom.js';
 
 const pc = (x) => `${Math.round(x * 100)} %`;
 const nameOf = (state, id) => state.companies[id]?.name || '?';
-const rivalsOf = (state, cid) => state.companies.filter((c) => c.id !== cid && !c.bankrupt);
 
 // ---------- Rumeurs et menaces (notifications importantes) ----------
 export function threatText(state, p, cid) {

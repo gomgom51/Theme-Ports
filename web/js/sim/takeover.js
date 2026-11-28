@@ -11,9 +11,9 @@
 import { takeoverDiscount, embargoPenalty, HOME } from './home.js';
 import { PORTS, FLAGS } from '../data/ports.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
-import { netWorth, cargoLoans, fleetValue, shipsOf, changeReputation, news, money, removeShip, standing, changeTrust, changeVirtue } from './core.js';
+import { netWorth, cargoLoans, fleetValue, shipsOf, news, money, removeShip, standing, changeTrust, changeVirtue, levelOf } from './core.js';
 import { onEliminated } from './honours.js';
-import { crossesLine, BLACKLIST } from './shadow.js';
+import { crossesLine } from './shadow.js';
 import { victoryProgress, VICTORY } from './victory.js';
 import { OFFICE_TIERS } from '../data/offices.js';
 
@@ -35,7 +35,6 @@ export const TAKEOVER = {
   reprieveInfamy: 0.005, // ses actionnaires de l'ombre ne vendent pas au premier venu : chance selon l'infamie
 };
 
-export const levelOf = (c) => c.level ?? 0;
 export const netCash = (state, c) => c.cash - c.debt - cargoLoans(state, c.id);
 // Une compagnie sur la liste noire ne se rachète que pour être démantelée (ses navires sanctionnés
 // partent à la casse) : au prix de ses actifs, sans prime de réputation.

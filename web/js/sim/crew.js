@@ -26,7 +26,6 @@ export const skillWear = (ship) => 1 - 0.06 * rank(ship, 'entretien');
 export const skillDefence = (ship) => 0.6 * rank(ship, 'combat');
 export const skillConceal = (ship) => 1 - 0.12 * rank(ship, 'contrebande');
 export const skillHandling = (ship) => 1 - 0.08 * rank(ship, 'logistique');
-export const skillTalk = (ship) => 1 - 0.12 * rank(ship, 'negociation');
 
 // Une heure de mer : renvoie true si un nouveau point vient d'être gagné.
 export function gainXp(ship, hours = 1) {

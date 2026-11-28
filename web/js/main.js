@@ -12,7 +12,7 @@ import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/
 import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine, animationsOn, setAnimationsOn, applyMotionClass } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
-import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
+import { titleScreen, hideScreen, endScreen } from './ui/screens.js';
 import { playIntro } from './ui/intro.js';
 import { saveGame, loadGame, listSaves, savedStates, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { unlockEarned, unlockFromSaves, BLACKLIST_SONG_YEARS } from './ui/jukebox.js';

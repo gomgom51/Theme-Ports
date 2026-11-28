@@ -289,5 +289,3 @@ export function drawMapShip(g, dpr, x, y, spr, { left = false, moving = false, s
   const hw = W / dpr / 2, hh = H / dpr / 2;
   return { hw, hh, r: Math.max(hw, hh) };
 }
-
-export function clearMapShipCache() { cache.clear(); }

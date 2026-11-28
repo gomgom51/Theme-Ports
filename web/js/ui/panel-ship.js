@@ -25,7 +25,7 @@ import { piracyLine, patrolLine } from './piracy.js';
 import { attackTags, hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
 import { isEmbargoed, taintActive, TAINT_DAYS, sanctionPreview } from '../sim/shady.js';
 import * as crew from '../sim/crew.js';
-import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
+import { isSeasonal, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
 import { darkLines, seizedDialog } from './dark.js';
 import { routeChip } from './route.js';
 import { prospectOdds, canProspect, startProspect } from '../sim/prospect.js';
