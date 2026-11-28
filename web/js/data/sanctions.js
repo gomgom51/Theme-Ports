@@ -31,4 +31,14 @@ export const CONCEALMENT = {
   petrolier_vlcc: 1.3, petrolier_ulcc: 1.3, gazier: 1.3, methanier: 1.35,
 };
 // Ports où des intermédiaires proposent des colis discrets.
+// Le milieu de chaque port louche : un nom inventé (jamais un vrai groupe), toujours le même, pour que le
+// monde se souvienne de qui vous avez fâché (rancune, saisie, refus). « La Mafia » reste le service de
+// coups bas loué partout (plots.js), une autre affaire.
+export const GANGS = {
+  colon: 'la Hermandad de las Esclusas', cartagena: 'la Cofradía de Bocachica', puerto_la_cruz: 'la Cofradía del Faro Rojo',
+  lagos: 'la Confrérie de la Lagune', tema: 'la Bande du Brise-lames', abidjan: 'la Clique de Treichville', luanda: 'la Fraternité de l\'Île',
+  djibouti: 'la Confrérie du Sel', bandar_abbas: 'la Fraternité des Dhows', karachi: 'la Confrérie de Manora', mombasa: 'la Bande du Vieux-Port',
+  manille: 'la Hermandad del Galeón', veracruz: 'la Cofradía de Ulúa', alexandrie: 'la Confrérie du Phare', nampo: 'la Maison du Barrage',
+  es_sider: 'la Fraternité des Sables', chittagong: 'la Bande de la Karnaphuli', novorossiysk: 'la Brigade de Tsemes',
+};
 export const SHADY_PORTS = ['colon', 'cartagena', 'puerto_la_cruz', 'lagos', 'tema', 'abidjan', 'luanda', 'djibouti', 'bandar_abbas', 'karachi', 'mombasa', 'manille', 'veracruz', 'alexandrie', 'nampo', 'es_sider', 'chittagong', 'novorossiysk'];

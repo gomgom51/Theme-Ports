@@ -74,7 +74,13 @@ best tools for grey and black trade (`CONCEALMENT`, `darkCapable`).
 
 `scheduleAftermath`: 5–18 days after delivery a generic news item ("combats", "overdoses", "drame de
 migrants", fake notes, counterfeit medicines…) in that city; humans get a note linking it to their
-delivery. Never names real groups (store policy: people smuggling, not trafficking).
+delivery. Never names real groups (store policy: people smuggling, not trafficking). None at an isolated
+terminal with no town (`NO_TOWN`: Sabetta, Prudhoe Bay, Nome, Churchill, Ras Laffan, Ras Tanura).
+
+Each shady port has its own invented gang (`GANGS` in `data/sanctions.js`, read with `gangName(port)`), the same
+for the whole game: it makes the dark-job offer, holds the grudge shown in the departure risks, seizes ships and
+crews, and is named in the seizure window and the news. "La Mafia" (`plots.js`) stays the hire service for dirty
+tricks, a different thing.
 
 ## Infamy and the blacklist (`shadow.js`)
 

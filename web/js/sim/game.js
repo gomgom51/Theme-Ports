@@ -67,7 +67,7 @@ export function newGame(opts, ctx) {
     market, ports,
     companies: [], ships: [], contracts: [], used: [], orders: [],
     storms: [], canals: {}, strikes: {}, news: [], over: null, payments: [], receivables: [],
-    lots: [], yardSale: null, // lots soldés (trade.js), chantier en mal de commandes (events.js)
+    lots: [], yardSale: null, followUps: [], // lots soldés (trade.js), chantier en mal de commandes et fins d'histoires (events.js)
   };
   const diff = DIFFICULTIES[state.settings.difficulty];
   // Tempérament de chaque IA : le chemin de victoire qu'elle poursuit (variés dans une même partie).
@@ -126,7 +126,7 @@ function makeListing(state, rng, port, typeId, ageRange, condRange) {
   const price = Math.round((eco.shipValue(state, fake) * rng.range(0.92, 1.08)) / 10000) * 10000;
   return {
     id: state.nextId++, type: typeId, age: Math.round(age * 10) / 10, condition, port, price,
-    name: pickShipName(state, rng), until: state.t + rng.int(20, 45) * D,
+    name: pickShipName(state, rng, PORTS[port].flag), until: state.t + rng.int(20, 45) * D, // nom de la langue du port
   };
 }
 

@@ -10,7 +10,11 @@ Chance 1/35 per day (≈ one every 5 weeks), weighted pick among possible events
 record harvest/drought, China stimulus/slowdown, container rush/overcapacity/recession/recovery) are
 excluded for 120 days after it (`state.lastEvents`), so the news never says one thing and its contrary
 weeks apart. The daily roll is unchanged, so the frequency stays the same. Ending events
-(canal reopened, strike over, refinery crisis over) are announced. After an event freight is clamped
+(canal reopened, strike over, refinery crisis over) are announced. Events that tell a story with no end of
+its own carry `after` (days, text): the close is posted to the news weeks later (`state.followUps`), and only
+says what the market already does (prices and the fuel premium revert on their own): oil tension → calm (30–60 d),
+refinery breakdown → restart (14–30 d), drought → rains (60–120 d), steel spike → settles (45–90 d). A Suez
+closure keeps its cause (`canals.suez.why`) and reopens with the matching story (`SUEZ_CAUSES`). After an event freight is clamped
 to `FREIGHT_MIN/MAX` and cycle to ±0.45. Each event returns a title/text for news and a scene id.
 
 | id | weight | Effect |
@@ -67,10 +71,14 @@ a warning or an opportunity card:
 2. **Events remember.** A new world event declares its opposites in `EVENT_MEMORY.against`. A text promises
    only what the simulation keeps ("for a long time" is fine for overcapacity: the cycle's half-life is ~9 months).
 3. **Places fit.** A disaster belongs to its place (`DISASTER_PORTS` lists each port's own); tropical storms
-   weaken outside the tropics. Still open: smuggling aftermath at tiny industrial sites such as Sabetta.
+   weaken outside the tropics; no aftermath news at isolated terminals with no town (`NO_TOWN` in `dark.js`:
+   Sabetta, Prudhoe Bay, Nome, Churchill, Ras Laffan, Ras Tanura). Ship names follow the owner's language (or the
+   broker's port for a listing), and AI companies left with a default name are named after their home city
+   (`data/names.js`).
 4. **Actors stay in character.** Who may do what is filtered where the actor is picked: image-minded shippers
-   never touch sanctioned ports (`makeContract`).
+   never touch sanctioned ports (`makeContract`). Each shady port has one invented gang, always the same
+   (`GANGS` in `data/sanctions.js`, `gangName` in `dark.js`), named in offers, grudges, seizures and the news.
 5. **Every story ends.** Anything that holds a ship, a port or a market (hijack, seizure, strike, canal closure,
-   crisis) announces its end in the news.
+   crisis, yard discount) announces its end in the news; a story event without one declares `after`.
 6. **Alerts only when you can act.** A sound or toast for an opportunity only when one of your ships can use it
    (`goldenNear`, `tenderServable`); the rest goes to the news or quietly to the opportunities column.

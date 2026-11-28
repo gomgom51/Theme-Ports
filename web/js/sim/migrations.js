@@ -38,6 +38,7 @@ function fillDefaults(state) {
   state.cases ??= [];
   state.lots ??= []; // lots soldés (sim/trade.js)
   state.yardSale ??= null; // chantier en mal de commandes (sim/events.js)
+  state.followUps ??= []; // fins d'histoires des événements (sim/events.js)
   for (const c of state.contracts) c.express ??= false; // affaire en or express
   state.market.cycle ??= 0;
   const logos = ['ancre', 'phare', 'barre', 'rose']; // les emblèmes de l'époque (avant le choix du logo)

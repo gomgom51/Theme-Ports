@@ -10,7 +10,8 @@ web/                     static site (no build step), also wrapped by android/ (
                          generated text around names (« à Le Havre » → « au Havre », « du Écume » → « de l'Écume »)
   js/sim/                pure simulation (no DOM) — everything in these docs
   js/data/               static data: ports, flags, ships, goods, clients, equipment, offices,
-                         sanctions, zones; generated: world.js, distances.js, countries.js
+                         sanctions (and port gangs), names (ship names by language, AI company names), zones;
+                         generated: world.js, distances.js, countries.js
   js/ui/                 panels, map, scenes (pixel art), audio, saves, guide, credits
 tests/                   balance tools (node), see CLAUDE.md; saves.test.mjs + saves/ (released games must load)
 tools/                   generators: build_world, build_distances, build_countries, i18n-extract;

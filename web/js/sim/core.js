@@ -1,6 +1,7 @@
 // Fonctions communes à toute la simulation : comptabilité, nouvelles, flotte.
 import { PORTS, FLAGS } from '../data/ports.js';
 import { SHIP_TYPES, SHIP_NAMES } from '../data/ships.js';
+import { shipNamePool } from '../data/names.js';
 import { HOURS_PER_DAY } from './util.js';
 import { shipValue } from './economy.js';
 
@@ -221,17 +222,29 @@ export function changeReputation(company, delta, src) {
 // Laquelle des deux retient la réputation (pour l'expliquer au joueur).
 export const repLimit = (company) => (standing(company).virtue < company.confidence ? 'virtue' : company.confidence < company.virtue ? 'trust' : null);
 
-export function pickShipName(state, rng) {
-  const used = new Set(state.ships.map((s) => s.name));
-  const free = SHIP_NAMES.filter((n) => !used.has(n));
-  if (free.length) return rng.pick(free);
-  return `${rng.pick(SHIP_NAMES)} ${rng.int(2, 9)}`;
+// Un nom libre : porté par aucun navire ni aucune annonce du courtier, dans la langue du pavillon `flag`
+// (armateur, ou port de l'annonce) ; sinon un nom français, puis un nom numéroté.
+export function pickShipName(state, rng, flag = null) {
+  const used = new Set([...state.ships.map((s) => s.name), ...(state.used || []).map((l) => l.name)]);
+  for (const pool of [shipNamePool(flag), SHIP_NAMES]) {
+    const free = pool.filter((n) => !used.has(n));
+    if (free.length) return rng.pick(free);
+  }
+  for (let i = 0; i < 20; i++) { const n = `${rng.pick(SHIP_NAMES)} ${rng.int(2, 9)}`; if (!used.has(n)) return n; }
+  return `${rng.pick(SHIP_NAMES)} ${state.nextId}`;
+}
+// Deux navires d'une même flotte ne portent pas le même nom (un navire renommé, puis une annonce achetée) : « II », « III »…
+export function fleetName(state, owner, name, self = null) {
+  const mine = new Set(state.ships.filter((s) => s.owner === owner && s.id !== self).map((s) => s.name));
+  if (!mine.has(name)) return name;
+  for (const k of ['II', 'III', 'IV', 'V', 'VI']) if (!mine.has(`${name} ${k}`)) return `${name} ${k}`;
+  return `${name} ${state.nextId}`;
 }
 
 export function createShip(state, rng, owner, typeId, { port, age = 0, condition = 100, name } = {}) {
   const T = SHIP_TYPES[typeId];
   const ship = {
-    id: state.nextId++, owner, type: typeId, name: name || pickShipName(state, rng),
+    id: state.nextId++, owner, type: typeId, name: name ? fleetName(state, owner, name) : pickShipName(state, rng, state.companies[owner]?.flag),
     builtT: Math.round(state.t - age * 365 * HOURS_PER_DAY), condition,
     fuel: Math.round(T.tank * 0.4), status: 'port', port,
     busyUntil: 0, busyWhat: null, voyage: null, cargo: null, plan: null, pendingDelivery: null,

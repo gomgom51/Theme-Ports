@@ -11,7 +11,7 @@
 import { takeoverDiscount, embargoPenalty, HOME } from './home.js';
 import { PORTS, FLAGS } from '../data/ports.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
-import { netWorth, cargoLoans, fleetValue, shipsOf, news, book, removeShip, standing, changeTrust, changeVirtue, levelOf } from './core.js';
+import { netWorth, cargoLoans, fleetValue, shipsOf, news, book, removeShip, standing, changeTrust, changeVirtue, levelOf, fleetName } from './core.js';
 import { onEliminated } from './honours.js';
 import { crossesLine } from './shadow.js';
 import { victoryProgress, VICTORY } from './victory.js';
@@ -115,7 +115,7 @@ export function executeTakeover(state, buyerId, targetId, notes = null) {
   book(state, buyer, target.cash, 'rachats');
   buyer.debt += target.debt;
   // Navires, commandes, contrats en cours, paiements à encaisser.
-  for (const s of state.ships) if (s.owner === target.id) s.owner = buyer.id;
+  for (const s of state.ships) if (s.owner === target.id) { s.owner = buyer.id; s.name = fleetName(state, buyer.id, s.name, s.id); } // pas deux noms pareils dans la flotte
   for (const o of state.orders || []) if (o.owner === target.id) o.owner = buyer.id;
   for (const c of state.contracts) { if (c.takenCo === target.id) c.takenCo = buyer.id; if (c.reservedFor === target.id) c.reservedFor = buyer.id; } // takenBy désigne le navire, qui change de main
   for (const p of state.payments || []) if (p.company === target.id) p.company = buyer.id;
