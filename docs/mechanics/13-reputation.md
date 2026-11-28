@@ -74,9 +74,10 @@ honest company reached the cap of 95 within about eighteen months. Now shippers 
   the target is shown (Guide, quarterly report).
 - Tenders served and first calls still add trust directly: they push trust above the target for a while, then
   on-time deliveries bring it back down.
-- Measured (16 AI-only games, 5 years): trust settles around 78–80 whatever the fleet size; about one company in
-  four passes 90; nobody reaches 95. Until the ship rework adds its bonuses, the reputation victory (100) is out of
-  reach.
+- Measured (16 AI-only games, 5 years, same seeds as main): median trust about 77 from year 2 (main: 94), from 73
+  for 1–4 ships to 79 for 20+ (main: 89 to 95, same gradient: small fleets take fewer steps); at most 1 company in
+  48 passes 90 (main: 42); bankruptcies 8 (main: 9). Until the ship rework adds its bonuses, the reputation victory
+  (100) is out of reach.
 
 **Quarterly trust report** (owner's idea): on the first day of each quarter `monthly` calls `closeTrustQuarter`,
 which stores `state.trustReport = { t, rows }`: per company the trust, its change over the quarter, reliability vs
