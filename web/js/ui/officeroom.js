@@ -19,12 +19,13 @@ const toURL = (img) => {
   c.getContext('2d').putImageData(img, 0, 0);
   return c.toDataURL('image/png');
 };
-function art(o, W, H) {
-  const key = JSON.stringify([o.tier, o.shadow, o.color, o.logo, o.model, o.held, W, H, officeArtVersion()]);
+function art(o, W, H, S) {
+  const key = JSON.stringify([o.tier, o.shadow, o.color, o.logo, o.model, o.held, W, H, S, officeArtVersion()]);
   let a = cache.get(key);
   if (!a) {
-    const r = paintOffice({ ...o, W, H });
-    a = { room: toURL(r.room), floor: toURL(r.floor), F: r.F, juke: r.juke ? { x: r.juke.x, y: r.juke.y, w: r.juke.w, h: r.juke.h, url: toURL(r.juke.img) } : null };
+    const r = paintOffice({ ...o, W, H, S });
+    const part = (p) => (p ? { x: p.x, y: p.y, w: p.w, h: p.h, url: toURL(p.img) } : null);
+    a = { room: toURL(r.room), floor: toURL(r.floor), F: r.F, juke: part(r.juke), hi: part(r.hi) };
     cache.set(key, a);
     if (cache.size > 12) cache.delete(cache.keys().next().value);
   } else { cache.delete(key); cache.set(key, a); }
@@ -41,7 +42,7 @@ function geometry(bw, bh) {
   let H = ROOM_H;
   if (bh && H * k > bh * 0.55) H = Math.max(120, Math.floor((bh * 0.55) / k));
   const left = Math.round(((bw - W * k) / 2) * pr) / pr; // aligné sur les pixels de l'écran
-  return { k, W, H, left };
+  return { k, W, H, left, dev };
 }
 
 /**
@@ -70,13 +71,16 @@ export function officeRoom(o, plate, juke) {
     const bw = body.clientWidth, bh = body.clientHeight;
     if (!bw) return;
     const g = geometry(bw, bh);
-    const a = art(o, g.W, g.H);
+    const a = art(o, g.W, g.H, g.dev);
     const roomH = (a.F + SHEET_FLOOR) * g.k;
+    // trophées et méfaits plus fins que la pièce, par-dessus (une image de fond : les copies du panneau la gardent)
+    const hi = a.hi ? [`url(${a.hi.url})`, `${a.hi.w * g.k}px ${a.hi.h * g.k}px`, `${g.left + a.hi.x * g.k}px ${a.hi.y * g.k}px`, 'no-repeat'] : null;
+    const layers = [hi, [`url(${a.room})`, `${g.W * g.k}px ${g.H * g.k}px`, `${g.left}px 0px`, 'no-repeat'], [`url(${a.floor})`, `${g.W * g.k}px ${16 * g.k}px`, `${g.left}px ${g.H * g.k}px`, 'repeat-y']].filter(Boolean);
     Object.assign(body.style, {
-      backgroundImage: `url(${a.room}), url(${a.floor})`,
-      backgroundSize: `${g.W * g.k}px ${g.H * g.k}px, ${g.W * g.k}px ${16 * g.k}px`,
-      backgroundPosition: `${g.left}px 0px, ${g.left}px ${g.H * g.k}px`,
-      backgroundRepeat: 'no-repeat, repeat-y',
+      backgroundImage: layers.map((l) => l[0]).join(', '),
+      backgroundSize: layers.map((l) => l[1]).join(', '),
+      backgroundPosition: layers.map((l) => l[2]).join(', '),
+      backgroundRepeat: layers.map((l) => l[3]).join(', '),
     });
     top.style.height = `${roomH}px`;
     body.style.setProperty('--sheet-min', `${Math.max(0, bh - roomH)}px`);

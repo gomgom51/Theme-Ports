@@ -115,7 +115,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   (award scene), misdeeds are grim proofs on a dark side table; a blacklisted company's office turns ostentatious
   (night outside, velvet, chandelier, gold bust, full safe: `paintOffice` option `shadow` in `ui/officepx.js`). The office is
   the Office panel's background on every tab, in the ships' fine pixel style (owner's pick): level on a brass plate, clickable jukebox, the
-  figures on a paper sheet that slides over the room (`ui/officeroom.js`). Office levels are sticky (company maturity) and gate
+  figures on a paper sheet that slides over the room (`ui/officeroom.js`). Each level has its own view and furniture (owner's
+  picks): rain on the quay, a fishing harbour at dawn, the harbour mouth at sunset, skyscrapers and the sea from a
+  mahogany-and-blue-velvet floor (windows only, no paintings), above the clouds in white and black marble (no wood).
+  Trophies, deeds and misdeeds are painted at screen resolution on their own layer so they stand out on purpose (`hi`
+  output of `paintOffice`, option `S`). Office levels are sticky (company maturity) and gate
   takeovers (buy only a company of your level or below), the reputation victory, and bank pressure.
 - Takeovers: paid from net cash (cash − debt − cargo loans), never borrowed. A human target gets a 30-day offer, can
   ask for six months (odds from reputation) and is warned whenever a rival can afford it. A blacklisted company can only
