@@ -19,6 +19,9 @@ function shape(d, col, { shade, light, w = 3 } = {}) {
     (light ? `<path d="${light}" fill="${col[2]}" clip-path="url(#${id})"/>` : '') +
     `<path d="${d}" fill="none" ${S(w)}/>`;
 }
+// Silhouette à contour unique : les éléments (ellipses, chemins) sont tracés d'abord en encre épaisse, puis
+// remplis par-dessus. Les coutures intérieures restent en couleur, sans trait noir : lisible même à 16 px.
+const blob = (els, fill, w = 5) => `<g fill="${K}" stroke="${K}" stroke-width="${w}" stroke-linejoin="round">${els}</g><g fill="${fill}">${els}</g>`;
 const rect = (x, y, w, h, r = 0) => `M${x + r} ${y}H${x + w - r}${r ? `Q${x + w} ${y} ${x + w} ${y + r}` : ''}V${y + h - r}${r ? `Q${x + w} ${y + h} ${x + w - r} ${y + h}` : ''}H${x + r}${r ? `Q${x} ${y + h} ${x} ${y + h - r}` : ''}V${y + r}${r ? `Q${x} ${y} ${x + r} ${y}` : ''}Z`;
 const circ = (cx, cy, r) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
 
@@ -153,16 +156,20 @@ export const EM = {
     shape('M3 37H21Q20 45 12 45Q4 45 3 37Z', C.red, { shade: 'M12 37H22V48H12Z' }) + shape('M43 37H61Q60 45 52 45Q44 45 43 37Z', C.red, { shade: 'M52 37H62V48H52Z' }) +
     shape('M20 57Q20 50 32 50Q44 50 44 57Z', C.brass, { shade: 'M32 48H46V58H32Z' }),
   cereales: () => {
+    // Trois épis à gros grains, un seul contour chacun ; grains de droite en or foncé pour le volume.
     const ear = (x, y, a) => {
-      let k = '';
-      for (let i = 0; i < 3; i++) k += `<ellipse cx="-3.3" cy="${i * 6.5}" rx="3.7" ry="4.8" transform="rotate(-25 -3.3 ${i * 6.5})"/><ellipse cx="3.3" cy="${i * 6.5}" rx="3.7" ry="4.8" transform="rotate(25 3.3 ${i * 6.5})"/>`;
-      k += `<ellipse cx="0" cy="-5" rx="3.5" ry="4.8"/>`;
-      return `<g transform="translate(${x} ${y}) rotate(${a})"><path d="M0 16V36" stroke="${K}" stroke-width="5" stroke-linecap="round"/><path d="M0 16V36" stroke="${C.brass[0]}" stroke-width="2" stroke-linecap="round"/>` +
-        `<g fill="${C.brass[1]}" stroke="${K}" stroke-width="2.2">${k}</g></g>`;
+      const L = [], R = [];
+      for (let i = 0; i < 3; i++) {
+        L.push(`<ellipse cx="-3.8" cy="${i * 7.4}" rx="4.4" ry="6" transform="rotate(-24 -3.8 ${i * 7.4})"/>`);
+        R.push(`<ellipse cx="3.8" cy="${i * 7.4}" rx="4.4" ry="6" transform="rotate(24 3.8 ${i * 7.4})"/>`);
+      }
+      const top = `<ellipse cx="0" cy="-6" rx="4.2" ry="6"/>`;
+      return `<g transform="translate(${x} ${y}) rotate(${a})">` + blob(L.join('') + R.join('') + top, C.brass[1]) +
+        `<g fill="${C.brass[0]}">${R.join('')}</g><ellipse cx="-4.6" cy="-1.5" rx="1.4" ry="2.6" fill="${C.brass[2]}" transform="rotate(-24 -4.6 -1.5)"/></g>`;
     };
-    return ear(17, 17, -24) + ear(47, 17, 24) + ear(32, 12, 0) +
-      `<path d="M27 46L20 60M32 46V61M37 46L44 60" stroke="${K}" stroke-width="5" stroke-linecap="round"/><path d="M27 46L20 60M32 46V61M37 46L44 60" stroke="${C.brass[0]}" stroke-width="2" stroke-linecap="round"/>` +
-      shape(rect(24, 41, 16, 6, 1.5), C.red);
+    const stalks = 'M17 35L27 46M47 35L37 46M32 31V46M27 46L20 60M32 46V61M37 46L44 60';
+    return `<path d="${stalks}" fill="none" stroke="${K}" stroke-width="5.4" stroke-linecap="round"/><path d="${stalks}" fill="none" stroke="${C.brass[0]}" stroke-width="2.4" stroke-linecap="round"/>` +
+      ear(15, 17, -30) + ear(49, 17, 30) + ear(32, 11, 0) + shape(rect(24, 42, 16, 6, 1.5), C.red, { w: 2.6 });
   },
   brut: () => shape('M14 9Q14 5 32 5Q50 5 50 9V55Q50 59 32 59Q14 59 14 55Z', C.oil, { shade: rect(41, 0, 12, 64), light: rect(17, 10, 4, 44) }) +
     `<path d="M14 9Q14 13 32 13Q50 13 50 9M14 24Q32 28 50 24M14 42Q32 46 50 42" fill="none" ${S(2.6)}/>` +
@@ -186,24 +193,30 @@ export const EM = {
     shape(rect(10, 26, 36, 5, 2), C.coffee) +
     shape('M4 52H52Q50 58 28 58Q6 58 4 52Z', C.white, { shade: 'M0 55H64V64H0Z' }),
   fruits: () => {
-    const d = 'M15 13C15 33 28 50 50 51C55 51 57 48 54 46C36 43 25 31 22 13Z';
-    const ban = (r) => `<g transform="rotate(${r} 17 12)">` + shape(d, C.brass, { shade: 'M22 30C30 42 40 47 56 47L58 56L20 56Z', light: 'M16.5 16C17 26 20 33 24 38L19 24Z' }) +
-      `<path d="M52 46.5L57 47.5" stroke="${C.coffee[1]}" stroke-width="3" stroke-linecap="round"/></g>`;
-    const FAT = ['#d8bfac', '#f4e4d7', '#fff7ef'], MEAT = ['#7e1f1c', '#b8352d', '#de6b5d'];
-    // Le steak, posé à côté du régime : liseré de gras, persillé et petit os.
-    return `<g transform="translate(-3 -2) scale(0.74)">` + ban(-14) + ban(4) + ban(22) + shape('M13 4H21L22 15H14Z', C.green, { shade: rect(18, 0, 6, 20) }) + `</g>` +
-      `<g transform="rotate(-12 44 46)">` +
-      shape('M25 45C24 37 31 32 38 33C43 33.6 46 30.5 51.5 30.5C58 30.5 62.5 35.5 61.5 42.5C60.5 51.5 52.5 58 42 58C32.5 58 26 52.5 25 45Z', FAT, { shade: 'M46 26H66V62H42Z', light: 'M28 42C29 37.5 32.5 35.4 36.5 35.6C33 37.5 31 40 30.5 44Z' }) +
-      shape('M29.5 45C29 39.5 33.5 36.6 38.5 37.2C43.5 37.8 46.5 34.6 51.5 34.6C56 34.6 58.3 38.2 57.6 43C56.8 50 50.6 54.2 42.2 54.2C35 54.2 30 50.6 29.5 45Z', MEAT,
-        { shade: 'M48 32H62V58H46Z', light: 'M32.5 44.5C32.5 41.5 34.5 39.6 37.5 39.8C35.4 41.4 34.6 43 34.6 45.6Z', w: 2.4 }) +
-      `<path d="M45 41Q48.5 42.6 52.5 41M46.5 49.5Q50 48 54 49.6M38 49.5Q40 51 42.5 50.6" fill="none" stroke="${MEAT[2]}" stroke-width="1.6" stroke-linecap="round"/>` +
-      shape(circ(39, 44.6, 3.6), FAT, { w: 2 }) + `<circle cx="39" cy="44.6" r="1.4" fill="${FAT[0]}"/></g>`;
+    // Deux bananes et un steak, chacun d'un seul contour ; détails en couleur (couture, gras, os) sans trait noir.
+    const B = 'M15 13C15 33 28 50 50 51C55 51 57 48 54 46C36 43 25 31 22 13Z';
+    const ban = (r) => `<path d="${B}" transform="rotate(${r} 17 12)"/>`;
+    const FAT = ['#d8bfac', '#f4e4d7', '#fff7ef'], MEAT = ['#8a2420', '#bd3a2f', '#e07a68'];
+    const steakOut = 'M23 44C22 35 30 29 38 30C43 30.6 46 27.5 52 27.5C59 27.5 63.5 33 62.5 41C61.5 51 53 58 42 58C31 58 24 52 23 44Z';
+    const steakIn = 'M28 44C27.5 38 33 34.2 38.5 34.8C44 35.4 47 32 52 32C56.6 32 58.8 36 58.2 41C57.4 49 50.6 53.6 42 53.6C34.4 53.6 28.5 49.6 28 44Z';
+    return `<g transform="translate(-1 -1) scale(0.78)">` + `<path d="M13 4H21L22 15H14Z" fill="${C.green[1]}" stroke="${K}" stroke-width="3" stroke-linejoin="round"/>` +
+      blob(ban(-6) + ban(18), C.brass[1], 6) + `<path d="${B}" transform="rotate(18 17 12)" fill="${C.brass[0]}" opacity="0.55"/>` +
+      `<path d="M17.5 17C18 27 21 34 25 39" transform="rotate(-6 17 12)" fill="none" stroke="${C.brass[2]}" stroke-width="2.6" stroke-linecap="round"/></g>` +
+      blob(`<path d="${steakOut}"/>`, FAT[1], 6) + `<path d="${steakIn}" fill="${MEAT[1]}"/>` +
+      `<path d="M47 33C52 31 57 33 58 38C58.6 45 55 50 49 52.5C53 46 53 39 47 33Z" fill="${MEAT[0]}"/>` +
+      `<path d="M31.5 43C31.8 39.6 34.4 37.6 37.6 37.8" fill="none" stroke="${MEAT[2]}" stroke-width="2.4" stroke-linecap="round"/>` +
+      `<circle cx="40" cy="45" r="3.6" fill="${FAT[2]}"/><circle cx="40" cy="45" r="1.5" fill="${FAT[0]}"/>`;
   },
-  minerai: () => shape('M5 52Q8 38 18 33L27 26Q33 22 39 26L48 32Q57 38 59 52Z', C.wood, { shade: 'M34 24H64V56H34Z', light: 'M10 46Q13 38 19 35L17 42Z' }) +
-    shape('M17 40L25 34L31 40L26 47L18 47Z', C.wood, { shade: 'M24 41H34V50H24Z' }) + shape('M33 31L41 29L46 36L40 41L33 38Z', C.wood, { shade: 'M40 34H48V43H40Z' }) +
-    shape('M36 44L44 42L50 48L44 52L37 51Z', C.wood, { shade: 'M44 46H52V54H44Z' }) +
-    `<path d="M21 38L23 37M38 32L40 31.5M41 46L43 45.5" stroke="${C.steel[2]}" stroke-width="2" stroke-linecap="round"/>` +
-    `<path d="M4 52H60" stroke="${K}" stroke-width="3" stroke-linecap="round"/>`,
+  minerai: () => {
+    // Un tas de minerai de fer couleur rouille : un seul contour, blocs suggérés par des facettes sans trait.
+    const RUST = ['#7a2e1c', '#a94a2c', '#d47a52'];
+    // Le haut du tas est bosselé (des blocs, pas une montagne lisse).
+    const heap = 'M4 54Q4 46 10 43Q11 37 17 36Q19 29 26 28Q29 20 36 22Q43 21 45 28Q52 29 53 36Q59 39 59 45Q60 50 60 54Z';
+    return shape(heap, RUST, { shade: 'M38 16H66V58H38Z' }) +
+      `<path d="M10 47L16 41L23 44L18 50Z M25 34L31 28L38 31L33 37Z M38 46L45 40L52 45L45 51Z M24 52L29 47L34 51L30 55Z" fill="${RUST[2]}"/>` +
+      `<path d="M18 50L23 44L27 49Z M33 37L38 31L41 37Z M45 51L52 45L55 51Z" fill="${RUST[0]}"/>` +
+      `<path d="M30 42L32 39.5L34 42L32 44.5Z M44 31L45.6 29L47.2 31L45.6 33Z M13 52L14.4 50.2L15.8 52L14.4 53.8Z" fill="${C.steel[2]}"/>`;
+  },
   charbon: () => [[6, 52, 'M6 52L10 40L20 36L28 42L27 52Z'], [0, 0, 'M24 52L27 38L37 32L47 37L48 52Z'], [0, 0, 'M42 52L44 41L53 38L59 45L58 52Z'],
     [0, 0, 'M17 39L21 27L31 24L37 31L32 39L22 41Z'], [0, 0, 'M35 31L39 21L47 19L52 25L49 33L41 35Z']]
     .map(([, , d]) => shape(d, C.oil, { shade: 'M30 0L64 0V64H44Z', light: '' })).join('') +
