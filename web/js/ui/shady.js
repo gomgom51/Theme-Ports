@@ -21,6 +21,13 @@ export function riskWords(p, crewLevel) {
 const levelClass = (p) => (p >= 0.2 ? 'neg' : p >= 0.1 ? 'warn-text' : '');
 export const customsWord = (flag) => { const c = customsLevel(flag); return c >= 0.3 ? 'stricte' : c >= 0.2 ? 'sérieuse' : c >= 0.12 ? 'moyenne' : 'laxiste'; };
 
+// Tampon « Embargo » à côté du nom d'un navire marqué (un an après un commerce sous embargo), et lui seul.
+export function embargoStamp(state, ship) {
+  const taint = taintActive(state, ship);
+  if (!taint) return null;
+  return h('span.embargo-stamp', { title: `Marqué par l'embargo jusqu'au ${date(taint.t + TAINT_DAYS * 24, true)} : risque d'amende à chaque escale dans un pays qui applique les sanctions.` }, 'Embargo');
+}
+
 // Lignes de risque (colis caché à bord, navire marqué par un embargo) pour un départ vers `to`.
 // `general` : dire aussi le marquage quand la destination n'applique pas les sanctions (fiche du navire).
 export function shadyLines(state, ship, to, { general = true } = {}) {

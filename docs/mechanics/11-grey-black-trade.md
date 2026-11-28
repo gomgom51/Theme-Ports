@@ -10,6 +10,8 @@ best tools for grey and black trade (`CONCEALMENT`, `darkCapable`).
 - Trading with an embargoed country (buy, sell, contract from/to, cargo loan from its lenders) calls
   `taintShip`: `ship.taint = {t, port, value}` (value accumulates) for `TAINT_DAYS` 365. Also counts
   toward the "Briseur d'embargo" misdeed and marks a dirty act (`onDirty`).
+  A marked ship wears a red EMBARGO stamp next to its name (ship sheet header, fleet list;
+  `embargoStamp` in `ui/shady.js`, tooltip with the end date); unmarked ships never show it.
 - Why do it: embargoed ports pay imports ×1.08, sell exports ×0.95 (thin markets move fast),
   freight ×1.25, generous cargo loans (LTV 0.9 at 30 %), dark jobs, oil contracts during the refinery crisis.
 - Arriving in an **enforcing** port with active taint: 35 % (`SANCTION_ODDS` × equip `sanction`, the

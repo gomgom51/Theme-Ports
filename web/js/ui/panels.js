@@ -32,7 +32,7 @@ import { CLIENTS } from '../data/clients.js';
 import { clientRel, clientDown, relationOf, clientDemand, clientState, LOYAL, RESERVE_LOYALTY, imageFactor } from '../sim/clients.js';
 import { surveyTag, isStrict } from './risk.js';
 import { alertsPanel } from './alerts.js';
-import { portShadyInfo } from './shady.js';
+import { portShadyInfo, embargoStamp } from './shady.js';
 import { underworldSection, informantSection, partnerInfo } from './plots.js';
 import { PLANS, PLAN_IDS, fleetPremium, planOf } from '../sim/insurance.js';
 import { shipResults } from './shipresults.js';
@@ -122,7 +122,7 @@ export function fleetPanel(app) {
       const T = SHIP_TYPES[s.type];
       return h('button.row.selectable.with-thumb', { onclick: () => { app.open('ship', s.id); app.focusShip(s.id); } }, [
         h('span.thumb', { html: artForShip(state, s, { sky: false, slot: 'thumb' }) }),
-        h('span.grow', [h('b.nm', s.name), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s)), shipRoute(state, ctx, s, true)]),
+        h('span.grow', [h('b.nm', s.name), embargoStamp(state, s), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s)), shipRoute(state, ctx, s, true)]),
         h('span.mini', [h('span.muted.small', 'état'), bar(s.condition / 100, { good: 0.7, warn: 0.45 })]),
         h('span.mini', [h('span.muted.small', 'fuel'), bar(s.fuel / T.tank, { good: 0.4, warn: 0.15 })]),
       ]);
@@ -583,8 +583,9 @@ function companyTab(app) {
   const lim = repLimit(c);
   const q = repQuote(c);
   const R = Math.min(c.confidence, c.virtue); // = c.reputation
+  // Notes arrondies vers le bas, comme partout ailleurs (barre du haut, classement, victoires) : 99,6 n'affiche pas 100.
   const scoreCol = (icon, label, v, cap, low, effects) => h('div.rep-col', { class: low ? 'low' : '' }, [
-    h('div.rep-col-head', [h('span', icon), ' ', h('b', label), h('b.rep-col-val', `${num(v)}`), h('span.muted.small', '/100')]),
+    h('div.rep-col-head', [h('span', icon), ' ', h('b', label), h('b.rep-col-val', `${num(Math.floor(v))}`), h('span.muted.small', '/100')]),
     bar(v / 100, { good: 0.6, warn: 0.35 }),
     h('div.rep-col-tags', [low ? h('span.tag.warn', 'retient votre réputation') : null, cap < 100 ? h('span.muted.small', `plafond ${num(cap)}`) : null]),
     h('div.rep-effects', effects.map(([l, val, sub]) => kv(l, val, sub))),
@@ -592,7 +593,7 @@ function companyTab(app) {
   box.append(h('div.rep-summary', [
     h('div.rep-summary-head', [
       h('span.star.rep-star', '★'),
-      h('div.grow', [h('div.rep-summary-title', 'Réputation'), h('div.rep-summary-val', [h('b', num(R)), h('span.muted', ' /100')])]),
+      h('div.grow', [h('div.rep-summary-title', 'Réputation'), h('div.rep-summary-val', [h('b', num(Math.floor(R))), h('span.muted', ' /100')])]),
       reputationLink(app),
     ]),
     h('div.bar-star', bar(R / 100)),

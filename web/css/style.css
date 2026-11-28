@@ -242,7 +242,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .vic-dot.hot { animation: vic-dot 1s ease-in-out infinite; }
 @keyframes vic-dot { 50% { transform: scale(1.35); } }
 .vic-dot[hidden] { display: none; }
-@media (prefers-reduced-motion: reduce) { .rail .vic-btn.hot, .vic-dot.hot { animation: none; } }
+/* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .rail .vic-btn.hot, html.no-motion .vic-dot.hot { animation: none; }
 .vic-panel-icon { font-size: 34px; line-height: 1; width: 44px; text-align: center; flex: none; }
 .vic-shadow-status { margin-top: 12px; }
 .badge {
@@ -302,6 +302,17 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-titles { flex: 1; min-width: 0; }
 .panel-back { flex: none; font-size: 19px; font-weight: 800; }
 .panel-titles h2 { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.panel-title-row h2 { min-width: 0; }
+/* Tampon « Embargo » : encre rouge de douane, double cadre, posé de travers à côté du nom d'un navire marqué. */
+.embargo-stamp {
+  display: inline-block; flex: none; font-family: var(--stencil); font-weight: 700; font-size: 12px; line-height: 1;
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--bad); padding: 3px 6px 2px;
+  border: 2px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--paper), inset 0 0 0 2px currentColor;
+  transform: rotate(-6deg); opacity: 0.88; white-space: nowrap; cursor: help; vertical-align: 1px;
+}
+.panel-title-row .embargo-stamp { font-size: 14px; padding: 4px 8px 3px; }
+.row .embargo-stamp { margin: 0 6px 0 8px; font-size: 10.5px; padding: 2px 5px 1px; }
 .panel-sub { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-actions { display: flex; gap: 6px; }
 /* Les onglets passent à la ligne quand ils ne tiennent pas : un onglet caché hors de l'écran,
@@ -352,6 +363,7 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .office-juke-spot:hover .juke-sprite, .office-juke-spot:focus-visible .juke-sprite { filter: drop-shadow(0 0 3px rgba(255, 236, 170, 0.95)) brightness(1.1); }
 .office-juke-spot .juke-notes { position: absolute; right: -4px; top: -6px; width: 20px; height: 20px; pointer-events: none; }
 .office-juke-spot.juke-on .juke-notes { display: block; }
+html.no-motion .office-juke-spot.juke-on .juke-notes { display: none; } /* animations coupées : pas de notes qui flottent */
 .office-juke-spot .juke-notes i {
   position: absolute; left: 0; top: 0; font: 700 16px/1 var(--icons), sans-serif; font-style: normal; color: #b8600c;
   text-shadow: 0 0 2px #fff8e6, 0 0 2px #fff8e6, 0 0 1px #fff8e6; animation: juke-float 2.4s ease-in var(--juke-phase, 0s) infinite;
@@ -700,7 +712,7 @@ select.input { width: auto; max-width: 100%; }
 @keyframes intro-blink { 50% { opacity: .2; } }
 .title-card.pop-in { animation: card-pop .6s cubic-bezier(.2, 1.3, .4, 1) .15s both; }
 @keyframes card-pop { from { opacity: 0; transform: translateY(18px) scale(.92); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .intro-prompt { animation: none; } .title-card.pop-in { animation: none; } }
+/* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .intro-prompt { animation: none; } html.no-motion .title-card.pop-in { animation: none; }
 .setup-card {
   width: min(720px, 100%); margin: auto; background: var(--paper); border: 1px solid var(--line); border-top: 5px solid var(--navy);
   border-radius: 16px; padding: 18px 22px; box-shadow: var(--shadow);
@@ -913,7 +925,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
   70% { box-shadow: 0 0 0 12px rgba(245, 166, 35, 0); }
   100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0); }
 }
-@media (prefers-reduced-motion: reduce) { .guide-target { animation: none; } }
+/* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .guide-target { animation: none; }
 
 /* ---------- Fiche d'un navire : lien vers les services du port (la Mafia, l'informateur) ---------- */
 .services-link {
@@ -931,7 +943,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .services-link.zone:hover { border-color: #f5c26b; }
 .focus-flash { animation: focus-flash 2.2s ease-out; border-radius: 8px; }
 @keyframes focus-flash { 0%, 30% { background: rgba(245, 194, 107, 0.45); box-shadow: 0 0 0 6px rgba(245, 194, 107, 0.45); } 100% { background: transparent; box-shadow: 0 0 0 6px transparent; } }
-@media (prefers-reduced-motion: reduce) { .focus-flash { animation: none; outline: 2px solid #f5c26b; } }
+/* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .focus-flash { animation: none; outline: 2px solid #f5c26b; }
 
 /* ---------- Destination et dates bien en vue ---------- */
 .route-chip { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; margin: 6px 0 2px; font-size: 13px; color: var(--ink-2); }
@@ -974,7 +986,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .opp-more-body { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); }
 .opp-more-body > b:first-child { color: var(--ink); }
 .opp-ship-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (prefers-reduced-motion: reduce) { .opp-more { transition: none; } }
+/* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .opp-more { transition: none; }
 
 /* ---------- Achat d'une cargaison : financement ---------- */
 .fin-options { display: grid; gap: 6px; }
@@ -1169,7 +1181,7 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
   .cr-frame.right { display: none; }
   .cr-viewport { top: calc(min(420px, calc(86 * var(--vw))) * 0.56 + 100px + var(--safe-t)); }
 }
-@media (prefers-reduced-motion: reduce) { .cr-frame { transition: none; } }
+/* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .cr-frame { transition: none; }
 .link-btn { background: none; border: 0; padding: 4px 6px; font: inherit; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .link-btn:hover { color: var(--ink, #1c2a33); }
 .title-card .link-btn.credits { font-size: 13px; }
@@ -1191,7 +1203,7 @@ span.juke-btn { cursor: default; border-style: dashed; }
 .juke-eq i { width: 3px; background: #0f6f76; animation: juke-eq 0.9s ease-in-out infinite alternate; }
 .juke-eq i:nth-child(2) { animation-delay: -0.3s; } .juke-eq i:nth-child(3) { animation-delay: -0.6s; }
 @keyframes juke-eq { from { height: 3px; } to { height: 14px; } }
-@media (prefers-reduced-motion: reduce) { .juke-note, .juke-eq i { animation: none; } .juke-eq i { height: 9px; } }
+/* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .juke-note, html.no-motion .juke-eq i { animation: none; } html.no-motion .juke-eq i { height: 9px; }
 
 /* Avantage du port d'attache. */
 .home-tag.shadow { background: #2b2230; color: #f1e6f5; border-color: #2b2230; }

@@ -1251,6 +1251,8 @@ export default {
   "La banque saisit un navire": "The bank seizes a ship",
   "Illustrations : oui": "Event scenes: on",
   "Illustrations : non": "Event scenes: off",
+  "Animations : oui": "Animations: on",
+  "Animations : non": "Animations: off",
   "Navires : pixels fins": "Ships: fine pixels",
   "Interface : {0}": "Interface: {0}",
   "Taille de l'interface": "Interface size",
@@ -2966,4 +2968,6 @@ export default {
   "{0} — ses navires y vont": "{0} — its ships are heading there",
   "Le {0} est enfin autorisé à repartir à {1}.": "The {0} is finally cleared to sail from {1}.",
   "Carte du monde": "World map",
+  "Embargo": "Embargo",
+  "Marqué par l'embargo jusqu'au {0} : risque d'amende à chaque escale dans un pays qui applique les sanctions.": "Marked by the embargo until {0}: risk of a fine at every call in a country that enforces sanctions.",
 };

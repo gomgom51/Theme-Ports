@@ -9,7 +9,7 @@ import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
 import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
-import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine } from './ui/motion.js';
+import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine, animationsOn, setAnimationsOn, applyMotionClass } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
@@ -236,7 +236,7 @@ function renderPanel() {
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
       app.ui.history?.length ? h('button.icon-btn.panel-back', { 'aria-label': 'Retour', title: 'Retour au panneau précédent', onclick: () => app.back() }, '←') : null,
       def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 44) }) : null),
-      h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', { class: def.nameSub ? 'nm' : '' }, def.subtitle) : null]),
+      h('div.panel-titles', [def.titleStamp ? h('div.panel-title-row', [h('h2', def.title), def.titleStamp]) : h('h2', def.title), def.subtitle ? h('div.panel-sub', { class: def.nameSub ? 'nm' : '' }, def.subtitle) : null]),
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
     ]),
     tabs ? h('div.tabs', { role: 'tablist' }, tabs.map(([id, label]) => h('button.tab', {
@@ -665,6 +665,7 @@ function handleNotes(notes) {
   const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
   const crewUps = []; // points de spécialité gagnés : une petite scène par compagnie, sans son
   const iceChanges = []; // gel et dégel du jour : une scène par sorte (port ou passage, gel ou dégel)
+  const waiting = notes.filter((n) => n.kind === 'idle' || n.kind === 'prospect'); // navires qui attendent vos ordres
   for (const n of notes) {
     if (n.kind === 'crew' && scenes) { crewUps.push(n); continue; }
     if (n.kind === 'ice') { if (scenes) iceChanges.push(n); else toast(`❄ ${n.text}`, { timeout: 9000 }); continue; }
@@ -917,7 +918,22 @@ function handleNotes(notes) {
   }
   if (app.sceneQueue.length) paused = true; // une scène est ouverte : on n'avance plus
   if (paused) app.speed = 0;
+  if (paused && app.state.settings.autoPause) openWaitingShip(waiting);
   return paused;
+}
+
+// Le jeu s'arrête parce qu'un navire attend vos ordres : sa fiche s'ouvre d'elle-même (derrière
+// l'encaissement ou la scène s'il y en a une). Sauf si vous donnez déjà vos ordres à un autre navire
+// en attente : on ne vous l'arrache pas des mains (le message « Voir » mène au nouveau).
+function openWaitingShip(list) {
+  const cid = app.ui.activeCompany;
+  const n = list.find((x) => x.company === cid && shipById(app.state, x.shipId) && isIdle(shipById(app.state, x.shipId)));
+  if (!n) return;
+  const p = app.ui.panel, cur = p?.type === 'ship' && p.id !== n.shipId ? shipById(app.state, p.id) : null;
+  if (cur && cur.owner === cid && (isIdle(cur) || app.tradeHold === cur.id)) return;
+  if (p?.type === 'ship' && p.id === n.shipId) p.tab = null; // fiche déjà ouverte (onglet Voyage…) : l'onglet utile à l'escale
+  app.open('ship', n.shipId, n.kind === 'prospect' ? 'contrats' : null);
+  app.focusShip(n.shipId, { quiet: true });
 }
 
 // ---------- Sons du temps ----------
@@ -1125,6 +1141,7 @@ async function gameMenu() {
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
       { label: `Son : ${soundLabel()}`, value: 'sound' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
+      { label: animationsOn() ? 'Animations : oui' : 'Animations : non', value: 'anim' },
       { label: shipStyle() === 'chunky' ? 'Navires : gros pixels' : 'Navires : pixels fins', value: 'ships' },
       { label: `Interface : ${uiSize().label}`, value: 'uisize' },
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
@@ -1148,6 +1165,7 @@ async function gameMenu() {
   else if (v === 'sound') { await soundDialog(); app.speed = wasSpeed; }
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
+  else if (v === 'anim') { setAnimationsOn(!animationsOn()); app.speed = wasSpeed; } // ne suit plus le réglage de Windows
   else if (v === 'ships') { setShipStyle(shipStyle() === 'chunky' ? 'fine' : 'chunky'); app.speed = wasSpeed; }
   else if (v === 'uisize') {
     // Taille de l'interface : « Normale » suit la taille de l'écran (pensé pour 1920 × 1080), les autres l'ajustent.
@@ -1203,6 +1221,7 @@ initTooltips();
 initBossKey(app); // touche A : cacher le jeu derrière une simple carte, et le retrouver tel quel
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
+applyMotionClass(); // animations coupées par le joueur : CSS aussi (html.no-motion)
 // Largeur du panneau, réglable à sa poignée ; le décor du Bureau suit (une fois par image).
 let refitting = 0;
 const refitRoom = () => { if (!refitting) refitting = requestAnimationFrame(() => { refitting = 0; panelEl._mount?.(); }); };
