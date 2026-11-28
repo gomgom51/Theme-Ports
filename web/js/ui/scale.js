@@ -1,6 +1,13 @@
-// Taille de l'interface. Le jeu est dessiné pour un écran de 1920 × 1080 : sur un écran plus grand
-// (2560 × 1440, 4K…) tout grandit d'autant, comme un zoom du navigateur (zoom CSS sur <html>), et le
-// joueur peut l'ajuster dans le menu ☰ (Petite, Normale, Grande, Très grande).
+// Taille de l'interface. Un seul format de référence, le 16:9 de l'écran du propriétaire (2560 × 1440) ; le code
+// compte en px d'un écran 1920 × 1080 (même format, ×1,33 en 2560 × 1440). Tout grandit ou rapetisse avec
+// l'écran, comme un zoom du navigateur (zoom CSS sur <html>), et le joueur peut l'ajuster dans le menu ☰
+// (Petite, Normale, Grande, Très grande).
+// - Tout écran 16:9 (1920 × 1080, 2560 × 1440, 4K) voit la même image, plus grande ou plus petite.
+// - Autre format (16:10, ultralarge 21:9) : l'interface garde la taille du 16:9 qui tient dans l'écran, collée
+//   aux bords, et la carte remplit le reste (plus de mer, jamais de bandes noires : choix du propriétaire).
+//   Fenêtres et scènes restent des cartes centrées de largeur bornée.
+// - Petit écran (1366 × 768, 1280 × 800) : tout rapetisse pour tenir, jusqu'à MIN ; plus petit, les textes
+//   deviendraient illisibles (le menu ☰ peut encore agrandir ou réduire).
 // - Les coordonnées de l'écran (clientX, getBoundingClientRect, innerWidth) restent en pixels de l'écran ;
 //   les tailles CSS (offsetWidth, style.left…) sont en pixels de l'interface : toLocal() passe des unes aux autres.
 // - Les unités vw/vh de style.css passent par --vw/--vh, sinon elles grandiraient avec le zoom.
@@ -10,7 +17,7 @@
 import { KEYS, read, write } from './storage.js';
 
 const BASE_W = 1920, BASE_H = 1080;
-const MAX = 2.5;
+const MIN = 0.75, MAX = 2.5;
 export const UI_SIZES = [
   { id: 'small', label: 'Petite', k: 0.85 },
   { id: 'normal', label: 'Normale', k: 1 },
@@ -38,8 +45,8 @@ export function setUiSize(id) {
   applyScale();
 }
 
-// Jamais plus petit qu'aujourd'hui sans le demander (Petite) : un écran plus petit que 1920 × 1080 garde la taille d'origine.
-const auto = () => Math.max(1, Math.min(window.innerWidth / BASE_W, window.innerHeight / BASE_H));
+// Le plus grand 16:9 qui tient dans l'écran, jamais sous MIN (petits écrans).
+const auto = () => Math.max(MIN, Math.min(window.innerWidth / BASE_W, window.innerHeight / BASE_H));
 
 export function applyScale() {
   const nz = Math.round(Math.min(MAX, auto() * uiSize().k) * 100) / 100;
