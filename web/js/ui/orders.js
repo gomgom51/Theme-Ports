@@ -135,7 +135,7 @@ export async function captainDialog(app, ship) {
       h('label', ['Négoce, comptant et sans prêt : ', select('trade', O.TRADE_CHOICES, (v) => (v ? `jusqu'à ${money(v)}` : 'jamais'))]),
       h('label', ['Passage au chantier sous : ', select('repairBelow', [55, 60, 65, 70, 75], (v) => `${v} % d'état`)]),
     ]),
-    h('p', [h('b', 'Honoraires : '), `${money(O.captainFeeDay(state, ship))} par jour tant qu'il commande (deux fois les salaires d'un équipage de base).`]),
+    h('p', [h('b', 'Honoraires : '), `${money(O.captainFeeDay(state, ship))} par jour tant qu'il commande, trois fois le salaire d'un marin chevronné (il fait le travail du patron).`]),
     h('p.muted', `Il vous appelle si rien ne convient depuis ${O.ORDERS.callDays} jours ou si une décision vous revient (litige, douane, rançon, glaces). Reprendre la main sans qu'il vous ait appelé : le vieux briscard quitte le navire (un niveau de Vieux briscards perdu, à regagner en mer).`),
   ]);
   const ok = await dialog({ title: '🧭 Capitaine libre', body, wide: true, buttons: [{ label: 'Annuler', value: false, kind: 'ghost' }, { label: ship.orders?.kind === 'captain' ? 'Enregistrer' : 'Confier le navire', value: true, kind: 'primary' }] });

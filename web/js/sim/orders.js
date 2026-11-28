@@ -35,7 +35,10 @@ export const ORDERS = {
   repairTo: 92, // état visé par les réparations
   callWorn: 45, // ligne : trop usé et aucun chantier aux deux bouts : il appelle
   lineWaitDays: 3, // ligne : aucun chargement depuis tant de jours : il appelle
-  captainFee: 2, // capitaine libre : honoraires par jour, en multiple des salaires d'un équipage de base
+  // Capitaine libre : honoraires par jour = captainFee fois le salaire d'un seul marin du niveau captainLevel (chevronné).
+  // Choix du propriétaire : « il fait le travail du patron », mais la somme reste marginale face à ce que rapporte le navire.
+  captainFee: 3,
+  captainLevel: 2,
   callDays: 5, // capitaine libre : rien ne convient depuis tant de jours : il appelle
   recheckH: 12, // heures avant de réessayer quand rien ne convient
   limits: { pirates: false, embargo: false, polluting: false, oil: false, maxDays: 30, trade: 2e6, repairBelow: 65 },
@@ -59,7 +62,8 @@ export const waitsForOrders = (ship) => ship.status === 'port' && !ship.busyWhat
 
 export function captainFeeDay(state, ship) {
   const company = state.companies[ship.owner];
-  return ORDERS.captainFee * eco.crewDayCost(SHIP_TYPES[ship.type], company.flag, 0);
+  const T = SHIP_TYPES[ship.type];
+  return ORDERS.captainFee * eco.crewDayCost(T, company.flag, ORDERS.captainLevel) / T.crew; // un homme, pas tout l'équipage
 }
 
 // ---------- Les risques d'un trajet, vus par l'ordre (règle 1) ----------

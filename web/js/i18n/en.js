@@ -3091,7 +3091,7 @@ export default {
   "Passage au chantier sous :": "Yard visit below:",
   "{0} % d'état": "{0} % condition",
   "Honoraires :": "Fee:",
-  "{0} par jour tant qu'il commande (deux fois les salaires d'un équipage de base).": "{0} per day while in command (twice a basic crew's wages).",
+  "{0} par jour tant qu'il commande, trois fois le salaire d'un marin chevronné (il fait le travail du patron).": "{0} per day while in command, three times a veteran sailor's wage (he does the boss's job).",
   "Il vous appelle si rien ne convient depuis {0} jours ou si une décision vous revient (litige, douane, rançon, glaces). Reprendre la main sans qu'il vous ait appelé : le vieux briscard quitte le navire (un niveau de Vieux briscards perdu, à regagner en mer).": "The captain calls you if nothing has fitted for {0} days or a decision is yours (dispute, customs, ransom, ice). Taking back control without a call: the old hand leaves the ship (one Old hands level lost, to be earned again at sea).",
   "Confier le navire": "Hand over the ship",
   "Reprendre la main ?": "Take back control?",

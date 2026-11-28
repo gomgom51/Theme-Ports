@@ -97,7 +97,7 @@ A locked chip says on click what is missing. `ship.orders` = `{kind: 'line' or '
 | Mode | Gate | Cost | Taking control back |
 |---|---|---|---|
 | ↻ Regular line | crew confirmé or better and `crewMaxed` (all 6 XP points) | none | free (stop the line any time) |
-| 🧭 Captain's choice | crew level 3, vieux briscards (`BRISCARD_LEVEL`) | `captainFee` 2 × a basic crew's daily wages, every day (book `equipage`, not while laid up) | free when the captain called you; otherwise `loseBriscardPoint` (−1 Vieux briscards rank, XP one step back, crew back to `crewWas`), stated in the confirmation with the days at sea to earn it back |
+| 🧭 Captain's choice | crew level 3, vieux briscards (`BRISCARD_LEVEL`) | `captainFee` 3 × the daily wage of one veteran sailor (`captainLevel` 2, chevronné; one man, not the whole crew: about 660 $/day under a Chinese flag), every day (book `equipage`, not while laid up). Owner's call: he does the boss's job, but the fee must stay marginal next to what the ship makes (2–8 % of a captain-run ship's daily net in a one-year check, more on a coaster that barely earns) | free when the captain called you; otherwise `loseBriscardPoint` (−1 Vieux briscards rank, XP one step back, crew back to `crewWas`), stated in the confirmation with the days at sea to earn it back |
 
 - **Line** (`setLine`, from the Set sail card: tick "En faire une ligne régulière", button "Lancer la ligne"; or the
   chip on a ship at sea / with a planned departure turns the current trip into a line). Two ends `a`/`b`, the speed,
