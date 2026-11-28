@@ -1,11 +1,9 @@
 name: APK Android
 
+# Version Android mise de côté (jeu sur ordinateur seulement, choix du propriétaire, 2026-11-27) :
+# l'APK ne se construit plus à chaque envoi (une release GitHub par envoi, près de 180 en quatre jours).
+# Pour en construire un : onglet Actions → APK Android → Run workflow.
 on:
-  push:
-    paths:
-      - 'web/**'
-      - 'android/**'
-      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 permissions:
@@ -39,7 +37,6 @@ jobs:
       # Une « release » GitHub permet de télécharger l'APK directement depuis le téléphone :
       # https://github.com/<propriétaire>/<dépôt>/releases/latest/download/PortDAttache.apk
       - name: Publier une release
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
