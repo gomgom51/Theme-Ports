@@ -8,7 +8,7 @@ import * as eco from './economy.js';
 import * as act from './actions.js';
 import {
   book, news, emptyBook, bookTotal, companyOf, shipsOf, isIdle, fleetValue, netWorth, interestRate,
-  changeTrust, changeVirtue, earnVirtue, slowVirtue, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
+  changeTrust, changeVirtue, earnVirtue, onTimeTrust, closeTrustQuarter, TRUST, slowVirtue, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
   shipTrack, shipBook, lastTrip, activityOf,
 } from './core.js';
 import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
@@ -36,7 +36,7 @@ import { levelsDaily, victoryDaily } from './victory.js';
 import { takeoverDaily, aiTakeover } from './takeover.js';
 import { shadowDaily } from './shadow.js';
 import { AI_LEANINGS } from './ai.js';
-import { money } from './format.js';
+import { money, num1 } from './format.js';
 import { SAVE_VERSION } from './migrations.js';
 
 const D = HOURS_PER_DAY;
@@ -66,7 +66,7 @@ export function newGame(opts, ctx) {
     },
     market, ports,
     companies: [], ships: [], contracts: [], used: [], orders: [],
-    storms: [], canals: {}, strikes: {}, news: [], over: null, payments: [], receivables: [],
+    storms: [], canals: {}, strikes: {}, news: [], over: null, payments: [], receivables: [], trustReport: null,
   };
   const diff = DIFFICULTIES[state.settings.difficulty];
   // Tempérament de chaque IA : le chemin de victoire qu'elle poursuit (variés dans une même partie).
@@ -92,6 +92,7 @@ export function newGame(opts, ctx) {
       homePort: c.homePort, flag, cash: diff.cash, debt: 0,
       reputation: Math.round(FLAGS[flag].rating * 0.5 + 25), confidence: Math.round(FLAGS[flag].rating * 0.5 + 25), virtue: Math.round(FLAGS[flag].rating * 0.5 + 25),
       portsServed: [c.homePort], delivered: 0, late: 0, bankrupt: false, lowCashDays: 0,
+      rel: { d: 0, s: 0 }, trustQ: { start: Math.round(FLAGS[flag].rating * 0.5 + 25), onTime: 0, late: 0, byClient: {} },
       month: emptyBook(), lastMonth: emptyBook(), total: emptyBook(), history: [],
       // Certaines compagnies de l'ordinateur sont « audacieuses » : elles prennent des colis discrets.
       ai: c.human ? null : { skill: diff.aiSkill, nextFleet: rng.int(1, 5) * D, daring: leaning === 'ombre' || (leaning !== 'vertueux' && rng.chance(0.5)), leaning },
@@ -423,7 +424,7 @@ function arrive(state, ctx, ship, notes, rng) {
   book(state, company, -fee, 'ports', ship);
   const tr = lastTrip(state, ship);
   if (tr && tr.d1 == null) tr.d1 = state.t;
-  if (!company.portsServed.includes(to)) { company.portsServed.push(to); changeTrust(company, 0.5, 'nouveaux ports'); }
+  if (!company.portsServed.includes(to)) { company.portsServed.push(to); changeTrust(company, 0.5 * (1 - standing(company).confidence / 110), 'nouveaux ports'); } // dégressif, comme les autres gains
   shipLog(state, ship, `Arrivée à ${portName(to)}`);
   // Port saisonnier déjà pris par les glaces : un brise-glace escorte le navire jusqu'au quai.
   if (isSeasonal(to) && !iceOpen(state, to, state.t, ship)) {
@@ -521,6 +522,7 @@ function deliverContract(state, ship, rng, notes) {
   if (tr && tr.rev == null) tr.rev = Math.round(pay);
   if (penalty > 0) st.late++; else st.onTime++;
   company.delivered++;
+  company.rel.d += 1; // fiabilité face au marché (sim/core.js, TRUST)
   if (damage > 0.005) changeTrust(company, -damage * 8, 'cargaisons avariées');
   // Le paiement passe par l'encaissement (bouton « Encaisser » pour les joueurs).
   const payment = createPayment(state, ship, c, penalty, damage);
@@ -542,10 +544,13 @@ function deliverContract(state, ship, rng, notes) {
   charityDelivered(state, company, ship, c, penalty > 0); // aide d'urgence : réputation et bonne presse
   if (penalty > 0) {
     company.late++;
+    company.trustQ.late++;
     changeTrust(company, -(2 + penalty * 10), 'retards');
     shipLog(state, ship, `Livraison en retard à ${portName(c.to)} : ${money(pay)} (pénalité ${Math.round(penalty * 100)} %)`);
   } else {
-    changeTrust(company, 1.5 * (1 - standing(company).confidence / 110), 'livraisons à l\'heure');
+    onTimeTrust(state, company); // un pas vers la cible : fiabilité face aux concurrents
+    company.trustQ.onTime++;
+    if (c.client) company.trustQ.byClient[c.client] = (company.trustQ.byClient[c.client] || 0) + 1;
     if (USEFUL_GOODS.includes(c.good)) earnVirtue(company, VIRTUE_SOURCES.useful, 'marchandises utiles'); // marchandise utile
     if (c.golden && isCleanGood(c.good)) earnVirtue(company, VIRTUE_SOURCES.opportunity, 'affaires propres'); // affaire en or propre
     shipLog(state, ship, `Livraison à ${portName(c.to)} : ${money(pay)}`);
@@ -675,8 +680,17 @@ function daily(state, ctx, rng, notes) {
 }
 
 function monthly(state, notes) {
+  // Rapport de confiance au début de chaque trimestre (janvier, avril, juillet, octobre), sauf au lancement.
+  if (dateOf(state.t).getUTCMonth() % 3 === 0 && state.t > 0) {
+    const R = closeTrustQuarter(state);
+    for (const c of state.companies) {
+      const row = R.rows.find((x) => x.id === c.id);
+      if (c.human && row && notes) notes.push({ kind: 'trustReport', company: c.id, text: `Rapport de confiance du trimestre : ${Math.floor(row.trust)} (${row.delta >= 0 ? '+' : '−'}${num1(Math.abs(row.delta))}).` });
+    }
+  }
   for (const company of state.companies) {
     if (company.bankrupt) continue;
+    company.rel.d *= TRUST.memory; company.rel.s *= TRUST.memory; // les chargeurs oublient peu à peu
     const profit = bookTotal(company.month);
     if (profit > 0) {
       const tax = profit * FLAGS[company.flag].tax;

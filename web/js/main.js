@@ -694,6 +694,8 @@ function handleNotes(notes) {
     if (n.kind === 'iceSoon') { toast(`❄ ${prefixOf(n)}${n.text}`, { kind: 'warn', timeout: 10000 }); continue; }
     // Bilan du mois : confiance et vertu, par cause (sans arrêter le temps).
     if (n.kind === 'standing') { toast(standingSummary(n.log, prefixOf(n)), { timeout: 15000, tag: `standing-${n.company}` }); continue; }
+    // Rapport de confiance du trimestre : un mot, et le rapport complet dans Bureau → Compagnie.
+    if (n.kind === 'trustReport') { toast(h('span', [h('span', '🤝'), ' ', prefixOf(n) ? h('span', prefixOf(n)) : null, h('span', n.text)]), { timeout: 15000, tag: `trust-${n.company}`, action: 'Voir le rapport', onAction: () => app.open('office', null, 'compagnie') }); continue; }
     // Affaires noires : la proposition, les saisies, et ce qu'on lit ensuite dans les nouvelles.
     if (n.kind === 'darkoffer') {
       const cid = n.company;

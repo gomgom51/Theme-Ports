@@ -37,10 +37,13 @@ function fillDefaults(state) {
   state.offers ??= [];
   state.cases ??= [];
   state.market.cycle ??= 0;
+  state.trustReport ??= null;
   const logos = ['ancre', 'phare', 'barre', 'rose']; // les emblèmes de l'époque (avant le choix du logo)
   state.companies.forEach((c, i) => {
     c.logo ||= logos[i % logos.length];
     standing(c); // confiance et vertu
+    c.rel ??= { d: 0, s: 0 }; // fiabilité face au marché (core.js, TRUST)
+    c.trustQ ??= { start: c.confidence, onTime: 0, late: 0, byClient: {} }; // rapport de confiance du trimestre
     c.bans ??= {};
     c.insurance ??= 'complete';
     if (c.ai && !c.ai.leaning) c.ai.leaning = AI_LEANINGS[c.id % AI_LEANINGS.length];

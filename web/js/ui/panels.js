@@ -5,7 +5,7 @@ import { SHADOW_LENDER } from '../sim/core.js';
 import { tr } from '../i18n.js';
 import { codexPanel } from './codex.js';
 import { jukeboxDialog } from './jukebox.js';
-import { trustEffects, virtueEffects, repQuote, reputationLink } from './reputation.js';
+import { trustEffects, virtueEffects, repQuote, reputationLink, trustReportBox } from './reputation.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { GOODS, GOOD_IDS, HOLDS } from '../data/goods.js';
@@ -602,11 +602,12 @@ function companyTab(app) {
     h('p.rep-quote', q.main),
     q.gap ? h('p.rep-gap', q.gap) : null,
     h('div.rep-cols', [
-      scoreCol('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', trustEffects(c)),
+      scoreCol('🤝', 'Confiance', c.confidence, trustCap(c), lim === 'trust', trustEffects(c, state)),
       scoreCol('💚', 'Vertu', c.virtue, virtueCap(c), lim === 'virtue', virtueEffects(c)),
     ]),
     c.infamy ? h('p.warn-text.small', `☠ Infamie ${num(c.infamy)} : vos deux notes ne pourront plus dépasser ${100 - Math.min(80, c.infamy)}, pour toujours.`) : null,
   ]));
+  box.append(trustReportBox(app)); // rapport de confiance du trimestre
   // Déménager : replié, on s'en sert rarement.
   const cost = act.relocateCost(state, c.id);
   const others = PORT_IDS.filter((p) => p !== c.homePort);

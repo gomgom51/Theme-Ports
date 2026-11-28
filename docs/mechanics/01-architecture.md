@@ -63,7 +63,7 @@ dailyMarketUpdate → dailyEvents → dailyStorms → refreshContracts → refre
 → per company: debt interest, overdraft interest (20 %/yr), checkBank, AI: aiDaily,
    aiPlots (day%30==15), aiTakeover (day%30==20)
 → weekly (day%7==0): refreshUsedMarket, recordHistory
-→ 1st of month: monthly (tax, books roll, standing summary note)
+→ 1st of month: monthly (quarterly trust report on the 1st of Jan/Apr/Jul/Oct, tax, books roll, standing summary note, reliability memory fades)
 → levelsDaily → honoursDaily → victoryDaily → checkEnd
 ```
 
@@ -90,13 +90,13 @@ state = { version, seed, t (hours since 1 Jan 2027), rng (Rng state), nextId,
   storms[], canals{suez|panama}, strikes{port:until}, news[], payments[], receivables[],
   offers[] (parcels), cases[] (customs bribe choices), plots[], bids[], tenders[],
   aftermath[], goodwill[], clients{id:{rel,downUntil,named}}, disasters{}, ice{}, iceSeason,
-  oilCrisis, records{}, evil{}, familyRival{}, spills[], wrecks[], stats{}, marketHistory[],
+  oilCrisis, records{}, evil{}, familyRival{}, spills[], wrecks[], stats{}, marketHistory[], trustReport,
   queuedNotes[], victoryClaimed, over }
 ```
 
 Company: `id, name, human, homePort, flag, cash, debt, reputation, confidence, virtue, infamy,
 trust{port}, grudge{port}, clients{id:{loyalty,deliveries,grudgeUntil,incidents,last}},
-lenders{port:n}, lender (shadow lender), bans{flag:until}, insurance, level, hon{…},
+lenders{port:n}, lender (shadow lender), bans{flag:until}, insurance, level, hon{…}, rel{d,s} (reliability), trustQ (quarter),
 blacklisted, reprieve, repHold, creditCut, month/lastMonth/total books, history[], pastShips[],
 ai{skill, nextFleet, daring, leaning, noEmbargoUntil, pool, noTrade}`.
 
@@ -132,7 +132,7 @@ generation) push to `state.queuedNotes`, flushed into the next day's notes by `p
 sanction, patrol, pirates, hijack, seized, darkoffer, paid, aftermath, golden, goldenTaken, aid,
 tender, tenderCommit, tenderDelivered, threat, scandal, sabotage, bid, takeover, absorbed,
 takeoverRisk, victoryAlert, level, deed, record, recordLost, evil, blacklistWarn, blacklisted,
-ice, iceSoon, icecaught, crew, prospect, banker, bank, bankrupt, standing, event, over, info`.
+ice, iceSoon, icecaught, crew, prospect, banker, bank, bankrupt, standing, trustReport, event, over, info`.
 When an `idle` or `prospect` note stops time, `openWaitingShip` opens that ship's sheet (and centres
 the map on it), unless the player is already giving orders to another waiting ship.
 Fewer interruptions (owner's call, with standing orders): ships on a regular line or under the captain's choice

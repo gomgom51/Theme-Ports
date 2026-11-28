@@ -1,10 +1,13 @@
 # 13 · Reputation: trust 🤝, virtue 💚, infamy
 
 File: `sim/core.js` (`standing`, `changeTrust`, `changeVirtue`, `changeReputation`, `earnTrust`,
-`earnVirtue`, caps, `STANDING`, `VIRTUE_SOURCES`, `slowVirtue`, `oilVirtueLoss`), `honours.cleanConduct`.
+`earnVirtue`, caps, `STANDING`, `VIRTUE_SOURCES`, `slowVirtue`, `oilVirtueLoss`; trust vs rivals: `TRUST`,
+`trustTarget`, `onTimeTrust`, `rivalsGap`, `closeTrustQuarter`), `honours.cleanConduct`.
 UI: ★ next to the cash (limiting score in red), monthly summary `ui/standing.js`. Office → Company shows ★ with a
-flavour line per reputation band (`repQuote` in `ui/reputation.js`) and today's effects of each score; Guide → Réputation
-holds the cause-by-cause breakdown (this month / last month) and the explanation cards.
+flavour line per reputation band (`repQuote` in `ui/reputation.js`), today's effects of each score (the trust card
+starts with the target and "more / less reliable than the market") and, below, the quarterly trust report
+(`trustReportBox`); Guide → Réputation holds the cause-by-cause breakdown (this month / last month), the explanation
+cards and today's target with its parts.
 
 ## The two scores
 
@@ -16,6 +19,8 @@ holds the cause-by-cause breakdown (this month / last month) and the explanation
 - Caps: `min(100 − min(80, infamy), REP_BASE_CAP 95 + min(5, deeds))`. Deeds raise the cap (and
   both scores) by 1 each, for the first five.
 - `earnTrust` / `earnVirtue` gains shrink near the top: `× (1 − score/110)`.
+- On-time deliveries no longer add a fixed amount: they pull trust toward a target set against the rivals
+  (see "Trust vs rivals" below).
 - Every change is logged by cause (`standingMonth`) for the monthly summary.
 
 (Do not confuse with `company.trust[port]` = gangs' trust, see [11](11-grey-black-trade.md).)
@@ -31,10 +36,10 @@ AI conqueror prey choice, smear attack price.
 
 | Event | Δ trust | Where |
 |---|---|---|
-| On-time contract delivery | +1.5 × (1 − trust/110) | game.deliverContract |
+| On-time contract delivery | 0.025 × (target − trust): up toward the target, or down to it ("retour vers votre cible") | core.onTimeTrust, from game.deliverContract |
 | Late delivery | −(2 + 10 × penalty) | game.deliverContract |
 | Damaged cargo delivered | −8 × damage | game.deliverContract |
-| First call at a port | +0.5 | game.arrive |
+| First call at a port | +0.5 × (1 − trust/110) | game.arrive |
 | City tender served | +1.5 (dégressive) | trade.deliverTender |
 | Arbitration won / lost | +1 / −1 | payments.dailyReceivables |
 | Collision / grounding | −2 | incidents |
@@ -47,6 +52,37 @@ AI conqueror prey choice, smear attack price.
 | Takeover | blend toward target (weighted by fleet value, 50 %) | takeover.executeTakeover |
 | Deed (first five) | +1 (both) | honours.checkDeeds |
 | Smear campaign | −1/week (both) | plots.attackEffects |
+
+## Trust vs rivals (owner's choice, 2026-11-28)
+
+Before, each on-time delivery added +1.5 × (1 − trust/110). Gains grew with the fleet, losses stayed rare, and every
+honest company reached the cap of 95 within about eighteen months. Now shippers judge you against the market.
+
+- **Target** = `TRUST.base` 82 + `TRUST.rivals` 300 × (your reliability − market reliability) + bonuses, kept
+  between `TRUST.floor` 20 and the trust cap. Each on-time delivery moves trust `TRUST.step` (2.5 %) of the way to
+  it. A bigger fleet reaches its target sooner, not a higher one.
+- **Reliability** = 1 − slips / deliveries (`company.rel = { d, s }`). Every trust loss from your service counts as
+  a slip weighed by its size (`loss / TRUST.slip`, a late delivery ≈ 1, at most `TRUST.maxSlip` 3 for one mishap: a
+  wreck is not six late deliveries). Not slips: the drift back to the target, a takeover, a change of flag. Both
+  counts fade by `TRUST.memory` (× 0.9) every month: shippers remember about ten months.
+- **Small record, cautious judgement**: the gap to the market is weighed by d / (d + `TRUST.prior` 20), as if you
+  also had 20 average deliveries. Without it one late delivery cut a two-ship company's target by 15 points
+  (rule 3: small fleets must stay viable). A new company starts at the market's level.
+- **Market reliability**: all active companies, weighted by their deliveries.
+- **Bonuses** (`trustTargetBonuses` in `core.js`, returns `[{ src, value }]`, empty for now): the hook for the
+  ship rework (new ships, "future" contracts). Each line is added to the target and shown as its own line wherever
+  the target is shown (Guide, quarterly report).
+- Tenders served and first calls still add trust directly: they push trust above the target for a while, then
+  on-time deliveries bring it back down.
+- Measured (16 AI-only games, 5 years): trust settles around 78–80 whatever the fleet size; about one company in
+  four passes 90; nobody reaches 95. Until the ship rework adds its bonuses, the reputation victory (100) is out of
+  reach.
+
+**Quarterly trust report** (owner's idea): on the first day of each quarter `monthly` calls `closeTrustQuarter`,
+which stores `state.trustReport = { t, rows }`: per company the trust, its change over the quarter, reliability vs
+the market, the shipper with the most on-time deliveries (`company.trustQ` counts the quarter), and its target with
+its parts, frozen at the close. Humans get a `trustReport` note (toast "Voir le rapport" → Office → Compagnie). The
+drift back to the target is silent in the top bar (`STANDING_DRIFT`): an on-time delivery never sounds like a fault.
 
 ## Virtue sources
 
