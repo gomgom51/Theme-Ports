@@ -236,10 +236,3 @@ export function honourSVG(kind, id, { size = 64, dim = false } = {}) {
   const inner = art ? art(u) : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 64" width="${Math.round(size * 0.75)}" height="${size}" role="img" aria-hidden="true">${defs(u)}${dim ? `<g opacity=".2" style="filter:grayscale(1)">${inner}</g>` : inner}</svg>`;
 }
-// Un dessin à poser dans une autre image (étagère du bureau) : x, y = coin haut gauche, h = hauteur.
-export function honourPlaced(kind, id, x, y, h) {
-  const art = (kind === 'evil' ? GRIM_ART : TROPHY_ART)[id];
-  if (!art) return '';
-  const u = uid();
-  return `<g transform="translate(${f(x)} ${f(y)}) scale(${(h / 64).toFixed(4)})">${defs(u)}${art(u)}</g>`;
-}

@@ -8,6 +8,7 @@ import { h, money, date, dialog, confirmBox, toast } from './dom.js';
 import { riskWords } from './shady.js';
 import { crossesLine, BLACKLIST } from '../sim/shadow.js';
 import { showScene, scenesOn } from './scenes.js';
+import { sceneShipOf } from './sceneship.js';
 import { concealEl } from './shiproles.js';
 
 const pc = (x) => `${Math.round(x * 100)} %`;
@@ -41,7 +42,7 @@ export async function darkOfferDialog(app, note) {
   if (!ship || !o || ship.port !== o.from || ship.dark || ship.cargo) return;
   const company = state.companies[ship.owner];
   const K = DARK_KINDS[o.kind];
-  if (scenesOn()) await showScene(app, 'offer', { title: 'Une « vraie » affaire', variant: 'dark', color: company.color, text: note.text });
+  if (scenesOn()) await showScene(app, 'offer', { title: 'Une « vraie » affaire', variant: 'dark', color: company.color, ship: sceneShipOf(state, ship), text: note.text });
   const p = darkDetect(ship, o.to, company.homePort);
   const cap = repCap({ infamy: (company.infamy || 0) + K.infamy });
   const [rShip, rCrew] = ransomOf(state, ship);

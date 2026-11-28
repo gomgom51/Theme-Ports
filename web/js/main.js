@@ -30,11 +30,12 @@ import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW } from './data/offices.js';
-import { officeSVG, honourSlot } from './ui/officeart.js';
+import { officeShot, honourSpot } from './ui/officescene.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
 import { registerStateShips, watchShipNames, onCityClick } from './ui/shipnames.js';
 import { initPanelSize, gripAfter } from './ui/panelsize.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
+import { sceneShipOf } from './ui/sceneship.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
@@ -376,12 +377,13 @@ function honourNote(n, scenes, prefix) {
   const tier = shownTier(co, netWorth(app.state, co.id));
   const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0];
   const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
-  const toImg = (svg, w, h) => { const i = new Image(); i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" `)); return i; };
-  const office = toImg(officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `hon${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, hide: { kind, id: n.record }, shadow: !!co.blacklisted }), 960, 400);
+  const held = { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') };
+  held[kind] = held[kind].filter((id) => id !== n.record); // l'objet n'est pas encore à sa place : il y vole
+  const office = officeShot({ tier, shadow: !!co.blacklisted, color: co.color, logo: co.logo, model, held });
   const item = new Image(); item.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(honourSVG(kind, n.record, { size: 192 }));
   const logo = new Image(); logo.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(logoBadge(co.logo, co.color, 96).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
   const name = (kind === 'evil' ? EVIL : RECORDS)[n.record]?.name || '';
-  playScene(kind === 'evil' ? 'grim' : 'trophy', { title: kind === 'evil' ? `Méfait : « ${name} »` : `Record : « ${name} »`, text: prefix + n.text, color: co.color, variant: { office, item, logo, slot: honourSlot(tier, kind, n.record), id: n.record } });
+  playScene(kind === 'evil' ? 'grim' : 'trophy', { title: kind === 'evil' ? `Méfait : « ${name} »` : `Record : « ${name} »`, text: prefix + n.text, color: co.color, variant: { office, item, logo, slot: honourSpot(tier, kind, n.record), id: n.record } });
 }
 function levelUp(co, from, to) {
   const T = OFFICE_TIERS[to], n = OFFICE_TIERS.length;
@@ -390,12 +392,8 @@ function levelUp(co, from, to) {
   if (!scenesOn()) { toast(several ? `🏢 ${co.name} atteint le niveau ${to + 1}/${n} : ${T.name}.` : `🏢 Niveau ${to + 1}/${n} atteint : ${T.name}.`, { kind: 'money', timeout: 9000 }); return; }
   const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0]; // la maquette du bureau
   const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
-  const img = (tier) => {
-    const svg = officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `lvl${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, shadow: !!co.blacklisted }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200" ');
-    const i = new Image();
-    i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-    return i;
-  };
+  const held = { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') };
+  const img = (tier) => officeShot({ tier, shadow: !!co.blacklisted, color: co.color, logo: co.logo, model, held });
   playScene('office', { title: several ? `Un nouveau bureau pour ${co.name} !` : 'Un nouveau bureau !', text: `Niveau ${to + 1}/${n} atteint : ${T.name}. ${T.text}`, color: co.color, variant: { from: img(from), to: img(to), level: to + 1 } });
 }
 
@@ -656,12 +654,21 @@ async function nextScene() {
   if (!hold && app.mode === 'game' && !app.state.over) app.speed = defaultSpeed();
 }
 const companyColor = (id) => app.state.companies[id ?? app.ui.activeCompany]?.color || '#c0392b';
+// Le navire d'une notification, pour la scène : celui de la partie, ou sa fiche d'ancien navire
+// s'il vient de disparaître (naufrage, saisie).
+function noteShip(n) {
+  if (n.shipId == null) return null;
+  const ship = shipById(app.state, n.shipId);
+  if (ship) return sceneShipOf(app.state, ship);
+  const past = app.state.companies[n.company]?.pastShips?.find((p) => p.id === n.shipId);
+  return past ? sceneShipOf(app.state, { ...past, owner: n.company, condition: 40, cargo: true }) : null;
+}
 
 function handleNotes(notes) {
   let paused = false, switched = false;
   const scenes = scenesOn();
   const prefixOf = (n) => (n.company != null && app.state.companies.filter((c) => c.human).length > 1 ? `${app.state.companies[n.company].name} : ` : '');
-  const sceneOpts = (n, extra = {}) => ({ text: prefixOf(n) + n.text, color: companyColor(n.company), ...extra });
+  const sceneOpts = (n, extra = {}) => ({ text: prefixOf(n) + n.text, color: companyColor(n.company), ship: noteShip(n), ...extra });
   // Un navire qui vient de livrer : le message de paiement suffit.
   const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
   const crewUps = []; // points de spécialité gagnés : une petite scène par compagnie, sans son
@@ -750,7 +757,7 @@ function handleNotes(notes) {
     if (n.kind === 'rivalship') {
       // Un concurrent agrandit sa flotte (navire neuf, ou occasion au plus une fois par mois).
       const rival = app.state.companies[n.rival];
-      if (scenes && rival) playScene('rivalship', { title: n.newbuild ? 'Un concurrent lance un navire neuf' : 'Un concurrent agrandit sa flotte', text: n.text, color: rival.color || n.color, variant: shipKind(n.shipType) + (n.newbuild ? '/new' : '') });
+      if (scenes && rival) playScene('rivalship', { title: n.newbuild ? 'Un concurrent lance un navire neuf' : 'Un concurrent agrandit sa flotte', text: n.text, color: rival.color || n.color, ship: noteShip({ ...n, company: n.rival }) || { type: n.shipType, logo: rival.logo }, variant: shipKind(n.shipType) + (n.newbuild ? '/new' : '') });
       else toast(`📰 ${n.text}`, { timeout: 9000 });
       continue;
     }
@@ -1242,7 +1249,7 @@ requestAnimationFrame(loop);
 // Navire d'occasion acheté : la scène de la remise des papiers (le temps repart ensuite).
 app.boughtShip = (ship) => {
   if (!scenesOn() || !ship) return;
-  playScene('buyship', { text: `Le ${ship.name} est à vous : l'équipage hisse vos couleurs à ${PORTS[ship.port]?.name || ''}.`, color: companyColor(ship.owner), variant: shipKind(ship.type) });
+  playScene('buyship', { text: `Le ${ship.name} est à vous : l'équipage hisse vos couleurs à ${PORTS[ship.port]?.name || ''}.`, color: companyColor(ship.owner), ship: sceneShipOf(app.state, ship), variant: shipKind(ship.type) });
 };
 window.__app = app; // pratique pour le débogage dans la console
 app.handleNotes = handleNotes; // idem : rejouer une notification (scènes, tests)

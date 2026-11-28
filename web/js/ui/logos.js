@@ -230,8 +230,6 @@ export function shade(hex, k) {
 }
 const INK = '#1d2731', CREAM = '#fbf1d8';
 export const emblemInk = (color) => (isLightColor(color) ? '#1c2a33' : '#fffaf0');
-// Emblème posé sur un disque blanc (cheminée) : la couleur de la compagnie, assombrie si elle est trop claire.
-export const emblemOnWhite = (color) => (isLightColor(color) ? shade(color, -0.45) : color);
 
 const letterSVG = (ch, attrs) => `<text x="32" y="${'Q'.includes(ch) ? 47 : 49.5}" text-anchor="middle" font-family="'Stardos Stencil', Georgia, serif" font-weight="700" font-size="${'MW'.includes(ch) ? 42 : 50}" ${attrs}>${ch}</text>`;
 

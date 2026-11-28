@@ -113,7 +113,7 @@ export function creditsScreen(app, { company = null, header = null, onDone = () 
     f.start = now;
     f.caption.textContent = f.clip.caption;
     f.canvas.width = W * (f.scene.res || 1); f.canvas.height = H * (f.scene.res || 1);
-    f.canvas.classList.toggle('smooth', (f.scene.res || 1) > 1);
+    f.canvas.classList.toggle('smooth', (f.scene.res || 1) > 1 && !f.scene.crisp);
     place(f);
   };
   const t0 = performance.now();
