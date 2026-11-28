@@ -7,10 +7,10 @@
 // aux bosses, à la peinture arrachée et à la fumée noire. La compagnie n'apparaît que sur la
 // cheminée (sa couleur et son emblème).
 //
-// Dans l'interface, shipSVG() rend un <span class="px-ship"> ; ce module y pose un canevas dès
+// Dans l'interface, shipMarkup() (shipart.js) rend un <span class="px-ship"> ; ce module y pose un canevas dès
 // que l'élément est affiché, à sa taille, avec un nombre entier de pixels d'écran par pixel
 // du dessin (net à 125 % ou 150 %). Seul le grand cadre (inspection, achat) s'anime.
-import { SHIP_ART } from './shipart.js';
+import { SHIP_ART } from './shipshapes.js';
 import { logoMarkup, emblemInk } from './logos.js';
 import { pixelRatio } from './scale.js';
 import { reducedMotion as reduceMotion } from './motion.js';

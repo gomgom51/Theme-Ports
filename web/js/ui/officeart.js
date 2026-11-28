@@ -1,26 +1,10 @@
 // Le bureau de la compagnie : cinq décors qui s'embellissent avec la valeur nette.
 import { logoMarkup, logoBadge } from './logos.js';
-import { shipSVG } from './shipart.js';
-import { OFFICE_TIERS, officeTier } from '../data/offices.js';
+import { shipMarkup } from './shipart.js';
+import { OFFICE_TIERS } from '../data/offices.js';
 import { honourPlaced } from './trophyart.js';
 import { RECORD_IDS, EVIL_IDS } from '../sim/honours.js';
 
-// half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3).
-// Sous LOW (la compagnie a perdu de l'argent depuis ses débuts), thème du niveau 0.
-export const MUSIC_LOW = 5e6;
-export { OFFICE_TIERS, officeTier };
-// Morceau de la partie : -1 (niveau 0, la compagnie perd de l'argent), puis 0 à 9 (deux par niveau).
-// level : niveau déjà atteint (company.level). Un niveau atteint est acquis : en repassant
-// sous son seuil, on garde son bureau et sa musique (la première chanson du niveau) ; seul le
-// niveau 0 (sous MUSIC_LOW) ramène au cagibi et au thème du doute.
-export function musicStep(netWorth, level = 0) {
-  if (netWorth < MUSIC_LOW) return -1;
-  const t = Math.max(level, officeTier(netWorth));
-  return t * 2 + (netWorth >= OFFICE_TIERS[t].half ? 1 : 0);
-}
-// Niveau atteint par la compagnie (0 à 4), et bureau affiché (le cagibi au niveau 0).
-export const reachedTier = (company, netWorth) => Math.max(company?.level ?? 0, officeTier(netWorth));
-export const shownTier = (company, netWorth) => (netWorth < MUSIC_LOW ? 0 : reachedTier(company, netWorth));
 
 
 const f = (n) => Math.round(n * 10) / 10;
@@ -426,7 +410,7 @@ export function officeSVG(tier, { color = '#1e3a55', logo = 'ancre', model = nul
   const id = uid + tier, sid = id + 'k';
   const pal = shadow ? SHADOW_PAL[tier] : {};
   let s = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${OFFICE_TIERS[tier].name}">`;
-  const modelSvg = (x, y, w) => model ? shipSVG(model.typeId, { ...model, sky: false, water: false, fit: true, condition: 100, age: 0, laden: false, attrs: `x="${x}" y="${y}" width="${w}" height="${f(w * 110 / 400)}"` }) : '';
+  const modelSvg = (x, y, w) => model ? shipMarkup(model.typeId, { ...model, sky: false, water: false, fit: true, condition: 100, age: 0, laden: false, attrs: `x="${x}" y="${y}" width="${w}" height="${f(w * 110 / 400)}"` }) : '';
 
   if (tier === 0) {
     // Le cagibi : murs défraîchis, petite fenêtre, bureau en métal, ampoule nue.

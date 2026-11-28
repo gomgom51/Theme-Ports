@@ -19,12 +19,13 @@ import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
 import { shipStatusText, shipRoute } from './panel-ship.js';
 import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog, searchBox } from './dom.js';
-import { shipSVG, artForShip, SHIP_ART } from './shipart.js';
+import { shipMarkup, artForShip } from './shipart.js';
+import { SHIP_ART } from './shipshapes.js';
 import { shipStats, radarSVG, AXES } from './radar.js';
 import { rolesEl } from './shiproles.js';
 import { LOGO_IDS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
-import { OFFICE_TIERS, shownTier, MUSIC_LOW } from './officeart.js';
+import { OFFICE_TIERS, shownTier, MUSIC_LOW } from '../data/offices.js';
 import { officeRoom } from './officeroom.js';
 import { onOfficeArt } from './officepx.js';
 import { pendingList, clientLine, loyaltyDots } from './payment.js';
@@ -66,7 +67,7 @@ export function inspectShip({ typeId, condition = 100, age = 0, name = '', color
   };
   drawChips();
   const body = h('div.inspect', [
-    h('div.inspect-art', { html: shipSVG(typeId, { condition, age, color, logo, name, laden, seed: seed ?? name, slot: 'big' }) }),
+    h('div.inspect-art', { html: shipMarkup(typeId, { condition, age, color, logo, name, laden, seed: seed ?? name, slot: 'big' }) }),
     h('div.inspect-row', [
       h('div', [radar, chips]),
       h('div.inspect-specs', [
@@ -263,7 +264,7 @@ function usedTab(app) {
         if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id, { quiet: true }); app.boughtShip?.(r.ship); }
       };
       return h('div.card.with-art', { class: affordable ? '' : 'disabled' }, [
-        h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipSVG(l.type, { ...look, slot: 'card' }) }),
+        h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipMarkup(l.type, { ...look, slot: 'card' }) }),
         h('div.card-main', [
           h('div.card-title', [h('span.nm', l.name), h('span.tag', T.name)]),
           h('div.card-sub', typeSpecs(T)),
@@ -301,7 +302,7 @@ function newTab(app) {
       if (v === 'buy') app.act(() => act.orderNewShip(state, company.id, id, yard), { sound: 'pay' });
     };
     box.append(h('div.card.with-art', { class: price > company.cash ? 'disabled' : '' }, [
-      h('button.card-art', { title: 'Inspecter', 'aria-label': `Inspecter : ${T.name}`, onclick: () => order(), html: shipSVG(id, { ...look, slot: 'card' }) }),
+      h('button.card-art', { title: 'Inspecter', 'aria-label': `Inspecter : ${T.name}`, onclick: () => order(), html: shipMarkup(id, { ...look, slot: 'card' }) }),
       h('div.card-main', [
         h('div.card-title', [T.name, h('span.tag', T.category)]),
         h('div.card-sub', T.blurb),

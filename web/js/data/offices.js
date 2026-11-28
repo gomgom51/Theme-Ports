@@ -13,3 +13,19 @@ export function officeTier(netWorth) {
   OFFICE_TIERS.forEach((t, i) => { if (netWorth >= t.min) k = i; });
   return k;
 }
+
+// half : seuil où la musique passe à la seconde chanson du niveau (niveauNb.mp3).
+// Sous LOW (la compagnie a perdu de l'argent depuis ses débuts), thème du niveau 0.
+export const MUSIC_LOW = 5e6;
+// Morceau de la partie : -1 (niveau 0, la compagnie perd de l'argent), puis 0 à 9 (deux par niveau).
+// level : niveau déjà atteint (company.level). Un niveau atteint est acquis : en repassant
+// sous son seuil, on garde son bureau et sa musique (la première chanson du niveau) ; seul le
+// niveau 0 (sous MUSIC_LOW) ramène au cagibi et au thème du doute.
+export function musicStep(netWorth, level = 0) {
+  if (netWorth < MUSIC_LOW) return -1;
+  const t = Math.max(level, officeTier(netWorth));
+  return t * 2 + (netWorth >= OFFICE_TIERS[t].half ? 1 : 0);
+}
+// Niveau atteint par la compagnie (0 à 4), et bureau affiché (le cagibi au niveau 0).
+export const reachedTier = (company, netWorth) => Math.max(company?.level ?? 0, officeTier(netWorth));
+export const shownTier = (company, netWorth) => (netWorth < MUSIC_LOW ? 0 : reachedTier(company, netWorth));

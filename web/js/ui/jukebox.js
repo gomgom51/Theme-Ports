@@ -2,9 +2,8 @@
 // (débloquées pour toutes les parties). Les autres restent sous cadenas, avec la façon de les entendre.
 import { h, dialog } from './dom.js';
 import { unlockedTracks, unlockTracks, once } from './profile.js';
-import { OFFICE_TIERS, officeTier } from '../data/offices.js';
+import { OFFICE_TIERS, officeTier, MUSIC_LOW } from '../data/offices.js';
 import { VICTORY_KINDS } from '../sim/victory.js';
-import { MUSIC_LOW } from './officeart.js';
 
 // id : clé de TRACKS (audio.js) ; title : le titre de la chanson ; role : où on l'entend.
 export const JUKEBOX = [

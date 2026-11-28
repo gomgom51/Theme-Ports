@@ -273,11 +273,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 - Interface size (`web/js/ui/scale.js`): the page is zoomed by `uiScale()` (1 at 1920 × 1080, 1.33 at 2560 × 1440, adjustable
   in the ☰ menu). Write `calc(N * var(--vw))` / `var(--vh)` instead of `vw` / `vh`, convert screen coordinates with `localRect()` /
   `viewport()` before positioning an element, and size a canvas with `pixelRatio()`; the map stays `.unzoom` and scales its own drawings.
-- Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (proportions in metres, beam `B`). Detail
+- Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (`ui/shipshapes.js`, proportions in metres, beam `B`). Detail
   views (inspect, ship sheet, broker cards, thumbnails) use `ui/pixelship.js` (a `<span class="px-ship">` that gets a
   canvas, slot `big` animated at 8 fps); the map uses side-view sprites from `ui/mapships.js` (laden = company hull,
   empty = pale hull with a company stripe, wake length follows speed, routes dashed in the company colour). Two styles,
-  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. `shipSVG` with `attrs`
+  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. `shipMarkup` (`ui/shipart.js`) with `attrs`
   still returns the old vector drawing (office shelf model). Map sizes (owner's pick): ships ×1.5 and port names 13 px
   at 1920 × 1080, times `uiScale()` (`MAP_SHIPS`, `CITY_PX` in `mapships.js`); port names are drawn over the ships,
   under the selected ship and the dock badges; chunky blocks stop at 3 screen pixels.
