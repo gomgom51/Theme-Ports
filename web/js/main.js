@@ -181,13 +181,13 @@ app.focusShip = (id, { quiet = false } = {}) => {
   const pos = ship.status === 'sea' ? ctx.shipPosition(ship) : PORTS[ship.port];
   if (pos) app.map.centerOn(pos.lon, pos.lat, Math.max(app.map.view.scale, 5));
   app.map.flashShip(id); // il clignote : on le repère d'un coup d'œil
-  if (!quiet) app.audio.play('ping', 'ship'); // et un ping de sonar
+  if (!quiet) app.audio.play('ping'); // et un ping de sonar
 };
-// Nom de ville cliqué (partout dans l'interface, shipnames.js) : elle clignote en vert sur la carte, ping plus grave.
+// Nom de ville cliqué (partout dans l'interface, shipnames.js) : elle clignote en vert sur la carte, même ping.
 app.focusPort = (id) => {
   if (app.mode !== 'game' || !PORTS[id]) return;
   app.map.flashCity(id);
-  app.audio.play('ping', 'city');
+  app.audio.play('ping');
 };
 onCityClick((id) => app.focusPort(id));
 

@@ -352,8 +352,8 @@ export class AudioManager {
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
     } else if (name === 'ping') {
-      // Repérer sur la carte : arg = 'ship' (navire, ping clair) ou 'city' (ville, une quinte plus bas).
-      S.ping(c, out, t, { freq: arg === 'city' ? 790 : 1180, gain: 0.15, reverb: r });
+      // Repérer sur la carte un navire ou une ville : le même ping clair (choix du propriétaire).
+      S.ping(c, out, t, { gain: 0.15, reverb: r });
     }
   }
 
