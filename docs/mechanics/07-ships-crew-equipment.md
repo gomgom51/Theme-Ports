@@ -83,20 +83,29 @@ insurance void below `SEAWORTHY` 40 at departure, value. Repair at a yard (`repa
 
 ## Crew levels (`CREW_LEVELS`)
 
-| Level | wage | safety (incidents, sinking) | info (risk display) |
-|---|---|---|---|
-| 0 de base | ×1 | ×1 | qualitative |
-| 1 confirmé | ×1.35 | ×0.85 | ranges |
-| 2 chevronné | ×1.8 | ×0.7 | exact figures per voyage |
+| Level | wage | safety (incidents, sinking) | info (estimates shown) | fight (piracy defence) |
+|---|---|---|---|---|
+| 0 de base | ×1 | ×1 | a word | 0 |
+| 1 confirmé | ×1.35 | ×0.85 | rounded figures | 0.8 |
+| 2 chevronné | ×1.8 | ×0.7 | exact figures per voyage | 1.0 |
+| 3 vieux briscards | ×1 | ×0.6 | exact figures | 1.3 |
 
-Upgrading costs a hiring bonus = 30 days of the wage difference. Crew level also adds 0.5 piracy
-defence per level, discretion (`crewDiscretion` 1 / 0.9 / 0.8 on customs and patrols), XP speed
-(`learnRate = 1 + 0.25 level`), crew ransom size.
+Upgrading costs a hiring bonus = 30 days of the wage difference (never negative). Level 3 is never hired: it
+comes free (no bonus, base wage) when the Vieux briscards skill reaches rank 3 (`unlock: 'briscard'`, gated in
+`setCrew`), and is shown locked in Port call → Crew until then. If the rank drops (poaching, `loseBriscardPoint`),
+`checkBriscards` puts the crew back to its former level (`ship.crewWas`). Crew level also sets discretion
+(`crewDiscretion` 1 / 0.9 / 0.8 / 0.75 on customs and patrols), XP speed (`learnRate = 1 + 0.25 level`), crew
+ransom size, and how precisely the screens give estimates (`info`): risks (`ui/risk.js`), customs odds
+(`riskWords`), dispute odds (`oddsWords`, receipt), what each destination pays (Set sail list: contract count /
+best pay rounded / exact best profit per day with the empty run there, `destPayInfo` in `ui/intel.js`). Wherever
+only a word is given, a muted line says a more experienced crew would put a figure on it (`crewHint`). Facts
+about your own company (books, values, records, loan room) are always exact.
 
 ## Crew experience and skills (`sim/crew.js`)
 
-XP = days at sea × learnRate; points at `XP_STEPS` 60, 150, 270, 420, 600 days (5 points, max rank 3
-per skill). Player assigns; AI auto-assigns by ship family (`aiPriority`).
+XP = days at sea × learnRate; points at `XP_STEPS` 60, 150, 270, 420, 600, 810 days (6 points, enough to max
+two skills; max rank 3 per skill). `crewMaxed` = all 6 earned (an automation gate). Player assigns; AI
+auto-assigns by ship family (`aiPriority`) and never takes Vieux briscards.
 
 | Skill | Effect per rank |
 |---|---|
@@ -106,8 +115,11 @@ per skill). Player assigns; AI auto-assigns by ship family (`aiPriority`).
 | contrebande | customs detection −12 % |
 | logistique | loading/unloading −8 % |
 | negociation | penalties, reserves, withholding, renegotiation −12 % at collection; +0.05 prospecting |
+| briscard (Vieux briscards) | rank 1: the ship sheet (Contracts tab) names the best deal within reach (contract or golden deal anywhere, tender via its best source, trade from here) by profit per day; rank 2: for each city tender the ship can serve, the 3 closest ports to buy from (price, days, margin); rank 3: arrival prices and room left after rivals' commitments, rivals on their way named, and the crew becomes level 3. Estimates from `sim/intel.js` ([06](06-trade-tenders-finance.md)) |
 
 Crew XP is lost if the crew is abandoned to kidnappers or poached by the `crew` attack (−1 point).
+`loseBriscardPoint(ship)`: −1 Vieux briscards rank and XP back one step (to earn again at sea); used when the player
+takes control back from the captain's choice (automation).
 Fully trained crews feed the "École de la mer" deed and "Les loups de mer" record.
 
 ## Equipment (`data/equipment.js`, installed at a yard)

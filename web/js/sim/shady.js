@@ -73,7 +73,7 @@ export function embargoPriceFactor(port, role) {
 export const EMBARGO_PREMIUM = 1.25;
 
 // ---------- Colis discrets ----------
-export function crewDiscretion(ship) { return [1, 0.9, 0.8][ship.crew || 0]; }
+export function crewDiscretion(ship) { return [1, 0.9, 0.8, 0.75][ship.crew || 0] ?? 1; }
 // Probabilité que la douane d'un port trouve le colis lors d'une escale.
 // home : port d'attache du propriétaire (port de l'ombre : la douane y regarde ailleurs).
 export function detectionChance(ship, port, home = null) {

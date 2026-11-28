@@ -10,7 +10,7 @@ import { hasCitadel, hasEquip } from './equipment.js';
 import * as eco from './economy.js';
 import { pirateBoost, PIRATE_BOOST, PIRATE_STRENGTH } from './plots.js';
 import { onRepelled } from './honours.js';
-import { skillDefence } from './crew.js';
+import { skillDefence, crewFight } from './crew.js';
 
 const D = HOURS_PER_DAY;
 //  lon, lat : où se pose le pavillon pirate sur la carte
@@ -60,7 +60,7 @@ export function piracyAlong(route) {
 
 // Les trois phases : valeur de défense et d'attaque de chacune.
 function phaseValues(ship, speed, s) {
-  const crew = (ship.crew || 0) * 0.5;
+  const crew = crewFight(ship);
   return [
     { id: 'approche', label: 'Approche', def: Math.max(0, (speed - 13) / 2.5) + (hasEquip(ship, 'navigation') ? 0.7 : 0), att: s / 3,
       win: 'Le navire accélère et sème les embarcations.', lose: 'Les embarcations rattrapent le navire.' },

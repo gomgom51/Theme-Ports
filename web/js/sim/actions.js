@@ -15,7 +15,7 @@ import { taintShip, isEmbargoed } from './shady.js';
 import { equipMod } from './equipment.js';
 import { clientRefusal, imageFactor } from './clients.js';
 import { lenderTerms, openLoan, settleLoan, tenderShare, deliverTender, commitOnDeparture, FINANCE, financedShare } from './trade.js';
-import { skillSpeed, skillHandling } from './crew.js';
+import { skillSpeed, skillHandling, rank, MAX_RANK } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 import { onTradeSale } from './honours.js';
 import { payCut } from './plots.js';
@@ -529,13 +529,15 @@ export function sellShip(state, ctx, shipId) {
 // Monter en gamme coûte une prime d'embauche (un mois de la différence de salaire).
 export function crewChangeFee(state, ship, level) {
   const T = SHIP_TYPES[ship.type], company = companyOf(state, ship), cur = ship.crew || 0;
-  return level > cur ? Math.round((eco.crewDayCost(T, company.flag, level) - eco.crewDayCost(T, company.flag, cur)) * 30) : 0;
+  return level > cur ? Math.max(0, Math.round((eco.crewDayCost(T, company.flag, level) - eco.crewDayCost(T, company.flag, cur)) * 30)) : 0;
 }
 export function setCrew(state, shipId, level) {
   const ship = shipById(state, shipId);
   if (!ship || (ship.status !== 'port' && ship.status !== 'laidup')) return fail('On ne change d\'équipage qu\'au port.');
   level = Math.max(0, Math.min(CREW_LEVELS.length - 1, level | 0));
   if (level === (ship.crew || 0)) return fail('C\'est déjà l\'équipage actuel.');
+  if (CREW_LEVELS[level].unlock && rank(ship, CREW_LEVELS[level].unlock) < MAX_RANK) return fail('Il faut d\'abord la spécialité Vieux briscards au niveau 3.');
+  if (CREW_LEVELS[level].unlock) ship.crewWas = ship.crew || 0;
   const company = companyOf(state, ship);
   const fee = crewChangeFee(state, ship, level);
   if (fee > company.cash) return fail(`Il faut ${fmtM(fee)} de primes d'embauche.`);

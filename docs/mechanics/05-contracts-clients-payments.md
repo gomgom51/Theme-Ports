@@ -109,8 +109,9 @@ stalled by a rival's "payments" attack                     → paid in 40–75 d
 market move > 5 %: 25 % chance of renegotiation (−6 % max) or bonus (+5 % max)
 ```
 
-Dispute: accept the 5–20 % withholding, or **contest** (fees 3 %, win odds
-`0.45 + trust/250 − R/500`, trust ±1, paid in 20–40 days). Charity payments never have events.
+Dispute: accept the 5–20 % withholding, or **contest** (fees 3 %, win odds `arbitrationOdds` =
+`0.45 + trust/250 − R/500`, trust ±1, paid in 20–40 days). The receipt shows the odds as precisely as the
+delivering ship's crew can tell (`payment.crew`: good/average/low, ≈ rounded to 10 %, exact). Charity payments never have events.
 Pending payments and receivables count in net worth.
 
 ## Prospecting (`prospect.js`)

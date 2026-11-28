@@ -3,7 +3,7 @@ import { EQUIPMENT } from '../data/equipment.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS } from '../data/ports.js';
 import { money, shipById, companyOf, shipLog, portName } from './core.js';
-import { skillDefence } from './crew.js';
+import { skillDefence, crewFight } from './crew.js';
 
 const fail = (msg) => ({ ok: false, msg });
 export const hasEquip = (ship, id) => !!ship?.equipment?.includes(id);
@@ -26,7 +26,7 @@ export function toggleEquipment(state, shipId, id) {
 }
 // Points de défense contre un abordage : équipements, plus un peu pour un équipage aguerri.
 export function defence(ship) {
-  let d = (ship.crew || 0) * 0.5 + skillDefence(ship); // combattants à bord
+  let d = crewFight(ship) + skillDefence(ship); // l'équipage et ses combattants
   for (const id of ship.equipment || []) d += EQUIPMENT[id]?.defence || 0;
   return d;
 }

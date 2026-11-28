@@ -63,7 +63,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   `clientDemand`) in `web/js/sim/clients.js`; shady deals (`PIRATE_*`, `HELD_CHANCE`,
   `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`;
   per-goods trade spread `goodSpread` and `GOLDEN_CHANCE` in `economy.js`; crew skill
-  effects and `XP_STEPS` in `web/js/sim/crew.js`; ice (`ICE`: announcement delay,
+  effects and `XP_STEPS` in `web/js/sim/crew.js`, crew levels (`CREW_LEVELS`: wage, safety, `fight`, the free fourth
+  level unlocked by the Vieux briscards skill) in `web/js/data/ships.js`; ice (`ICE`: announcement delay,
   ice-class extension, icebreaker escort fees, end-of-season contract premium,
   Northern Sea Route safety horizon) in `web/js/sim/ice.js`, seasonal windows (`ice` on
   ports in `web/js/data/ports.js`, `ICE_PASSAGES`), Arctic fee `CANAL_FEE.nsr` in `economy.js`;

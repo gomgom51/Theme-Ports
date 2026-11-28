@@ -21,6 +21,15 @@ function range(p) {
 const LEVEL_CLASS = ['pos', '', 'warn-text', 'neg'];
 
 export function crewInfo(ship) { return CREW_LEVELS[ship.crew || 0]; }
+// Là où l'équipage ne donne qu'un mot, une petite phrase rappelle qu'un équipage plus expérimenté chiffrerait.
+export const crewHint = (level, text = ' Un équipage plus expérimenté saurait le chiffrer.') => ((level || 0) > 0 ? null : h('span.muted', text));
+// Une chance (de gagner, de réussir) dite par l'équipage : un mot, un arrondi, ou le chiffre exact.
+export function oddsWords(p, level) {
+  const info = CREW_LEVELS[level || 0]?.info ?? 0;
+  if (info >= 2) return `${fr(p * 100)} %`;
+  if (info === 1) return `≈ ${fr(Math.round(p * 10) * 10)} %`;
+  return p >= 0.7 ? 'bonnes' : p >= 0.45 ? 'moyennes' : 'faibles';
+}
 
 // Lignes d'information sur les risques. opts : seaDays (voyage prévu), to (port d'arrivée).
 export function riskLines(state, ship, { seaDays = null, to = null, route = null } = {}) {

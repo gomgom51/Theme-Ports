@@ -25,6 +25,7 @@ import { piracyLine, patrolLine } from './piracy.js';
 import { attackTags, hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
 import { isEmbargoed, taintActive, TAINT_DAYS, sanctionPreview } from '../sim/shady.js';
 import * as crew from '../sim/crew.js';
+import { briscardCard, destPayInfo } from './intel.js';
 import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
 import { darkLines, seizedDialog } from './dark.js';
 import { routeChip } from './route.js';
@@ -218,7 +219,7 @@ export function shipPanel(app, id, tab) {
 // ---------- Contrats ----------
 // Contrats du port, puis propositions discrètes s'il y en a.
 function contractsTab(app, ship) {
-  return h('div', [oilCrisisLine(app, ship), prospectCard(app, ship), contractsBase(app, ship), offersSection(app, ship)]);
+  return h('div', [oilCrisisLine(app, ship), briscardCard(app, ship), prospectCard(app, ship), contractsBase(app, ship), offersSection(app, ship)]);
 }
 // Crise mondiale du raffinage : dite là où elle se voit (règle n° 1).
 function oilCrisisLine(app, ship) {
@@ -400,19 +401,92 @@ function tradeTab(app, ship) {
     }
     dests.sort((a, b) => b.net - a.net);
     const tender = (state.tenders || []).find((t) => t.good === g && t.left > 0 && t.until > state.t);
-    const choices = [0.25, 0.5, 0.75, 1].map((f) => Math.floor((full * f) / 100) * 100).filter((q, i, a) => q > 0 && a.indexOf(q) === i);
     box.append(h('div.card', [
       h('div.card-main', [
         h('div.card-title', [h('span.good-icon', G.icon), G.name, h('span.price-inline', `${money(unit)}/t`), fd ? h('span.tag.good', { title: 'Famille d\'abord : vos achats de marchandises coûtent 5 % de moins à votre port d\'attache.' }, '♥ −5 % chez vous') : null, OIL_GOODS.includes(g) ? h('span.tag.warn', { title: 'Pétrole : chaque départ chargé coûte un peu de vertu (l\'image d\'un transporteur de pétrole).' }, '💚 vertu −') : null]),
         h('div.card-sub', `Stock disponible : ${tonnes(stock)} · cours mondial ${money(G.price * state.market.world[g])}/t`),
         tender ? h('div.card-sub', [h('span.tag.good', '📣 appel d\'offres'), ` ${portName(tender.port)} achète à ${money(tender.unit)}/t jusqu'au ${date(tender.until, true)} (${tonnes(tenderRoom(tender, ship.id))} encore libres).`]) : null,
         dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), isEmbargoed(dests[0].p) ? ' ' : null, isEmbargoed(dests[0].p) ? EMBARGO_TAG() : null, dests[0].tender ? ' 📣' : null, ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
-        choices.length && dests.length ? h('div.chips', choices.map((q) => h('button.chip', { onclick: () => buyDialog(app, ship, g, q, dests) }, tonnes(q)))) : null,
-        !choices.length ? h('div.card-why', 'Stock épuisé, revenez plus tard.') : null,
+        full >= 100 && dests.length ? tradeSlider(app, ship, g, full, dests) : null,
+        full < 100 ? h('div.card-why', 'Stock épuisé, revenez plus tard.') : null,
       ]),
     ]));
   }
   return box;
+}
+
+// Quantité à acheter : un curseur jusqu'à la cale pleine (ou au stock). La barre montre jusqu'où vont votre
+// trésorerie, un prêt sur cargaison puis votre banque ; le bénéfice à la meilleure destination suit le curseur.
+// La dernière quantité choisie pour cette marchandise est retenue (session) : la tournée suivante se fait en un clic.
+function tradeSlider(app, ship, g, full, dests) {
+  const { state } = app;
+  const company = state.companies[ship.owner];
+  const T = SHIP_TYPES[ship.type];
+  const hold = eco.holdFor(ship.type, g);
+  const cost = (q) => act.quoteBuy(state, ship, g, q).total;
+  // Plus grande quantité (par 100 t) qui satisfait ok(q) : le coût ne fait que croître avec la quantité.
+  const maxWhere = (ok) => { let lo = 0, hi = Math.floor(full / 100); while (lo < hi) { const m = Math.ceil((lo + hi) / 2); if (ok(m * 100)) lo = m; else hi = m - 1; } return lo * 100; };
+  const cashMax = maxWhere((q) => cost(q) <= company.cash);
+  // Prêt sur cargaison (négociants d'ici, ou acheteurs de la meilleure destination) : apport payé comptant.
+  const lenders = [lenderTerms(company, ship.port), lenderTerms(company, dests[0].p, true)].filter((t) => !t.why);
+  const loanOk = (q) => { const c = cost(q); return lenders.some((t) => { const sh = financedShare(state, company, t, c); return sh >= 0.1 && c - Math.round((c * sh) / 1000) * 1000 <= company.cash; }); };
+  const loanMax = Math.max(cashMax, lenders.length ? maxWhere(loanOk) : 0);
+  const room = Math.max(0, creditLimit(state, company) - company.debt);
+  const bankMax = Math.max(loanMax, maxWhere((q) => Math.ceil((cost(q) * 1.01 - company.cash) / 10000) * 10000 <= room));
+  // Bénéfice à une destination pour q tonnes : la traversée ne change pas, la manutention suit la quantité.
+  const fixedDay = eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship), ship.crew);
+  const atQty = (d, q) => {
+    const portH = eco.handlingHours(ship.port, hold, q, ship.type) + eco.handlingHours(d.p, hold, q, ship.type);
+    const totalDays = d.est.seaDays + portH / 24, voyage = d.est.fuelCost + d.est.fees + fixedDay * totalDays;
+    const fq = quoteSellAt(state, d.p, g, q, totalDays, ship.id);
+    return { ...d, qty: q, unit: fq.avg, tender: fq.tender, net: fq.total - q * eco.HANDLING_COST[hold] - cost(q) - voyage, est: { ...d.est, totalDays, cost: voyage } };
+  };
+  const best = (q) => dests.slice(0, 5).map((d) => atQty(d, q)).sort((a, b) => b.net - a.net)[0];
+  const key = `${ship.id}:${g}`, memo = (app.form.tradeQty ??= {});
+  const clampQ = (q) => Math.max(100, Math.min(full, Math.round(q / 100) * 100));
+  let q = clampQ(memo[key] ?? (cashMax >= 100 ? cashMax : loanMax >= 100 ? loanMax : full));
+  // Zones de la barre, en part de la course du curseur (de 100 t à la cale pleine).
+  const at = (x) => (full > 100 ? Math.max(0, Math.min(100, ((x - 100) / (full - 100)) * 100)) : x >= full ? 100 : 0);
+  const a = at(cashMax), b = at(loanMax), c = at(bankMax);
+  const zones = `linear-gradient(90deg, var(--good) 0 ${a}%, var(--warn) ${a}% ${b}%, var(--navy-2) ${b}% ${c}%, var(--line) ${c}% 100%)`;
+  const input = h('input.range.trade-range', { type: 'range', min: 100, max: full, step: 100, value: q, 'aria-label': 'Quantité à acheter' });
+  input.style.setProperty('--zones', zones);
+  const qtyOut = h('b'), costOut = h('span.muted'), bestOut = h('div.card-sub'), why = h('div.card-why');
+  const buyBtn = h('button.btn.small.primary', { onclick: () => { memo[key] = q; buyDialog(app, ship, g, q, dests.map((d) => atQty(d, q)).sort((x, y) => y.net - x.net)); } });
+  const show = () => {
+    const c0 = cost(q), d = best(q);
+    qtyOut.textContent = tonnes(q);
+    costOut.textContent = money(c0);
+    bestOut.replaceChildren(...[h('span', 'Meilleure destination :'), ' ', h('b', portName(d.p)), isEmbargoed(d.p) ? ' ' : null, isEmbargoed(d.p) ? EMBARGO_TAG() : null, d.tender ? ' 📣' : null, ` (${money(d.unit)}/t, ${days(d.est.totalDays)}) → `,
+      h('b', { class: d.net >= 0 ? 'pos' : 'neg' }, money(d.net, true)), ' ', h('span.muted', `(${money(d.net / Math.max(1, d.est.totalDays), true)}/j)`)].filter(Boolean));
+    buyBtn.textContent = `Acheter ${tonnes(q)}`;
+    buyBtn.disabled = q > bankMax;
+    why.textContent = q > bankMax ? 'Au-delà de vos moyens (trésorerie, prêt sur cargaison ou banque) : réduisez la quantité.' : '';
+    why.hidden = q <= bankMax;
+  };
+  let frame = 0;
+  input.addEventListener('input', () => { q = clampQ(+input.value); if (!frame) frame = requestAnimationFrame(() => { frame = 0; show(); }); });
+  input.addEventListener('change', () => { memo[key] = q; });
+  const jump = (v) => { q = clampQ(v); input.value = q; memo[key] = q; show(); };
+  show();
+  return h('div.trade-qty', [
+    h('div.trade-qty-head', [h('span', 'Quantité :'), ' ', qtyOut, ' ', costOut]),
+    input,
+    h('div.trade-zones', [
+      cashMax >= 100 ? h('span.z-cash', 'comptant') : null,
+      loanMax > cashMax ? h('span.z-loan', 'prêt sur cargaison') : null,
+      bankMax > loanMax ? h('span.z-bank', 'emprunt bancaire') : null,
+      bankMax < full ? h('span.z-out', 'hors de portée') : null,
+    ]),
+    bestOut,
+    h('div.chips', [
+      cashMax >= 100 && cashMax < full ? h('button.chip', { onclick: () => jump(cashMax) }, `Max comptant · ${tonnes(cashMax)}`) : null,
+      loanMax > cashMax && loanMax < full ? h('button.chip', { onclick: () => jump(loanMax) }, `Max avec prêt · ${tonnes(loanMax)}`) : null,
+      h('button.chip', { onclick: () => jump(full) }, `Cale pleine · ${tonnes(full)}`),
+      buyBtn,
+    ]),
+    why,
+  ]);
 }
 
 // Achat d'une cargaison : destination visée (pour l'estimation et le financement par ses
@@ -540,7 +614,7 @@ function crewSkillsTab(app, ship) {
   const xp = ship.xp || 0, next = crew.nextStep(ship), free = crew.pointsFree(ship);
   const prev = [0, ...crew.XP_STEPS].filter((x) => x <= xp).pop();
   box.append(h('p.hint', [
-    ship.crew ? `L'équipage apprend en mer, plus vite parce qu'il est ${CREW_LEVELS[ship.crew].short}. ` : 'L\'équipage apprend en mer. ',
+    ship.crew ? `L'équipage apprend en mer, d'autant plus vite qu'il est expérimenté (${CREW_LEVELS[ship.crew].name}). ` : 'L\'équipage apprend en mer. ',
     `À chaque palier, choisissez une spécialité : ${crew.MAX_RANK} niveaux au plus par spécialité, ${crew.XP_STEPS.length} points en tout. L'équipage reste avec le navire (on change son niveau au port, onglet Escale).`,
   ]));
   box.append(captainCard(app, ship));
@@ -556,7 +630,10 @@ function crewSkillsTab(app, ship) {
         h('div.card-title', [`${S.icon} ${S.name}`, gradeEl(r, { max: crew.MAX_RANK, title: `Niveau ${r} sur ${crew.MAX_RANK}` })]),
         h('div.card-sub', S.text),
       ]),
-      h('div.card-side', free && r < crew.MAX_RANK ? [h('button.btn.small.primary', { onclick: () => app.act(() => crew.train(state, ship.id, id)) }, 'Former')] : []),
+      h('div.card-side', free && r < crew.MAX_RANK ? [h('button.btn.small.primary', { onclick: () => {
+        const res = app.act(() => crew.train(state, ship.id, id));
+        if (res?.promoted) app.toast(`🧭 L'équipage du ${ship.name} devient vieux briscards : 4e niveau d'équipage, sans hausse de salaire.`, { kind: 'money', timeout: 6000 });
+      } }, 'Former')] : []),
     ]);
   })));
   return box;
@@ -634,13 +711,16 @@ function portCallTab(app, ship) {
     const cur = (ship.crew || 0) === lv;
     const wage = eco.crewDayCost(T, company.flag, lv);
     const fee = act.crewChangeFee(state, ship, lv);
-    return h('div.card', { class: cur ? 'highlight' : '' }, [
+    // 4e niveau : on ne l'engage pas, la spécialité Vieux briscards au niveau 3 le débloque (montré d'avance).
+    const locked = L.unlock && !crew.briscardsUnlocked(ship);
+    return h('div.card', { class: cur ? 'highlight' : locked ? 'locked' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [L.name, cur ? h('span.tag.good', 'à bord') : null]),
+        h('div.card-title', [L.name, cur ? h('span.tag.good', 'à bord') : null, locked ? h('span.tag', '🔒 spécialité') : null]),
         h('div.card-sub', L.blurb),
-        h('div.card-sub.muted', `${money(wage)}/jour · incidents ${lv ? `−${Math.round((1 - L.safety) * 100)} %` : 'normaux'}`),
+        h('div.card-sub.muted', [h('span', `${money(wage)}/jour · incidents ${lv ? `−${Math.round((1 - L.safety) * 100)} %` : 'normaux'}`), L.fight ? ' · ' : null, L.fight ? h('span', `défense +${num1(L.fight)}`) : null]),
+        locked ? h('div.card-why', 'Débloqué quand la spécialité Vieux briscards atteint le niveau 3 (onglet Équipage) : sans prime d\'embauche, au salaire de base.') : null,
       ]),
-      h('div.card-side', cur ? [] : [h('button.btn.small', { onclick: () => app.act(() => act.setCrew(state, ship.id, lv)) }, fee ? `Engager · ${money(fee)}` : 'Engager')]),
+      h('div.card-side', cur || locked ? [] : [h('button.btn.small', { onclick: () => app.act(() => act.setCrew(state, ship.id, lv)) }, fee ? `Engager · ${money(fee)}` : 'Engager')]),
     ]);
   })));
 
@@ -838,9 +918,10 @@ function departTab(app, ship) {
     const contracts = here.length;
     // Ceux que ce navire pourrait prendre (capacité, tirant d'eau, vitesse, terminaux) : les autres
     // restent affichés, ils donnent envie d'un autre navire.
-    const fit = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold)).length;
+    const fitList = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold));
+    const fit = fitList.length;
     const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
-    return { p, nm, seaDays, why, contracts, fit, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info, famBlock };
+    return { p, nm, seaDays, why, contracts, fit, fitList, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info, famBlock };
   }).sort((a, b) => (!!a.why - !!b.why) || a.nm - b.nm);
   // Survol : la route vers ce port se dessine sur la carte, comme pour les contrats (tracé calculé
   // au premier survol seulement).
@@ -852,6 +933,9 @@ function departTab(app, ship) {
     if (route && app.hoverPreview === route) return; // déjà affichée (mousemove)
     app.hoverRoute(route);
   }; };
+  // Ce que rapporte chaque port, chiffré selon l'équipage (avec une phrase qui le rappelle quand il ne chiffre pas tout).
+  const pay = destPayInfo(app, ship);
+  if (!ship.cargo && pay.info < 2) box.append(h('p.hint.small', pay.info === 0 ? 'Un équipage plus expérimenté saurait chiffrer ce que paient ces contrats.' : 'Un équipage chevronné saurait chiffrer le bénéfice par jour de chaque port.'));
   const searchKey = `destSearch${ship.id}`; // propre à chaque navire, effacée une fois la destination choisie
   const search = searchBox(app.form, searchKey);
   box.append(search.input);
@@ -877,6 +961,7 @@ function departTab(app, ship) {
     !r.why && !(company.portsServed || []).includes(r.p) ? h('span.tag.good', { title: 'Jamais desservi par votre compagnie : y faire escale compte pour le record « Toutes les escales », et donne un peu de confiance.' }, '✚ nouveau port') : null,
     r.famBlock ? h('span.tag.warn', { title: `Port familial de ${r.famBlock.name} : son plus grand concurrent n'y trouve ni contrat ni démarchage.` }, '♥ rien pour vous') : null,
     !r.why && r.contracts ? h('span.tag', { class: r.fit ? 'good' : '' }, [h('span', r.contracts > 1 ? `${r.contracts} contrats` : `${r.contracts} contrat`), r.fit ? ' · ' : null, r.fit ? h('span', `${r.fit} pour ce navire`) : null]) : null,
+    !r.why && r.fit ? pay.tag(r.p, r.fitList) : null,
   ]); }));
   box.append(destList);
   search.apply(destList);
