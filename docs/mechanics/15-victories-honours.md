@@ -69,7 +69,11 @@ checked daily in `honoursDaily` (which also applies clean-conduct virtue).
   share of its takeover price (embargo fine included) you hold in net cash (capped 99 %); 0 if it is
   above your level.
 - Alerts at 75 % and 90 % to every human (rule 1); the last rival gets its own wording. Everyone sees
-  everyone's progress (Office → Victories).
+  everyone's progress on the four medal buttons under the side rail (`.vic-rail`, `data-victory`; 🚩 domination,
+  🌟 reputation, 🏆 legend, 🗡 shadow; `updateVictoryRail` in `main.js`, once per game day): a progress ring
+  (halo at 75 %, breathing at 90 %) and a red dot when a rival reaches 75 % (beating at 90 %). A medal opens
+  panel `victory` (`ui/victory.js`) with tab `course` plus, per path: domination → `concurrents` (takeovers,
+  attacks, parries) and `classement`; reputation → `hauts-faits`; legend → `records`; shadow → `mefaits`.
 - Victories can be switched off per game (`settings.victories`); the time limit decides otherwise
   (ranking by net worth). The first victory ends the game (`state.victoryClaimed`, `state.over`).
 

@@ -1,8 +1,12 @@
 # Port d'Attache — design rules for this project
 
 **Start here:** `docs/mechanics/README.md` maps every game mechanic, its code, its constants and how
-the systems connect. Read the relevant file there before exploring the code, and update it when you
-change a mechanic.
+the systems connect. Read the relevant file there before exploring the code.
+
+**Docs in the same PR (owner's rule):** a PR that changes a mechanic, a constant, where something sits in the
+UI (a button, tab or panel that moves), or adds a code file updates the matching `docs/mechanics/` file in that
+same PR, or says in the PR body why none is needed (PR template checkbox). At release, the bundle thread checks
+every included PR for this and fixes small gaps in the bundle.
 
 This is a **management game**. Balance and player agency come before realism.
 Every design or balancing choice must be checked against these rules (set by the
