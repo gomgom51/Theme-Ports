@@ -812,7 +812,7 @@ export function helpPanel(app) {
       h('h3', 'La banque'),
       p('Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d\'un navire. Plus votre confiance 🤝 est haute, plus le crédit est large et bon marché.'),
       h('h3', 'Commandes'),
-      p('Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un navire ou un port pour l\'ouvrir. Clavier : Espace = pause, 1 à 3 = vitesse, Échap = fermer.'),
+      p('Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un navire ou un port pour l\'ouvrir. Clavier : Espace = pause, 1 à 3 = vitesse, Échap = fermer, A = cacher le jeu (la carte seule, sans le son) puis le retrouver tel quel.'),
     ]),
   };
 }

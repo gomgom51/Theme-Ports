@@ -492,6 +492,7 @@ export class AudioManager {
     });
     el.play().then(() => {
       if (this.music !== el) { el.pause(); this.live.delete(el); return; }
+      if (this.paused) el.pause(); // son coupé entre-temps : il reprendra au retour (resume)
       this.stopOthers(el); // le nouveau morceau joue : tous les autres s'effacent
       markHeard(name); // débloqué pour le juke-box
       this.fade(el, () => this.musicLevel(track.volume), 2500);
@@ -530,12 +531,19 @@ export class AudioManager {
     requestAnimationFrame(step);
   }
 
+  // Touche patron : tout se tait (le morceau reprendra où il s'est arrêté), même si la fenêtre
+  // repasse au premier plan entre-temps.
+  hush(on) {
+    this.hushed = on;
+    if (on) this.suspend(); else if (!document.hidden) this.resume();
+  }
   suspend() {
     this.paused = true;
     if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
     this.music?.pause();
   }
   resume() {
+    if (this.hushed) return;
     this.paused = false;
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
     if (this.music && this.settings.music) this.music.play().catch(() => {});

@@ -476,7 +476,7 @@ export default {
   "Banque et réputation": "Bank and reputation",
   "Empruntez au Bureau 💼 pour grandir plus vite, mais un découvert trop profond entraîne la saisie d'un navire. La réputation monte avec les livraisons à l'heure et ouvre les meilleurs contrats.": "Borrow at the Office 💼 to grow faster, but an overdraft that goes too deep leads to a ship being seized. Reputation rises with on-time deliveries and opens up the best contracts.",
   "Commandes": "Controls",
-  "Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un navire ou un port pour l'ouvrir. Clavier : Espace = pause, 1 à 3 = vitesse, Échap = fermer.": "Map: drag to move, pinch or scroll to zoom, tap a ship or a port to open it. Keyboard: Space = pause, 1 to 3 = speed, Esc = close.",
+  "Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un navire ou un port pour l'ouvrir. Clavier : Espace = pause, 1 à 3 = vitesse, Échap = fermer, A = cacher le jeu (la carte seule, sans le son) puis le retrouver tel quel.": "Map: drag to move, pinch or scroll to zoom, tap a ship or a port to open it. Keyboard: Space = pause, 1 to 3 = speed, Esc = close, A = hide the game (just the map, no sound), then bring it back as it was.",
   "Fiabilité {0}/100": "Reliability {0}/100",
   "À recevoir plus tard": "To receive later",
   "À encaisser": "To collect",
@@ -2964,4 +2964,5 @@ export default {
   "Payer la caution ({0})": "Pay the bail ({0})",
   "{0} — ses navires y vont": "{0} — its ships are heading there",
   "Le {0} est enfin autorisé à repartir à {1}.": "The {0} is finally cleared to sail from {1}.",
+  "Carte du monde": "World map",
 };

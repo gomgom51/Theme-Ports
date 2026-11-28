@@ -72,8 +72,27 @@ export function toast(text, { action, onAction, kind = 'info', timeout = 6000, t
   toastRoot.prepend(el);
   const max = window.innerHeight < 500 ? 3 : 4;
   while (toastRoot.children.length > max) toastRoot.lastChild.remove();
-  if (timeout) setTimeout(() => el.remove(), timeout);
+  if (timeout) {
+    const t = { left: timeout, at: 0, id: 0 };
+    toastTimers.set(el, t);
+    if (!toastsHeld) armToast(el, t);
+  }
   return el;
+}
+// Touche patron : les notifications restent, minuterie arrêtée, jusqu'au retour du jeu.
+let toastsHeld = false;
+const toastTimers = new Map(); // notification → { left : ms restantes, at : départ, id }
+function armToast(el, t) {
+  t.at = performance.now();
+  t.id = setTimeout(() => { toastTimers.delete(el); el.remove(); }, t.left);
+}
+export function holdToasts(on) {
+  toastsHeld = on;
+  const now = performance.now();
+  for (const [el, t] of toastTimers) {
+    if (!el.isConnected) { clearTimeout(t.id); toastTimers.delete(el); continue; }
+    if (on) { clearTimeout(t.id); t.left = Math.max(0, t.left - (now - t.at)); } else armToast(el, t);
+  }
 }
 
 // Bruit du tampon à l'ouverture d'une boîte (branché par main.js sur l'audio du jeu).

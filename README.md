@@ -161,7 +161,7 @@ En local : `npm start` puis ouvrir http://localhost:8080.
 
 * Carte : glisser pour se déplacer, pincer ou molette pour zoomer, toucher un
   navire ou un port pour l'ouvrir.
-* Clavier : `Espace` pause, `1` `2` `3` vitesse du temps, `Échap` fermer.
+* Clavier : `Espace` pause, `1` `2` `3` vitesse du temps, `Échap` fermer, `A` touche patron (le jeu se cache derrière une simple carte du monde, temps arrêté et son coupé ; `A` à nouveau le remet tel quel).
 
 ## Développement
 

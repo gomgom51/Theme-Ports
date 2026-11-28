@@ -154,6 +154,8 @@ export class MapView {
   }
 
   setGame(state, ctx, ui) { this.state = state; this.ctx = ctx; this.ui = ui; this.dirty = true; }
+  // Carte nue (touche patron) : terres, mers, frontières, noms des pays et des mers, rien du jeu.
+  setBare(on) { this.bare = on; this.dirty = true; }
 
   resize() {
     const r = this.root.getBoundingClientRect();
@@ -311,6 +313,7 @@ export class MapView {
   }
 
   tap(x, y) {
+    if (this.bare) return; // touche patron : rien à toucher sur la carte nue
     let best = null, bestD = 18 * mapSize().ship;
     for (const s of this.shipScreenPos || []) {
       const d = Math.hypot(s.x - x, s.y - y) - (s.own ? 4 : 0);
@@ -491,6 +494,8 @@ export class MapView {
     if ('letterSpacing' in g) g.letterSpacing = '0px';
     g.textAlign = 'left';
 
+    // Touche patron : la carte seule, sans ports ni noms de ports.
+    if (this.bare) { this.dirty = false; return; }
     // Ports. Leurs noms vont sur le calque du dessus (this.names).
     const ng = this.nctx, fs = mapSize().city, k = fs / 11;
     ng.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -579,6 +584,7 @@ export class MapView {
     const g = this.octx, dpr = this.dpr, state = this.state, ctx = this.ctx;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, this.w, this.h);
+    if (this.bare) return; // touche patron : ni navires, ni routes, ni zones, ni glaces
     const names = () => { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(this.names, 0, 0); g.restore(); };
     if (!state) { names(); return; }
     const { scale } = this.view;

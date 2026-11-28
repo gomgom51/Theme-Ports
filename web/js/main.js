@@ -44,6 +44,7 @@ import { honourSVG } from './ui/trophyart.js';
 import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
+import { initBossKey } from './ui/boss.js';
 import { initScale, localRect, UI_SIZES, uiSize, setUiSize } from './ui/scale.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
@@ -126,6 +127,7 @@ function armBrowserBack() {
 window.addEventListener('popstate', () => {
   if (skipPop) { skipPop = false; return; } // garde retirée par la fermeture du panneau
   backGuard = false;
+  if (app.boss) { if (app.mode === 'game' && app.ui.panel) armBrowserBack(); return; } // jeu caché (touche patron) : rien ne bouge
   if (app.mode === 'game' && app.ui.panel && !document.querySelector('.dialog-wrap')) { app.back(); if (app.ui.panel) armBrowserBack(); }
 });
 // Revenir au panneau précédent (un navire vendu ou perdu entre-temps est sauté).
@@ -946,6 +948,8 @@ let last = performance.now(), acc = 0, lastRefresh = 0, lastNames = 0;
 function loop(now) {
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
+  // Touche patron (ui/boss.js) : la carte nue, rien d'autre ne tourne (temps, scènes, barre du haut, visite guidée).
+  if (app.boss) { app.map.frame(0, false); requestAnimationFrame(loop); return; }
   // Noms de navires et de compagnies : la traduction les reconnaît, quels qu'ils soient.
   if (now - lastNames > 1000) { lastNames = now; registerGameNames(app.mode === 'game' ? app.state : app.demo); if (app.mode === 'game') registerStateShips(app.state); }
   if (app.mode === 'title' && app.demo) {
@@ -1186,6 +1190,7 @@ $('#standings').addEventListener('click', () => app.open('victory', 'domination'
 
 // ---------- Lancement ----------
 initTooltips();
+initBossKey(app); // touche A : cacher le jeu derrière une simple carte, et le retrouver tel quel
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
 initPanelSize(); // largeur du panneau, réglable à sa poignée
