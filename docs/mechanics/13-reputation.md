@@ -85,6 +85,12 @@ Permanent. Caps both scores; blacklist at 80; makes "Le Juste" impossible. See [
 The economy must read trust only (reading the min crushed every risk-taker). Oil costs virtue so an
 oil fleet cannot win the reputation victory. Forgetting below 50 keeps risk-takers alive.
 
+Top bar (`main.js` `hudGauge`, owner's pick): ★ reputation in large, then one 10-cell gauge per score (🤝 trust,
+💚 virtue) with a gold tick at its cap (`trustCap` / `virtueCap`), the score (the limiting one in red) and this
+month's change (sum of `company.standingMonth`, drift included). Under them, the reputation sentence (`repQuote`)
+on one line, cut with "…" and shown whole in the hover bubble when cut; a click opens Office → Compagnie. Under
+the cash: what is borrowed (bank debt + cargo loans, split on hover), hidden without debt.
+
 HUD feedback (`main.js` `standingFloats`): each one-off change (any source except the daily drift
 `STANDING_DRIFT` = clean conduct, forgetting) is queued in `company.standingPings` (humans only) and
 shown at once as a floating "±x 🤝/💚" with its sound (trust: heartbeat / door; virtue: harp up / down),

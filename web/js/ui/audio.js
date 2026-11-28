@@ -351,6 +351,9 @@ export class AudioManager {
       S.stamp(c, out, t + (arg || 0), { gain: 0.22 });
     } else if (name === 'buy') {
       S.horn(c, out, t, { dur: 0.9, freq: 116, gain: 0.2, distance: 0.3, reverb: r });
+    } else if (name === 'ping') {
+      // Repérer sur la carte un navire ou une ville : le même ping clair (choix du propriétaire).
+      S.ping(c, out, t, { gain: 0.15, reverb: r });
     }
   }
 
@@ -492,6 +495,7 @@ export class AudioManager {
     });
     el.play().then(() => {
       if (this.music !== el) { el.pause(); this.live.delete(el); return; }
+      if (this.paused) el.pause(); // son coupé entre-temps : il reprendra au retour (resume)
       this.stopOthers(el); // le nouveau morceau joue : tous les autres s'effacent
       markHeard(name); // débloqué pour le juke-box
       this.fade(el, () => this.musicLevel(track.volume), 2500);
@@ -530,12 +534,19 @@ export class AudioManager {
     requestAnimationFrame(step);
   }
 
+  // Touche patron : tout se tait (le morceau reprendra où il s'est arrêté), même si la fenêtre
+  // repasse au premier plan entre-temps.
+  hush(on) {
+    this.hushed = on;
+    if (on) this.suspend(); else if (!document.hidden) this.resume();
+  }
   suspend() {
     this.paused = true;
     if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
     this.music?.pause();
   }
   resume() {
+    if (this.hushed) return;
     this.paused = false;
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
     if (this.music && this.settings.music) this.music.play().catch(() => {});

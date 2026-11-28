@@ -154,6 +154,8 @@ export class MapView {
   }
 
   setGame(state, ctx, ui) { this.state = state; this.ctx = ctx; this.ui = ui; this.dirty = true; }
+  // Carte nue (touche patron) : terres, mers, frontières, noms des pays et des mers, rien du jeu.
+  setBare(on) { this.bare = on; this.dirty = true; }
 
   resize() {
     const r = this.root.getBoundingClientRect();
@@ -311,6 +313,7 @@ export class MapView {
   }
 
   tap(x, y) {
+    if (this.bare) return; // touche patron : rien à toucher sur la carte nue
     let best = null, bestD = 18 * mapSize().ship;
     for (const s of this.shipScreenPos || []) {
       const d = Math.hypot(s.x - x, s.y - y) - (s.own ? 4 : 0);
@@ -460,6 +463,9 @@ export class MapView {
     g.textAlign = 'left';
 
     const path = scale >= 4.5 ? this.paths.detailed : this.paths.coarse;
+    this.landPath = path; // pour poser les navires à quai sur l'eau (dockSlotsFor)
+    this.dockSlots = new Map();
+    this.mask = null;
     this.copies((off) => {
       g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * (this.w / 2 + (off - cx) * scale), dpr * (this.h / 2 - cy * scale));
       g.fillStyle = C.land;
@@ -491,6 +497,8 @@ export class MapView {
     if ('letterSpacing' in g) g.letterSpacing = '0px';
     g.textAlign = 'left';
 
+    // Touche patron : la carte seule, sans ports ni noms de ports.
+    if (this.bare) { this.dirty = false; return; }
     // Ports. Leurs noms vont sur le calque du dessus (this.names).
     const ng = this.nctx, fs = mapSize().city, k = fs / 11;
     ng.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -533,7 +541,6 @@ export class MapView {
     const placed = dots.map((d) => ({ x1: d.x - d.r - 1, x2: d.x + d.r + 1, y1: d.y - d.r - 1, y2: d.y + d.r + 1, id: d.id }));
     const free = (b, id) => !placed.some((o) => o.id !== id && b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
     const gap = Math.round(4 * k), half = Math.ceil(Math.max(FH, fs) / 2) + 1;
-    this.labelSide = new Map();
     const order = dots.filter((d) => d.hl || d.P.size >= 5 || scale > (d.P.size >= 4 ? 3 : 4.2))
       .sort((a, b) => (b.hl - a.hl) || (b.P.size - a.P.size));
     for (const d of order) {
@@ -553,7 +560,6 @@ export class MapView {
       for (const [side, dy] of tries) { const b = box(side, dy); if (free(b, id)) { pick = b; break; } }
       if (!pick) { if (!(hl || P.size >= 5)) continue; pick = box(...tries[0]); }
       placed.push({ ...pick, id });
-      this.labelSide.set(id, pick.side);
       const ly = pick.ly;
       // À droite du point : drapeau puis nom ; à gauche : nom puis drapeau, contre le point.
       const fx = pick.side === 'left' ? x - r - gap - FW : x + r + gap;
@@ -572,13 +578,72 @@ export class MapView {
       ng.fillStyle = hl ? C.portHl : emb ? '#b8322a' : C.ink;
       ng.fillText(label, tx, ly);
     }
+    this.labelBoxes = placed;
     this.dirty = false;
+  }
+
+  // Un point de l'écran est-il en mer ? La terre telle qu'elle est dessinée à cette échelle, lue sur
+  // un masque au quart de la résolution, refait au besoin après chaque changement de vue.
+  atSea(x, y) {
+    const q = 4;
+    if (!this.mask) {
+      const W = Math.ceil(this.w / q), H = Math.ceil(this.h / q), { cx, cy, scale } = this.view;
+      const c = (this.maskCanvas ||= document.createElement('canvas'));
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); g.fillStyle = '#000';
+      this.copies((off) => {
+        g.setTransform(scale / q, 0, 0, scale / q, (this.w / 2 + (off - cx) * scale) / q, (this.h / 2 - cy * scale) / q);
+        g.fill(this.landPath || this.paths.coarse);
+      });
+      this.mask = { W, H, d: g.getImageData(0, 0, W, H).data };
+    }
+    const { W, H, d } = this.mask, i = Math.floor(x / q), j = Math.floor(y / q);
+    if (i < 0 || j < 0 || i >= W || j >= H) return true; // hors de l'écran : invisible, peu importe
+    return d[(j * W + i) * 4 + 3] < 128;
+  }
+
+  // Places des navires à quai autour d'un port : sur l'eau, jamais sur la terre, près du port (quatre
+  // cercles au plus), chacune avec un coût : plus loin, sur un nom ou loin du côté du large coûte
+  // plus. Gardées jusqu'au prochain changement de vue (le fond les remet à zéro).
+  dockSlotsFor(port, px, py) {
+    let list = this.dockSlots?.get(port);
+    if (list) return list;
+    const zs = mapSize().ship, hx = 14 * zs, hy = 7 * zs, step = 30 * zs;
+    const boxes = this.labelBoxes || [];
+    const wet = (x, y) => this.atSea(x, y + hy * 0.4) && this.atSea(x - hx * 0.85, y + hy * 0.4) && this.atSea(x + hx * 0.85, y + hy * 0.4) && this.atSea(x, y - hy * 0.5);
+    const onName = (x, y) => boxes.some((o) => x - hx < o.x2 && x + hx > o.x1 && y - hy < o.y2 && y + hy > o.y1);
+    const sea = [];
+    for (let k = 0; k < 4; k++) {
+      const r = (16 + k * 15) * zs, n = Math.max(8, Math.floor((2 * Math.PI * r) / step));
+      for (let i = 0; i < n; i++) {
+        const a = ((i + (k % 2) * 0.5) * 2 * Math.PI) / n, x = px + Math.cos(a) * r, y = py + Math.sin(a) * r;
+        if (wet(x, y)) sea.push({ x, y, k, a, cost: k + (onName(x, y) ? 2.5 : 0) });
+      }
+    }
+    // Côté du large : la moyenne des directions en mer près du port.
+    let sx = 0, sy = 0;
+    for (const c of sea) if (c.k < 3) { sx += Math.cos(c.a); sy += Math.sin(c.a); }
+    const dir = Math.atan2(sy, sx);
+    for (const c of sea) c.cost += (0.5 * Math.abs(((c.a - dir + 3 * Math.PI) % (2 * Math.PI)) - Math.PI)) / Math.PI;
+    list = sea;
+    if (!list.length) { // aucun coin de mer autour du port à cette échelle : l'arc d'origine
+      for (let k = 0; k < 3; k++) for (let i = 0; i < 8; i++) {
+        const a = 0.95 + ((i + 0.5) * (2 * Math.PI - 1.9)) / 8, r = (25 + k * 18) * zs;
+        list.push({ x: px + Math.cos(a) * r, y: py + Math.sin(a) * r, k, cost: k + i * 0.01 });
+      }
+    }
+    list.sort((a, b) => a.cost - b.cost);
+    Object.assign(list, { hx, hy });
+    this.dockSlots.set(port, list);
+    return list;
   }
 
   drawOverlay(frac = 0) {
     const g = this.octx, dpr = this.dpr, state = this.state, ctx = this.ctx;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, this.w, this.h);
+    if (this.bare) return; // touche patron : ni navires, ni routes, ni zones, ni glaces
     const names = () => { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(this.names, 0, 0); g.restore(); };
     if (!state) { names(); return; }
     const { scale } = this.view;
@@ -752,23 +817,28 @@ export class MapView {
     }
     // Navires à quai : pictogramme aux couleurs de la compagnie, et pour les vôtres une
     // pastille qui dit ce qu'ils font (chargement, déchargement, réparation, attente…).
-    const now = performance.now() / 1000;
+    const now = performance.now() / 1000, docked = [];
     for (const [port, ships] of inPort) {
       const P = PORTS[port];
       if (!P) continue;
       const [px, py] = this.toScreen(P.lon, P.lat);
       if (px < -60 || px > this.w + 60 || py < -60 || py > this.h + 60) continue;
       ships.sort((a, b) => (b.owner === active) - (a.owner === active));
-      // En arcs autour du port, en laissant libre le côté où s'écrit son nom (la droite, ou la
-      // gauche pour les ports serrés contre un voisin : l'arc est alors retourné).
-      const A0 = 0.95, SPAN = Math.PI * 2 - 2 * A0, flip = (this.labelSide?.get(port) || (LABEL_PLACE[port] || ['right'])[0]) === 'left' ? -1 : 1;
-      const zs = mapSize().ship; // les arcs s'écartent avec la taille des navires
-      let ring = 0, slot = 0;
-      ships.forEach((ship) => {
-        const rr = (25 + ring * 18) * zs, slots = Math.max(4, Math.floor((rr * SPAN) / (30 * zs)));
-        const ang = A0 + ((slot + 0.5) * SPAN) / slots;
-        if (++slot >= slots) { slot = 0; ring++; }
-        const x = px + flip * Math.cos(ang) * rr, y = py + Math.sin(ang) * rr;
+      // Sur l'eau autour du port, hors des noms, sans chevaucher les navires d'un port voisin.
+      // Chaque navire prend la place libre la moins chère ; chevaucher un navire déjà posé (d'un port
+      // voisin) coûte trois cercles : près du port, ils finissent par se serrer plutôt que s'éloigner.
+      const slots = this.dockSlotsFor(port, px, py), { hx, hy } = slots, used = new Set();
+      ships.forEach((ship, n) => {
+        let best = -1, bestCost = Infinity;
+        slots.forEach((s, i) => {
+          if (used.has(i)) return;
+          const cost = s.cost + (docked.some((o) => Math.abs(o.x - s.x) < 1.7 * hx && Math.abs(o.y - s.y) < 1.6 * hy) ? 3 : 0);
+          if (cost < bestCost) { bestCost = cost; best = i; }
+        });
+        if (best < 0) best = n % slots.length; // plus de place : on réutilise
+        used.add(best);
+        const { x, y } = slots[best];
+        docked.push({ x, y });
         const own = ship.owner === active;
         const kind = portActivity(ship);
         const color = state.companies[ship.owner].color, laidup = kind === 'laidup';
@@ -790,6 +860,12 @@ export class MapView {
       if (el > f.ms) this.flash = null;
       else if (p) this.drawFlash(g, p.x, p.y, el, f.ms);
     }
+    // Ville dont on a cliqué le nom (dans un panneau, un message…) : elle clignote en vert.
+    if (this.cityFlash) {
+      const f = this.cityFlash, el = performance.now() - f.t0, port = PORTS[f.id];
+      if (el > f.ms || !port) this.cityFlash = null;
+      else { const [x, y] = this.toScreen(port.lon, port.lat); this.drawFlash(g, x, y, el, f.ms, CITY_FLASH); }
+    }
     // Ports en grève.
     for (const [p, until] of Object.entries(state.strikes)) {
       if (until <= state.t) continue;
@@ -800,12 +876,43 @@ export class MapView {
 
   // Fait clignoter un navire : halo doré et ondes qui s'élargissent, pendant `ms` millisecondes.
   flashShip(id, ms = 2800) { this.flash = { id, t0: performance.now(), ms }; }
-  drawFlash(g, x, y, el, ms) {
+  // Montre un port : la carte glisse jusqu'à lui s'il est hors de la partie visible (sans changer le zoom,
+  // pour garder le monde autour), puis il clignote comme un navire, en vert.
+  flashCity(id, ms = 2800) {
+    const port = PORTS[id];
+    if (!port) return;
+    const [x, y] = this.toScreen(port.lon, port.lat);
+    const y0 = 140, y1 = this.h - 90;
+    const hidden = x < 40 || x > this.w - 40 || y < y0 || y > y1
+      || [[0, 0], [-26, 0], [26, 0], [0, -20], [0, 20]].some(([dx, dy]) => this.covered(x + dx, y + dy));
+    if (hidden) {
+      const ty = (y0 + y1) / 2, tx = this.freeMidX(ty), scale = this.view.scale;
+      if (tx != null) this.glideTo(port.lon + (this.w / 2 - tx) / scale, -port.lat + (this.h / 2 - ty) / scale, scale);
+    }
+    this.cityFlash = { id, t0: performance.now(), ms };
+  }
+  // Un point de la carte est-il caché par l'interface (panneau, opportunités, classement, barre du haut) ?
+  covered(x, y) {
+    const r = this.root.getBoundingClientRect();
+    const el = document.elementFromPoint(r.left + x, r.top + y);
+    return !!el && !this.root.contains(el);
+  }
+  // Milieu de la plus large bande de carte libre à la hauteur y (null si tout est couvert).
+  freeMidX(y) {
+    let best = null, start = null;
+    for (let x = 16; x <= this.w; x += 32) {
+      const free = x <= this.w - 16 && !this.covered(x, y);
+      if (free && start == null) start = x;
+      if (!free && start != null) { if (!best || x - start > best[1] - best[0]) best = [start, x]; start = null; }
+    }
+    return best ? (best[0] + best[1]) / 2 : null;
+  }
+  drawFlash(g, x, y, el, ms, pal = SHIP_FLASH) {
     const fade = Math.min(1, (ms - el) / 500); // s'éteint doucement à la fin
     const pulse = 0.75 + 0.25 * Math.sin(el / 120); // le halo bat comme un phare
     const glow = g.createRadialGradient(x, y, 2, x, y, 32);
-    glow.addColorStop(0, `rgba(255, 196, 64, ${0.9 * fade * pulse})`);
-    glow.addColorStop(1, 'rgba(255, 196, 64, 0)');
+    glow.addColorStop(0, `rgba(${pal.glow}, ${0.9 * fade * pulse})`);
+    glow.addColorStop(1, `rgba(${pal.glow}, 0)`);
     g.fillStyle = glow;
     g.beginPath(); g.arc(x, y, 32, 0, Math.PI * 2); g.fill();
     for (let i = 0; i < 4; i++) {
@@ -814,7 +921,7 @@ export class MapView {
       const r = 10 + ph * 46, a = (1 - ph) * fade;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
       g.lineWidth = 6; g.strokeStyle = `rgba(251, 248, 241, ${0.85 * a})`; g.stroke();
-      g.lineWidth = 3.2; g.strokeStyle = `rgba(232, 146, 20, ${a})`; g.stroke();
+      g.lineWidth = 3.2; g.strokeStyle = `rgba(${pal.ring}, ${a})`; g.stroke();
     }
   }
 
@@ -1078,6 +1185,10 @@ export class MapView {
     this.drawOverlay(frac);
   }
 }
+
+// Couleurs du clignotement : navire recherché (or), ville dont on a cliqué le nom (vert).
+const SHIP_FLASH = { glow: '255, 196, 64', ring: '232, 146, 20' };
+const CITY_FLASH = { glow: '96, 214, 128', ring: '30, 140, 80' };
 
 // Ce que fait un navire à quai, pour sa pastille sur la carte.
 export const PORT_STATUS = {

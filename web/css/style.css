@@ -29,7 +29,7 @@
   --bad: #b8322a;
   --shadow: 0 6px 22px rgba(28, 42, 51, 0.16);
   --radius: 10px;
-  --hud-h: 50px;
+  --hud-h: 62px;
   --rail-w: 62px;
   /* Taille de l'interface (ui/scale.js) : la page est zoomée de --ui ; vw et vh passent par --vw et --vh, qui gardent
      le sens d'une part de l'écran malgré le zoom. */
@@ -100,6 +100,10 @@ p { margin: 6px 0; }
 /* Hors du zoom de l'interface (ui/scale.js) : la carte et l'intro dessinent au pixel de l'écran près. */
 .unzoom { zoom: calc(1 / var(--ui)); }
 .map-layer { position: absolute; inset: 0; display: block; }
+/* Touche patron (A, ui/boss.js) : la carte seule, sans rien du jeu, d'un coup, avec un curseur ordinaire. */
+html.boss body * { visibility: hidden !important; transition: none !important; animation-play-state: paused !important; }
+html.boss #map, html.boss #map * { visibility: visible !important; }
+html.boss, html.boss * { cursor: default !important; }
 
 /* ---------- Barre du haut ---------- */
 .hud {
@@ -126,8 +130,14 @@ p { margin: 6px 0; }
 b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-sub.nm { font-size: 16px; color: var(--ink-2); }
 .row b.nm { font-size: 16px; }
+/* Noms de villes (shipnames.js) : rien au repos ; au survol, soulignés en vert et main du pointeur. Un clic la fait clignoter sur la carte. */
+.city { cursor: var(--cursor-click); border-radius: 3px; }
+.city:hover { text-decoration: underline 2px #2e9e5b; text-underline-offset: 3px; background: rgba(46, 158, 91, 0.1); }
 .hud-cash { font-weight: 800; font-variant-numeric: tabular-nums; }
 .hud-cash.neg { color: var(--bad); }
+/* Sous la trésorerie : ce qui est emprunté (banque et prêts sur cargaison, le détail au survol). */
+.hud-debt { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hud-debt b { color: var(--ink-2); font-weight: 700; }
 /* Variation de confiance ou de vertu : un chiffre qui s'envole au-dessus de la note. */
 .float-delta { position: fixed; z-index: 60; transform: translate(-50%, 0); font-weight: 800; font-size: 13px; pointer-events: none; white-space: nowrap;
   background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; box-shadow: 0 2px 6px rgba(28, 42, 51, 0.18);
@@ -135,15 +145,34 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .float-delta.pos { color: var(--good); }
 .float-delta.neg { color: var(--bad); }
 @keyframes float-delta { 0% { opacity: 0; transform: translate(-50%, -6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 16px); } }
-/* Réputation (la plus basse de la confiance 🤝 et de la vertu 💚), à côté de la trésorerie. */
-.hud-rep { display: flex; flex-direction: column; flex: none; line-height: 1.15; padding-left: 9px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
-.hud-rep-main { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hud-rep-main > span { color: var(--star); }
+/* Réputation (la plus basse de la confiance 🤝 et de la vertu 💚), à côté de la trésorerie : ★ en grand,
+   puis une jauge de dix cases par note, un trait doré à son plafond et la variation du mois ; dessous,
+   la phrase du milieu sur une ligne (coupée par « … », entière au survol). */
+.hud-rep { display: flex; flex-direction: column; gap: 2px; flex: none; min-width: 0; max-width: 480px; line-height: 1.15; padding-left: 10px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
+.hud-rep-top { display: flex; align-items: center; gap: 9px; }
+.hud-rep-main { display: flex; align-items: baseline; gap: 3px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hud-rep-main > span { color: var(--star); font-size: 20px; }
 .star { color: var(--star); }
-.hud-rep-sub { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.hud-rep-sub .low { color: var(--bad); font-weight: 700; }
-.hud-rep-sub > span { display: inline-flex; align-items: center; gap: 1px; }
+.hud-rep-sub { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hud-rep-sub > span { display: flex; align-items: center; gap: 5px; line-height: 1; }
+.hud-rep-sub b { min-width: 20px; text-align: right; color: var(--ink); }
+.hud-rep-sub .low b { color: var(--bad); }
 .hud-ico { font-size: 14px; line-height: 1; }
+.hud-trust { --seg: #2f6c90; }
+.hud-virtue { --seg: #3c955a; }
+.hud-seg { position: relative; display: flex; gap: 2px; }
+.hud-seg i { width: 9px; height: 9px; border-radius: 2px; background: var(--paper-3); box-shadow: inset 0 0 0 1px rgba(28, 42, 51, 0.12); }
+.hud-trust .hud-seg i.on { background: linear-gradient(#3d7fa3, #24597a); }
+.hud-virtue .hud-seg i.on { background: linear-gradient(#4fae6a, #2f8048); }
+.hud-seg i.part { background: linear-gradient(90deg, var(--seg) var(--p), var(--paper-3) var(--p)); }
+/* Plafond : 11 px par dizaine (case de 9 px + 2 px d'écart). */
+.hud-seg em { position: absolute; top: -3px; bottom: -3px; left: calc(var(--cap) * 1.1px - 1px); width: 2px; border-radius: 1px; background: var(--star); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7); }
+.hud-delta { min-width: 22px; font-size: 10.5px; font-weight: 700; }
+.hud-delta.up { color: var(--good); }
+.hud-delta.down { color: var(--bad); }
+.hud-quote { display: block; font-family: var(--serif); font-style: italic; font-size: 11.5px; line-height: 1.3; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-quote:empty { display: none; }
 .hud-switch { display: none; color: var(--teal); font-weight: 800; }
 .hud-company.switchable .hud-switch { display: inline; }
 /* Informations du navire sélectionné. */
@@ -255,7 +284,6 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .standings-level { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--ink-2); }
 .level-bar { display: block; height: 5px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
 .level-bar > span { display: block; height: 100%; background: var(--teal); border-radius: 3px; }
-.office-next { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
 @media (max-width: 600px) { .standings-row:not(.me) > * { display: none; } }
 
 /* ---------- Panneau latéral ---------- */
@@ -295,6 +323,40 @@ b.nm, .panel-sub.nm { font-weight: 700; }
   position: absolute; left: 0; width: 12px; z-index: 2; pointer-events: none;
   background: linear-gradient(to right, #5a4119, #ecc77c 40%, #c99a48 65%, #5a4119); box-shadow: 0 0 8px rgba(28, 42, 51, 0.4);
 }
+/* Panneau à décor (le Bureau, officeroom.js) : la pièce en pixel art est le fond du corps du panneau (elle ne
+   défile pas), la plaque de laiton et le juke-box restent collés en haut, la feuille des chiffres glisse devant. */
+.panel-room .panel-body { padding: 0; background-color: #2a1d14; image-rendering: pixelated; }
+.panel-room .panel-body.wipe-old { background-color: #2a1d14; }
+.office-room { position: sticky; top: 0; z-index: 0; height: 340px; }
+.panel-sheet {
+  position: relative; z-index: 1; margin: 0 14px; padding: 14px 16px calc(24px + var(--safe-b)); min-height: var(--sheet-min, 0);
+  background: var(--paper); border: 1px solid var(--line-2); border-bottom: 0; border-radius: 8px 8px 0 0;
+  box-shadow: 0 -3px 14px rgba(20, 14, 8, 0.4); image-rendering: auto;
+}
+.office-plate {
+  position: absolute; left: 10px; top: 8px; z-index: 1; display: flex; flex-direction: column; gap: 3px; min-width: 160px; padding: 6px 14px 7px;
+  background: linear-gradient(#f2d48c, #d7aa55 55%, #c3913e); border: 2px solid #5a4119; border-radius: 4px; color: #2a1a0e;
+  box-shadow: 0 2px 0 #3a2a10, 0 4px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.office-plate::before, .office-plate::after { /* deux vis */
+  content: ''; position: absolute; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff2c4, #7a5a22 70%);
+}
+.office-plate::before { left: 4px; } .office-plate::after { right: 4px; }
+.office-plate b { font-family: var(--stencil); font-size: 15px; letter-spacing: 0.03em; white-space: nowrap; }
+.office-plate-row { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #4a3414; }
+.office-plate .level-bar { flex: 1; min-width: 60px; background: rgba(58, 42, 16, 0.28); }
+.office-juke-spot { position: absolute; z-index: 1; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; }
+.office-juke-spot:focus-visible { outline: none; }
+.office-juke-spot .juke-sprite { position: absolute; inset: 0; background-size: 100% 100%; image-rendering: pixelated; transition: filter 0.12s; }
+.office-juke-spot:hover .juke-sprite, .office-juke-spot:focus-visible .juke-sprite { filter: drop-shadow(0 0 3px rgba(255, 236, 170, 0.95)) brightness(1.1); }
+.office-juke-spot .juke-notes { position: absolute; right: -4px; top: -6px; width: 20px; height: 20px; pointer-events: none; }
+.office-juke-spot.juke-on .juke-notes { display: block; }
+.office-juke-spot .juke-notes i {
+  position: absolute; left: 0; top: 0; font: 700 16px/1 var(--icons), sans-serif; font-style: normal; color: #b8600c;
+  text-shadow: 0 0 2px #fff8e6, 0 0 2px #fff8e6, 0 0 1px #fff8e6; animation: juke-float 2.4s ease-in var(--juke-phase, 0s) infinite;
+}
+.office-juke-spot .juke-notes i + i { left: 9px; top: 5px; animation-delay: calc(var(--juke-phase, 0s) - 1.2s); }
 /* Poignée du tiroir : sur le bord gauche du panneau, une poignée de laiton à saisir pour l'élargir. */
 .panel-grip {
   position: fixed; z-index: 13; display: none; top: calc(var(--hud-h) + var(--safe-t)); bottom: 0; width: 14px;
@@ -498,10 +560,6 @@ select.input { width: auto; max-width: 100%; }
 .help p { color: var(--ink-2); }
 
 /* ---------- Bureau ---------- */
-.office-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; margin-bottom: 6px; }
-.office-hero svg { width: 100%; height: auto; display: block; }
-.office-caption { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; }
-.office-caption b { font-family: var(--stencil); font-size: 15px; letter-spacing: 0.03em; color: var(--ink); }
 
 /* ---------- Paiement ---------- */
 .pay-lines { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
@@ -715,6 +773,7 @@ select.input { width: auto; max-width: 100%; }
 @media (max-width: 900px) {
   /* Tablette : le nom de la compagnie s'abrège pour laisser la place au navire sélectionné. */
   .hud-company-name { max-width: 92px; }
+  .hud-quote { display: none; }
 }
 @media (max-width: 520px) {
   /* Téléphone : la barre doit tout faire tenir, menu ☰ compris. */
@@ -755,7 +814,6 @@ select.input { width: auto; max-width: 100%; }
 .pay-ship-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .dialog:has(.pay-lines) .dialog-buttons { animation: pay-in 0.4s ease-out 1.8s both; }
 @media (max-height: 460px) {
-  .office-hero svg { height: calc(30 * var(--vh)); }
 }
 .stars-empty { color: var(--line); }
 /* Jauge et pompe à carburant. */
@@ -1117,15 +1175,8 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .title-card .link-btn.credits { font-size: 13px; }
 
 /* Juke-box du bureau : l'objet dessiné se clique, des notes s'envolent quand il joue. */
-.office-juke { cursor: pointer; outline: none; }
-.office-juke:hover, .office-juke:focus-visible { filter: drop-shadow(0 0 3px rgba(255, 236, 170, 0.95)) brightness(1.08); }
-.juke-notes { display: none; }
-.office-hero.juke-on .juke-notes { display: inline; }
-.juke-note { font-size: 15px; font-weight: 700; fill: #b8600c; stroke: #fff8e6; stroke-width: 1.4px; paint-order: stroke; transform-box: fill-box; animation: juke-float 2.4s ease-in var(--juke-phase, 0s) infinite; }
-.juke-note + .juke-note { animation-delay: calc(var(--juke-phase, 0s) - 1.2s); }
+.juke-notes { display: none; } /* notes du juke-box dessiné en vecteur (scènes) : jamais animées */
 @keyframes juke-float { 0% { opacity: 0; transform: translate(0, 4px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(8px, -22px); } }
-.office-caption .juke-chip { align-self: flex-start; }
-.juke-chip.on { background: var(--accent-soft, #e6f2f1); }
 .juke-modes { display: flex; gap: 6px; margin: 8px 0; }
 .juke-modes .chip.on { background: #0f6f76; color: #fff; border-color: #0f6f76; }
 .juke-now { margin: 6px 0 8px; }

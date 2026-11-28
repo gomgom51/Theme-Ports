@@ -4,7 +4,8 @@ import { standingSummary } from './ui/standing.js';
 import { makeContext } from './sim/context.js';
 import { newGame, tick, ranking } from './sim/game.js';
 import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
-import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName } from './sim/core.js';
+import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName, trustCap, virtueCap, cargoLoans } from './sim/core.js';
+import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
 import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
@@ -30,7 +31,7 @@ import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
-import { registerStateShips, watchShipNames } from './ui/shipnames.js';
+import { registerStateShips, watchShipNames, onCityClick } from './ui/shipnames.js';
 import { initPanelSize, gripAfter } from './ui/panelsize.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
@@ -43,6 +44,7 @@ import { honourSVG } from './ui/trophyart.js';
 import { VICTORY, VICTORY_KINDS, VICTORY_INFO, victoryOn, victoryProgress } from './sim/victory.js';
 import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
+import { initBossKey } from './ui/boss.js';
 import { initScale, localRect, UI_SIZES, uiSize, setUiSize } from './ui/scale.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
@@ -125,6 +127,7 @@ function armBrowserBack() {
 window.addEventListener('popstate', () => {
   if (skipPop) { skipPop = false; return; } // garde retirée par la fermeture du panneau
   backGuard = false;
+  if (app.boss) { if (app.mode === 'game' && app.ui.panel) armBrowserBack(); return; } // jeu caché (touche patron) : rien ne bouge
   if (app.mode === 'game' && app.ui.panel && !document.querySelector('.dialog-wrap')) { app.back(); if (app.ui.panel) armBrowserBack(); }
 });
 // Revenir au panneau précédent (un navire vendu ou perdu entre-temps est sauté).
@@ -175,13 +178,21 @@ app.act = (fn, opts = {}) => {
   if (opts.close && r?.ok) app.close(); else if (opts.refresh !== false) app.refresh();
   return r;
 };
-app.focusShip = (id) => {
+app.focusShip = (id, { quiet = false } = {}) => {
   const ship = shipById(app.state, id);
   if (!ship) return;
   const pos = ship.status === 'sea' ? ctx.shipPosition(ship) : PORTS[ship.port];
   if (pos) app.map.centerOn(pos.lon, pos.lat, Math.max(app.map.view.scale, 5));
   app.map.flashShip(id); // il clignote : on le repère d'un coup d'œil
+  if (!quiet) app.audio.play('ping'); // et un ping de sonar
 };
+// Nom de ville cliqué (partout dans l'interface, shipnames.js) : elle clignote en vert sur la carte, même ping.
+app.focusPort = (id) => {
+  if (app.mode !== 'game' || !PORTS[id]) return;
+  app.map.flashCity(id);
+  app.audio.play('ping');
+};
+onCityClick((id) => app.focusPort(id));
 
 function renderPanel() {
   const p = app.ui.panel;
@@ -217,10 +228,9 @@ function renderPanel() {
 
   const body = h('div.panel-body');
   if (def.top) body.append(def.top);
-  if (tabs) {
-    const current = tabs.find((t) => t[0] === tabId);
-    body.append(current[2]());
-  } else if (def.body) body.append(def.body);
+  const content = tabs ? tabs.find((t) => t[0] === tabId)[2]() : def.body;
+  // Panneau à décor (le Bureau) : le contenu est une feuille posée devant la pièce.
+  if (content) body.append(def.room ? h('div.panel-sheet', [content]) : content);
 
   panelEl.replaceChildren(...[
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
@@ -239,7 +249,10 @@ function renderPanel() {
   panelEl.dataset.ident = ident;
   panelEl.dataset.tab = curTab;
   panelEl.hidden = false;
+  panelEl.classList.toggle('panel-room', !!def.room);
   document.body.classList.add('panel-open');
+  panelEl._mount = def.mount ? () => def.mount(body) : null;
+  panelEl._mount?.(); // la pièce se mesure une fois le panneau affiché
   if (motion === 'in' || (motion === 'swap' && outMs >= 0)) gripAfter(drawerIn(panelEl, Math.max(0, outMs))?.finished);
   else if (motion === 'tab' && tabs) {
     const ix = (id) => tabs.findIndex((t) => t[0] === id);
@@ -417,6 +430,28 @@ function standingFloats(c, trEl, viEl) {
     float(el, d, icon);
   }
 }
+// Jauge de la barre du haut : dix cases (une par dizaine), un trait doré au plafond, la note et la
+// variation du mois (bilan de company.standingMonth, dérive lente comprise).
+const monthDelta = (c, key) => Object.values(c.standingMonth?.[key] || {}).reduce((a, b) => a + b, 0);
+function hudGauge(el, icon, v, cap, delta, low, title) {
+  el.classList.toggle('low', low);
+  const d = Math.round(delta), top = Math.floor(cap);
+  const key = `${v}|${top}|${d}`;
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  const cells = [];
+  for (let i = 0; i < 10; i++) {
+    const f = Math.max(0, Math.min(1, (v - i * 10) / 10));
+    cells.push(f >= 1 ? h('i.on') : f > 0 ? h('i.part', { style: `--p:${Math.round(f * 100)}%` }) : h('i'));
+  }
+  el.replaceChildren(
+    h('span.hud-ico', { 'aria-hidden': 'true' }, icon),
+    h('span.hud-seg', { style: `--cap:${top}` }, [...cells, h('em')]),
+    h('b', `${v}`),
+    h('small.hud-delta', { class: d > 0 ? 'up' : d < 0 ? 'down' : '' }, d > 0 ? `▲${d}` : d < 0 ? `▼${-d}` : ''),
+  );
+  el.title = title(top, d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '0');
+}
 function updateHud() {
   if (app.mode !== 'game') return;
   const s = app.state, c = app.company();
@@ -428,15 +463,28 @@ function updateHud() {
   const cash = $('#hud-cash');
   cash.textContent = money(c.cash);
   cash.classList.toggle('neg', c.cash < 0);
+  // Dessous : ce qui est emprunté (banque + prêts sur cargaison), caché sans dette.
+  const loans = cargoLoans(s, c.id), owed = c.debt + loans, debtEl = $('#hud-debt');
+  debtEl.hidden = owed < 1000;
+  const debtKey = `${money(owed)}|${money(c.debt)}`;
+  if (!debtEl.hidden && debtEl.dataset.key !== debtKey) {
+    debtEl.dataset.key = debtKey;
+    debtEl.replaceChildren('emprunté ', h('b', money(owed)));
+    debtEl.title = `Banque : ${money(c.debt)} · prêts sur cargaison : ${money(loans)}`;
+  }
   // Réputation : la plus basse des deux notes, celle qui la retient en rouge.
   standing(c);
   const R = Math.floor(c.reputation), T = Math.floor(c.confidence), V = Math.floor(c.virtue), lim = repLimit(c);
   $('#hud-rep-val').textContent = R;
   const tr = $('#hud-trust'), vi = $('#hud-virtue');
-  tr.innerHTML = `<span class="hud-ico" aria-hidden="true">🤝</span>${T}`; vi.innerHTML = `<span class="hud-ico" aria-hidden="true">💚</span>${V}`;
-  tr.classList.toggle('low', lim === 'trust'); vi.classList.toggle('low', lim === 'virtue');
-  tr.title = 'Confiance : on peut compter sur vous (chargeurs, banques, acheteurs)'; vi.title = 'Vertu : votre image dans la presse';
+  hudGauge(tr, '🤝', T, trustCap(c), monthDelta(c, 'confidence'), lim === 'trust',
+    (cap, d) => `Confiance : on peut compter sur vous (chargeurs, banques, acheteurs) · plafond ${cap} · ce mois ${d}`);
+  hudGauge(vi, '💚', V, virtueCap(c), monthDelta(c, 'virtue'), lim === 'virtue',
+    (cap, d) => `Vertu : votre image dans la presse · plafond ${cap} · ce mois ${d}`);
   standingFloats(c, tr, vi);
+  // La phrase du milieu (celle du Bureau → Compagnie) ; la clé évite de réécrire le texte une fois traduit.
+  const quote = $('#hud-quote'), qt = repQuote(c).main;
+  if (quote.dataset.key !== qt) { quote.dataset.key = qt; quote.textContent = qt; quote.title = qt; }
   $('#hud-rep').title = lim === 'virtue' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre vertu la retient.`
     : lim === 'trust' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre confiance la retient.`
     : `Réputation ${R} : confiance et vertu à égalité.`;
@@ -532,6 +580,20 @@ $('#hud-company').addEventListener('click', () => {
 });
 // La réputation ouvre l'onglet Compagnie du bureau (détail de la confiance et de la vertu).
 const openStanding = (e) => { e.stopPropagation(); app.open('office', null, 'compagnie'); };
+// Phrase coupée (une ligne, « … ») : la bulle au survol la donne en entier ; entière, pas de bulle (celle de la réputation).
+// Mesurée à l'entrée de la souris, avant la bulle du jeu (ui/tooltip.js écoute pointerover sur le document) :
+// entière, le title (déjà traduit) est mis de côté le temps du survol, puis remis.
+$('#hud-quote').addEventListener('pointerover', (e) => {
+  const q = e.currentTarget, cut = q.scrollWidth > q.clientWidth + 1;
+  if (cut && !q.hasAttribute('title') && q.dataset.tip) q.title = q.dataset.tip;
+  else if (!cut && q.hasAttribute('title')) { q.dataset.tip = q.title; q.removeAttribute('title'); }
+});
+$('#hud-quote').addEventListener('pointerout', (e) => {
+  const q = e.currentTarget;
+  if (q.contains(e.relatedTarget)) return;
+  if (q.dataset.tip && !q.hasAttribute('title')) q.title = q.dataset.tip;
+  delete q.dataset.tip;
+});
 $('#hud-rep').addEventListener('click', openStanding);
 $('#hud-rep').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStanding(e); } });
 $('#hud-menu').addEventListener('click', () => gameMenu());
@@ -896,6 +958,8 @@ let last = performance.now(), acc = 0, lastRefresh = 0, lastNames = 0;
 function loop(now) {
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
+  // Touche patron (ui/boss.js) : la carte nue, rien d'autre ne tourne (temps, scènes, barre du haut, visite guidée).
+  if (app.boss) { app.map.frame(0, false); requestAnimationFrame(loop); return; }
   // Noms de navires et de compagnies : la traduction les reconnaît, quels qu'ils soient.
   if (now - lastNames > 1000) { lastNames = now; registerGameNames(app.mode === 'game' ? app.state : app.demo); if (app.mode === 'game') registerStateShips(app.state); }
   if (app.mode === 'title' && app.demo) {
@@ -1136,9 +1200,15 @@ $('#standings').addEventListener('click', () => app.open('victory', 'domination'
 
 // ---------- Lancement ----------
 initTooltips();
+initBossKey(app); // touche A : cacher le jeu derrière une simple carte, et le retrouver tel quel
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
-initPanelSize(); // largeur du panneau, réglable à sa poignée
+// Largeur du panneau, réglable à sa poignée ; le décor du Bureau suit (une fois par image).
+let refitting = 0;
+const refitRoom = () => { if (!refitting) refitting = requestAnimationFrame(() => { refitting = 0; panelEl._mount?.(); }); };
+initPanelSize(refitRoom);
+window.addEventListener('uiscale', refitRoom);
+window.addEventListener('resize', refitRoom);
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });
