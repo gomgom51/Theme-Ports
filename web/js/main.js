@@ -236,7 +236,7 @@ function renderPanel() {
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
       app.ui.history?.length ? h('button.icon-btn.panel-back', { 'aria-label': 'Retour', title: 'Retour au panneau précédent', onclick: () => app.back() }, '←') : null,
       def.icon || (def.badge ? h('span.badge-wrap', { html: logoBadge(def.badge[0], def.badge[1], 44) }) : null),
-      h('div.panel-titles', [h('h2', def.title), def.subtitle ? h('div.panel-sub', { class: def.nameSub ? 'nm' : '' }, def.subtitle) : null]),
+      h('div.panel-titles', [def.titleStamp ? h('div.panel-title-row', [h('h2', def.title), def.titleStamp]) : h('h2', def.title), def.subtitle ? h('div.panel-sub', { class: def.nameSub ? 'nm' : '' }, def.subtitle) : null]),
       h('div.panel-actions', [...(def.headerActions || []), h('button.icon-btn', { 'aria-label': 'Fermer', title: 'Fermer', onclick: app.close }, '✕')]),
     ]),
     tabs ? h('div.tabs', { role: 'tablist' }, tabs.map(([id, label]) => h('button.tab', {
@@ -665,6 +665,7 @@ function handleNotes(notes) {
   const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
   const crewUps = []; // points de spécialité gagnés : une petite scène par compagnie, sans son
   const iceChanges = []; // gel et dégel du jour : une scène par sorte (port ou passage, gel ou dégel)
+  const waiting = notes.filter((n) => n.kind === 'idle' || n.kind === 'prospect'); // navires qui attendent vos ordres
   for (const n of notes) {
     if (n.kind === 'crew' && scenes) { crewUps.push(n); continue; }
     if (n.kind === 'ice') { if (scenes) iceChanges.push(n); else toast(`❄ ${n.text}`, { timeout: 9000 }); continue; }
@@ -917,7 +918,22 @@ function handleNotes(notes) {
   }
   if (app.sceneQueue.length) paused = true; // une scène est ouverte : on n'avance plus
   if (paused) app.speed = 0;
+  if (paused && app.state.settings.autoPause) openWaitingShip(waiting);
   return paused;
+}
+
+// Le jeu s'arrête parce qu'un navire attend vos ordres : sa fiche s'ouvre d'elle-même (derrière
+// l'encaissement ou la scène s'il y en a une). Sauf si vous donnez déjà vos ordres à un autre navire
+// en attente : on ne vous l'arrache pas des mains (le message « Voir » mène au nouveau).
+function openWaitingShip(list) {
+  const cid = app.ui.activeCompany;
+  const n = list.find((x) => x.company === cid && shipById(app.state, x.shipId) && isIdle(shipById(app.state, x.shipId)));
+  if (!n) return;
+  const p = app.ui.panel, cur = p?.type === 'ship' && p.id !== n.shipId ? shipById(app.state, p.id) : null;
+  if (cur && cur.owner === cid && (isIdle(cur) || app.tradeHold === cur.id)) return;
+  if (p?.type === 'ship' && p.id === n.shipId) p.tab = null; // fiche déjà ouverte (onglet Voyage…) : l'onglet utile à l'escale
+  app.open('ship', n.shipId, n.kind === 'prospect' ? 'contrats' : null);
+  app.focusShip(n.shipId, { quiet: true });
 }
 
 // ---------- Sons du temps ----------

@@ -128,6 +128,8 @@ sanction, patrol, pirates, hijack, seized, darkoffer, paid, aftermath, golden, g
 tender, tenderCommit, tenderDelivered, threat, scandal, sabotage, bid, takeover, absorbed,
 takeoverRisk, victoryAlert, level, deed, record, recordLost, evil, blacklistWarn, blacklisted,
 ice, iceSoon, icecaught, crew, prospect, banker, bank, bankrupt, standing, event, over, info`.
+When an `idle` or `prospect` note stops time, `openWaitingShip` opens that ship's sheet (and centres
+the map on it), unless the player is already giving orders to another waiting ship.
 
 The **important notifications** panel (rule 1) is `ui/alerts.js`: it recomputes from state
 (uninsured ships, held/seized ships, low fuel, overdraft, loans due, threats, lender quota…).
