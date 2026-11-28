@@ -26,19 +26,22 @@ const rect = (x, y, w, h, r = 0) => `M${x + r} ${y}H${x + w - r}${r ? `Q${x + w}
 const circ = (cx, cy, r) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
 
 
-// Médaillon : liseré de laiton, perles, disque émaillé (couleur du chemin de victoire) et reflet.
-function medal(dark, light) {
+// Médaillon : liseré de métal (laiton par défaut, argent pour la flotte de l'ombre), perles, disque émaillé
+// (couleur du chemin de victoire) et reflet. Liseré élargi pour rester visible à 38 px.
+const SILVER = ['#7b858b', '#b7c0c5', '#eef2f4'];
+function medal(dark, light, metal = C.brass) {
   const id = 'm' + (++uid);
   let beads = '';
-  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; beads += `<circle cx="${(32 + Math.cos(a) * 28.1).toFixed(2)}" cy="${(32 + Math.sin(a) * 28.1).toFixed(2)}" r="1.1" fill="${C.brass[2]}"/>`; }
-  return `<circle cx="32" cy="32" r="30" fill="${C.brass[1]}"/><path d="M32 2A30 30 0 0 1 62 32H54A22 22 0 0 0 32 10Z" fill="${C.brass[2]}" opacity="0.0"/>` +
-    `<clipPath id="${id}"><circle cx="32" cy="32" r="30"/></clipPath><path d="M40 0L64 0V64H20Z" fill="${C.brass[0]}" clip-path="url(#${id})"/>` +
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; beads += `<circle cx="${(32 + Math.cos(a) * 27).toFixed(2)}" cy="${(32 + Math.sin(a) * 27).toFixed(2)}" r="1.05" fill="${metal[2]}"/>`; }
+  return `<circle cx="32" cy="32" r="30" fill="${metal[1]}"/>` +
+    `<clipPath id="${id}"><circle cx="32" cy="32" r="30"/></clipPath><path d="M40 0L64 0V64H20Z" fill="${metal[0]}" clip-path="url(#${id})"/>` +
     `<circle cx="32" cy="32" r="30" fill="none" ${S(3)}/>` + beads +
-    `<circle cx="32" cy="32" r="25.8" fill="${dark}" ${S(2.6)}/>` +
-    `<clipPath id="${id}b"><circle cx="32" cy="32" r="24.4"/></clipPath><circle cx="27" cy="25" r="16" fill="${light}" clip-path="url(#${id}b)"/>`;
+    `<circle cx="32" cy="32" r="24.4" fill="${dark}" ${S(2.2)}/>` +
+    `<clipPath id="${id}b"><circle cx="32" cy="32" r="23.2"/></clipPath><circle cx="27" cy="25" r="15.4" fill="${light}" clip-path="url(#${id}b)"/>`;
 }
 // Éclat à quatre branches (curiosité : la médaille brille).
-const sparkle = (x, y, r) => `<path d="M${x} ${y - r * 2.2}Q${x + r * 0.35} ${y - r * 0.35} ${x + r * 2.2} ${y}Q${x + r * 0.35} ${y + r * 0.35} ${x} ${y + r * 2.2}Q${x - r * 0.35} ${y + r * 0.35} ${x - r * 2.2} ${y}Q${x - r * 0.35} ${y - r * 0.35} ${x} ${y - r * 2.2}Z" fill="#fffbe8"/>`;
+// Doré (fill) quand il doit briller sur l'émail blanc.
+const sparkle = (x, y, r, fill = '#fffbe8') => `<path d="M${x} ${y - r * 2.2}Q${x + r * 0.35} ${y - r * 0.35} ${x + r * 2.2} ${y}Q${x + r * 0.35} ${y + r * 0.35} ${x} ${y + r * 2.2}Q${x - r * 0.35} ${y + r * 0.35} ${x - r * 2.2} ${y}Q${x - r * 0.35} ${y - r * 0.35} ${x} ${y - r * 2.2}Z" fill="${fill}"/>`;
 
 const ANCHOR = '<circle cx="32" cy="9" r="5"/><path d="M32 14V57M13 21H51M10 38Q14 56 32 57Q50 56 54 38M10 38L6 44M10 38L16 42M54 38L58 44M54 38L48 42"/>';
 const DIGIT = { 1: 'M29 35L33 32V50', 2: 'M27.5 36Q27.5 32 32 32Q36.5 32 36.5 36Q36.5 39.5 27.5 50H37', 3: 'M27.5 34.5Q28.5 32 32 32Q36.5 32 36.5 36Q36.5 40 32 40.5Q36.8 41 36.8 45.5Q36.8 50 32 50Q28.5 50 27.3 47.5' };
@@ -50,24 +53,25 @@ function medalRank(n, col) {
 }
 
 export const EM = {
-  // Médaillons de victoire : disque émaillé (rouge, blanc, violet, noir), liseré de laiton perlé, éclat en haut à droite.
+  // Médaillons de victoire : disque émaillé (rouge, blanc, violet, noir), liseré perlé, reflet et éclats (la médaille brille).
   vic_domination: () => medal('#8f2a24', '#b8392f') + `<g transform="translate(32 32) scale(1.06) translate(-32 -32.5)">` +
     shape(circ(32, 44, 10.5), C.sea, { shade: 'M32 30H50V60H32Z', light: 'M24 40Q26 35 31 34.5Q27 38 26.5 43Z' }) +
     `<path d="M25 41.5Q29 39 32 41T38 43M27 48Q31 46.5 35 48.5" fill="none" stroke="${C.green[1]}" stroke-width="3" stroke-linecap="round"/>` +
     `<path d="M32 44V14" stroke="${K}" stroke-width="5" stroke-linecap="round"/><path d="M32 44V14" stroke="${C.brass[2]}" stroke-width="2"/>` +
     shape('M33 15H49L44.5 20.5L49 26H33Z', C.blue, { shade: 'M33 22H50V27H33Z', light: 'M34.5 16.5H44V18H34.5Z' }) +
-    shape(circ(32, 13, 2.6), C.brass) + `</g>`,
-  vic_reputation: () => medal('#e2d9c4', '#fbf7ec') + `<g transform="translate(32 32) scale(1.14) translate(-32 -32)">` +
+    shape(circ(32, 13, 2.6), C.brass) + `</g>` + sparkle(11, 12, 3.3) + sparkle(15.5, 41, 2.1),
+  vic_reputation: () => medal('#e2d9c4', '#fbf7ec') + `<g transform="translate(32 32) scale(1.05) translate(-32 -32)">` +
     `<g fill="${C.green[1]}" stroke="${K}" stroke-width="1.8">` +
     [0, 1, 2, 3].map((i) => `<ellipse cx="${17 - i * 0.6}" cy="${44 - i * 8}" rx="2.6" ry="4.6" transform="rotate(${-30 + i * 14} ${17 - i * 0.6} ${44 - i * 8})"/><ellipse cx="${47 + i * 0.6}" cy="${44 - i * 8}" rx="2.6" ry="4.6" transform="rotate(${30 - i * 14} ${47 + i * 0.6} ${44 - i * 8})"/>`).join('') + `</g>` +
     shape('M32 13L36.6 23.4L47.9 24.5L39.4 32L41.9 43.1L32 37.3L22.1 43.1L24.6 32L16.1 24.5L27.4 23.4Z', C.brass,
-      { shade: 'M32 28L47.9 24.5L41.9 43.1L32 37.3Z', light: 'M32 16L29 24L21 25L27 26L32 18Z' }) + `</g>`,
+      { shade: 'M32 28L47.9 24.5L41.9 43.1L32 37.3Z', light: 'M32 16L29 24L21 25L27 26L32 18Z' }) + `</g>` +
+    sparkle(11, 12, 3.3) + sparkle(43.5, 51, 1.9, C.brass[1]),
   vic_legend: () => medal('#4b2c78', '#6a43a0') + `<g transform="translate(32 32) scale(1.14) translate(-32 -32)">` +
     shape('M20 16H44V24Q44 36 32 38Q20 36 20 24Z', C.brass, { shade: 'M33 14H46V40H33Z', light: 'M22.5 18H25V28Q24 24 22.5 22Z' }) +
     `<path d="M20 19Q13 19 13 25Q13 30 21 31M44 19Q51 19 51 25Q51 30 43 31" fill="none" stroke="${K}" stroke-width="5"/><path d="M20 19Q13 19 13 25Q13 30 21 31M44 19Q51 19 51 25Q51 30 43 31" fill="none" stroke="${C.brass[1]}" stroke-width="2"/>` +
     shape(rect(29, 37, 6, 6), C.brass, { shade: rect(32, 30, 4, 20) }) + shape(rect(23, 43, 18, 6, 1.5), C.wood, { shade: rect(32, 40, 12, 12) }) +
     sparkle(13, 13, 3.2) + sparkle(50, 38, 2.4) + `</g>`,
-  vic_shadow: () => medal('#26272d', '#3d3e47') + `<g transform="translate(32 32) scale(1.14) translate(-32 -32)">` +
+  vic_shadow: () => medal('#26272d', '#3d3e47', SILVER) + `<g transform="translate(32 32) scale(1.14) translate(-32 -32)">` +
     `<g transform="rotate(9 32 46) translate(0 1.5)">` +
     shape('M29.6 25H34.4V44L32 48L29.6 44Z', C.steel, { shade: 'M32 23H36V50H32Z', light: rect(30.4, 26, 1.2, 15) }) +
     shape(rect(24, 21, 16, 4.6, 2.3), C.brass, { shade: rect(32, 23.3, 10, 4) }) +
