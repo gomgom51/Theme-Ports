@@ -95,6 +95,7 @@ Three phases, each `p = clamp(0.2 + 0.18 × (def − att), 0.05, 0.95)`; the fir
 
 Failure: with a citadel → looting (40–140 k × size, 3–12 % of general/box/reefer/vehicle cargo,
 12–36 h); without → **hijack**: ransom `clamp(10 % ship value + 2 % cargo value, 150 k, 9 M)`, trust −3.
+Once the ransom is paid, the release is announced in the news when the ship sails again (`voyage.released`).
 Choice (rule 2): pay (free in 3–7 days) or negotiate (55 %, 30–60 days, trust −3 more). AI pays.
 Repelled attacks count for the "Corsaire" deed.
 

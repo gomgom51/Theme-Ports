@@ -17,7 +17,7 @@ import { playIntro } from './ui/intro.js';
 import { saveGame, loadGame, listSaves, savedStates, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { unlockEarned, unlockFromSaves, BLACKLIST_SONG_YEARS } from './ui/jukebox.js';
 import { AudioManager } from './ui/audio.js';
-import { renderOpps, pruneDismissed, goldenReach } from './ui/opps.js';
+import { renderOpps, pruneDismissed, goldenNear, tenderServable } from './ui/opps.js';
 import { guideTick, startGuide, guideMenuLabel, toggleGuide } from './ui/guide.js';
 import { logoBadge } from './ui/logos.js';
 import { flagSVG } from './ui/flags.js';
@@ -768,10 +768,11 @@ function handleNotes(notes) {
       continue;
     }
     if (n.kind === 'golden') {
-      // Affaire en or qu'un de vos navires peut prendre à temps : on la signale sans arrêter le
-      // jeu ; sa carte reste à l'écran jusqu'à fermeture. Les autres passent inaperçues.
+      // Affaire en or : alerte (son et message) seulement si un navire libre est sur place ou à moins
+      // d'un jour ; sinon sa carte apparaît sans bruit dans la colonne des opportunités (si un navire
+      // peut la prendre à temps). Une alerte presque chaque jour, c'était du bruit.
       const gc = app.state.contracts.find((c) => c.id === n.contractId);
-      if (!gc || !goldenReach(app.state, ctx, n.company, gc).length) continue;
+      if (!gc || !goldenNear(app.state, ctx, n.company, gc)) continue;
       app.audio.play('cash');
       toast(prefixOf(n) + n.text, { kind: 'money', timeout: 9000, action: 'Voir', onAction: () => {
         if (n.company !== app.ui.activeCompany) switchCompany(n.company);
@@ -841,10 +842,16 @@ function handleNotes(notes) {
       continue;
     }
     // Appels d'offres : l'annonce, puis les engagements et livraisons des concurrents.
-    if (n.kind === 'tender') { app.audio.play('bell'); toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
+    // Appel d'offres : alerte seulement si l'un de vos navires peut le servir (il reste dans les nouvelles).
+    if (n.kind === 'tender') {
+      const t = (app.state.tenders || []).find((x) => x.id === n.tenderId);
+      if (t && tenderServable(app.state, n.company, t)) { app.audio.play('bell'); toast(prefixOf(n) + n.text, { timeout: 9000 }); }
+      continue;
+    }
+    // Un concurrent s'engage sur un appel d'offres ou le livre : seulement si vous en avez vu la carte.
     if (n.kind === 'tenderCommit' || n.kind === 'tenderDelivered') {
       const viewer = app.state.companies[app.ui.activeCompany];
-      if (n.by !== app.ui.activeCompany && viewer?.human) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
+      if (n.by !== app.ui.activeCompany && viewer?.human && viewer.seenOpps?.[`tender:${n.tenderId}`] != null) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
       continue;
     }
     if (n.kind === 'held') {

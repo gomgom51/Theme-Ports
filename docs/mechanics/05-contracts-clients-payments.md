@@ -13,7 +13,9 @@ Per port, three categories with target open counts (`CONTRACT_DENSITY 0.75`):
 
 Missing slots are filled (each extra one at 60 % chance unless initial fill). Reserved offers
 (loyal partner, family, prospect) are **extra**, not counted against the pool (CLAUDE.md lesson).
-Expired untaken contracts are dropped. New golden deals are announced to humans.
+Expired untaken contracts are dropped. New golden deals are announced to humans: a card in the opportunities
+column when one of their ships can take it in time (`goldenReach`), and a toast with a sound only when a free ship
+(empty holds) is on site or less than a day away (`goldenNear`, `ui/opps.js`).
 
 ## `makeContract(state, ctx, rng, from, forType?, {regional, big})`
 
@@ -74,7 +76,8 @@ honours (`onDelivered`).
 ## Shippers (`data/clients.js`, `sim/clients.js`)
 
 30 fictional shippers: `goods`, `reliability` (fixed nature), `style` (ponctuel, lent, pinailleur,
-fragile), `image` (6 image-minded: beauce, gulfcrest, hansa, rheinwerk, lebrun, coastal).
+fragile), `image` (6 image-minded: beauce, gulfcrest, hansa, rheinwerk, lebrun, coastal). Image-minded
+shippers never ship from or to an embargoed port (`makeContract`).
 
 - Live reliability `state.clients[id].rel` drifts back to nature (1/240 per day); −10 on a client
   bankruptcy (out 60–120 days: no new contracts); −`DENOUNCE_HIT` when denounced

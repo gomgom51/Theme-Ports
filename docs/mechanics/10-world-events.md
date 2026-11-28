@@ -5,7 +5,11 @@ Files: `sim/events.js` (`EVENTS`, `OIL_CRISIS`, `dailyEvents`), `dark.js` (`disa
 
 ## Random world events (`dailyEvents`)
 
-Chance 1/35 per day (≈ one every 5 weeks), weighted pick among possible events. Ending events
+Chance 1/35 per day (≈ one every 5 weeks), weighted pick among possible events. **World memory**
+(`EVENT_MEMORY`): an event does not come back within 180 days, and its opposites (`against`: oil up/down,
+record harvest/drought, China stimulus/slowdown, container rush/overcapacity/recession/recovery) are
+excluded for 120 days after it (`state.lastEvents`), so the news never says one thing and its contrary
+weeks apart. The daily roll is unchanged, so the frequency stays the same. Ending events
 (canal reopened, strike over, refinery crisis over) are announced. After an event freight is clamped
 to `FREIGHT_MIN/MAX` and cycle to ±0.45. Each event returns a title/text for news and a scene id.
 
@@ -35,8 +39,11 @@ also avoids oil (`VIRTUOUS_OIL_PENALTY`).
 ## Disasters and emergency aid (pro bono)
 
 - `darkDaily`: a hurricane/typhoon/cyclone of force ≥ `CHARITY.stormForce` (11) within half its radius
-  of a port, or a random quake/flood/landslide (1/70 per day) in one of `QUAKE_PORTS`, calls
-  `disaster(port)` (cooldown 90 days per port).
+  of a port, or a random disaster (1/70 per day) in one of `DISASTER_PORTS`, calls `disaster(port)`
+  (cooldown 90 days per port). Each of those ports lists the disasters that fit it (no quake or landslide
+  in the flat Ho Chi Minh City delta, floods only).
+- Tropical storms (`recurve`) lose 1 force per day beyond 35° of latitude, down to 8 (`moveStorms`), so a
+  typhoon no longer strikes Vladivostok as a disaster.
 - 2–3 aid contracts to that port from size ≥ 3 non-ice ports within 4 500 nm, cereals /
   manufactures / refined, ships ≤ 60 000 dwt, **paid 45 % of cost**, urgent, `minRep 0`, expire in 6 days.
   Announced in news and as opportunity cards.
@@ -47,3 +54,23 @@ also avoids oil (`VIRTUOUS_OIL_PENALTY`).
 
 See [11](11-grey-black-trade.md): days after a parcel or dark cargo is delivered, news may report
 what it caused in that city.
+
+## Consistency rules (keep the world believable)
+
+Lessons from the five-persona playtest (2026-11-28). Check them when adding an event, a disaster, a text,
+a warning or an opportunity card:
+
+1. **The screen reads the simulation.** A risk, price or rule shown to the player comes from the same function
+   the simulation uses (e.g. `refusalRisk` in `dark.js` for dark-job refusals), never from a copy of its constants
+   and conditions. A home-port perk added to the simulation but not to the window made the game threaten a
+   seizure that could not happen (rule 1).
+2. **Events remember.** A new world event declares its opposites in `EVENT_MEMORY.against`. A text promises
+   only what the simulation keeps ("for a long time" is fine for overcapacity: the cycle's half-life is ~9 months).
+3. **Places fit.** A disaster belongs to its place (`DISASTER_PORTS` lists each port's own); tropical storms
+   weaken outside the tropics. Still open: smuggling aftermath at tiny industrial sites such as Sabetta.
+4. **Actors stay in character.** Who may do what is filtered where the actor is picked: image-minded shippers
+   never touch sanctioned ports (`makeContract`).
+5. **Every story ends.** Anything that holds a ship, a port or a market (hijack, seizure, strike, canal closure,
+   crisis) announces its end in the news.
+6. **Alerts only when you can act.** A sound or toast for an opportunity only when one of your ships can use it
+   (`goldenNear`, `tenderServable`); the rest goes to the news or quietly to the opportunities column.

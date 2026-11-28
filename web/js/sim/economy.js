@@ -379,7 +379,9 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const urgent = rng.chance(0.2);
   // Le chargeur (pas ceux en redressement judiciaire) : les clients peu fiables, ou dont la
   // réputation a pris un coup, paient mieux pour attirer les armateurs.
-  const clients = Object.entries(CLIENTS).filter(([id, c]) => c.goods.includes(good) && !clientDown(state, id));
+  // (Ceux qui soignent leur image ne touchent pas aux pays sous embargo.)
+  const sanctioned = isEmbargoedPort(from) || isEmbargoedPort(to);
+  const clients = Object.entries(CLIENTS).filter(([id, c]) => c.goods.includes(good) && !clientDown(state, id) && !(c.image && sanctioned));
   const client = clients.length ? rng.pick(clients)[0] : null;
   const riskPremium = client ? 1 + (70 - clientRel(state, client)) / 300 : 1;
   // Son partenaire le plus fidèle a la priorité quelques jours, avec un fret un peu meilleur.

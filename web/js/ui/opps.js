@@ -38,6 +38,18 @@ export function goldenReach(state, ctx, cid, c) {
   return reachList(state, ctx, free, c.from).filter((r) => state.t + r.days * D <= c.expires);
 }
 
+// Un navire libre (cales vides) sur place ou à moins d'un jour : seule une affaire en or aussi proche
+// mérite une alerte sonore ; les autres apparaissent sans bruit dans la colonne.
+const GOLDEN_ALERT_DAYS = 1;
+export function goldenNear(state, ctx, cid, c) {
+  return goldenReach(state, ctx, cid, c).some((r) => r.days <= GOLDEN_ALERT_DAYS && !r.ship.cargo && !r.ship.dark);
+}
+// Un appel d'offres que l'un de vos navires peut servir (une cale pour cette marchandise, et il entre
+// dans le port acheteur). Sinon, ni carte, ni alerte : « Aucun navire pour cette cargaison » ne sert à rien.
+export function tenderServable(state, cid, t) {
+  return usable(state, cid).some((s) => eco.holdFor(s.type, t.good) && eco.fitsPort(t.port, s.type));
+}
+
 // Les opportunités du moment pour une compagnie (sans celles qu'elle a fermées). Affaires en or :
 // seulement celles annoncées en cours de partie, qu'un de vos navires peut prendre à temps.
 export function opportunities(state, ctx, cid) {
@@ -71,12 +83,13 @@ export function opportunities(state, ctx, cid) {
     if (dismissed[key] != null) continue;
     out.push({ key, kind: 'lead', c, open: true });
   }
-  // Appels d'offres des villes : tous (ils sont rares), et quelques jours encore une fois complets.
+  // Appels d'offres des villes : ceux qu'un de vos navires peut servir, et quelques jours encore une
+  // fois complets (une carte déjà montrée reste jusqu'au bout).
   for (const t of state.tenders || []) {
     const key = `tender:${t.id}`;
     if (dismissed[key] != null) continue;
     const open = t.left > 0 && t.until > state.t;
-    if (open || co.seenOpps?.[key] != null) out.push({ key, kind: 'tender', t, open });
+    if ((open && tenderServable(state, cid, t)) || co.seenOpps?.[key] != null) out.push({ key, kind: 'tender', t, open });
   }
   return out;
 }
@@ -257,7 +270,7 @@ export function renderOpps(app) {
   const toggle = () => { writeFlag(KEYS.oppsCollapsed, !collapsed); lastKey = ''; renderOpps(app); };
   const dismiss = (k) => { const co = state.companies[cid]; (co.dismissedOpps ??= {})[k] = state.t; lastKey = ''; renderOpps(app); };
   root.replaceChildren(
-    h('button.opps-toggle', { type: 'button', 'aria-expanded': collapsed ? 'false' : 'true', onclick: toggle }, [h('span', `Opportunités (${list.length})`), ' ', h('span', collapsed ? '▴' : '▾')]),
+    h('button.opps-toggle', { type: 'button', 'data-guide': 'opps', 'aria-expanded': collapsed ? 'false' : 'true', onclick: toggle }, [h('span', `Opportunités (${list.length})`), ' ', h('span', collapsed ? '▴' : '▾')]),
     ...(collapsed ? [] : list.map((o) => {
       const k = o.kind === 'golden' ? goldenCard(app, o) : o.kind === 'tender' ? tenderCard(app, o) : o.kind === 'lead' ? leadCard(app, o) : aidCard(app, o);
       const card = h('div.opp', { class: `${o.kind}${o.open === false ? ' gone' : ''}${k.more && openKey === o.key ? ' open' : ''}` }, [

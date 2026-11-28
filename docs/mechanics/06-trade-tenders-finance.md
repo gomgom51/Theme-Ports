@@ -32,7 +32,9 @@ Taint on embargo trade happens on buy, on sell, and on contract load/delivery.
   imports that some non-embargoed port exports; no oil during the refinery crisis.
 - Unit price = sell price × `clamp(1 + spread × U(0.6, 1.2), 1.04, 1.3)` (premium follows each good's
   natural spread — the CLAUDE.md lesson about machines/manufactures).
-- Qty = lot × U(0.8, 2.0), clamp 3 000–150 000 t; duration 24–42 days. Announced in news and to humans.
+- Qty = lot × U(0.8, 2.0), clamp 3 000–150 000 t; duration 24–42 days. Always in the news; the card, its bell
+  and rivals' commitment toasts only reach a company with a ship that can carry the good into that port
+  (`tenderServable`, `ui/opps.js`).
 - **First come, first served**: deliveries reduce `left`. A ship **commits** as soon as its
   departure toward the tender port with that good is decided (even queued behind loading:
   `commitOnDeparture` in `depart` and `launch`), announced with its ETA. `tenderRoom(t, shipId)` =

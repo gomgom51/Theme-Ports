@@ -116,14 +116,21 @@ export function acceptDark(state, shipId, o) {
   shipLog(state, ship, `Cargaison noire embarquée pour ${portName(o.to)}`);
   return { ok: true, infamy: company.infamy, cap: repCap(company) };
 }
+// Ce que coûte un refus dans ce port : null si rien (port de l'ombre de la compagnie : chez vous, on peut
+// dire non sans rancune ni saisie). Seule source de vérité, lue par la simulation ET par la fenêtre de
+// l'offre (ui/dark.js) : l'écran ne peut plus annoncer un risque qui n'existe pas (règle 1).
+export function refusalRisk(company, port) {
+  if (shadowHome(company, port)) return null;
+  return { seize: DARK.refuseSeize, grudgeDays: DARK.grudgeDays, grudgeSeize: DARK.grudgeSeize };
+}
 export function refuseDark(state, rng, shipId, o, notes = null, note = null) {
   const ship = shipById(state, shipId);
   if (!ship) return fail('Navire introuvable.');
   const company = companyOf(state, ship);
-  // Port de l'ombre : chez vous, on peut dire non sans rancune ni saisie.
-  if (shadowHome(company, o.from)) { shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)} (chez vous, sans rancune)`); return { ok: true, seized: null }; }
-  (company.grudge ??= {})[o.from] = state.t + DARK.grudgeDays * D;
-  if (rng.chance(DARK.refuseSeize)) return { ok: true, seized: seize(state, rng, ship, 'gang', notes, note) };
+  const risk = refusalRisk(company, o.from);
+  if (!risk) { shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)} (chez vous, sans rancune)`); return { ok: true, seized: null }; }
+  (company.grudge ??= {})[o.from] = state.t + risk.grudgeDays * D;
+  if (rng.chance(risk.seize)) return { ok: true, seized: seize(state, rng, ship, 'gang', notes, note) };
   shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)}`);
   return { ok: true, seized: null };
 }
@@ -275,7 +282,13 @@ function aftermathDaily(state, notes) {
 export const CHARITY = { rep: 6, payShare: 0.45, expires: 6, cooldown: 90, randomRate: 1 / 70, stormNm: 0.5, stormForce: 11 };
 export const CHARITIES = ['Fondation Bouée de Secours', 'Les Amarres Solidaires', 'Escales sans frontières'];
 const AID_GOODS = [['cereales', 3], ['manufactures', 2], ['raffines', 1]];
-const QUAKE_PORTS = ['chittagong', 'manille', 'karachi', 'jakarta', 'veracruz', 'valparaiso', 'mersin', 'colombo', 'ho_chi_minh', 'luanda'];
+// Ports exposés aux catastrophes hors tempêtes, et celles qui leur arrivent vraiment (relief, failles, deltas).
+const DISASTER_PORTS = {
+  chittagong: ['Inondations', 'Glissements de terrain'], manille: ['Séisme', 'Inondations', 'Glissements de terrain'],
+  karachi: ['Inondations', 'Séisme'], jakarta: ['Inondations', 'Séisme'], veracruz: ['Inondations', 'Séisme'],
+  valparaiso: ['Séisme', 'Glissements de terrain'], mersin: ['Séisme', 'Inondations'], colombo: ['Inondations', 'Glissements de terrain'],
+  ho_chi_minh: ['Inondations'], luanda: ['Inondations', 'Glissements de terrain'],
+};
 
 function charityContract(state, ctx, rng, to, charity) {
   for (let tries = 0; tries < 8; tries++) {
@@ -329,8 +342,8 @@ export function darkDaily(state, ctx, rng, notes) {
     }
   }
   if (rng.chance(CHARITY.randomRate)) {
-    const ports = QUAKE_PORTS.filter((p) => PORTS[p]);
-    disaster(state, ctx, rng, rng.pick(ports), rng.pick(['Séisme', 'Inondations', 'Glissements de terrain']));
+    const port = rng.pick(Object.keys(DISASTER_PORTS).filter((p) => PORTS[p]));
+    disaster(state, ctx, rng, port, rng.pick(DISASTER_PORTS[port]));
   }
 }
 // Livraison d'une aide d'urgence : réputation (dans la limite du plafond) et bonne presse.
