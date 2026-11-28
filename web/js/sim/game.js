@@ -266,6 +266,11 @@ function sailHour(state, ctx, rng, ship, notes) {
   }
   // Immobilisé par une avarie.
   if (v.stalledUntil > state.t) { ship.fuel = Math.max(0, ship.fuel - T.idleBurn / D); return; }
+  // Relâché par les pirates après la rançon : la nouvelle donne la fin de l'histoire.
+  if (v.released) {
+    news(state, `Le ${ship.name} (${company.name}) a été relâché par les pirates après ${Math.max(1, Math.round((state.t - v.released.t0) / D))} jours de captivité. Il reprend sa route.`, { company: company.id, kind: 'event' });
+    v.released = null;
+  }
 
   const pos = pointAlong(route, v.progress);
   const wx = weatherAt(state, pos.lon, pos.lat);

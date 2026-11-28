@@ -914,6 +914,7 @@ export default {
   "Attaque de pirates repoussée ({0})": "Pirate attack repelled ({0})",
   "Pillé par des pirates, équipage réfugié dans la citadelle": "Looted by pirates, crew sheltered in the citadel",
   "Le {0} ({1}) a été détourné par des pirates ({2}). Ils réclament {3} M$.": "The {0} ({1}) has been hijacked by pirates ({2}). They demand ${3}M.",
+  "Le {0} ({1}) a été relâché par les pirates après {2} jours de captivité. Il reprend sa route.": "The {0} ({1}) has been released by the pirates after {2} days in captivity. It is back under way.",
   "Détourné par des pirates ({0})": "Hijacked by pirates ({0})",
   "Aucun navire retenu.": "No ship held.",
   "Rançon versée ({0} M$), libération dans {1} jours": "Ransom paid (${0}M), release in {1} days",

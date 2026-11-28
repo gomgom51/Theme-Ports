@@ -74,7 +74,8 @@ honours (`onDelivered`).
 ## Shippers (`data/clients.js`, `sim/clients.js`)
 
 30 fictional shippers: `goods`, `reliability` (fixed nature), `style` (ponctuel, lent, pinailleur,
-fragile), `image` (6 image-minded: beauce, gulfcrest, hansa, rheinwerk, lebrun, coastal).
+fragile), `image` (6 image-minded: beauce, gulfcrest, hansa, rheinwerk, lebrun, coastal). Image-minded
+shippers never ship from or to an embargoed port (`makeContract`).
 
 - Live reliability `state.clients[id].rel` drifts back to nature (1/240 per day); −10 on a client
   bankruptcy (out 60–120 days: no new contracts); −`DENOUNCE_HIT` when denounced

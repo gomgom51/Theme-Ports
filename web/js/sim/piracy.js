@@ -169,5 +169,6 @@ export function resolveHijack(state, rng, shipId, choice) {
   ship.hijacked = null;
   if (choice === 'negocier') changeTrust(company, -3, 'navires détournés');
   shipLog(state, ship, `Rançon versée (${(pay / 1e6).toFixed(2).replace('.', ',')} M$), libération dans ${days} jours`);
+  ship.voyage.released = { zone: h.zone, t0: h.t }; // la libération sera annoncée dans les nouvelles (game.js)
   return { ok: true, pay, days };
 }

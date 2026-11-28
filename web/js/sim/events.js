@@ -11,6 +11,25 @@ const D = HOURS_PER_DAY;
 // Crise mondiale du raffinage : durée (jours) ; sa fréquence est son poids dans EVENTS.
 export const OIL_CRISIS = { days: [14, 28] };
 
+// Mémoire du monde : un événement ne revient pas avant `repeat` jours, et son contraire n'arrive pas
+// moins de `opposite` jours après lui (« le pétrole flambe » trois fois de suite, ou « trop de navires,
+// les taux vont plonger pour longtemps » puis « ruée sur les conteneurs » trois semaines plus tard).
+export const EVENT_MEMORY = {
+  repeat: 180, opposite: 120,
+  against: {
+    petrole_hausse: ['petrole_baisse'], petrole_baisse: ['petrole_hausse'],
+    recolte_record: ['secheresse'], secheresse: ['recolte_record'],
+    chine_relance: ['chine_ralenti', 'recession'], chine_ralenti: ['chine_relance', 'reprise', 'boom_conteneurs'],
+    boom_conteneurs: ['surcapacite', 'recession', 'chine_ralenti'], recession: ['reprise', 'boom_conteneurs', 'chine_relance'],
+    surcapacite: ['reprise', 'boom_conteneurs'], reprise: ['recession', 'surcapacite', 'chine_ralenti'],
+  },
+};
+const recentlyBlocked = (state, e) => {
+  const last = state.lastEvents || {};
+  if (state.t - (last[e.id] ?? -1e9) < EVENT_MEMORY.repeat * D) return true;
+  return Object.entries(EVENT_MEMORY.against).some(([id, list]) => list.includes(e.id) && state.t - (last[id] ?? -1e9) < EVENT_MEMORY.opposite * D);
+};
+
 // Chaque événement modifie l'économie ; certains durent (canal fermé, grève).
 export const EVENTS = [
   {
@@ -175,9 +194,11 @@ export function dailyEvents(state, rng) {
   }
   // Un nouvel événement environ toutes les cinq semaines.
   if (rng.chance(1 / 35)) {
-    const list = EVENTS.filter((e) => !e.possible || e.possible(state));
+    const list = EVENTS.filter((e) => (!e.possible || e.possible(state)) && !recentlyBlocked(state, e));
+    if (!list.length) return null;
     const ev = rng.weighted(list.map((e) => [e, e.weight]));
     const r = ev.run(state, rng);
+    (state.lastEvents ??= {})[ev.id] = state.t;
     for (const h of HOLD_TYPES) state.market.freight[h] = clamp(state.market.freight[h], FREIGHT_MIN, FREIGHT_MAX);
     state.market.cycle = clamp(state.market.cycle, -0.45, 0.45);
     news(state, `${r.title} — ${r.text}`, { kind: 'event' });
@@ -218,15 +239,19 @@ export function dailyStorms(state, rng) {
   }
 }
 
+const TROPICAL_LAT = 35;
 export function moveStorms(state) {
   for (const s of state.storms) {
     s.lat += s.vn / 60;
     s.lon += s.ve / (60 * Math.max(0.2, Math.cos((s.lat * Math.PI) / 180)));
-    // Les cyclones tropicaux remontent vers les pôles et repartent vers l'est.
+    // Les cyclones tropicaux remontent vers les pôles et repartent vers l'est. Au-delà de 35° de
+    // latitude, sur des eaux plus froides, ils perdent un degré de force par jour (jusqu'à 8) : ils
+    // n'atteignent plus la force d'une catastrophe (CHARITY.stormForce) à Vladivostok ou à Valdez.
     if (s.recurve) {
       const sign = s.lat >= 0 ? 1 : -1;
       s.vn += sign * 0.02;
       s.ve += 0.03;
+      if (Math.abs(s.lat) > TROPICAL_LAT && s.force > 8) s.force = Math.max(8, s.force - 1 / D);
     }
     if (s.lon > 180) s.lon -= 360;
     if (s.lon < -180) s.lon += 360;
