@@ -738,7 +738,7 @@ export default {
   "Pas de chantier à {0} : il faut un port avec chantier naval.": "No shipyard in {0}: you need a port with a shipyard.",
   "Le navire est occupé ({0}) : possible dès qu'il sera libre.": "The ship is busy ({0}): possible as soon as it is free.",
   "Le navire est occupé ({0}) : installation possible dès qu'il sera libre.": "The ship is busy ({0}): installation possible as soon as it is free.",
-  "Il faut {0} M$ en caisse.": "You need ${0}M in cash.",
+
   "🔧 Chantier : {0}, terminé le {1}. Le navire attend vos ordres à la fin ; d'autres équipements peuvent s'ajouter à la file.": "🔧 Shipyard: {0}, finished on {1}. The ship waits for your orders at the end; more equipment can join the queue.",
   "{0} installations à la suite": "{0} installations in a row",
   "une installation": "one installation",

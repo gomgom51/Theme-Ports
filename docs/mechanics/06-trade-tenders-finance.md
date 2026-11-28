@@ -1,6 +1,6 @@
 # 06 · Trading, city tenders, cargo loans
 
-Files: `actions.quoteBuy/buyCargo/quoteSale/sellCargo/guaranteePrice`, `sim/trade.js`, `sim/intel.js`,
+Files: `actions.quoteBuy/buyCargo/quoteSale/sellCargo`, `sim/trade.js`, `sim/intel.js`,
 price model in [04](04-economy-market.md). UI: trade tab of `ui/panel-ship.js`, tender cards in `ui/opps.js`.
 Quantity: one slider per good (`tradeSlider`), 100 t to a full hold (or the stock); the track shows how far cash,
 a cargo loan (best of this port's merchants and the best destination's buyers) and the bank go, grey beyond
@@ -88,8 +88,8 @@ expected on arrival (`quoteTradeAt`) and the room left after other ships' commit
 
 ## Price guarantee (legacy)
 
-`guaranteePrice`: premium `clamp(0.6 × vol × √days, 1 %, 5 %)`, floor at a port until days × 1.5 + 5.
-Still honoured by `quoteSale` for old saves.
+No longer sold: `guaranteePrice` (premium `clamp(0.6 × vol × √days, 1 %, 5 %)`, floor at a port until days × 1.5 + 5)
+had no button and was removed in v0.009. A floor stored by an old save (`cargo.floor`) is still honoured by `quoteSale`.
 
 ## Design notes (CLAUDE.md)
 
