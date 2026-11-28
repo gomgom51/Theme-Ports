@@ -19,7 +19,7 @@ export const JUKEBOX = [
   { id: 'tier4b', title: 'Horizon Lumineux (II)', role: 'L\'étage de direction, seconde chanson', hint: 'Atteindre 175 M$ de valeur nette' },
   { id: 'tier5', title: 'Harbour at Dawn', role: 'La tour de verre', hint: 'Atteindre 300 M$ de valeur nette' },
   { id: 'tier5b', title: 'Harbour at Dawn (II)', role: 'La tour de verre, seconde chanson', hint: 'Atteindre 600 M$ de valeur nette' },
-  { id: 'tier0', title: 'Windswept Harbour', role: 'Les temps sont durs', hint: 'Tomber sous 5 M$ de valeur nette' },
+  { id: 'tier0', title: 'Windswept Harbour', role: 'Au bord de la faillite', hint: 'Frôler la faillite (sous 5 M$ de valeur nette, ou le banquier qui s\'inquiète)' },
   { id: 'menace', title: 'Le temps presse', role: 'Un concurrent va gagner', hint: 'Voir un concurrent tout près d\'une victoire' },
   { id: 'domination', title: 'Le dernier rachat', role: 'Seul maître à bord en vue', hint: 'Approcher de la victoire « Seul maître à bord »' },
   { id: 'reputation', title: 'Le pavillon d\'honneur', role: 'La plus respectée en vue', hint: 'Approcher de la victoire « La plus respectée »' },
@@ -55,7 +55,10 @@ export function earnedTracks(state, c, nw = null) {
     if (t <= top) ids.push(`tier${t + 1}`);
     if (peak >= o.half) ids.push(`tier${t + 1}b`);
   });
-  if (nws.some((v) => v < MUSIC_LOW)) ids.push('tier0'); // les temps sont durs
+  // Au bord de la faillite : sous 5 M$ de valeur nette (là où la chanson joue), ou le banquier qui
+  // s'inquiète (avertissement en cours, navire saisi) ; une partie perdue aussi.
+  const seized = (c.pastShips || []).some((p) => p.why === 'saisi par la banque');
+  if (nws.some((v) => v < MUSIC_LOW) || c.bankerWarned || seized || c.bankrupt) ids.push('tier0');
   // Victoire en vue (alerte à 75 %), ou un concurrent tout près de gagner (alerte à 90 %).
   for (const k of VICTORY_KINDS) if ((c.victoryMarks?.[k] || 0) >= 1) ids.push(k);
   if ((state.companies || []).some((o) => o.id !== c.id && Object.values(o.victoryMarks || {}).some((m) => m >= 2))) ids.push('menace');
@@ -78,7 +81,7 @@ export function unlockEarned(state, nwOf = null) {
 // Une fois par profil : relire toutes les sauvegardes, y compris celles d'avant le juke-box.
 // states() : les parties enregistrées (save.js).
 export function unlockFromSaves(states) {
-  once('jukebox-saves', () => {
+  once('jukebox-saves-2', () => { // -2 : relire avec la règle « au bord de la faillite »
     for (const s of states()) { try { unlockEarned(s); } catch { /* sauvegarde abîmée : on passe */ } }
   });
 }
