@@ -6,6 +6,7 @@ import * as eco from '../sim/economy.js';
 import { DARK, DARK_KINDS, acceptDark, refuseDark, refusalRisk, resolveSeized, darkDetect, grudgeAt } from '../sim/dark.js';
 import { h, money, num, date, dialog, confirmBox, toast, pctOf } from './dom.js';
 import { riskWords } from './shady.js';
+import { crewHint } from './risk.js';
 import { crossesLine, BLACKLIST } from '../sim/shadow.js';
 import { showScene, scenesOn } from './scenes.js';
 import { concealEl } from './shiproles.js';
@@ -25,6 +26,7 @@ export function darkLines(state, ship, to) {
     out.push(h(`div.risk-line.${p >= 0.2 ? 'neg' : 'warn-text'}`, [
       `${K.icon} Cargaison noire : ${K.name.toLowerCase()} pour ${portName(ship.dark.to)}, ${money(ship.dark.pay)} à la livraison avant le ${date(ship.dark.deadline, true)}.`,
       to ? (here ? ` Fouille à ${portName(to)}, port de livraison : risque ${riskWords(p, ship.crew || 0)}.` : ` Fouille à ${portName(to)} : risque ${riskWords(p, ship.crew || 0)}.`) : null,
+      to ? crewHint(ship.crew) : null,
       ` Si la douane la trouve : navire confisqué (caution ${money(bailOf(state, ship))}), amende de ${money(ship.dark.pay * 0.5)}, scandale (infamie +${DARK.caughtInfamy}, vertu −25).`,
     ]));
   }
@@ -50,7 +52,7 @@ export async function darkOfferDialog(app, note) {
     h('p', [h('b', `${K.icon} ${K.name}`), ` — de ${portName(o.from)} à ${portName(o.to)} (${num(o.nm)} milles), avant le ${date(o.deadline, true)}.`]),
     h('p', ['Payé ', h('b.pos', money(o.pay)), ' en liquide à la livraison. La marchandise occupe toute la cale : pas d\'autre chargement pendant ce voyage.']),
     h('p.warn-text', `☠ Point de non-retour : infamie +${K.infamy}. Votre confiance et votre vertu ne pourront plus jamais dépasser ${cap}/100 (confiance aujourd'hui : ${Math.round(company.confidence ?? company.reputation)}). Moins de confiance : moins de bons contrats, des prêts plus chers.`),
-    h('p', `Douane à l'arrivée : risque ${riskWords(p, ship.crew || 0)} à ${portName(o.to)}, et à chaque escale en route. Si elle trouve : navire confisqué (caution de ${money(bailOf(state, ship))} pour le récupérer, ou il est perdu), amende de ${money(o.pay * 0.5)}, équipage arrêté, scandale public (infamie +${DARK.caughtInfamy}, vertu −25).`),
+    h('p', [`Douane à l'arrivée : risque ${riskWords(p, ship.crew || 0)} à ${portName(o.to)}, et à chaque escale en route. Si elle trouve : navire confisqué (caution de ${money(bailOf(state, ship))} pour le récupérer, ou il est perdu), amende de ${money(o.pay * 0.5)}, équipage arrêté, scandale public (infamie +${DARK.caughtInfamy}, vertu −25).`, crewHint(ship.crew)]),
     concealEl(ship),
     !risk ? h('p', 'En refusant : rien à craindre, vous êtes chez vous. Ni rancune ni saisie.') : h('p', `En refusant : ${pctOf(risk.seize)} de risque qu'ils s'emparent du navire (rançon ${money(rShip)}) ou de l'équipage (rançon ${money(rCrew)}), puis ce gang vous en voudra ${risk.grudgeDays} jours (${pctOf(risk.grudgeSeize)} de risque de saisie à chaque escale de vos navires à ${portName(o.from)}).`),
     crossesLine(company, K.infamy)

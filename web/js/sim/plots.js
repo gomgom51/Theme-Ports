@@ -15,7 +15,7 @@ import { corruption, SHADY_PORTS } from '../data/sanctions.js';
 import { HOURS_PER_DAY } from './util.js';
 import { book, news, changeReputation, changeVirtue, shipLog, shipsOf, portName, shipById, fleetValue, rivalsOf } from './core.js';
 import { formatDate } from './util.js';
-import { pointsEarned, pointsSpent, XP_STEPS, SKILL_IDS } from './crew.js';
+import { pointsEarned, pointsSpent, XP_STEPS, SKILL_IDS, checkBriscards } from './crew.js';
 import * as eco from './economy.js';
 import { VICTORY_KINDS, victoryOn, victoryProgress } from './victory.js';
 import { relationOf, clientRel, LOYAL } from './clients.js';
@@ -365,6 +365,7 @@ function attackEffects(state, rng, p, notes) {
     if (!k) return;
     sh.xp = k >= 2 ? XP_STEPS[k - 2] : 0;
     while (pointsSpent(sh) > pointsEarned(sh)) { const id = SKILL_IDS.filter((x) => (sh.skills?.[x] || 0) > 0).sort((a, b) => sh.skills[b] - sh.skills[a])[0]; if (!id) break; sh.skills[id]--; }
+    if (checkBriscards(sh)) shipLog(state, sh, 'Les vieux briscards partis, l\'équipage revient à son niveau d\'avant');
     const mine = shipById(state, p.toShip);
     if (mine && mine.owner === p.by) { const m = pointsEarned(mine); if (m < XP_STEPS.length) mine.xp = Math.max(mine.xp || 0, XP_STEPS[m]); }
     if (tg.human) notes.push({ kind: 'info', company: tg.id, shipId: sh.id, text: `Les meilleurs marins du ${sh.name} ont été débauchés par un concurrent : l'équipage perd un point d'expérience.` });

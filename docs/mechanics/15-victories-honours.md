@@ -30,7 +30,7 @@ Each of the first five raises both reputation caps by 1 (95 → 100) and both sc
 | fideles | Partenaires fidèles | 14 shippers at loyalty 10 at once |
 | alerte | Lanceur d'alerte | 14 shippers denounced |
 | mainspropres | Le Juste | 8 years without any dirty act, never any infamy |
-| ecole | École de la mer | 16 ships with fully trained crews (5 points) |
+| ecole | École de la mer | 16 ships with fully trained crews (6 points since the 6th XP step) |
 | merspropres | Mers propres | 4 years without carrying polluting cargo, ≥ 100 deliveries |
 | pirates | Corsaire | 12 pirate attacks repelled |
 

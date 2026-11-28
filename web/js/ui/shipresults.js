@@ -35,19 +35,23 @@ const dotted = (parts) => parts.filter(Boolean).flatMap((p, i) => (i ? [' · ', 
 // Suivi d'un navire ; vide pour un navire d'une ancienne sauvegarde pas encore suivi (le suivi
 // commence à la première heure de jeu).
 const trackOf = (state, ship) => ship.st || { since: state.t, book: {}, h: {}, trips: [], n: 0, nmL: 0, nmB: 0, late: 0, onTime: 0 };
+// Marchandises achetées et pas encore vendues : comptées à leur prix d'achat, pas comme une perte
+// (sinon un caboteur plein de marchandises affiche « −1 908 %/an » jusqu'à la vente).
+const stockOf = (ship) => (ship.cargo && !ship.cargo.contractId ? ship.cargo.cost || 0 : 0);
 
 // Les chiffres d'un navire.
 export function shipFigures(state, ship) {
   const s = trackOf(state, ship);
   const d = Math.max(0, (state.t - s.since) / D);
-  const result = bookTotal(s.book);
+  const stock = stockOf(ship);
+  const result = bookTotal(s.book) + stock;
   const H = sum(s.h) || 1;
   const sea = (s.h.charge || 0) + (s.h.lest || 0);
   const done = s.trips.filter((t) => t.d1 != null);
   const paidTrips = s.trips.filter((t) => t.kind !== 'lest' && t.rev != null);
   const perDay = d >= 1 ? result / d : null;
   return {
-    days: d, result, perDay, early: d < MIN_DAYS,
+    days: d, result, perDay, early: d < MIN_DAYS, stock,
     annual: ship.paid && perDay != null ? (perDay * 365) / ship.paid : null,
     active: ((s.h.charge || 0) + (s.h.escale || 0)) / H,
     ladenShare: sea ? (s.h.charge || 0) / sea : null,
@@ -62,7 +66,7 @@ export function shipFigures(state, ship) {
 // Moyenne de la profession pour un modèle : bénéfice par jour des autres navires du même modèle
 // (toutes compagnies), suivis depuis assez longtemps.
 function modelAverage(state, type, except) {
-  const xs = state.ships.filter((s) => s !== except && s.type === type && s.st && (state.t - s.st.since) / D >= 60).map((s) => bookTotal(s.st.book) / ((state.t - s.st.since) / D));
+  const xs = state.ships.filter((s) => s !== except && s.type === type && s.st && (state.t - s.st.since) / D >= 60).map((s) => (bookTotal(s.st.book) + stockOf(s)) / ((state.t - s.st.since) / D));
   return xs.length ? { avg: xs.reduce((a, b) => a + b, 0) / xs.length, n: xs.length } : null;
 }
 
@@ -107,6 +111,7 @@ export function shipResults(app) {
       const T = SHIP_TYPES[ship.type], open = app.form.shipOpen === ship.id;
       const line = [f.trips > 1 ? `${num(f.trips)} voyages` : `${num(f.trips)} voyage`, `actif ${pct(f.active * 100)}`];
       if (f.annual != null && !f.early) line.push(`rentabilité ${pct(f.annual * 100)}/an`);
+      if (f.stock) line.push(`${money(f.stock)} de marchandises à bord, au prix d'achat`);
       list.append(h('button.row.selectable.with-thumb.ship-result-row', { class: open ? 'selected' : '', 'aria-expanded': open ? 'true' : 'false', onclick: () => { app.form.shipOpen = open ? null : ship.id; app.refresh(); } }, [
         h('span.thumb', { html: artForShip(state, ship, { sky: false, slot: 'thumb' }) }),
         h('span.grow', [h('b', ship.name), ' ', h('span.muted.small', T.name), h('div.small.muted', dotted(line))]),
@@ -147,8 +152,8 @@ function shipDetail(app, ship, f) {
 
   // Recettes et dépenses par poste (le négoce en une ligne : ventes moins achats).
   const book = { ...s.book };
-  if (book.negoce || book.achats) { book.marge = (book.negoce || 0) + (book.achats || 0); delete book.negoce; delete book.achats; }
-  const labels = { marge: 'Négoce : ventes moins achats', ...BOOK_LABELS };
+  if (book.negoce || book.achats) { book.marge = (book.negoce || 0) + (book.achats || 0) + f.stock; delete book.negoce; delete book.achats; }
+  const labels = { marge: f.stock ? 'Négoce : ventes moins achats (marchandises à bord au prix d\'achat)' : 'Négoce : ventes moins achats', ...BOOK_LABELS };
   const rows = Object.entries(labels).filter(([k]) => Math.abs(book[k] || 0) >= 1).sort((a, b) => (book[b[0]] || 0) - (book[a[0]] || 0));
   if (rows.length) {
     const top = Math.max(...rows.map(([k]) => Math.abs(book[k])));

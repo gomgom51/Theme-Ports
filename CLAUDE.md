@@ -67,7 +67,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   `clientDemand`) in `web/js/sim/clients.js`; shady deals (`PIRATE_*`, `HELD_CHANCE`,
   `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`;
   per-goods trade spread `goodSpread` and `GOLDEN_CHANCE` in `economy.js`; crew skill
-  effects and `XP_STEPS` in `web/js/sim/crew.js`; ice (`ICE`: announcement delay,
+  effects and `XP_STEPS` in `web/js/sim/crew.js`, crew levels (`CREW_LEVELS`: wage, safety, `fight`, the free fourth
+  level unlocked by the Vieux briscards skill) in `web/js/data/ships.js`; ice (`ICE`: announcement delay,
   ice-class extension, icebreaker escort fees, end-of-season contract premium,
   Northern Sea Route safety horizon) in `web/js/sim/ice.js`, seasonal windows (`ice` on
   ports in `web/js/data/ports.js`, `ICE_PASSAGES`), Arctic fee `CANAL_FEE.nsr` in `economy.js`;
@@ -242,7 +243,9 @@ year 9–10, no victory path dominating; 10-year runs: all AIs survive.
   separate text nodes). `node tools/i18n-screens.mjs` (Playwright, not in CI: run at release, part of `npm test`)
   plays a 2-year game in English in a hidden browser, opens every panel, tab and event
   window, and fails on any French actually on screen (runtime-glued pieces, lone words,
-  status labels, French around names in `data-no-tr`). Proper names and never-shown texts go in `tools/i18n-ignore.json`. Ship,
+  status labels, French around names in `data-no-tr`). Proper names and never-shown texts go in `tools/i18n-ignore.json`. In French, the
+  screen contracts generated text around names (`frenchGrammar` in `i18n.js`: « à Le Havre » → « au Havre », « du Écume » →
+  « de l'Écume »): write templates plainly (`à ${port}`, `du ${ship.name}`), never pre-contract them. Ship,
   company and captain names are registered at runtime (`registerGameNames`) and treated
   as untranslatable tokens, so any player-typed name works inside a sentence. Served on
   localhost or with `?dev`, the game warns in the console about every text still in

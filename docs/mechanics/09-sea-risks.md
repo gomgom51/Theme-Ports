@@ -33,6 +33,10 @@ Severe incidents with polluting cargo spill 1–8 % (grounding 3–15 %). Severe
 
 ## Sinking (`game.sink`)
 
+Two roads to the bottom: a severe incident (formula above, any condition, more likely on a worn hull), or a storm on a
+hull below 22 % in force ≥ 10 (`game.js`, chance 0.4 % × (force − 9) per hour). The Port call tab states both in its
+thresholds line.
+
 Spill of 40–100 % of cargo plus bunker fuel; hull insurance if seaworthy at departure; contract
 cargo → shipper claims 25 % of cargo value (P&I pays all but a 50–300 k$ deductible if covered);
 traded cargo refunded at the plan's cargo rate; trust −10 (contract) −5; wreck on the map; cargo loan

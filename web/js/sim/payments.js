@@ -22,12 +22,16 @@ export function createPayment(state, ship, contract, penalty, damage = 0) {
     fuelAtStart: contract.fuelAtStart || null, priceAtStart: contract.priceAtStart || null,
     shipName: ship.name, res: null, charity: contract.charity?.name || null,
     talk: ship.skills?.negociation || 0, // beaux parleurs à bord
+    crew: ship.crew || 0, // niveau de l'équipage : précision des chances d'arbitrage annoncées
   };
   state.payments.push(p);
   return p;
 }
 
 export const paymentBase = (p) => p.pay * (1 - p.penalty);
+// Chance de gagner un arbitrage contre le chargeur : la confiance de la compagnie, moins le poids
+// d'un client avec qui l'on travaille beaucoup (il a ses avocats).
+export const arbitrationOdds = (state, company, client) => Math.max(0, Math.min(1, 0.45 + standing(company).confidence / 250 - clientRel(state, client) / 500));
 
 // Tire (une seule fois) le déroulé de l'encaissement.
 export function resolution(state, rng, p) {
@@ -131,7 +135,7 @@ export function collect(state, rng, paymentId, choice = 'accepter') {
     if (choice === 'contester') {
       // Arbitrage : on récupère tout (moins les frais) si la réputation l'emporte.
       const fees = Math.round(res.total * 0.03);
-      const win = rng.chance(0.45 + standing(company).confidence / 250 - clientRel(state, p.client) / 500);
+      const win = rng.chance(arbitrationOdds(state, company, p.client));
       const amount = win ? res.total - fees : res.total - ev.withheld - fees;
       state.receivables.push({
         id: state.nextId++, company: p.company, amount, due: state.t + rng.int(20, 40) * D,

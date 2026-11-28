@@ -18,6 +18,8 @@ const WEB = join(ROOT, 'web/js');
 // Exports gardés exprès alors que rien ne les importe (avec la raison).
 const KEEP_EXPORTS = {
   'sim/actions.js:abandonContract': 'aucun bouton ne l\'appelle encore : à brancher ou à retirer (décision du propriétaire)',
+  'sim/crew.js:crewMaxed': 'pour le fil « ordres permanents » (choix du capitaine), PR #43',
+  'sim/crew.js:loseBriscardPoint': 'pour le fil « ordres permanents » (reprise en main du capitaine), PR #43',
 };
 
 function walk(dir, out = []) {

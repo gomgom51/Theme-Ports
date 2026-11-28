@@ -2,7 +2,8 @@
 import { CLIENTS, STYLE_LABEL, stars } from '../data/clients.js';
 import { GOODS } from '../data/goods.js';
 import { portName } from '../sim/core.js';
-import { resolution, collect, paymentBase } from '../sim/payments.js';
+import { resolution, collect, paymentBase, arbitrationOdds } from '../sim/payments.js';
+import { oddsWords, crewHint } from './risk.js';
 import { h, money, tonnes, date, dialog, dropToasts, chance } from './dom.js';
 import { artForShip } from './shipart.js';
 import { gradeEl } from './grade.js';
@@ -101,7 +102,11 @@ export async function openPayment(app, paymentId) {
     h('p', [h('b', `${GOODS[p.good].icon} ${tonnes(p.qty)} de ${GOODS[p.good].name.toLowerCase()}`), ` livrés à ${portName(p.to)} par le ${p.shipName} le ${date(p.deliveredT, true)}.`]),
     C ? h('p', ['Client : ', clientLine(state, co, p.client)]) : null,
     lines, total,
-    ev?.kind === 'contestation' ? h('p.hint', 'Contester lance un arbitrage d\'environ un mois : votre confiance compte, et les frais d\'avocat sont de 3 %.') : null,
+    ev?.kind === 'contestation' ? h('p.hint', [
+      h('span', 'Contester lance un arbitrage d\'environ un mois : votre confiance compte, et les frais d\'avocat sont de 3 %.'), ' ',
+      h('span', 'Chances de gagner :'), ' ', h('b', oddsWords(arbitrationOdds(state, co, p.client), p.crew ?? shipNow?.crew ?? 0)), '.',
+      crewHint(p.crew ?? shipNow?.crew ?? 0, ' Un équipage plus expérimenté saurait les chiffrer.'),
+    ]) : null,
   ]);
   let buttons;
   if (ev?.kind === 'contestation') {
