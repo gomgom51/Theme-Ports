@@ -18,7 +18,7 @@ import {
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
 import { shipStatusText, shipRoute } from './panel-ship.js';
-import { h, money, tonnes, num, num1, pct, date, days, bar, confirmBox, lineChart, dialog, searchBox } from './dom.js';
+import { h, money, tonnes, num, num1, pct, date, bar, confirmBox, lineChart, dialog, searchBox } from './dom.js';
 import { shipMarkup, artForShip } from './shipart.js';
 import { SHIP_ART } from './shipshapes.js';
 import { shipStats, radarSVG, AXES } from './radar.js';

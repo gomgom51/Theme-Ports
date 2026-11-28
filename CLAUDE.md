@@ -218,6 +218,11 @@ year 9–10, no victory path dominating; 10-year runs: all AIs survive.
 
 ## Conventions
 
+- **Code health (read `docs/code-health.md` before adding a helper, a setting or a saved field):** sums and
+  percentages through `sim/format.js` (`money`, `num`, `pctOf`…), money booked with `book(state, …)`, storage only
+  through `ui/storage.js`, a new saved field gets a default in `fillDefaults` (`sim/migrations.js`) and released
+  saves in `tests/saves/` must keep loading, no dead exports or imports. `node tools/code-check.mjs` (npm test, CI)
+  enforces the mechanical rules.
 - In-game text is French; code comments in French.
 - English option: French stays the source language in the code. `web/js/i18n.js`
   translates every French text as it reaches the screen (DOM text nodes and

@@ -3,7 +3,7 @@
 // détention, marée noire, et les événements mondiaux de scenes-world.js).
 // Un son facultatif par scène : sons/scene-<nom>.mp3.
 import { h } from './dom.js';
-import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, drawShip, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, box, cloud, disc, smoke, flame } from './pixel.js';
+import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, drawShip, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, cloud, disc, smoke, flame } from './pixel.js';
 import { WORLD_SCENES } from './scenes-world.js';
 import { HONOUR_SCENES } from './scenes-honours.js';
 const sea_ = (...a) => sea(...a); // (la variable « sea » sert aussi de drapeau dans les scènes des glaces)
