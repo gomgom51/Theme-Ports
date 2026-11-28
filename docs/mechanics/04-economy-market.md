@@ -58,8 +58,12 @@ HANDLING_COST $/t (paid by the trader on buy and sell): vrac 3, liquide 1.5, div
 - `worldFuelPrice = 620 × world.raffines × fuelPremium`; `fuelPrice(port) = world × PORTS.fuel × (1 + ou(raffines) × 0.4)`.
 - `repairIndex = (0.65 + 0.35 × world.acier) × repairLoad`.
 - `repairCost(state, ship, port, target)`: to = min(target, `REPAIR_MAX[repair]` = 70/100/100);
-  cost = points × price × 1e6 × 0.0011 × (1 + (100−cond)/120) × `REPAIR_FACTOR` (1.25/1.0/0.85) × repairIndex;
-  days = points × 0.12 (× 0.8 at a big yard).
+  cost = points × price × 1e6 × 0.0011 × (1 + (100−cond)/120) × `REPAIR_FACTOR` (1.25/1.0/0.85) × repairIndex
+  × (1 − `yardCut`); days = points × 0.12 (× 0.8 at a big yard).
+- **Yard short of orders** (opportunity, `YARD`): `yardDaily` (events.js) rolls 3.5 %/day, one at a time, a yard of
+  level ≥ 2 outside embargoed and ice ports cutting repairs by 25–40 % for 10–16 days (`state.yardSale`), with news
+  at start and end. Every quote reads it through `repairCost` (AI included); the repair section shows the cut. The
+  card only shows for a company with a worn ship (< 85 %) that fits the port.
 
 ## Ship value and running costs
 

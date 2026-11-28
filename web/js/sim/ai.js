@@ -17,7 +17,7 @@ import { hostilePort, pirateBoost, payCut } from './plots.js';
 import { piracyAlong } from './piracy.js';
 import { isSeasonal } from './ice.js';
 import { grudgeAt } from './dark.js';
-import { lenderTerms, quoteSellAt, loanRoom } from './trade.js';
+import { lenderTerms, quoteSellAt, loanRoom, buyableStock, lotRoom } from './trade.js';
 import { canProspect, startProspect, PROSPECT } from './prospect.js';
 import { darkPort, darkCapable } from './dark.js';
 import { closedPort } from './shadow.js';
@@ -178,12 +178,27 @@ export function aiShipIdle(state, ctx, rng, ship) {
       && !act.checkContract(state, ctx, { ...ship, port: p, cargo: null }, c)).length;
     if (n) candidates.push([p, n / (d + 800)]);
   }
+  // Lots soldés : un port qui solde ce que le navire sait charger vaut le détour, s'il a de quoi
+  // l'acheter et peut y être à temps (il s'y engage au départ : les autres le voient venir).
+  const lotFor = {};
+  if (!company.ai?.noTrade && (company.cash - reserve) * 0.8 > 300000) {
+    for (const l of state.lots || []) {
+      const hold = eco.holdFor(ship.type, l.good);
+      if (l.left <= 0 || l.port === here || !hold || !eco.portHandles(l.port, hold) || !eco.fitsPort(l.port, ship.type) || hullRisk(ship, l.port) || grudgeAt(state, company, l.port)) continue;
+      const d = ctx.distanceInfo(here, l.port)?.nm;
+      if (!d || lotRoom(l, ship.id) < T.dwt * 0.4 || state.t + d / (T.speed * 0.9) + 12 > l.until) continue;
+      lotFor[l.port] = l.id;
+      candidates.push([l.port, 2 / (d + 800)]);
+    }
+  }
   const hereHasWork = Object.keys(PORTS[here].exp).some((g) => eco.holdFor(ship.type, g) && eco.portHandles(here, eco.holdFor(ship.type, g)));
   if (candidates.length && (!hereHasWork || rng.chance(0.35))) {
     candidates.sort((a, b) => b[1] - a[1]);
     const p = rng.weighted(candidates.slice(0, 3));
+    ship.lotBuy = lotFor[p] ?? null;
     const r = act.depart(state, ctx, ship.id, p, T.speed * 0.9, true);
     if (r.ok) return;
+    ship.lotBuy = null;
   }
   // 5. Marché déprimé et rien à faire depuis deux semaines : on désarme le navire
   //    (l'équipage débarque, les frais fixes tombent à un tiers) en attendant la reprise.
@@ -260,7 +275,7 @@ export function jobOptions(state, ctx, ship, o) {
     for (const g of Object.keys(PORTS[here].exp)) {
       const hold = eco.holdFor(ship.type, g);
       if (!hold || !eco.portHandles(here, hold)) continue;
-      const stock = eco.availableStock(state, here, g);
+      const stock = buyableStock(state, here, g); // lot soldé compris (quoteBuy le compte à son prix)
       const unit = eco.buyPrice(state, here, g);
       // Financement par les négociants du port : une cale plus pleine, contre des intérêts.
       const terms = lenderTerms(company, here);

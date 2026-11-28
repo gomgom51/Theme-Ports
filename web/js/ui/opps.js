@@ -1,13 +1,16 @@
 // Cartes d'opportunité : restent à l'écran (en bas à gauche, au-dessus du classement) tant que
-// le joueur ne les ferme pas. Affaires en or, missions d'aide d'urgence (et, plus tard, appels
-// d'offres des villes). Construites à partir de l'état de la partie : elles survivent à un
-// chargement et montrent toujours les chiffres du moment (prise par un concurrent, date limite…).
+// le joueur ne les ferme pas. Affaires en or, appels d'offres des villes, lots soldés, chantiers en
+// mal de commandes, missions d'aide d'urgence et pistes de démarchage. Construites à partir de l'état
+// de la partie : elles survivent à un chargement et montrent toujours les chiffres du moment (prise par
+// un concurrent, date limite…). Cinq cartes au plus, les plus pressées d'abord ; un genre se masque.
 import { PORTS } from '../data/ports.js';
 import { GOODS, isCleanGood } from '../data/goods.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import * as eco from '../sim/economy.js';
 import { portName, shipsOf } from '../sim/core.js';
-import { h, money, tonnes, date, days } from './dom.js';
+import { lotPlan, bestSources } from '../sim/intel.js';
+import { rank } from '../sim/crew.js';
+import { h, money, tonnes, date, days, pct } from './dom.js';
 import { etaOf } from './panel-ship.js';
 import { logoBadge } from './logos.js';
 import { localRect, viewport } from './scale.js';
@@ -49,6 +52,22 @@ export function goldenNear(state, ctx, cid, c) {
 export function tenderServable(state, cid, t) {
   return usable(state, cid).some((s) => eco.holdFor(s.type, t.good) && eco.fitsPort(t.port, s.type));
 }
+// Un lot soldé que l'un de vos navires peut charger (cale adaptée, terminal du port, tirant d'eau).
+const lotFits = (s, l) => { const hold = eco.holdFor(s.type, l.good); return !!hold && eco.fitsPort(l.port, s.type) && eco.portHandles(l.port, hold); };
+export function lotServable(state, cid, l) {
+  return usable(state, cid).some((s) => lotFits(s, l));
+}
+// Vos navires usés qui peuvent entrer dans le port du chantier, du plus usé au moins usé.
+function wornFor(state, cid, port) {
+  return usable(state, cid).filter((s) => s.condition < eco.YARD.worn && eco.fitsPort(port, s.type)).sort((a, b) => a.condition - b.condition);
+}
+
+// Genres d'opportunités qu'on peut masquer (une piste de démarchage, on l'a demandée : elle reste).
+const KIND_NAMES = { golden: 'les affaires en or', tender: 'les appels d\'offres', lot: 'les lots soldés', yard: 'les chantiers à prix cassés', aid: 'l\'aide d\'urgence' };
+const MAX_CARDS = 5;
+// Échéance d'une carte (pour mettre les plus pressées en tête).
+const deadlineOf = (o) => (o.kind === 'golden' ? o.c.expires : o.kind === 'tender' ? o.t.until : o.kind === 'lot' ? o.l.until : o.kind === 'yard' ? o.y.until
+  : o.kind === 'lead' ? o.c.reservedUntil : Math.max(...o.list.map((c) => c.expires)));
 
 // Les opportunités du moment pour une compagnie (sans celles qu'elle a fermées). Affaires en or :
 // seulement celles annoncées en cours de partie, qu'un de vos navires peut prendre à temps.
@@ -91,7 +110,19 @@ export function opportunities(state, ctx, cid) {
     const open = t.left > 0 && t.until > state.t;
     if ((open && tenderServable(state, cid, t)) || co.seenOpps?.[key] != null) out.push({ key, kind: 'tender', t, open });
   }
-  return out;
+  // Lots soldés : ceux qu'un de vos navires peut charger (une carte déjà montrée reste jusqu'au bout).
+  for (const l of state.lots || []) {
+    const key = `lot:${l.id}`;
+    if (dismissed[key] != null) continue;
+    const open = l.left > 0 && l.until > state.t;
+    if ((open && lotServable(state, cid, l)) || co.seenOpps?.[key] != null) out.push({ key, kind: 'lot', l, open });
+  }
+  // Chantier en mal de commandes : seulement si l'un de vos navires est usé et peut y entrer.
+  const y = state.yardSale;
+  if (y && y.until > state.t && dismissed[`yard:${y.id}`] == null && wornFor(state, cid, y.port).length) out.push({ key: `yard:${y.id}`, kind: 'yard', y, open: true });
+  const muted = co?.mutedOpps || {};
+  // Les ouvertes d'abord, les plus pressées en tête ; les cartes « prise » ou « complet » ensuite.
+  return out.filter((o) => !muted[o.kind]).sort((a, b) => (a.open === false) - (b.open === false) || deadlineOf(a) - deadlineOf(b));
 }
 
 // Vos navires capables de transporter cette cargaison (type de cale, capacité, tirant d'eau, vitesse).
@@ -131,16 +162,19 @@ function goldenCard(app, o) {
     const here = reach.find((r) => r.ship.status === 'port' && r.ship.port === c.from)?.ship;
     if (here) { app.open('ship', here.id, 'contrats'); app.focusShip(here.id); } else { app.open('port', c.from); app.map.centerOn(PORTS[c.from].lon, PORTS[c.from].lat, Math.max(app.map.view.scale, 4)); }
   };
+  // Express : navire rapide exigé, délai sans marge (qui la prend tard doit forcer l'allure).
+  const express = c.express ? h('span.tag.warn', { title: `Express : navire de ${String(c.minSpeed).replace('.', ',')} nœuds au moins, livraison avant le ${date(c.deadline, true)}.` }, '⏰ express') : null;
   return {
     head: [h('span.opp-icon', '★'), h('b', `${portName(c.from)} → ${portName(c.to)}`)],
     lines: [
-      h('div.opp-body', [h('span', `${G.icon} ${tonnes(c.qty)}`), ' · ', h('b.pos', money(c.pay))]),
+      h('div.opp-body', [h('span', `${G.icon} ${tonnes(c.qty)}`), ' · ', h('b.pos', money(c.pay)), express ? ' ' : null, express]),
       o.open ? shipsRow(reach, 'Aucun navire à temps') : null,
       o.open ? untilLine(state, c.expires) : h('div.opp-until.neg', `Prise par ${state.companies[c.takenCo]?.name || 'un concurrent'}`),
     ],
     actions: o.open ? [h('button.btn.small', { onclick: look }, 'Voir')] : [],
     more: o.open ? [
-      h('b', 'Affaire en or'), h('div', `${G.name} · ${tonnes(c.qty)} de ${portName(c.from)} à ${portName(c.to)}`),
+      h('b', c.express ? 'Affaire en or express' : 'Affaire en or'), h('div', `${G.name} · ${tonnes(c.qty)} de ${portName(c.from)} à ${portName(c.to)}`),
+      c.express ? h('div', `⏰ Navire de ${String(c.minSpeed).replace('.', ',')} nœuds au moins ; livraison avant le ${date(c.deadline, true)}, sans marge : prise tard, il faudra forcer l'allure.`) : null,
       h('div', isCleanGood(c.good) ? '🤝 Confiance et 💚 vertu si elle arrive à l\'heure (marchandise ni fossile ni polluante).' : '🤝 Confiance si elle arrive à l\'heure.'),
       ...shipsMore(reach),
     ] : null,
@@ -213,6 +247,13 @@ function tenderCard(app, o) {
   // Vos navires qui transportent cette marchandise, et leur délai jusqu'au port acheteur.
   const able = reachList(state, app.ctx, usable(state, cid).filter((s) => eco.holdFor(s.type, t.good) && eco.fitsPort(t.port, s.type)), t.port);
   const look = () => { app.form.good = t.good; app.open('markets', null, 'produits'); };
+  // Où acheter : le savoir des vieux briscards (niveau 2, comme sur la fiche du navire), pour le navire le
+  // plus proche qui l'a ; sinon les Marchés. Même estimation partout (sim/intel.js).
+  const wise = o.open ? able.find((r) => rank(r.ship, 'briscard') >= 2 && !r.ship.cargo && !r.ship.dark) : null;
+  const src = wise ? bestSources(state, app.ctx, cid, t.good, t.port, 1, { ship: wise.ship, arrival: rank(wise.ship, 'briscard') >= 3 })[0] : null;
+  const where = !wise ? h('div.muted', 'Où en acheter : voyez les Marchés (un équipage aux vieux briscards vous le dirait).')
+    : src ? h('div', [h('span', 'Où acheter :'), ' ', h('b', portName(src.port)), h('span', ` · ${money(src.unit)}/t · marge ${money(src.marginPerT)}/t · `), h('span.muted', ['🧭 ', h('span', { 'data-no-tr': '' }, wise.ship.name)])])
+      : h('div.muted', 'Les vieux briscards ne voient aucun port d\'achat à portée avant la date limite.');
   return {
     head: [h('span.opp-icon', '📣'), h('b', `${portName(t.port)} · ${G.icon} ${G.name}`)],
     lines: [
@@ -230,9 +271,82 @@ function tenderCard(app, o) {
       ...t.commits.map((c) => h('div', [h('b', { 'data-no-tr': '' }, state.companies[c.company]?.name || '?'), ' ', h('span', `livrera ${tonnes(c.qty)} vers le ${date(c.eta, true)}`)])),
       t.commits.length ? h('div', `Libre après ces livraisons : ${tonnes(Math.max(0, t.left - committed))}`) : null,
       h('div', isCleanGood(t.good) ? '🤝 Confiance et 💚 vertu à chaque livraison (marchandise ni fossile ni polluante).' : '🤝 Confiance à chaque livraison.'),
-      h('div.muted', 'Où en acheter : voyez les Marchés.'),
+      where,
       ...shipsMore(able),
     ] : null,
+  };
+}
+
+// Lot soldé : un port vend sous le cours, premier arrivé premier servi. Le navire le plus proche peut y
+// aller avec la case « acheter le lot à l'arrivée » déjà cochée ; le détail donne les meilleurs débouchés.
+function lotCard(app, o) {
+  const { state, ctx } = app;
+  const l = o.l, G = GOODS[l.good], cid = app.ui.activeCompany;
+  const market = eco.buyPrice(state, l.port, l.good);
+  const diff = Math.round(market - l.unit);
+  const committed = l.commits.reduce((s, c) => s + c.qty, 0);
+  const able = o.open ? reachList(state, ctx, usable(state, cid).filter((s) => lotFits(s, l) && !(s.status === 'port' && (s.cargo || s.dark))), l.port).filter((r) => state.t + r.days * D <= l.until) : [];
+  const first = able[0]?.ship;
+  const here = first && first.status === 'port' && first.port === l.port;
+  const go = () => {
+    if (here) app.open('ship', first.id, 'negoce');
+    else if (first && first.status === 'port') { app.form.dest[first.id] = l.port; app.form.lotBuy[first.id] = l.id; app.open('ship', first.id, 'depart'); }
+    else app.open('port', l.port);
+    if (first) app.focusShip(first.id); else app.map.centerOn(PORTS[l.port].lon, PORTS[l.port].lat, Math.max(app.map.view.scale, 4));
+  };
+  const plan = o.open && first ? lotPlan(state, ctx, cid, l, 3, { arrival: true }) : null;
+  return {
+    head: [h('span.opp-icon', '💰'), h('b', `${portName(l.port)} · ${G.icon} ${G.name}`)],
+    lines: [
+      h('div.opp-body', [h('b.pos', `${money(l.unit)}/t`), ' ', h('span.pos', `(−${money(Math.max(0, diff))}/t)`), ' · ', h('span', `${tonnes(l.left).replace(/\s?t$/, '')} / ${tonnes(l.qty)}`)]),
+      l.commits.length ? h('div.opp-commits', [...l.commits.slice(0, 2).map((c) => h('span.opp-commit', [logo(state.companies[c.company]), h('span', tonnes(c.qty)), h('span.muted', '·'), h('span', dshort(c.eta))])), l.commits.length > 2 ? h('span.muted', `+${l.commits.length - 2}`) : null]) : null,
+      o.open ? shipsRow(able, 'Aucun navire à temps') : null,
+      o.open ? untilLine(state, l.until) : h('div.opp-until.muted', l.left <= 0 ? 'Épuisé.' : 'Terminé.'),
+    ],
+    actions: o.open ? [h('button.btn.small', { onclick: go }, here ? 'Acheter' : first && first.status === 'port' ? 'Y aller' : 'Port')] : [],
+    more: o.open ? [
+      h('b', 'Lot soldé'),
+      h('div', `${portName(l.port)} solde ${G.name.toLowerCase()} à ${money(l.unit)}/t au lieu de ${money(market)}/t, premier arrivé premier servi. La revente se fait au cours.`),
+      ...l.commits.map((c) => h('div', [h('b', { 'data-no-tr': '' }, state.companies[c.company]?.name || '?'), ' ', h('span', `viendra acheter ${tonnes(c.qty)} vers le ${date(c.eta, true)}`)])),
+      l.commits.length ? h('div', `Libre après ces achats : ${tonnes(Math.max(0, l.left - committed))}`) : null,
+      plan?.outlets.length ? h('div.muted', [h('span', `Revente de ${tonnes(plan.qty)} avec le`), ' ', h('b', { 'data-no-tr': '' }, plan.ship.name), h('span', ' (trajet à vide compris) :')]) : null,
+      ...(plan?.outlets || []).map((x, i) => h('div.opp-ship-line', [`${i + 1}. `, h('b', portName(x.port)), ` · ${days(x.days)} · `, h('b', { class: x.net >= 0 ? 'pos' : 'neg' }, money(x.net, true))])),
+      first && first.status === 'port' && !here ? h('div.muted', '« Y aller » coche « Acheter le lot soldé à l\'arrivée » au départ : le navire achète en arrivant, s\'il en reste.') : null,
+      ...shipsMore(able),
+    ] : null,
+  };
+}
+
+// Chantier en mal de commandes : réparations à prix cassés quelques jours, pour vos navires usés.
+function yardCard(app, o) {
+  const { state, ctx } = app;
+  const y = o.y, cid = app.ui.activeCompany;
+  const worn = wornFor(state, cid, y.port);
+  const reach = new Map(reachList(state, ctx, worn, y.port).map((r) => [r.ship.id, r.days]));
+  const list = worn.filter((s) => reach.has(s.id) && state.t + reach.get(s.id) * D <= y.until);
+  const first = list[0];
+  const rc = first ? eco.repairCost(state, first, y.port, eco.YARD.worn) : null;
+  const go = () => {
+    if (first && first.status === 'port' && first.port === y.port) app.open('ship', first.id, 'escale');
+    else if (first && first.status === 'port' && !first.cargo?.contractId) { app.form.dest[first.id] = y.port; app.open('ship', first.id, 'depart'); }
+    else app.open('port', y.port);
+    if (first) app.focusShip(first.id); else app.map.centerOn(PORTS[y.port].lon, PORTS[y.port].lat, Math.max(app.map.view.scale, 4));
+  };
+  const line = (s) => h('div.opp-ship-line', ['🚢 ', h('b', { 'data-no-tr': '' }, s.name), ` · ${pct(s.condition)} · `, h('span', when(reach.get(s.id)))]);
+  return {
+    head: [h('span.opp-icon', '🔧'), h('b', `Chantier · ${portName(y.port)}`)],
+    lines: [
+      h('div.opp-body', [h('span', 'Réparations'), ' ', h('b.pos', `−${pct(y.cut * 100)}`)]),
+      first ? h('div.opp-ships', ['🚢 ', h('b', { 'data-no-tr': '' }, first.name), ` · ${pct(first.condition)} · `, h('span', when(reach.get(first.id))), list.length > 1 ? h('span.muted', ` +${list.length - 1}`) : null]) : h('div.opp-ships.muted', 'Aucun navire usé à temps'),
+      untilLine(state, y.until),
+    ],
+    actions: [h('button.btn.small', { onclick: go }, first && first.status === 'port' && first.port !== y.port && !first.cargo?.contractId ? 'Y aller' : first?.port === y.port ? 'Voir' : 'Port')],
+    more: [
+      h('b', 'Chantier en mal de commandes'),
+      h('div', `Le chantier de ${portName(y.port)} répare ${pct(y.cut * 100)} moins cher jusqu'au ${date(y.until, true)}.`),
+      rc && rc.points > 0 ? h('div', [h('span', 'Le'), ' ', h('b', { 'data-no-tr': '' }, first.name), ' ', h('span', `passerait de ${pct(first.condition)} à ${pct(rc.to)} pour ${money(rc.cost)} au lieu de ${money(rc.cost / (1 - y.cut))}.`)]) : null,
+      ...(list.length > 1 ? [h('div.muted', 'Vos navires usés :'), ...list.slice(0, 4).map(line)] : []),
+    ],
   };
 }
 
@@ -240,6 +354,7 @@ function tenderCard(app, o) {
 // sauter la colonne). Elle reste dépliée si la carte est redessinée pendant le survol.
 const OPEN_DELAY = 140;
 let openKey = null, openTimer = 0;
+let showAll = false; // « +N » : la colonne montre toutes les cartes jusqu'au prochain clic
 
 let lastKey = '';
 export function renderOpps(app) {
@@ -262,17 +377,25 @@ export function renderOpps(app) {
   root.style.width = `${Math.max(372, Math.round(r?.width || 0))}px`;
   let collapsed = false;
   collapsed = readFlag(KEYS.oppsCollapsed, false);
-  const key = `${cid}|${collapsed}|${Math.floor(state.t / 6)}|` + list.map((o) => `${o.key}:${o.open ?? ''}:${o.c?.takenBy ?? ''}:${o.list?.length ?? ''}:${o.t ? `${o.t.left}/${o.t.commits.length}` : ''}`).join(',');
-  root.hidden = !list.length;
+  const muted = Object.keys(co.mutedOpps || {}).filter((k) => co.mutedOpps[k]);
+  const key = `${cid}|${collapsed}|${showAll}|${muted.join('+')}|${Math.floor(state.t / 6)}|` + list.map((o) => `${o.key}:${o.open ?? ''}:${o.c?.takenBy ?? ''}:${o.list?.length ?? ''}:${o.t ? `${o.t.left}/${o.t.commits.length}` : ''}${o.l ? `${o.l.left}/${o.l.commits.length}` : ''}`).join(',');
+  root.hidden = !list.length && !muted.length;
   if (key === lastKey) return;
   lastKey = key;
-  if (!list.length) { root.replaceChildren(); return; }
-  const toggle = () => { writeFlag(KEYS.oppsCollapsed, !collapsed); lastKey = ''; renderOpps(app); };
-  const dismiss = (k) => { const co = state.companies[cid]; (co.dismissedOpps ??= {})[k] = state.t; lastKey = ''; renderOpps(app); };
+  if (!list.length && !muted.length) { root.replaceChildren(); return; }
+  const redraw = () => { lastKey = ''; renderOpps(app); };
+  const toggle = () => { writeFlag(KEYS.oppsCollapsed, !collapsed); redraw(); };
+  const dismiss = (k) => { (co.dismissedOpps ??= {})[k] = state.t; redraw(); };
+  // Masquer un genre (sauvegardé avec la compagnie) ; « Tout réafficher » en bas de la colonne.
+  const mute = (kind) => { (co.mutedOpps ??= {})[kind] = true; redraw(); };
+  const unmute = () => { co.mutedOpps = {}; redraw(); };
+  const shown = showAll ? list : list.slice(0, MAX_CARDS);
+  const hiddenN = list.length - shown.length;
   root.replaceChildren(
     h('button.opps-toggle', { type: 'button', 'data-guide': 'opps', 'aria-expanded': collapsed ? 'false' : 'true', onclick: toggle }, [h('span', `Opportunités (${list.length})`), ' ', h('span', collapsed ? '▴' : '▾')]),
-    ...(collapsed ? [] : list.map((o) => {
-      const k = o.kind === 'golden' ? goldenCard(app, o) : o.kind === 'tender' ? tenderCard(app, o) : o.kind === 'lead' ? leadCard(app, o) : aidCard(app, o);
+    ...(collapsed ? [] : shown.map((o) => {
+      const k = o.kind === 'golden' ? goldenCard(app, o) : o.kind === 'tender' ? tenderCard(app, o) : o.kind === 'lot' ? lotCard(app, o) : o.kind === 'yard' ? yardCard(app, o) : o.kind === 'lead' ? leadCard(app, o) : aidCard(app, o);
+      if (k.more && KIND_NAMES[o.kind]) k.more.push(h('button.opp-mute', { type: 'button', onclick: () => mute(o.kind) }, `Ne plus montrer ${KIND_NAMES[o.kind]}`));
       const card = h('div.opp', { class: `${o.kind}${o.open === false ? ' gone' : ''}${k.more && openKey === o.key ? ' open' : ''}` }, [
         h('div.opp-main', [h('div.opp-head', k.head), ...k.lines.filter(Boolean)]),
         h('div.opp-side', [h('button.opp-close', { type: 'button', 'aria-label': 'Fermer', title: 'Fermer', onclick: () => dismiss(o.key) }, '×'), ...k.actions]),
@@ -284,6 +407,10 @@ export function renderOpps(app) {
       }
       return card;
     })),
+    ...(collapsed ? [] : [
+      hiddenN > 0 || showAll && list.length > MAX_CARDS ? h('button.opps-more', { type: 'button', onclick: () => { showAll = !showAll; redraw(); } }, showAll ? 'Moins' : `+${hiddenN} autres`) : null,
+      muted.length ? h('button.opps-more.muted', { type: 'button', onclick: unmute }, muted.length > 1 ? `${muted.length} genres masqués · Tout réafficher` : '1 genre masqué · Tout réafficher') : null,
+    ].filter(Boolean)),
   );
 }
 

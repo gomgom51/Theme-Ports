@@ -7,7 +7,8 @@ import EN from './i18n/en.js';
 import { COUNTRIES } from './data/countries.js';
 import { FLAGS, PORTS } from './data/ports.js';
 import { CLIENTS } from './data/clients.js';
-import { SHIP_NAMES, CAPTAIN_NAMES } from './data/ships.js';
+import { CAPTAIN_NAMES } from './data/ships.js';
+import { ALL_SHIP_NAMES } from './data/names.js';
 import { KEYS, read, write } from './ui/storage.js';
 
 export const LANGS = { fr: 'Français', en: 'English' };
@@ -118,7 +119,7 @@ function protect(t) {
 }
 const unprotect = (t) => t.replace(/[\uE100-\uEFFF]/g, (c) => nameList[c.charCodeAt(0) - TOKEN0] ?? c);
 for (const C of Object.values(CLIENTS)) addName(C.name);
-for (const n of [...SHIP_NAMES, ...CAPTAIN_NAMES]) addName(n);
+for (const n of [...ALL_SHIP_NAMES, ...CAPTAIN_NAMES]) addName(n);
 
 // ---------- Traduction ----------
 function lookup(t, depth) {

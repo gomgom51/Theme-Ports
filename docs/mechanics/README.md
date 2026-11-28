@@ -21,7 +21,7 @@ It exists so that a new task can start here instead of re-reading 30 simulation 
 | 04 | [economy-market.md](04-economy-market.md) | Goods, world prices, local prices and stocks, freight cycle, fuel, repairs, ship values, running costs, handling | `sim/economy.js`, `data/goods.js` |
 | 05 | [contracts-clients-payments.md](05-contracts-clients-payments.md) | Contract generation and pay formula, golden deals, reservations, shippers (reliability, loyalty, grudges, image), payment resolution and disputes, prospecting | `economy.makeContract`, `sim/clients.js`, `sim/payments.js`, `sim/prospect.js` |
 | 06 | [trade-tenders-finance.md](06-trade-tenders-finance.md) | Buying and selling cargo (quantity slider), city tenders, cargo loans, legacy price floors, intel estimates (best deal, sources, outlets) | `actions.buyCargo/sellCargo`, `sim/trade.js`, `sim/intel.js` |
-| 07 | [ships-crew-equipment.md](07-ships-crew-equipment.md) | 22 ship models, used market, new builds and yards, sale, lay-up, crew levels and XP skills, equipment | `data/ships.js`, `sim/crew.js`, `sim/equipment.js`, `data/equipment.js` |
+| 07 | [ships-crew-equipment.md](07-ships-crew-equipment.md) | 22 ship models, used market, new builds and yards, sale, lay-up, crew levels and XP skills, equipment | `data/ships.js`, `data/names.js`, `sim/crew.js`, `sim/equipment.js`, `data/equipment.js` |
 | 08 | [voyages-routing-ice.md](08-voyages-routing-ice.md) | Planning a voyage, routing and distance tables, canals, the hourly sailing step, arrival sequence, seasonal ice and the Northern Sea Route, standing orders (regular line, captain's choice) | `actions.planVoyage`, `sim/routing.js`, `sim/ice.js`, `game.sailHour/arrive`, `sim/orders.js` |
 | 09 | [sea-risks.md](09-sea-risks.md) | Incidents, sinking, wear, port-state inspections and detention, insurance, pollution, piracy, coastguard patrols, storms | `sim/incidents.js`, `sim/insurance.js`, `sim/pollution.js`, `sim/piracy.js`, `sim/patrols.js`, `sim/events.js` (weather) |
 | 10 | [world-events.md](10-world-events.md) | Random world events (oil shocks, refinery crisis, canals, strikes, recession…) and disasters that spawn aid contracts | `sim/events.js`, `dark.darkDaily` |
@@ -78,7 +78,9 @@ Key cross-links (each is explained in the target file):
 | A port's goods, draft, terminals, repair yard, fees | `web/js/data/ports.js` (then `npm run build:distances` if coordinates change) |
 | A flag's tax / wages / loan rate / rating | `FLAGS` in `web/js/data/ports.js` |
 | Home-port perks (lists, discounts, fines) | `HOME` in `web/js/sim/home.js` |
-| Which countries are embargoed / enforce / are shady | `web/js/data/sanctions.js` |
+| Which countries are embargoed / enforce / are shady, each shady port's gang | `web/js/data/sanctions.js` |
+| Ship names by language, AI company names | `web/js/data/names.js` |
+| Opportunity frequencies (tenders, bargain lots, golden and express deals, yard discounts) | `TENDER`, `LOT` in `sim/trade.js`; `GOLDEN_CHANCE`, `GOLDEN_EXPRESS`, `YARD` in `sim/economy.js` |
 | Freight pay level | `BALLAST`, `BALLAST_HOLD`, `FREIGHT_*`, `CYCLE` in `sim/economy.js` |
 | Trade margins | `SPREAD`, `goodSpread`, `GOODS[].spread` |
 | Bank: credit limit, overdraft, seizure | `creditLimit`/`interestRate` in `sim/core.js`, `checkBank` in `sim/game.js` |

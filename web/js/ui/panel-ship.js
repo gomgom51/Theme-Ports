@@ -8,7 +8,7 @@ import { GOODS, HOLDS, USEFUL_GOODS, OIL_GOODS, isCleanGood } from '../data/good
 import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
 import { shipById, contractById, portName, creditLimit, interestRate, loanOwedAt } from '../sim/core.js';
-import { quoteSellAt, tenderRoom, lenderTerms, FINANCE, financedShare, loanRoom } from '../sim/trade.js';
+import { quoteSellAt, tenderRoom, lenderTerms, FINANCE, financedShare, loanRoom, lotAt, lotRoom, buyableStock } from '../sim/trade.js';
 import { weatherAt } from '../sim/events.js';
 import { pointAlong } from '../sim/routing.js';
 import { CANAL_NAMES } from '../sim/context.js';
@@ -388,13 +388,14 @@ function tradeTab(app, ship) {
     box.append(h('p.muted', `${portName(here)} n'exporte rien que ce navire puisse charger (${T.holds.map((x) => HOLDS[x].toLowerCase()).join(', ')}).`));
     return box;
   }
-  box.append(h('p.hint', 'Achetez une cargaison ici et revendez-la plus cher ailleurs. Les estimations tiennent compte des prix qui retombent pendant le voyage, mais le cours peut encore bouger : c\'est le risque, et la chance, du négoce. Les appels d\'offres des villes (📣) paient un prix fixé d\'avance au premier arrivé. Pas assez de trésorerie ? Les négociants ou les acheteurs avancent une part de la cargaison.'));
+  box.append(h('p.hint', 'Achetez une cargaison ici et revendez-la plus cher ailleurs. Les estimations tiennent compte des prix qui retombent pendant le voyage, mais le cours peut encore bouger : c\'est le risque, et la chance, du négoce. Les appels d\'offres des villes (📣) paient un prix fixé d\'avance au premier arrivé ; un lot soldé (💰) se vend sous le cours, au premier arrivé aussi. Pas assez de trésorerie ? Les négociants ou les acheteurs avancent une part de la cargaison.'));
   for (const g of goods) {
     const G = GOODS[g];
     const hold = eco.holdFor(ship.type, g);
     const fd = familyDiscount(state.companies[ship.owner], here); // famille d'abord : 5 % moins cher chez soi
     const unit = eco.buyPrice(state, here, g) * (1 - fd);
-    const stock = eco.availableStock(state, here, g);
+    const stock = buyableStock(state, here, g); // lot soldé compris (acheté en premier, à son prix)
+    const lot = lotAt(state, here, g);
     const full = Math.floor(Math.min(T.dwt, stock) / 100) * 100;
     // Meilleures destinations pour une cale pleine (appels d'offres compris).
     const dests = [];
@@ -415,6 +416,7 @@ function tradeTab(app, ship) {
         h('div.card-title', [h('span.good-icon', G.icon), G.name, h('span.price-inline', `${money(unit)}/t`), fd ? h('span.tag.good', { title: 'Famille d\'abord : vos achats de marchandises coûtent 5 % de moins à votre port d\'attache.' }, '♥ −5 % chez vous') : null, OIL_GOODS.includes(g) ? h('span.tag.warn', { title: 'Pétrole : chaque départ chargé coûte un peu de vertu (l\'image d\'un transporteur de pétrole).' }, '💚 vertu −') : null]),
         h('div.card-sub', `Stock disponible : ${tonnes(stock)} · cours mondial ${money(G.price * state.market.world[g])}/t`),
         tender ? h('div.card-sub', [h('span.tag.good', '📣 appel d\'offres'), ` ${portName(tender.port)} achète à ${money(tender.unit)}/t jusqu'au ${date(tender.until, true)} (${tonnes(tenderRoom(tender, ship.id))} encore libres).`]) : null,
+        lot ? h('div.card-sub', [h('span.tag.good', '💰 lot soldé'), ` ${tonnes(lot.left)} à ${money(lot.unit)}/t jusqu'au ${date(lot.until, true)}, achetées en premier (le reste au cours).`]) : null,
         dests.length ? h('div.card-sub', ['Meilleure destination : ', h('b', portName(dests[0].p)), isEmbargoed(dests[0].p) ? ' ' : null, isEmbargoed(dests[0].p) ? EMBARGO_TAG() : null, dests[0].tender ? ' 📣' : null, ` (${money(dests[0].unit)}/t, ${days(dests[0].est.totalDays)}) → `, h('b', { class: dests[0].net >= 0 ? 'pos' : 'neg' }, `${money(dests[0].net, true)} pour ${tonnes(dests[0].qty)}`)]) : h('div.card-why', 'Aucun port importateur accessible avec ce navire.'),
         full >= 100 && dests.length ? tradeSlider(app, ship, g, full, dests) : null,
         full < 100 ? h('div.card-why', 'Stock épuisé, revenez plus tard.') : null,
@@ -706,6 +708,8 @@ function portCallTab(app, ship) {
   else {
     const levels = [70, 85, 100].filter((x) => x > ship.condition + 1 && x <= eco.REPAIR_MAX[P.repair]);
     if (P.repair === 1) box.append(h('p.hint', 'Petit chantier : remise en état limitée à 70 %.'));
+    const cut = eco.yardCut(state, here);
+    if (cut) box.append(h('p.hint', [h('span.tag.good', `🔧 −${pct(cut * 100)}`), ' ', h('span', `Chantier en mal de commandes : réparations moins chères jusqu'au ${date(state.yardSale.until, true)}.`)]));
     if (!levels.length) box.append(h('p.muted', 'Le navire est en bon état.'));
     box.append(h('div.chips', levels.map((lv) => {
       const rc = eco.repairCost(state, ship, here, lv);
@@ -896,6 +900,7 @@ function departTab(app, ship) {
           h('input', { type: 'checkbox', checked: autoRefuel, onchange: (e) => { app.form.autoRefuel[ship.id] = e.target.checked; } }),
           ' Faire le plein automatiquement si nécessaire',
         ]),
+        est.error ? null : lotTick(app, ship, dest, est.eta),
         est.error ? null : lineTick(app, ship, dest), // ↻ ligne régulière (équipage à l'expérience maximale)
       ]),
       h('div.card-side', [est.error ? null : h('button.btn.primary', { 'data-guide': 'sail', onclick: () => {
@@ -906,9 +911,10 @@ function departTab(app, ship) {
         if (line && !startLine(app, ship, dest, speed)) { app.refresh(); return; }
         // Le choix de destination est effacé avant de redessiner le panneau : sinon un départ programmé
         // (navire encore en chargement) laissait la carte « Cap sur… » affichée jusqu'au clic suivant.
+        act.setLotBuy(state, ship.id, wantedLot(app, ship, dest, est.eta)); // lot soldé à acheter à l'arrivée (coché)
         const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true), { refresh: false });
-        if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; app.hoverRoute(null); app.setPreview(null); }
-        else if (line) O.takeBack(state, ship.id);
+        if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; delete app.form.lotBuy[ship.id]; app.hoverRoute(null); app.setPreview(null); }
+        else { act.setLotBuy(state, ship.id, null); if (line) O.takeBack(state, ship.id); }
         app.refresh();
       } }, lineWanted(app, ship) ? 'Lancer la ligne' : 'Appareiller')]),
     ]));
@@ -988,6 +994,32 @@ function departTab(app, ship) {
   box.append(destList);
   search.apply(destList);
   return box;
+}
+
+// Lot soldé au port de destination, que ce navire peut charger (cales vides) et atteindre avant la fin.
+function lotFor(state, ship, dest, eta) {
+  if (ship.cargo || ship.dark) return null;
+  return (state.lots || []).find((l) => l.port === dest && l.left > 0 && l.until >= eta && eco.holdFor(ship.type, l.good) && eco.portHandles(dest, eco.holdFor(ship.type, l.good))) || null;
+}
+// Le lot coché (la carte d'opportunité « Y aller » le coche d'avance) : son id, ou null.
+function wantedLot(app, ship, dest, eta) {
+  const lot = lotFor(app.state, ship, dest, eta);
+  return lot && app.form.lotBuy[ship.id] === lot.id ? lot.id : null;
+}
+// « Acheter le lot soldé à l'arrivée » : le navire s'engage au départ (les concurrents le voient venir) et
+// achète comptant en arrivant, s'il en reste. Ce qui sera payé est dit ici, avant de partir (règle n° 1).
+function lotTick(app, ship, dest, eta) {
+  const { state } = app;
+  const lot = lotFor(state, ship, dest, eta);
+  if (!lot) return null;
+  const G = GOODS[lot.good];
+  const qty = Math.floor(Math.min(SHIP_TYPES[ship.type].dwt, lotRoom(lot, ship.id)) / 100) * 100;
+  const rivals = lot.commits.filter((c) => c.shipId !== ship.id).reduce((s, c) => s + c.qty, 0);
+  return h('label.check', [
+    h('input', { type: 'checkbox', checked: app.form.lotBuy[ship.id] === lot.id, onchange: (e) => { app.form.lotBuy[ship.id] = e.target.checked ? lot.id : null; } }),
+    ' ', h('span', `💰 Acheter le lot soldé à l'arrivée : ${tonnes(qty)} de ${G.name.toLowerCase()} à ${money(lot.unit)}/t (≈ ${money(qty * lot.unit)}, comptant)`),
+    rivals ? h('span.muted', ` · ${tonnes(rivals)} déjà promises à des concurrents`) : null,
+  ]);
 }
 
 // ---------- En mer ----------

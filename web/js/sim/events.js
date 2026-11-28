@@ -4,7 +4,9 @@ import { HOURS_PER_DAY, monthOf, clamp, formatDate } from './util.js';
 import { OIL_GOODS } from '../data/goods.js';
 import { news, portName } from './core.js';
 import { haversineNm } from './routing.js';
-import { HOLD_TYPES, FREIGHT_MIN, FREIGHT_MAX } from './economy.js';
+import { HOLD_TYPES, FREIGHT_MIN, FREIGHT_MAX, YARD } from './economy.js';
+import { EMBARGOED } from '../data/sanctions.js';
+import { pct } from './format.js';
 
 const D = HOURS_PER_DAY;
 
@@ -30,7 +32,9 @@ const recentlyBlocked = (state, e) => {
   return Object.entries(EVENT_MEMORY.against).some(([id, list]) => list.includes(e.id) && state.t - (last[id] ?? -1e9) < EVENT_MEMORY.opposite * D);
 };
 
-// Chaque événement modifie l'économie ; certains durent (canal fermé, grève).
+// Chaque événement modifie l'économie ; certains durent (canal fermé, grève). `after` : la fin de
+// l'histoire, annoncée dans les nouvelles quelques semaines plus tard (une tension finit par retomber,
+// une panne par être réparée) ; elle dit ce que fait déjà le marché, qui revient peu à peu à la normale.
 export const EVENTS = [
   {
     id: 'petrole_hausse', weight: 3,
@@ -39,6 +43,7 @@ export const EVENTS = [
       state.market.world.brut *= f; state.market.world.raffines *= 1 + (f - 1) * 0.85;
       return { title: 'Le pétrole s\'envole', text: `Tensions au Moyen-Orient : le baril prend ${Math.round((f - 1) * 100)} %. Le fuel suit.` };
     },
+    after: { days: [30, 60], text: 'Le calme revient au Moyen-Orient : le marché pétrolier se détend.' },
   },
   {
     id: 'petrole_baisse', weight: 3,
@@ -54,6 +59,7 @@ export const EVENTS = [
       state.market.fuelPremium *= rng.range(1.12, 1.25);
       return { title: 'Panne de raffineries', text: 'Plusieurs raffineries à l\'arrêt : le fuel marine se raréfie et son prix grimpe.' };
     },
+    after: { days: [14, 30], text: 'Les raffineries en panne redémarrent : le prix du fuel marine se détend peu à peu.' },
   },
   {
     // Crise mondiale du raffinage : pendant deux à quatre semaines, plus aucun contrat ni appel d'offres
@@ -87,6 +93,7 @@ export const EVENTS = [
       state.market.freight.vrac *= rng.range(0.88, 0.95);
       return { title: 'Sécheresse', text: 'Mauvaises récoltes dans plusieurs pays : le prix des céréales grimpe.' };
     },
+    after: { days: [60, 120], text: 'Les pluies sont revenues : les prochaines récoltes de céréales s\'annoncent normales.' },
   },
   {
     id: 'chine_relance', weight: 2,
@@ -110,6 +117,7 @@ export const EVENTS = [
       state.market.world.acier *= rng.range(1.15, 1.3);
       return { title: 'Flambée de l\'acier', text: 'L\'acier coûte plus cher : les réparations navales aussi.' };
     },
+    after: { days: [45, 90], text: 'Le prix de l\'acier se stabilise : les chantiers retrouvent leurs tarifs habituels.' },
   },
   {
     id: 'boom_conteneurs', weight: 2,
@@ -149,10 +157,11 @@ export const EVENTS = [
     possible: (state) => !state.canals.suez?.closed,
     run(state, rng) {
       const days = rng.int(6, 28);
-      state.canals.suez = { closed: true, until: state.t + days * D };
+      const why = rng.pick(Object.keys(SUEZ_CAUSES));
+      state.canals.suez = { closed: true, until: state.t + days * D, why }; // la réouverture finira la même histoire
       state.market.freight.liquide *= 1.12; state.market.freight.conteneurs *= 1.1;
-      const cause = rng.pick(['un porte-conteneurs échoué en travers du chenal', 'des tensions militaires en mer Rouge', 'un accident dans le chenal']);
-      return { title: 'Canal de Suez fermé', text: `Le canal de Suez est fermé pour environ ${days} jours (${cause}). Les navires qui l'atteignent devront attendre, les autres passeront par le cap de Bonne-Espérance.`, variant: /militaires/.test(cause) ? 'tension' : null };
+      const cause = SUEZ_CAUSES[why][0];
+      return { title: 'Canal de Suez fermé', text: `Le canal de Suez est fermé pour environ ${days} jours (${cause}). Les navires qui l'atteignent devront attendre, les autres passeront par le cap de Bonne-Espérance.`, variant: why === 'tensions' ? 'tension' : null };
     },
   },
   {
@@ -176,14 +185,40 @@ export const EVENTS = [
   },
 ];
 
+// Chantier en mal de commandes : la remise s'annonce dans les nouvelles ; la carte d'opportunité n'apparaît
+// qu'aux compagnies qui ont un navire usé capable d'y entrer (ui/opps.js). Un seul chantier à la fois.
+export function yardDaily(state, rng) {
+  if (state.yardSale && state.yardSale.until <= state.t) {
+    news(state, `Le chantier de ${portName(state.yardSale.port)} a de nouveau des commandes : fin des réparations à prix cassés.`, { kind: 'event' });
+    state.yardSale = null;
+  }
+  if (state.yardSale || !rng.chance(YARD.chance)) return;
+  const ports = PORT_IDS.filter((p) => PORTS[p].repair >= 2 && !EMBARGOED[PORTS[p].flag] && !PORTS[p].ice);
+  const port = rng.pick(ports);
+  const cut = Math.round(rng.range(YARD.cut[0], YARD.cut[1]) * 100) / 100;
+  const until = Math.round(state.t + rng.int(YARD.days[0], YARD.days[1]) * D);
+  state.yardSale = { id: state.nextId++, port, cut, until };
+  news(state, `Chantier en mal de commandes : ${portName(port)} répare les navires ${pct(cut * 100)} moins cher jusqu'au ${formatDate(until, true)}.`, { kind: 'event' });
+}
+
+// Fermeture du canal de Suez : la cause annoncée, puis la réouverture qui va avec.
+const SUEZ_CAUSES = {
+  echoue: ['un porte-conteneurs échoué en travers du chenal', 'Le porte-conteneurs échoué a été dégagé : le canal de Suez est rouvert à la navigation.'],
+  tensions: ['des tensions militaires en mer Rouge', 'Les tensions en mer Rouge retombent : le canal de Suez est rouvert à la navigation.'],
+  accident: ['un accident dans le chenal', 'Le chenal est dégagé après l\'accident : le canal de Suez est rouvert à la navigation.'],
+};
+
 export function dailyEvents(state, rng) {
   // Fin des événements durables.
   for (const [c, ev] of Object.entries(state.canals)) {
     if (ev && ev.until <= state.t) {
       delete state.canals[c];
-      news(state, c === 'suez' ? 'Le canal de Suez est rouvert à la navigation.' : 'Le canal de Panama retrouve son tirant d\'eau normal.', { kind: 'event' });
+      news(state, c === 'suez' ? SUEZ_CAUSES[ev.why]?.[1] || 'Le canal de Suez est rouvert à la navigation.' : 'Les pluies ont remonté le lac Gatún : le canal de Panama retrouve son tirant d\'eau normal.', { kind: 'event' });
     }
   }
+  // Fins d'histoires annoncées (`after` des événements).
+  for (const f of (state.followUps || []).filter((x) => x.t <= state.t)) news(state, f.text, { kind: 'event' });
+  state.followUps = (state.followUps || []).filter((x) => x.t > state.t);
   for (const [p, until] of Object.entries(state.strikes)) {
     if (until <= state.t) { delete state.strikes[p]; news(state, `Fin de la grève à ${portName(p)}.`, { kind: 'event' }); }
   }
@@ -199,6 +234,7 @@ export function dailyEvents(state, rng) {
     const ev = rng.weighted(list.map((e) => [e, e.weight]));
     const r = ev.run(state, rng);
     (state.lastEvents ??= {})[ev.id] = state.t;
+    if (ev.after) state.followUps.push({ t: Math.round(state.t + rng.int(ev.after.days[0], ev.after.days[1]) * D), text: ev.after.text });
     for (const h of HOLD_TYPES) state.market.freight[h] = clamp(state.market.freight[h], FREIGHT_MIN, FREIGHT_MAX);
     state.market.cycle = clamp(state.market.cycle, -0.45, 0.45);
     news(state, `${r.title} — ${r.text}`, { kind: 'event' });

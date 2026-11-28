@@ -16,7 +16,7 @@
 import { shadowHome, homeOf } from './home.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
-import { SHADY_PORTS } from '../data/sanctions.js';
+import { SHADY_PORTS, GANGS } from '../data/sanctions.js';
 import { book, news, changeReputation, changeVirtue, portName, shipLog, shipById, companyOf, costStat, removeShip, repCap, lastTrip } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import * as eco from './economy.js';
@@ -61,6 +61,8 @@ export const DARK_IDS = Object.keys(DARK_KINDS);
 // Port de l'ombre : les gangs de chez vous vous connaissent déjà.
 export const trustAt = (company, port) => Math.max(company?.trust?.[port] || 0, shadowHome(company, port) ? DARK.trust : 0);
 export const darkPort = (port) => isEmbargoed(port) && SHADY_PORTS.includes(port);
+// Le gang du port, toujours le même (data/sanctions.js), au milieu d'une phrase : « aux mains de la Brigade de Tsemes ».
+export const gangName = (port) => GANGS[port] || 'la pègre locale';
 export function addTrust(company, port) {
   if (!darkPort(port)) return;
   (company.trust ??= {})[port] = trustAt(company, port) + 1;
@@ -90,7 +92,7 @@ export function maybeDarkOffer(state, ctx, rng, ship, port, notes, note) {
   (company.darkOfferAt ??= {})[port] = state.t;
   if (company.human) {
     const n0 = notes.length;
-    note(state, notes, 'darkoffer', ship, `À ${portName(port)}, les contacts du ${ship.name} proposent une « vraie » affaire : ${DARK_KINDS[o.kind].name.toLowerCase()} pour ${portName(o.to)}, ${money(o.pay)}.`);
+    note(state, notes, 'darkoffer', ship, `À ${portName(port)}, ${gangName(port)} propose au ${ship.name} une « vraie » affaire : ${DARK_KINDS[o.kind].name.toLowerCase()} pour ${portName(o.to)}, ${money(o.pay)}.`);
     if (notes.length > n0) notes[n0].offer = o;
     return o;
   }
@@ -149,10 +151,10 @@ export function seize(state, rng, ship, by, notes = null, note = null, caught = 
   const text = by === 'justice'
     ? (caught ? `La justice de ${portName(port)} confisque le ${ship.name} (${company.name}) après la découverte de sa cargaison. Caution pour le récupérer : ${money(ransom)}.` : `La justice de ${portName(port)} confisque le ${ship.name} (${company.name}). Caution pour le récupérer : ${money(ransom)}.`)
     : kind === 'ship'
-      ? `À ${portName(port)}, des hommes armés s'emparent du ${ship.name} (${company.name}) et de son équipage. Ils réclament ${money(ransom)}.`
-      : `À ${portName(port)}, des hommes armés enlèvent l'équipage du ${ship.name} (${company.name}). Ils réclament ${money(ransom)}.`;
+      ? `À ${portName(port)}, les hommes de ${gangName(port)} s'emparent du ${ship.name} (${company.name}) et de son équipage. Ils réclament ${money(ransom)}.`
+      : `À ${portName(port)}, les hommes de ${gangName(port)} enlèvent l'équipage du ${ship.name} (${company.name}). Ils réclament ${money(ransom)}.`;
   news(state, text, { company: company.id, kind: 'disaster' });
-  shipLog(state, ship, by === 'justice' ? `Confisqué par la justice à ${portName(port)}` : kind === 'ship' ? `Pris par un gang à ${portName(port)}` : `Équipage enlevé à ${portName(port)}`);
+  shipLog(state, ship, by === 'justice' ? `Confisqué par la justice à ${portName(port)}` : kind === 'ship' ? `Pris par ${gangName(port)} à ${portName(port)}` : `Équipage enlevé par ${gangName(port)} à ${portName(port)}`);
   if (company.human) {
     if (notes && note) { const n0 = notes.length; note(state, notes, 'seized', ship, text); if (notes.length > n0) notes[n0].seized = { ...ship.seized }; }
   } else resolveSeized(state, null, rng, ship.id, company.cash > ransom * 2 ? 'payer' : 'abandonner');
@@ -187,7 +189,7 @@ export function resolveSeized(state, ctx, rng, shipId, choice) {
     return { ok: true, abandoned: 'crew' };
   }
   if (s.by === 'gang') changeVirtue(company, -8, 'affaires noires');
-  news(state, s.by === 'justice' ? `${company.name} abandonne le ${ship.name}, confisqué à ${portName(s.port)}.` : `${company.name} abandonne le ${ship.name} aux mains d'un gang à ${portName(s.port)}.`, { company: company.id, kind: 'disaster' });
+  news(state, s.by === 'justice' ? `${company.name} abandonne le ${ship.name}, confisqué à ${portName(s.port)}.` : `${company.name} abandonne le ${ship.name} aux mains de ${gangName(s.port)} à ${portName(s.port)}.`, { company: company.id, kind: 'disaster' });
   removeShip(state, ctx, ship, 'abandonné');
   return { ok: true, abandoned: 'ship' };
 }
@@ -258,8 +260,11 @@ const AFTERMATH = {
   armes_colis: ['Explosion meurtrière à {p} : les enquêteurs parlent d\'un engin fabriqué avec du matériel arrivé récemment.'],
   medicaments: ['{p} : des médicaments contrefaits retrouvés en pharmacie, plusieurs malades hospitalisés.'],
 };
+// Terminaux isolés (gaz, pétrole, base arctique) : pas de ville où une rue, une pharmacie ou un quartier
+// subirait les suites d'une livraison ; ces nouvelles n'y ont pas de sens (règle « les lieux collent »).
+const NO_TOWN = new Set(['sabetta', 'prudhoe_bay', 'nome', 'churchill', 'ras_laffan', 'ras_tanura']);
 export function scheduleAftermath(state, rng, company, port, nature, dark = false) {
-  if (!nature || nature === 'rien' || (!dark && !rng.chance(0.7))) return;
+  if (!nature || nature === 'rien' || NO_TOWN.has(port) || (!dark && !rng.chance(0.7))) return;
   const key = dark ? nature : AFTERMATH[`${nature}_colis`] ? `${nature}_colis` : nature;
   (state.aftermath ??= []).push({ due: state.t + rng.int(dark ? 6 : 5, dark ? 18 : 14) * D, port, key, text: rng.pick(AFTERMATH[key]), company: company.id, delivered: state.t, dark });
 }

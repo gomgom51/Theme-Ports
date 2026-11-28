@@ -11,7 +11,7 @@ import {
   changeTrust, changeVirtue, earnVirtue, slowVirtue, VIRTUE_SOURCES, standing, createShip, shipLog, portName, removeShip, contractById, pickShipName, costStat,
   shipTrack, shipBook, lastTrip, activityOf,
 } from './core.js';
-import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
+import { dailyEvents, dailyStorms, moveStorms, weatherAt, yardDaily } from './events.js';
 import { aiShipIdle, aiDaily } from './ai.js';
 import { ordersHour, ordersDaily, onOrders } from './orders.js';
 import { pointAlong } from './routing.js';
@@ -67,6 +67,7 @@ export function newGame(opts, ctx) {
     market, ports,
     companies: [], ships: [], contracts: [], used: [], orders: [],
     storms: [], canals: {}, strikes: {}, news: [], over: null, payments: [], receivables: [],
+    lots: [], yardSale: null, followUps: [], // lots soldés (trade.js), chantier en mal de commandes et fins d'histoires (events.js)
   };
   const diff = DIFFICULTIES[state.settings.difficulty];
   // Tempérament de chaque IA : le chemin de victoire qu'elle poursuit (variés dans une même partie).
@@ -91,7 +92,7 @@ export function newGame(opts, ctx) {
       id: i, name: c.name, captain: c.captain || '', color: c.color || COMPANY_COLORS[i], logo: c.logo || COMPANY_LOGOS[i], human: !!c.human,
       homePort: c.homePort, flag, cash: diff.cash, debt: 0,
       reputation: Math.round(FLAGS[flag].rating * 0.5 + 25), confidence: Math.round(FLAGS[flag].rating * 0.5 + 25), virtue: Math.round(FLAGS[flag].rating * 0.5 + 25),
-      portsServed: [c.homePort], delivered: 0, late: 0, bankrupt: false, lowCashDays: 0,
+      portsServed: [c.homePort], delivered: 0, late: 0, bankrupt: false, lowCashDays: 0, mutedOpps: {},
       month: emptyBook(), lastMonth: emptyBook(), total: emptyBook(), history: [],
       // Certaines compagnies de l'ordinateur sont « audacieuses » : elles prennent des colis discrets.
       ai: c.human ? null : { skill: diff.aiSkill, nextFleet: rng.int(1, 5) * D, daring: leaning === 'ombre' || (leaning !== 'vertueux' && rng.chance(0.5)), leaning },
@@ -125,7 +126,7 @@ function makeListing(state, rng, port, typeId, ageRange, condRange) {
   const price = Math.round((eco.shipValue(state, fake) * rng.range(0.92, 1.08)) / 10000) * 10000;
   return {
     id: state.nextId++, type: typeId, age: Math.round(age * 10) / 10, condition, port, price,
-    name: pickShipName(state, rng), until: state.t + rng.int(20, 45) * D,
+    name: pickShipName(state, rng, PORTS[port].flag), until: state.t + rng.int(20, 45) * D, // nom de la langue du port
   };
 }
 
@@ -228,6 +229,7 @@ function portHour(state, ctx, rng, ship, notes) {
       return;
     }
     const labels = { chargement: 'a terminé son chargement', 'déchargement': 'a terminé son déchargement', 'réparation': 'est réparé', 'réarmement': 'est réarmé', 'détention': 'est remis en état et libéré par les inspecteurs', saisie: 'est libéré par la douane', installation: 'a son nouvel équipement', retenue: 'est enfin autorisé à repartir', otages: 'est libéré par ses ravisseurs', 'confisqué': 'est rendu par la justice', recrutement: 'a un nouvel équipage' };
+    if (what !== 'chargement' && lotOnArrival(state, ctx, ship, notes)) return; // libéré : le lot soldé l'attendait
     familyContract(state, ctx, rng, ship); // famille d'abord : un contrat l'attend chez lui
     note(state, notes, 'idle', ship, `Le ${ship.name} ${labels[what] || 'est prêt'} à ${portName(ship.port)}.`);
   }
@@ -499,10 +501,20 @@ function arrive(state, ctx, ship, notes, rng) {
     act.startBusy(state, ship, 'retenue', ship.heldBogus.hours);
     ship.lawyer = ship.heldBogus.lawyer;
     ship.heldBogus = null;
-  } else {
+  } else if (!lotOnArrival(state, ctx, ship, notes)) {
     familyContract(state, ctx, rng, ship);
     note(state, notes, 'idle', ship, `Le ${ship.name} est arrivé à ${portName(to)}.`);
   }
+}
+
+// Lot soldé choisi au départ : le navire libre l'achète à l'arrivée (ou dit pourquoi il n'a pas pu).
+// Vrai s'il charge (il est occupé : pas de contrat de la famille, pas d'appel « en attente d'ordres »).
+function lotOnArrival(state, ctx, ship, notes) {
+  const msg = act.buyLotOnArrival(state, ctx, ship);
+  if (!msg) return false;
+  const loading = ship.busyWhat === 'chargement';
+  note(state, notes, loading ? 'lotBought' : 'idle', ship, msg);
+  return loading;
 }
 
 function deliverContract(state, ship, rng, notes) {
@@ -625,6 +637,7 @@ function daily(state, ctx, rng, notes) {
   const ev = dailyEvents(state, rng);
   if (ev) notes.push({ kind: 'event', id: ev.id, variant: ev.variant || null, title: ev.title, body: ev.text, text: `${ev.title} — ${ev.text}` });
   dailyStorms(state, rng);
+  yardDaily(state, rng); // chantier en mal de commandes : réparations à prix cassés
   eco.refreshContracts(state, ctx, rng);
   refreshOffers(state, ctx, rng);
   dailyReceivables(state, notes);

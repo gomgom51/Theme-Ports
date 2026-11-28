@@ -1,10 +1,17 @@
 # 07 · Ships, fleet, crew, equipment
 
-Files: `data/ships.js` (`SHIP_TYPES`, `CREW_LEVELS`, `CREW_DAY_COST`, `SHIP_NAMES`),
+Files: `data/ships.js` (`SHIP_TYPES`, `CREW_LEVELS`, `CREW_DAY_COST`, `SHIP_NAMES`), `data/names.js` (names by language),
 `game.refreshUsedMarket/makeListing/deliverOrder`, `actions.buyUsedShip/orderNewShip/sellShip/
 layUp/reactivate/setCrew/repair/renameShip`, `sim/crew.js`, `sim/equipment.js`, `data/equipment.js`,
 `data/sanctions.js` (`CONCEALMENT`). Ship sheet UI: `ui/panel-ship.js`, radar card `ui/radar.js`, pros and
 cons `ui/shiproles.js`.
+
+Names (`pickShipName(state, rng, flag)` in `core.js`): a name carried by no ship and no broker listing, from the pool
+of the owner's flag language (`SHIP_NAME_POOLS`: French, English, Spanish, Portuguese, Dutch/German/Polish, Russian,
+Greek, Italian, Turkish, Arabic, Persian, Chinese, Japanese, Korean, Malay/Indonesian), the listing port's flag for a
+broker listing; then the French pool, then a numbered name. A bought listing or an absorbed fleet never brings a
+second ship of the same name into a fleet (`fleetName`: « II », « III »…). Every pool is registered as untranslatable
+names (`ALL_SHIP_NAMES` in `i18n.js`).
 
 ## The 22 models
 

@@ -69,7 +69,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   shippers (`RESERVE_*`, `DENOUNCE_HIT`, `AI_DENOUNCE`, `GRUDGE_DAYS`, `GRATITUDE`,
   `clientDemand`) in `web/js/sim/clients.js`; shady deals (`PIRATE_*`, `HELD_CHANCE`,
   `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`;
-  per-goods trade spread `goodSpread` and `GOLDEN_CHANCE` in `economy.js`; crew skill
+  per-goods trade spread `goodSpread`, `GOLDEN_CHANCE` and express golden deals `GOLDEN_EXPRESS`, yard discounts `YARD` in `economy.js`; crew skill
   effects and `XP_STEPS` in `web/js/sim/crew.js`, crew levels (`CREW_LEVELS`: wage, safety, `fight`, the free fourth
   level unlocked by the Vieux briscards skill) in `web/js/data/ships.js`; ice (`ICE`: announcement delay,
   ice-class extension, icebreaker escort fees, end-of-season contract premium,
@@ -77,7 +77,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   ports in `web/js/data/ports.js`, `ICE_PASSAGES`), Arctic fee `CANAL_FEE.nsr` in `economy.js`;
   dark jobs and pro bono (`DARK`, `DARK_KINDS` pay/infamy, `CHARITY`) in `web/js/sim/dark.js`,
   infamy reputation cap `repCap` in `web/js/sim/core.js`; city tenders (`TENDER`: frequency, premium as a multiple of
-  the good's natural spread with a floor and a cap, quantity, duration) and cargo financing (`FINANCE`: share lent and rate per port profile, destination bonus, track record,
+  the good's natural spread with a floor and a cap, quantity, duration), bargain lots (`LOT`: the reverse, a discount at
+  about half a tender's premium, shorter and smaller) and cargo financing (`FINANCE`: share lent and rate per port profile, destination bonus, track record,
   60-day term, late and early-repayment fees, exposure cap = half the net worth) in `web/js/sim/trade.js`; AI opportunity
   cost of cash locked in cargo `AI_CAPITAL_COST` and the largest possible embargo fine it accepts `EMBARGO_FINE_MAX`
   (share of net worth) in `web/js/sim/ai.js`; prospecting for shippers (`PROSPECT`: duration,

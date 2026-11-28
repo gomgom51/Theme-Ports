@@ -15,7 +15,7 @@ import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { HOURS_PER_DAY } from './util.js';
 import * as eco from './economy.js';
-import { tenderAt, tenderRoom, quoteSellAt } from './trade.js';
+import { tenderAt, tenderRoom, quoteSellAt, lotAt, lotRoom, buyableStock } from './trade.js';
 import { imageFactor } from './clients.js';
 import { familyDiscount } from './home.js';
 import { bannedUntil } from './pollution.js';
@@ -55,9 +55,15 @@ export function legEstimate(state, ctx, ship, from, to, { qty = 0, hold = null }
 }
 
 // Prix d'achat d'une quantité (manutention comprise), aujourd'hui ou à l'arrivée dans `days` jours.
-function buyUnit(state, company, port, g, qty, hold, days, arrival) {
-  const q = arrival && days > 0 ? eco.quoteTradeAt(state, port, g, qty, 'buy', days) : eco.quoteTrade(state, port, g, qty, 'buy');
-  return q.avg * (1 - familyDiscount(company, port)) + (eco.HANDLING_COST[hold] || 0);
+// Lot soldé dans ce port (encore ouvert à l'arrivée) : sa part au prix soldé, comme à l'achat (quoteBuy) ;
+// avec opts.arrival, sans la part promise aux navires déjà en route.
+function buyUnit(state, company, port, g, qty, hold, days, arrival, shipId = null) {
+  const lot = lotAt(state, port, g);
+  const part = lot && state.t + days * D <= lot.until ? Math.min(qty, arrival ? lotRoom(lot, shipId) : lot.left) : 0;
+  const rest = qty - part;
+  const q = rest <= 0 ? { avg: 0 } : arrival && days > 0 ? eco.quoteTradeAt(state, port, g, rest, 'buy', days) : eco.quoteTrade(state, port, g, rest, 'buy');
+  const total = q.avg * rest * (1 - familyDiscount(company, port)) + (part ? part * lot.unit : 0);
+  return total / qty + (eco.HANDLING_COST[hold] || 0);
 }
 
 // Contrats de fret que ce navire peut aller prendre (ici ou ailleurs), du plus rentable par jour au moins rentable.
@@ -107,7 +113,7 @@ export function bestSources(state, ctx, cid, good, port, n = 3, opts = {}) {
     const room = tender ? (opts.arrival ? tenderRoom(tender, ship.id) : tender.left) : Infinity;
     for (const p of PORT_IDS) {
       if (p === port || !eco.portHandles(p, hold)) continue;
-      const stock = eco.availableStock(state, p, good);
+      const stock = buyableStock(state, p, good);
       if (stock < 100) continue;
       const qty = Math.floor(Math.min(T.dwt, stock, room) / 100) * 100;
       if (qty < 100) continue;
@@ -117,7 +123,7 @@ export function bestSources(state, ctx, cid, good, port, n = 3, opts = {}) {
       if (!leg) continue;
       const toSource = at.wait + rep.days, days = toSource + leg.days;
       if (tender && state.t + days * D > tender.until) continue;
-      const unit = buyUnit(state, company, p, good, qty, hold, toSource, opts.arrival);
+      const unit = buyUnit(state, company, p, good, qty, hold, toSource, opts.arrival, ship.id);
       const sale = opts.arrival ? quoteSellAt(state, port, good, qty, days, ship.id).avg
         : tender ? tender.unit : eco.quoteTrade(state, port, good, qty, 'sell').avg;
       const sell = sale - (eco.HANDLING_COST[hold] || 0);
@@ -134,13 +140,13 @@ export function bestSources(state, ctx, cid, good, port, n = 3, opts = {}) {
 
 // Meilleurs débouchés pour `qty` t d'une marchandise achetée au port où se trouve le navire, achat compris :
 // n ports, du plus rentable au moins rentable. Chaque entrée : { port, unit (vente, $/t), days, net, tender (t
-// payées au prix de l'appel d'offres) }.
+// payées au prix de l'appel d'offres) }. opts.at : { port, wait } pour acheter ailleurs (un lot soldé).
 export function bestOutlets(state, ctx, ship, good, qty, n = 3, opts = {}) {
-  const at = freeAt(state, ship);
+  const at = opts.at || freeAt(state, ship);
   const hold = eco.holdFor(ship.type, good);
   if (!at || !hold || qty < 100) return [];
   const company = state.companies[ship.owner];
-  const cost = buyUnit(state, company, at.port, good, qty, hold, at.wait, opts.arrival) * qty;
+  const cost = buyUnit(state, company, at.port, good, qty, hold, at.wait, opts.arrival, ship.id) * qty;
   const out = [];
   for (const p of PORT_IDS) {
     if (p === at.port || !(PORTS[p].imp[good] > 0) || !eco.portHandles(p, hold)) continue;
@@ -176,6 +182,30 @@ export function tenderLeads(state, ctx, ship, opts = {}) {
   return out;
 }
 
+// Lot soldé : le navire de la compagnie `cid` le plus proche qui peut aller l'acheter à temps (cales vides,
+// cale adaptée, port accessible), et ses meilleurs débouchés (n), trajet à vide jusqu'au lot compris.
+// Null si aucun navire ne peut y être avant la fin. { ship, toLot (jours), qty, outlets: [{ port, days, net… }] }.
+export function lotPlan(state, ctx, cid, lot, n = 3, opts = {}) {
+  let best = null;
+  for (const ship of state.ships) {
+    if (ship.owner !== cid || ship.cargo || ship.dark) continue;
+    const hold = eco.holdFor(ship.type, lot.good);
+    const at = freeAt(state, ship);
+    if (!hold || !at || !eco.portHandles(lot.port, hold)) continue;
+    const rep = legEstimate(state, ctx, ship, at.port, lot.port);
+    if (!rep) continue;
+    const toLot = at.wait + rep.days;
+    if (state.t + toLot * D > lot.until || (best && toLot >= best.toLot)) continue;
+    best = { ship, toLot, cost: rep.cost };
+  }
+  if (!best) return null;
+  const room = opts.arrival ? lotRoom(lot, best.ship.id) : lot.left;
+  const qty = Math.floor(Math.min(SHIP_TYPES[best.ship.type].dwt, room) / 100) * 100;
+  const outlets = qty < 100 ? [] : bestOutlets(state, ctx, best.ship, lot.good, qty, n, { ...opts, at: { port: lot.port, wait: best.toLot } })
+    .map((o) => ({ ...o, net: o.net - best.cost, perDay: (o.net - best.cost) / Math.max(1, o.days) }));
+  return { ship: best.ship, toLot: best.toLot, qty, outlets };
+}
+
 // La meilleure affaire à portée de ce navire, par bénéfice par jour : contrat (affaire en or comprise),
 // appel d'offres (en allant acheter la marchandise) ou négoce depuis le port où il se trouve.
 export function bestOpportunity(state, ctx, ship, opts = {}) {
@@ -192,7 +222,7 @@ export function bestOpportunity(state, ctx, ship, opts = {}) {
       const T = SHIP_TYPES[ship.type];
       for (const g of Object.keys(PORTS[at.port].exp)) {
         if (!eco.holdFor(ship.type, g)) continue;
-        const qty = Math.floor(Math.min(T.dwt, eco.availableStock(state, at.port, g)) / 100) * 100;
+        const qty = Math.floor(Math.min(T.dwt, buyableStock(state, at.port, g)) / 100) * 100;
         const o = bestOutlets(state, ctx, ship, g, qty, 1, opts)[0];
         if (o) cands.push({ kind: 'trade', port: at.port, to: o.port, good: g, qty, toPort: at.wait, days: o.days, profit: o.net, perDay: o.perDay });
       }

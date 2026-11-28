@@ -36,6 +36,10 @@ function fillDefaults(state) {
   state.spills ??= [];
   state.offers ??= [];
   state.cases ??= [];
+  state.lots ??= []; // lots soldés (sim/trade.js)
+  state.yardSale ??= null; // chantier en mal de commandes (sim/events.js)
+  state.followUps ??= []; // fins d'histoires des événements (sim/events.js)
+  for (const c of state.contracts) c.express ??= false; // affaire en or express
   state.market.cycle ??= 0;
   const logos = ['ancre', 'phare', 'barre', 'rose']; // les emblèmes de l'époque (avant le choix du logo)
   state.companies.forEach((c, i) => {
@@ -43,9 +47,10 @@ function fillDefaults(state) {
     standing(c); // confiance et vertu
     c.bans ??= {};
     c.insurance ??= 'complete';
+    c.mutedOpps ??= {}; // genres d'opportunités masqués (ui/opps.js)
     if (c.ai && !c.ai.leaning) c.ai.leaning = AI_LEANINGS[c.id % AI_LEANINGS.length];
   });
-  for (const s of state.ships) { s.orders ??= null; s.captainLimits ??= null; } // ordres permanents (sim/orders.js)
+  for (const s of state.ships) { s.orders ??= null; s.captainLimits ??= null; s.lotBuy ??= null; } // ordres permanents (sim/orders.js), lot soldé à acheter
   for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
   for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
   for (const p of PORT_IDS) {

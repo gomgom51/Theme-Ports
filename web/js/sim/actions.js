@@ -14,7 +14,7 @@ import { bannedUntil } from './pollution.js';
 import { taintShip, isEmbargoed } from './shady.js';
 import { equipMod } from './equipment.js';
 import { clientRefusal, imageFactor } from './clients.js';
-import { lenderTerms, openLoan, settleLoan, tenderShare, deliverTender, commitOnDeparture, FINANCE, financedShare } from './trade.js';
+import { lenderTerms, openLoan, settleLoan, tenderShare, deliverTender, commitOnDeparture, FINANCE, financedShare, lotShare, takeLot, lotById, commitLot, buyableStock } from './trade.js';
 import { skillSpeed, skillHandling, rank, MAX_RANK } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 import { onTradeSale } from './honours.js';
@@ -176,6 +176,7 @@ function launch(state, ctx, ship, plan) {
   st.n++;
   if (ship.cargo || ship.dark) st.nmL += p.nm; else st.nmB += p.nm;
   commitOnDeparture(state, ship, plan.to, p.eta); // appel d'offres à destination : l'engagement s'annonce
+  commitLot(state, ship, plan.to, p.eta); // lot soldé à destination, choisi au départ : idem
   // Pétrole : l'image d'un transporteur de pétrole se paie au départ, une fois par cargaison.
   if (ship.cargo && OIL_GOODS.includes(ship.cargo.good) && !ship.cargo.oilShame) {
     ship.cargo.oilShame = true;
@@ -198,6 +199,7 @@ export function depart(state, ctx, shipId, to, speed, autoRefuel = true) {
   if (ship.busyWhat) {
     ship.plan = plan;
     commitOnDeparture(state, ship, to, p.eta + Math.max(0, (ship.busyUntil || state.t) - state.t)); // s'engage dès la décision
+    commitLot(state, ship, to, p.eta + Math.max(0, (ship.busyUntil || state.t) - state.t));
     return { ok: true, queued: true, plan: p };
   }
   return launch(state, ctx, ship, plan);
@@ -316,9 +318,14 @@ export function abandonContract(state, shipId) {
 
 // ---------- Négoce ----------
 export function quoteBuy(state, ship, good, qty) {
-  const q0 = eco.quoteTrade(state, ship.port, good, qty, 'buy');
+  // Lot soldé dans ce port : sa part au prix fixe, hors marché (le cours n'en bouge pas) ; le reste au cours.
+  const share = lotShare(state, ship.port, good, qty);
+  const marketQty = qty - (share?.qty || 0);
+  const q0 = marketQty > 0 ? eco.quoteTrade(state, ship.port, good, marketQty, 'buy') : { avg: 0, total: 0, delta: 0 };
   const k = 1 - familyDiscount(state.companies[ship.owner], ship.port); // famille d'abord : 5 % moins cher chez soi
-  const q = { ...q0, avg: q0.avg * k, total: q0.total * k, family: k < 1 };
+  const total = q0.total * k + (share ? share.qty * share.lot.unit : 0);
+  const lot = share ? { id: share.lot.id, qty: share.qty, unit: share.lot.unit } : null;
+  const q = { ...q0, avg: qty > 0 ? total / qty : 0, total, family: k < 1 && marketQty > 0, lot, marketQty };
   const hold = eco.holdFor(ship.type, good);
   const handling = qty * (eco.HANDLING_COST[hold] || 0);
   return { ...q, handling, total: q.total + handling, hold };
@@ -339,7 +346,7 @@ export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
   if (!eco.portHandles(ship.port, hold)) return fail('Le port ne peut pas charger ce type de cargaison.');
   if (ship.cargo && (ship.cargo.contractId || ship.cargo.good !== good)) return fail('Les cales contiennent déjà une autre cargaison.');
   const onboard = ship.cargo ? ship.cargo.qty : 0;
-  qty = Math.floor(Math.min(qty, T.dwt - onboard, eco.availableStock(state, ship.port, good)) / 100) * 100;
+  qty = Math.floor(Math.min(qty, T.dwt - onboard, buyableStock(state, ship.port, good)) / 100) * 100;
   if (qty <= 0) return fail('Plus de place à bord ou plus de stock disponible.');
   const q = quoteBuy(state, ship, good, qty);
   let terms = null;
@@ -354,7 +361,8 @@ export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
   }
   const down = terms ? q.total - Math.round((q.total * terms.share) / 1000) * 1000 : q.total;
   if (down > company.cash) return fail(terms ? `Il faut ${money(down)} d'apport pour cet achat.` : `Il faut ${money(q.total)} pour cet achat.`);
-  eco.applyTrade(state, ship.port, good, qty, 'buy');
+  if (q.marketQty > 0) eco.applyTrade(state, ship.port, good, q.marketQty, 'buy');
+  if (q.lot) takeLot(state, ship, { lot: lotById(state, q.lot.id), qty: q.lot.qty });
   book(state, company, -q.total, 'achats', ship);
   ship.cargo = { good, qty: onboard + qty, hold, cost: (ship.cargo?.cost || 0) + q.total, boughtAt: ship.port, loan: ship.cargo?.loan || null };
   if (terms) {
@@ -364,7 +372,32 @@ export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
   taintShip(state, ship, ship.port, q.total);
   startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty, ship.type));
   shipLog(state, ship, `Achat de ${num(qty)} t de ${GOODS[good].name.toLowerCase()} à ${portName(ship.port)} (${money(q.total)})`);
-  return { ok: true, qty, total: q.total };
+  return { ok: true, qty, total: q.total, lot: q.lot };
+}
+
+// Le joueur coche « acheter le lot soldé à l'arrivée » avant d'appareiller (null : décoché).
+export function setLotBuy(state, shipId, lotId) {
+  const ship = shipById(state, shipId);
+  if (ship) ship.lotBuy = lotId ?? null;
+}
+
+// Lot soldé choisi au départ (ship.lotBuy) : à l'arrivée, cales libres, le navire achète sa part au prix
+// soldé, comptant. Pour les joueurs (l'IA décide à l'escale, le lot compté dans ses options de négoce).
+// Rend le message pour le joueur, ou null.
+export function buyLotOnArrival(state, ctx, ship) {
+  const id = ship.lotBuy;
+  if (id == null) return null;
+  ship.lotBuy = null;
+  const lot = lotById(state, id);
+  if (lot) lot.commits = lot.commits.filter((c) => c.shipId !== ship.id);
+  if (!lot || !companyOf(state, ship).human || lot.port !== ship.port) return null;
+  const what = GOODS[lot.good].name.toLowerCase();
+  if (lot.left <= 0 || lot.until <= state.t) return `Le ${ship.name} est arrivé à ${portName(ship.port)} : le lot soldé de ${what} est déjà parti.`;
+  // Le cours a tant baissé que le lot n'est plus une affaire : on n'achète pas à l'aveugle.
+  if (lot.unit >= eco.buyPrice(state, lot.port, lot.good)) return `Le ${ship.name} est arrivé à ${portName(ship.port)} : le cours est tombé sous le prix du lot soldé de ${what}, rien acheté.`;
+  const r = buyCargo(state, ctx, ship.id, lot.good, Math.min(SHIP_TYPES[ship.type].dwt, lot.left));
+  if (!r.ok) return `Le ${ship.name} est arrivé à ${portName(ship.port)} mais n'a pas pu acheter le lot soldé : ${r.msg}`;
+  return `Le ${ship.name} est arrivé à ${portName(ship.port)} et charge ${num(r.qty)} t de ${what} du lot soldé (${money(r.total)}).`;
 }
 
 export function quoteSale(state, ship) {

@@ -183,10 +183,17 @@ export function repairCost(state, ship, p, target) {
   const T = SHIP_TYPES[ship.type];
   // Les dégâts profonds coûtent plus cher que l'entretien courant.
   const depthFactor = 1 + (100 - ship.condition) / 120;
-  const cost = points * T.price * 1e6 * 0.0011 * depthFactor * REPAIR_FACTOR[P.repair] * repairIndex(state);
+  const cut = yardCut(state, p); // chantier en mal de commandes : prix cassés quelques jours
+  const cost = points * T.price * 1e6 * 0.0011 * depthFactor * REPAIR_FACTOR[P.repair] * repairIndex(state) * (1 - cut);
   const days = points * 0.12 * (P.repair === 3 ? 0.8 : 1);
-  return { to, points, cost, hours: Math.ceil(days * HOURS_PER_DAY) };
+  return { to, points, cost, hours: Math.ceil(days * HOURS_PER_DAY), cut };
 }
+
+// Chantier en mal de commandes (opportunité) : un grand chantier (réparations de niveau 2 ou plus, hors
+// pays sous embargo et ports pris par les glaces) baisse ses prix quelques jours. Un seul à la fois ;
+// tirage quotidien dans events.js (yardDaily), remise lue ici par tous les devis de réparation.
+export const YARD = { chance: 0.035, cut: [0.25, 0.4], days: [10, 16], worn: 85 };
+export const yardCut = (state, p) => (state.yardSale && state.yardSale.port === p && state.yardSale.until > state.t ? state.yardSale.cut : 0);
 
 // ---------- Navires ----------
 export const ageYears = (state, ship) => (state.t - ship.builtT) / (HOURS_PER_DAY * 365);
@@ -394,8 +401,9 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const ballast = TUNING.ballast + ((BALLAST_HOLD[hold] || 1) - 1) * 1.5;
   // Affaire en or (rare) : un chargeur pressé paie bien plus, mais l'offre ne dure pas.
   const golden = reservedFor == null && rng.chance(GOLDEN_CHANCE);
-  const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1) * (reservedFor != null ? 1 + RESERVE_BONUS : 1) * (golden ? rng.range(1.6, 2.2) : 1)) / 1000) * 1000;
-  const deadlineDays = est.days * (urgent ? 1.12 : 1.35) + 3;
+  const express = golden && rng.chance(GOLDEN_EXPRESS.share);
+  const pay = Math.round((est.total * ballast * margin * riskPremium * (urgent ? 1.18 : 1) * (embargo ? EMBARGO_PREMIUM : 1) * (reservedFor != null ? 1 + RESERVE_BONUS : 1) * (golden ? rng.range(1.6, 2.2) : 1) * (express ? GOLDEN_EXPRESS.pay : 1)) / 1000) * 1000;
+  const deadlineDays = express ? est.days * GOLDEN_EXPRESS.deadline[0] + GOLDEN_EXPRESS.deadline[1] : est.days * (urgent ? 1.12 : 1.35) + 3;
   // Vers un port saisonnier : livrable avant les glaces, ou réservé (mieux payé) aux navires de
   // classe glace en fin de saison ; sinon, pas de contrat.
   let ice = false;
@@ -408,7 +416,8 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   }
   // Lignes régulières (conteneurs) et denrées réfrigérées : le chargeur exige un navire
   // presque aussi rapide que celui de référence. Un cargo lent ne peut pas les prendre.
-  const minSpeed = hold === 'conteneurs' || hold === 'frigo' ? Math.round(T.speed * 9) / 10 : 0;
+  // Affaire en or express : un navire plus rapide que celui de référence.
+  const minSpeed = express ? Math.round(T.speed * GOLDEN_EXPRESS.speed * 10) / 10 : hold === 'conteneurs' || hold === 'frigo' ? Math.round(T.speed * 9) / 10 : 0;
   const minRep = clamp(Math.round((margin - 0.96) * 117 + (pay > 1.5e6 ? 15 : 0) + (urgent ? 5 : 0)), 0, 75);
   return {
     id: state.nextId++, from, to, good, qty, hold, pay: ice ? Math.round((pay * ICE.iceContract) / 1000) * 1000 : pay, urgent, minRep, client, regional, big, minSpeed, embargo, ice,
@@ -418,12 +427,16 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
     nm: Math.round(route.nm),
     deadline: Math.round(state.t + deadlineDays * HOURS_PER_DAY),
     expires: Math.round(state.t + (golden ? rng.range(2, 4) : rng.range(4, 12)) * HOURS_PER_DAY),
-    golden,
+    golden, express,
     takenBy: null,
   };
 }
 
 export const GOLDEN_CHANCE = 0.03;
+// Affaire en or express (un tiers environ) : le chargeur exige un navire plus rapide que celui de référence
+// et un délai sans marge (le voyage du navire de référence, plus 3 jours : qui la prend tard doit forcer
+// l'allure), et paie encore un peu plus. Vitesse exigée et délai montrés sur la carte (⏰).
+export const GOLDEN_EXPRESS = { share: 0.33, speed: 1.04, deadline: [1.0, 3], pay: 1.15 };
 // Une affaire en or s'annonce à toutes les compagnies humaines, avec sa date limite : on peut y
 // envoyer un navire d'ailleurs, à condition d'arriver avant qu'elle expire ou qu'un autre la prenne.
 function announceGolden(state, c) {

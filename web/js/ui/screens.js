@@ -2,6 +2,7 @@
 import { homeTag, homeBonusBox } from './homebonus.js';
 import { getLang, setLang, registerNames } from '../i18n.js';
 import { PORTS, PORT_IDS, FLAGS, draftParts } from '../data/ports.js';
+import { companyNameFor } from '../data/names.js';
 import { HOLDS, GOODS } from '../data/goods.js';
 import { COMPANY_COLORS, COMPANY_LOGOS, DIFFICULTIES, DURATIONS, ranking } from '../sim/game.js';
 import { VICTORY_KINDS, VICTORY_INFO } from '../sim/victory.js';
@@ -235,16 +236,20 @@ function startFromSetup(app, cfg) {
   // Les compagnies de l'ordinateur prennent des ports variés et bien équipés.
   const good = HOME_PORTS.filter((p) => !PORTS[p].ice && PORTS[p].size >= 3 && PORTS[p].terminals.length >= 3);
   const companies = [];
-  for (const s of cfg.slots) {
-    if (s.kind === 'none') continue;
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
+  cfg.slots.forEach((s, i) => {
+    if (s.kind === 'none') return;
     let port = s.port;
+    let name = s.name.trim() || 'Compagnie';
     if (s.kind === 'ai') {
       const choices = good.filter((p) => !used.has(p));
-      port = choices[Math.floor(Math.random() * choices.length)] || HOME_PORTS.find((p) => !used.has(p));
+      port = pick(choices) || HOME_PORTS.find((p) => !used.has(p));
       used.add(port);
+      // Nom laissé par défaut : un nom tiré de sa ville (une « Alster-Lloyd » basée à Busan sonnait faux).
+      if (name === DEFAULT_NAMES[i]) { name = companyNameFor(PORTS[port].name, PORTS[port].flag, pick); registerNames([name]); }
     }
-    companies.push({ name: s.name.trim() || 'Compagnie', human: s.kind === 'human', homePort: port, color: s.color, logo: s.logo });
-  }
+    companies.push({ name, human: s.kind === 'human', homePort: port, color: s.color, logo: s.logo });
+  });
   app.map.highlightPorts = null;
   app.newGame({ duration: cfg.duration, difficulty: cfg.difficulty, autoPause: cfg.autoPause, guide: cfg.guide, victories: { ...cfg.victories }, companies });
 }
