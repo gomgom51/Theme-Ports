@@ -22,7 +22,7 @@ It exists so that a new task can start here instead of re-reading 30 simulation 
 | 05 | [contracts-clients-payments.md](05-contracts-clients-payments.md) | Contract generation and pay formula, golden deals, reservations, shippers (reliability, loyalty, grudges, image), payment resolution and disputes, prospecting | `economy.makeContract`, `sim/clients.js`, `sim/payments.js`, `sim/prospect.js` |
 | 06 | [trade-tenders-finance.md](06-trade-tenders-finance.md) | Buying and selling cargo (quantity slider), city tenders, cargo loans, legacy price floors, intel estimates (best deal, sources, outlets) | `actions.buyCargo/sellCargo`, `sim/trade.js`, `sim/intel.js` |
 | 07 | [ships-crew-equipment.md](07-ships-crew-equipment.md) | 22 ship models, used market, new builds and yards, sale, lay-up, crew levels and XP skills, equipment | `data/ships.js`, `sim/crew.js`, `sim/equipment.js`, `data/equipment.js` |
-| 08 | [voyages-routing-ice.md](08-voyages-routing-ice.md) | Planning a voyage, routing and distance tables, canals, the hourly sailing step, arrival sequence, seasonal ice and the Northern Sea Route | `actions.planVoyage`, `sim/routing.js`, `sim/ice.js`, `game.sailHour/arrive` |
+| 08 | [voyages-routing-ice.md](08-voyages-routing-ice.md) | Planning a voyage, routing and distance tables, canals, the hourly sailing step, arrival sequence, seasonal ice and the Northern Sea Route, standing orders (regular line, captain's choice) | `actions.planVoyage`, `sim/routing.js`, `sim/ice.js`, `game.sailHour/arrive`, `sim/orders.js` |
 | 09 | [sea-risks.md](09-sea-risks.md) | Incidents, sinking, wear, port-state inspections and detention, insurance, pollution, piracy, coastguard patrols, storms | `sim/incidents.js`, `sim/insurance.js`, `sim/pollution.js`, `sim/piracy.js`, `sim/patrols.js`, `sim/events.js` (weather) |
 | 10 | [world-events.md](10-world-events.md) | Random world events (oil shocks, refinery crisis, canals, strikes, recession…) and disasters that spawn aid contracts | `sim/events.js`, `dark.darkDaily` |
 | 11 | [grey-black-trade.md](11-grey-black-trade.md) | Embargo taint and sanctions fines, discreet parcels and customs, bribes, dark jobs, gangs' trust and grudges, seizures, aftermath news, blacklist | `sim/shady.js`, `sim/dark.js`, `sim/shadow.js`, `data/sanctions.js` |
@@ -84,6 +84,7 @@ Key cross-links (each is explained in the target file):
 | Reputation sources | `VIRTUE_SOURCES`, `STANDING`, caps in `sim/core.js`; per-event deltas at the call sites listed in [13](13-reputation.md) |
 | Incident / inspection / sinking rates | `RISK`, `INCIDENT_BASE`, `STRICT_FLAGS`, `IMAGE_PORT_FLAGS` in `sim/incidents.js` |
 | Victory thresholds | `VICTORY` in `sim/victory.js`, `HONOURS` in `sim/honours.js` |
+| Standing orders (gates, captain's fee, repair thresholds, call delays) | `ORDERS`, `canLine`, `canCaptain` in `sim/orders.js` |
 | AI behaviour | `sim/ai.js` (+ `aiTakeover` in takeover.js, `aiPlots` in plots.js, dark-job AI in dark.js) |
 | Player-facing text | French string in code + English entry in `web/js/i18n/en.js`, then `node tools/i18n-check.mjs` (fails on any French left in English, glued fragments included) and `node tools/i18n-screens.mjs` (same, on the real screens) |
 
@@ -99,6 +100,7 @@ Key cross-links (each is explained in the target file):
 | `busyWhat` | port activity: `chargement`, `déchargement`, `réparation`, `détention`, `saisie`, `retenue`, `otages`, `confisqué`, `recrutement`, `réarmement`, `installation`, `démarchage` |
 | `status` | `port`, `sea`, `laidup` |
 | `plan` | queued departure `{to, speed, autoRefuel}` |
+| `orders` | standing orders: `{kind, calling, …}` with kind `line` or `captain`, or `null` (by hand) |
 | `pendingDelivery` | contract id waiting for unloading to finish |
 | `hon` | honours counters (deeds, records, misdeeds) |
 | `leaning` | AI temperament: `batisseur`, `vertueux`, `conquerant`, `ombre` |

@@ -236,6 +236,7 @@ export function createShip(state, rng, owner, typeId, { port, age = 0, condition
     fuel: Math.round(T.tank * 0.4), status: 'port', port,
     busyUntil: 0, busyWhat: null, voyage: null, cargo: null, plan: null, pendingDelivery: null,
     earned: 0, spent: 0, log: [], boughtT: state.t, paid: null,
+    orders: null, captainLimits: null, // ordres permanents (sim/orders.js) : ligne régulière ou capitaine libre
   };
   // Équipement livré avec le navire (petits cargos : transpondeur « discret »), coupé à la livraison.
   if (T.stock) { ship.equipment = [...T.stock]; ship.equipOff = [...T.stock]; }

@@ -534,6 +534,18 @@ button.row { border-color: transparent; }
 .chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 .chip.danger { color: var(--bad); }
 .chip:disabled { opacity: 0.45; }
+/* Ordres permanents (ui/orders.js) */
+.chip.locked { opacity: 0.45; }
+.orders-row { align-items: center; margin: 4px 0 2px; }
+.orders-label { font-weight: 600; color: var(--muted); margin-right: 2px; }
+.orders-box { margin: 4px 0 8px; }
+.orders-box .chips { margin: 4px 0 0; }
+.orders-dialog p { margin: 6px 0; }
+.orders-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin: 2px 0 8px; }
+.orders-fields { display: grid; gap: 6px; margin: 6px 0 10px; }
+.orders-select { width: auto; display: inline-block; padding: 2px 6px; }
+.line-check { margin: 8px 0 4px; }
+.orders-tag { margin-left: 6px; }
 
 /* ---------- Formulaires ---------- */
 .input {

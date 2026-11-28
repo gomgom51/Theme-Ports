@@ -86,7 +86,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   cost, certain reputation loss, scandal odds, effects, parry prices; `AI_ATTACK_CHANCE`) in `web/js/sim/plots.js`,
   blacklist (`BLACKLIST`: infamy line, warning, shadow bank) in `web/js/sim/shadow.js`, AI leanings (`AI_LEANINGS`,
   `AI_BUILDER_FLEET`) in `web/js/sim/ai.js`; ship cranes `GEAR_SIZE` (the smallest port size a geared ship loads at)
-  in `economy.js`.
+  in `economy.js`; standing orders (`ORDERS`: captain's fee as a multiple of one veteran sailor's wage, repair thresholds, call
+  delays, default limits) in `web/js/sim/orders.js`.
 - Lessons (trade): trade estimates must use the price expected on arrival
   (`quoteTradeAt`), or the "best outlet" is a port whose price is momentarily high and
   margins melt; a global `SPREAD` rise mostly helps bulk (widest spreads), so spreads
@@ -184,6 +185,13 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   thresholds sit high; a shadow AI must ignore its flag's embargo stance, seek dark ports, avoid gang grudges and refuse
   jobs over 22 % customs risk, or it either never gets dark jobs or loses its fleet to seizures; an AI with no ship
   must be allowed to buy one despite its debt, or it idles forever.
+- Standing orders (owner's design, `sim/orders.js`, mechanics doc 08): automation is earned and paid for. The regular
+  line ↻ needs a crew confirmé or better with all 6 XP points; the captain's choice 🧭 needs the vieux briscards crew,
+  costs 3 × one veteran sailor's wage a day (marginal next to what the ship makes, owner's call) and picks like the AI
+  with no estimation error, within the player's limits. Taking
+  control back from the captain without a call costs one Vieux briscards rank (the old hand leaves). A basic
+  crew means every order by hand. Receipts stay manual (cashing in is the fun part). Rule 1: a ship under orders never
+  takes a risk the player did not see when giving the order; a new one makes it call and wait.
 - Ship readability (owner's design): broker cards and ship sheets list pros and cons as scales, never figures
   (`SHIP_ROLES` in `ui/shiproles.js`), so new players stop picking the biggest radar star (the radar's capacity,
   economy and range axes all grow with size). The ship's discretion at customs is shown as a 5-step scale with its

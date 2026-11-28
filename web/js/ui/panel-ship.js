@@ -62,6 +62,9 @@ import { gradeEl } from './grade.js';
 import { CREW_LEVELS } from '../data/ships.js';
 import { payCut } from '../sim/plots.js';
 import { inspectionThreshold } from '../sim/incidents.js';
+import { onOrders } from '../sim/orders.js';
+import * as O from '../sim/orders.js';
+import { ordersRow, ordersTab, lineTick, lineWanted, startLine, takeBackFlow } from './orders.js';
 
 const STATUS_ICON = { sea: '🌊', port: '⚓', laidup: '💤' };
 
@@ -77,6 +80,8 @@ export function shipStatusText(state, ctx, ship) {
       const plan = ship.plan ? `, puis départ pour ${portName(ship.plan.to)}` : '';
       return `${cap(ship.busyWhat)} à ${portName(ship.port)} (encore ${duration(left)})${plan}`;
     }
+    if (ship.orders?.calling) return `À quai à ${portName(ship.port)} — le capitaine vous appelle`;
+    if (onOrders(ship)) return ship.orders.kind === 'line' ? `À quai à ${portName(ship.port)} — ligne régulière, il repart seul` : `À quai à ${portName(ship.port)} — le capitaine cherche un chargement`;
     return `À quai à ${portName(ship.port)} — en attente d'ordres`;
   }
   const v = ship.voyage;
@@ -159,6 +164,7 @@ export function shipPanel(app, id, tab) {
       stat('Équipement', (ship.equipment || []).length ? (ship.equipment || []).filter((id) => !equipOff(ship, id)).map((id) => EQUIPMENT[id].icon).join(' ') || 'coupé' : 'aucun'),
     ]),
     h('p.status-line', [STATUS_ICON[ship.status] + ' ', shipStatusText(state, ctx, ship)]),
+    mine ? ordersRow(app, ship) : null, // ordres permanents : à la main, ligne régulière, capitaine libre
     shipRoute(state, ctx, ship), // destination et dates bien en vue
     mine ? portServicesLink(app, ship) : null, // services du port (la Mafia, l'informateur) : un clic mène à la fiche du port
     mine ? h('div.risk-box', [...riskLines(state, ship, { route: ship.status === 'sea' ? ctx.shipRoute(ship) : null }), ...shadyLines(state, ship, ship.status === 'sea' ? ship.voyage.to : null),
@@ -180,10 +186,12 @@ export function shipPanel(app, id, tab) {
   else if (ship.busyWhat) {
     tabs = [
       ['attente', 'En cours', () => busyTab(app, ship)],
-      ['depart', ship.plan ? 'Modifier le départ' : 'Programmer le départ', () => departTab(app, ship)],
+      onOrders(ship) ? null : ['depart', ship.plan ? 'Modifier le départ' : 'Programmer le départ', () => departTab(app, ship)],
       ['escale', 'Escale', () => portCallTab(app, ship)],
-    ];
+    ].filter(Boolean);
   }
+  // Sous ordres, le navire choisit et repart seul : pas de contrats ni de départ à donner.
+  else if (onOrders(ship)) tabs = [['ordres', 'Ordres', () => ordersTab(app, ship)], ['escale', 'Escale', () => portCallTab(app, ship)]];
   else {
     tabs = [
       ['contrats', 'Contrats', () => contractsTab(app, ship)],
@@ -760,7 +768,10 @@ function portCallTab(app, ship) {
     box.append(h('h3', 'Désarmer ou vendre'));
     box.append(h('p.hint', `Désarmé, le navire coûte environ ${money(eco.fixedDayCost(T, company.flag, 'laidup', eco.ageYears(state, ship), ship.crew))}/jour au lieu de ${money(eco.fixedDayCost(T, company.flag, 'active', eco.ageYears(state, ship), ship.crew))}. Utile quand le marché est mauvais.`));
     box.append(h('div.chips', [
-      h('button.chip', { disabled: !!ship.cargo, onclick: () => app.act(() => act.layUp(state, ship.id)) }, 'Désarmer'),
+      h('button.chip', { disabled: !!ship.cargo, onclick: async () => {
+        if (ship.orders && !(await takeBackFlow(app, ship))) return; // désarmer, c'est reprendre la main (son prix est dit avant)
+        app.act(() => act.layUp(state, ship.id));
+      } }, 'Désarmer'),
       h('button.chip.danger', { disabled: !!ship.cargo, onclick: async () => {
         const v = eco.shipValue(state, ship) * 0.95;
         if (await confirmBox(`Vendre le ${ship.name} ?`, `Le courtier en offre ${money(v)}.`, 'Vendre')) app.act(() => act.sellShip(state, ctx, ship.id), { close: true });
@@ -885,18 +896,25 @@ function departTab(app, ship) {
           h('input', { type: 'checkbox', checked: autoRefuel, onchange: (e) => { app.form.autoRefuel[ship.id] = e.target.checked; } }),
           ' Faire le plein automatiquement si nécessaire',
         ]),
+        est.error ? null : lineTick(app, ship, dest), // ↻ ligne régulière (équipage à l'expérience maximale)
       ]),
       h('div.card-side', [est.error ? null : h('button.btn.primary', { 'data-guide': 'sail', onclick: () => {
+        // Un départ à la main met fin aux ordres d'un navire qui vous a appelé (sans frais).
+        const line = lineWanted(app, ship);
+        if (ship.orders?.calling) O.takeBack(state, ship.id);
+        // Ligne régulière : l'ordre est donné avant le départ, retiré si le départ échoue.
+        if (line && !startLine(app, ship, dest, speed)) { app.refresh(); return; }
         // Le choix de destination est effacé avant de redessiner le panneau : sinon un départ programmé
         // (navire encore en chargement) laissait la carte « Cap sur… » affichée jusqu'au clic suivant.
         const r = app.act(() => act.depart(state, ctx, ship.id, dest, speed, app.form.autoRefuel[ship.id] ?? true), { refresh: false });
         if (r?.ok) { if (!r.queued) app.audio.play('depart', ship); delete app.form.dest[ship.id]; app.hoverRoute(null); app.setPreview(null); }
+        else if (line) O.takeBack(state, ship.id);
         app.refresh();
-      } }, 'Appareiller')]),
+      } }, lineWanted(app, ship) ? 'Lancer la ligne' : 'Appareiller')]),
     ]));
   } else {
     app.setPreview(null);
-    box.append(h('p.muted', 'Choisissez une destination :'));
+    box.append(h('p.muted', lineWanted(app, ship) ? '↻ Ligne régulière : choisissez l\'autre bout de la ligne.' : 'Choisissez une destination :'));
   }
 
   if (contract) return box;
