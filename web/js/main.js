@@ -472,7 +472,7 @@ function updateHud() {
   standingFloats(c, tr, vi);
   // La phrase du milieu (celle du Bureau → Compagnie) ; la clé évite de réécrire le texte une fois traduit.
   const quote = $('#hud-quote'), qt = repQuote(c).main;
-  if (quote.dataset.key !== qt) { quote.dataset.key = qt; quote.textContent = qt; }
+  if (quote.dataset.key !== qt) { quote.dataset.key = qt; quote.textContent = qt; quote.title = qt; }
   $('#hud-rep').title = lim === 'virtue' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre vertu la retient.`
     : lim === 'trust' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre confiance la retient.`
     : `Réputation ${R} : confiance et vertu à égalité.`;
@@ -568,10 +568,22 @@ $('#hud-company').addEventListener('click', () => {
 });
 // La réputation ouvre l'onglet Compagnie du bureau (détail de la confiance et de la vertu).
 const openStanding = (e) => { e.stopPropagation(); app.open('office', null, 'compagnie'); };
-for (const sel of ['#hud-rep', '#hud-quote']) {
-  $(sel).addEventListener('click', openStanding);
-  $(sel).addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStanding(e); } });
-}
+// Phrase coupée (une ligne, « … ») : la bulle au survol la donne en entier ; entière, pas de bulle (celle de la réputation).
+// Mesurée à l'entrée de la souris, avant la bulle du jeu (ui/tooltip.js écoute pointerover sur le document) :
+// entière, le title (déjà traduit) est mis de côté le temps du survol, puis remis.
+$('#hud-quote').addEventListener('pointerover', (e) => {
+  const q = e.currentTarget, cut = q.scrollWidth > q.clientWidth + 1;
+  if (cut && !q.hasAttribute('title') && q.dataset.tip) q.title = q.dataset.tip;
+  else if (!cut && q.hasAttribute('title')) { q.dataset.tip = q.title; q.removeAttribute('title'); }
+});
+$('#hud-quote').addEventListener('pointerout', (e) => {
+  const q = e.currentTarget;
+  if (q.contains(e.relatedTarget)) return;
+  if (q.dataset.tip && !q.hasAttribute('title')) q.title = q.dataset.tip;
+  delete q.dataset.tip;
+});
+$('#hud-rep').addEventListener('click', openStanding);
+$('#hud-rep').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStanding(e); } });
 $('#hud-menu').addEventListener('click', () => gameMenu());
 document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => {
   const type = b.dataset.panel;

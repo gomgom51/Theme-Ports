@@ -75,8 +75,10 @@ export function initTooltips() {
   // Souris
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType !== 'mouse') return;
-    if (target && target.contains(e.target)) return; // toujours dans le même élément
     const el = titled(e.target);
+    // Toujours dans le même élément, sauf si l'on entre dans un élément titré qu'il contient
+    // (ex. la phrase sous la réputation, dans la barre du haut) : sa bulle prend le relais.
+    if (target && target.contains(e.target) && !(el && el !== target && target.contains(el))) return;
     hide();
     if (!el) return;
     target = el;

@@ -29,7 +29,7 @@
   --bad: #b8322a;
   --shadow: 0 6px 22px rgba(28, 42, 51, 0.16);
   --radius: 10px;
-  --hud-h: 50px;
+  --hud-h: 62px;
   --rail-w: 62px;
   /* Taille de l'interface (ui/scale.js) : la page est zoomée de --ui ; vw et vh passent par --vw et --vh, qui gardent
      le sens d'une part de l'écran malgré le zoom. */
@@ -139,8 +139,10 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .float-delta.neg { color: var(--bad); }
 @keyframes float-delta { 0% { opacity: 0; transform: translate(-50%, -6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 16px); } }
 /* Réputation (la plus basse de la confiance 🤝 et de la vertu 💚), à côté de la trésorerie : ★ en grand,
-   puis une jauge de dix cases par note, un trait doré à son plafond et la variation du mois. */
-.hud-rep { display: flex; align-items: center; gap: 9px; flex: none; line-height: 1.15; padding-left: 10px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
+   puis une jauge de dix cases par note, un trait doré à son plafond et la variation du mois ; dessous,
+   la phrase du milieu sur une ligne (coupée par « … », entière au survol). */
+.hud-rep { display: flex; flex-direction: column; gap: 2px; flex: none; min-width: 0; max-width: 480px; line-height: 1.15; padding-left: 10px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
+.hud-rep-top { display: flex; align-items: center; gap: 9px; }
 .hud-rep-main { display: flex; align-items: baseline; gap: 3px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hud-rep-main > span { color: var(--star); font-size: 20px; }
 .star { color: var(--star); }
@@ -161,11 +163,9 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .hud-delta { min-width: 22px; font-size: 10.5px; font-weight: 700; }
 .hud-delta.up { color: var(--good); }
 .hud-delta.down { color: var(--bad); }
-/* La phrase du milieu sur votre réputation (Bureau → Compagnie), deux lignes au plus ; elle laisse sa place au navire sélectionné. */
-.hud-quote { flex: 0 1 430px; min-width: 0; margin: 0; padding-left: 12px; border-left: 1px solid var(--line);
-  font-family: var(--serif); font-style: italic; font-size: 12.5px; line-height: 1.3; color: var(--ink-2); cursor: pointer;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.hud-quote:empty, .hud-context:not(:empty) + .hud-quote { display: none; }
+.hud-quote { display: block; font-family: var(--serif); font-style: italic; font-size: 11.5px; line-height: 1.3; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-quote:empty { display: none; }
 .hud-switch { display: none; color: var(--teal); font-weight: 800; }
 .hud-company.switchable .hud-switch { display: inline; }
 /* Informations du navire sélectionné. */
