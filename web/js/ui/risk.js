@@ -8,19 +8,26 @@ import { riskProfile, voyageRisk, inspectionOdds, inspectionThreshold, isStrict,
 import { ageYears } from '../sim/economy.js';
 import { worstCase, isPolluting } from '../sim/pollution.js';
 import { planOf } from '../sim/insurance.js';
-import { h, money } from './dom.js';
+import { h, money, chance, dec } from './dom.js';
 
-const fr = (x, d = 0) => x.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
-const pctTxt = (p) => (p < 0.001 ? 'moins de 0,1 %' : p < 0.01 ? `${fr(p * 100, 1)} %` : `${fr(p * 100)} %`);
 // Fourchette arrondie autour d'une valeur (équipage confirmé).
 function range(p) {
   const lo = Math.max(0, p * 0.6), hi = p * 1.5;
   const r = (x) => (x < 0.01 ? Math.round(x * 1000) / 10 : Math.round(x * 100));
-  return `${fr(r(lo), lo < 0.01 ? 1 : 0)} à ${fr(r(hi), hi < 0.01 ? 1 : 0)} %`;
+  return `${dec(r(lo), lo < 0.01 ? 1 : 0)} à ${dec(r(hi), hi < 0.01 ? 1 : 0)} %`;
 }
 const LEVEL_CLASS = ['pos', '', 'warn-text', 'neg'];
 
 export function crewInfo(ship) { return CREW_LEVELS[ship.crew || 0]; }
+// Là où l'équipage ne donne qu'un mot, une petite phrase rappelle qu'un équipage plus expérimenté chiffrerait.
+export const crewHint = (level, text = ' Un équipage plus expérimenté saurait le chiffrer.') => ((level || 0) > 0 ? null : h('span.muted', text));
+// Une chance (de gagner, de réussir) dite par l'équipage : un mot, un arrondi, ou le chiffre exact.
+export function oddsWords(p, level) {
+  const info = CREW_LEVELS[level || 0]?.info ?? 0;
+  if (info >= 2) return `${fr(p * 100)} %`;
+  if (info === 1) return `≈ ${fr(Math.round(p * 10) * 10)} %`;
+  return p >= 0.7 ? 'bonnes' : p >= 0.45 ? 'moyennes' : 'faibles';
+}
 
 // Lignes d'information sur les risques. opts : seaDays (voyage prévu), to (port d'arrivée).
 export function riskLines(state, ship, { seaDays = null, to = null, route = null } = {}) {
@@ -37,14 +44,13 @@ export function riskLines(state, ship, { seaDays = null, to = null, route = null
   // 1 bis. Cargaison polluante : côtes sensibles sur la route et pire cas (fait connu, comme l'assurance).
   if (route && ship.cargo && isPolluting(ship.cargo.good)) {
     const w = worstCase(ship, route, ship.status === 'sea' ? (ship.voyage?.startCond ?? ship.condition) : ship.condition, company);
-    const M = (x) => `${(x / 1e6).toFixed(1).replace('.', ',')} M$`;
     // Morceaux séparés (zones une à une) : la traduction anglaise les reconnaît chacun.
     const along = w.zones.length
       ? [h('span', 'Votre route longe :'), ' ', ...w.zones.flatMap((z, i) => [i ? ', ' : null, h('span', z.name), ` (×${String(z.factor).replace('.', ',')})`]), '.']
       : [h('span', 'Votre route reste au large des côtes sensibles.')];
     const cost = w.insured
-      ? `En cas de marée noire, nettoyage jusqu'à ${M(w.liability)} : l'assurance paie, il vous resterait ${M(w.due)} de franchise.`
-      : `En cas de marée noire, nettoyage jusqu'à ${M(w.liability)}, à vos frais (jusqu'à ${M(w.due)})${w.seaworthy ? ', votre assurance ne couvrant pas la pollution.' : ' car le navire n\'est pas en état, et le pays touché vous fermerait ses ports un an.'}`;
+      ? `En cas de marée noire, nettoyage jusqu'à ${money(w.liability)} : l'assurance paie, il vous resterait ${money(w.due)} de franchise.`
+      : `En cas de marée noire, nettoyage jusqu'à ${money(w.liability)}, à vos frais (jusqu'à ${money(w.due)})${w.seaworthy ? ', votre assurance ne couvrant pas la pollution.' : ' car le navire n\'est pas en état, et le pays touché vous fermerait ses ports un an.'}`;
     out.push(h(`div.risk-line${w.insured ? '' : '.neg'}`, [h('span', '☣ Cargaison polluante.'), ' ', ...along, ' ', h('span', cost)]));
   }
   // 2. L'avis de l'équipage sur les dangers.
@@ -52,16 +58,16 @@ export function riskLines(state, ship, { seaDays = null, to = null, route = null
     out.push(h('div.risk-line', ['🧭 Le capitaine juge le risque d\'incident ', h('b', { class: LEVEL_CLASS[prof.level] }, prof.label), '.',
       h('span.muted', ' Un équipage plus expérimenté saurait le chiffrer.')]));
   } else if (crew.info === 1) {
-    out.push(h('div.risk-line', [`🧭 Vos officiers estiment ${fr(Math.max(0.1, prof.incidentsPerYear * 0.7), 1)} à ${fr(prof.incidentsPerYear * 1.4, 1)} incidents par an, et un risque de naufrage de `,
+    out.push(h('div.risk-line', [`🧭 Vos officiers estiment ${dec(Math.max(0.1, prof.incidentsPerYear * 0.7), 1)} à ${dec(prof.incidentsPerYear * 1.4, 1)} incidents par an, et un risque de naufrage de `,
       h('b', { class: LEVEL_CLASS[prof.level] }, range(prof.sinkPerYear)), ' par an.']));
   } else {
-    out.push(h('div.risk-line', [`🧭 Le chef mécanicien compte ${fr(prof.incidentsPerYear, 2)} incident${prof.incidentsPerYear >= 2 ? 's' : ''} par an et un risque de naufrage de `,
-      h('b', { class: LEVEL_CLASS[prof.level] }, pctTxt(prof.sinkPerYear)), ' par an.']));
+    out.push(h('div.risk-line', [`🧭 Le chef mécanicien compte ${dec(prof.incidentsPerYear, 2)} incident${prof.incidentsPerYear >= 2 ? 's' : ''} par an et un risque de naufrage de `,
+      h('b', { class: LEVEL_CLASS[prof.level] }, chance(prof.sinkPerYear)), ' par an.']));
   }
   // 3. Le voyage prévu.
   if (seaDays != null && seaDays > 0) {
     const vr = voyageRisk(state, ship, seaDays);
-    if (crew.info === 2) out.push(h('div.risk-line', `Sur ce voyage : ${pctTxt(vr.incident)} de risque d'incident, ${pctTxt(vr.sink)} de risque de naufrage.`));
+    if (crew.info === 2) out.push(h('div.risk-line', `Sur ce voyage : ${chance(vr.incident)} de risque d'incident, ${chance(vr.sink)} de risque de naufrage.`));
     else if (crew.info === 1) out.push(h('div.risk-line', `Sur ce voyage : environ ${range(vr.incident)} de risque d'incident.`));
   }
   // 4. Les inspections : les ports exigeants sont connus de tous ; la probabilité dépend de l'équipage.
@@ -73,7 +79,7 @@ export function riskLines(state, ship, { seaDays = null, to = null, route = null
     const name = PORTS[to].name;
     if (odds.detain > 0) {
       const cls = odds.detain > 0.3 ? 'neg' : 'warn-text';
-      const how = crew.info === 2 ? `≈ ${pctTxt(odds.detain)}` : crew.info === 1 ? `≈ ${fr(Math.max(10, Math.round(odds.detain * 10) * 10))} %` : odds.detain > 0.3 ? 'élevé' : 'possible';
+      const how = crew.info === 2 ? `≈ ${chance(odds.detain)}` : crew.info === 1 ? `≈ ${dec(Math.max(10, Math.round(odds.detain * 10) * 10))} %` : odds.detain > 0.3 ? 'élevé' : 'possible';
       out.push(h(`div.risk-line.${cls}`, `⚠ ${isStrict(to) ? `${name} inspecte sévèrement les navires usés` : `${name} contrôle parfois les navires usés`} : risque de détention ${how} (amende et remise en état à ${'65'} % à vos frais, que vous ayez l'argent ou non). Réparez au-dessus de ${threshold} % pour l'éviter.`));
       // Port attentif à l'image : la vertu y change la probabilité d'être inspecté.
       const k = inspectVirtueK(to, V);

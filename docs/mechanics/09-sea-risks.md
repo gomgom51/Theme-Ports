@@ -33,6 +33,10 @@ Severe incidents with polluting cargo spill 1–8 % (grounding 3–15 %). Severe
 
 ## Sinking (`game.sink`)
 
+Two roads to the bottom: a severe incident (formula above, any condition, more likely on a worn hull), or a storm on a
+hull below 22 % in force ≥ 10 (`game.js`, chance 0.4 % × (force − 9) per hour). The Port call tab states both in its
+thresholds line.
+
 Spill of 40–100 % of cargo plus bunker fuel; hull insurance if seaworthy at departure; contract
 cargo → shipper claims 25 % of cargo value (P&I pays all but a 50–300 k$ deductible if covered);
 traded cargo refunded at the plan's cargo rate; trust −10 (contract) −5; wreck on the map; cargo loan
@@ -95,6 +99,7 @@ Three phases, each `p = clamp(0.2 + 0.18 × (def − att), 0.05, 0.95)`; the fir
 
 Failure: with a citadel → looting (40–140 k × size, 3–12 % of general/box/reefer/vehicle cargo,
 12–36 h); without → **hijack**: ransom `clamp(10 % ship value + 2 % cargo value, 150 k, 9 M)`, trust −3.
+Once the ransom is paid, the release is announced in the news when the ship sails again (`voyage.released`).
 Choice (rule 2): pay (free in 3–7 days) or negotiate (55 %, 30–60 days, trust −3 more). AI pays.
 Repelled attacks count for the "Corsaire" deed.
 

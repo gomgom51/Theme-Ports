@@ -1,7 +1,11 @@
 # 06 · Trading, city tenders, cargo loans
 
-Files: `actions.quoteBuy/buyCargo/quoteSale/sellCargo/guaranteePrice`, `sim/trade.js`,
+Files: `actions.quoteBuy/buyCargo/quoteSale/sellCargo`, `sim/trade.js`, `sim/intel.js`,
 price model in [04](04-economy-market.md). UI: trade tab of `ui/panel-ship.js`, tender cards in `ui/opps.js`.
+Quantity: one slider per good (`tradeSlider`), 100 t to a full hold (or the stock); the track shows how far cash,
+a cargo loan (best of this port's merchants and the best destination's buyers) and the bank go, grey beyond
+(Buy disabled with the reason). Profit at the best destination follows the slider; shortcuts Max in cash, Max
+with a loan, Full hold; the last quantity per ship and good is remembered for the session (`app.form.tradeQty`).
 After a purchase the panel jumps to the Appareiller tab with the destination chosen in the buy dialog
 already set (still editable); while that screen stays open and no departure is given, the loading ship
 counts as awaiting orders, so auto-pause time does not restart (`app.tradeHold` in `main.js`).
@@ -32,7 +36,9 @@ Taint on embargo trade happens on buy, on sell, and on contract load/delivery.
   imports that some non-embargoed port exports; no oil during the refinery crisis.
 - Unit price = sell price × `clamp(1 + spread × U(0.6, 1.2), 1.04, 1.3)` (premium follows each good's
   natural spread — the CLAUDE.md lesson about machines/manufactures).
-- Qty = lot × U(0.8, 2.0), clamp 3 000–150 000 t; duration 24–42 days. Announced in news and to humans.
+- Qty = lot × U(0.8, 2.0), clamp 3 000–150 000 t; duration 24–42 days. Always in the news; the card, its bell
+  and rivals' commitment toasts only reach a company with a ship that can carry the good into that port
+  (`tenderServable`, `ui/opps.js`).
 - **First come, first served**: deliveries reduce `left`. A ship **commits** as soon as its
   departure toward the tender port with that good is decided (even queued behind loading:
   `commitOnDeparture` in `depart` and `launch`), announced with its ETA. `tenderRoom(t, shipId)` =
@@ -65,10 +71,25 @@ owed(t) = amount × (1 + rate × max(1, days)/365)                 (simple inter
 - Cargo loans subtract from net worth and from net cash (takeovers).
 - AI weighs financed plans with `AI_CAPITAL_COST` (40 %/yr opportunity cost on locked cash).
 
+## Intel estimates (`sim/intel.js`)
+
+One estimator shared by the Vieux briscards advice, the Set sail list (veteran crew) and, later, opportunity cards,
+so the numbers agree. Costs as a voyage estimate (fuel, port and canal fees, fixed costs over sea and handling time),
+distances from the tables (`legEstimate`). A ship is free where it is, or at its arrival port (`freeAt`).
+- `contractOffers(state, ctx, ship)`: every contract it can reach and take (`checkContract` at the loading port),
+  empty run there included, not expired on arrival, not late; sorted by profit per day.
+- `bestSources(state, ctx, cid, good, port, n, { ship, arrival })` → `{ port, ship, unit, sell, toSource, days, qty,
+  marginPerT, profit, perDay }`, closest first: where to buy a good to deliver to `port` (its tender price if any).
+  Without `ship`, the company's closest empty ship for each source.
+- `bestOutlets(state, ctx, ship, good, qty, n, { arrival })` → `{ port, unit, days, net, perDay, tender }`.
+- `tenderLeads`, `bestOpportunity` (contract, tender, trade from here; by profit per day).
+`arrival: false` reads today's prices and a tender's full remaining quantity; `arrival: true` (rank 3) reads prices
+expected on arrival (`quoteTradeAt`) and the room left after other ships' commitments (`tenderRoom`).
+
 ## Price guarantee (legacy)
 
-`guaranteePrice`: premium `clamp(0.6 × vol × √days, 1 %, 5 %)`, floor at a port until days × 1.5 + 5.
-Still honoured by `quoteSale` for old saves.
+No longer sold: `guaranteePrice` (premium `clamp(0.6 × vol × √days, 1 %, 5 %)`, floor at a port until days × 1.5 + 5)
+had no button and was removed in v0.009. A floor stored by an old save (`cargo.floor`) is still honoured by `quoteSale`.
 
 ## Design notes (CLAUDE.md)
 

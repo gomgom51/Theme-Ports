@@ -61,7 +61,8 @@ best tools for grey and black trade (`CONCEALMENT`, `darkCapable`).
   cash, "Le couteau" counter, dark country recorded for the shadow victory, aftermath news (always).
   Late → no pay and a grudge at the origin.
 - **Refuse**: grudge at that port for 150 days, and 30 % chance the gang seizes the ship (55 %) or
-  its crew (45 %) on the spot — except at your own shadow home (no grudge, no seizure).
+  its crew (45 %) on the spot — except at your own shadow home (no grudge, no seizure). `refusalRisk(company, port)`
+  returns these terms (or null at home) for both the simulation and the offer window.
 - **Grudge**: each call at that port → 30 % seizure. Shown on the map; AI avoids those ports.
 - **Seizure choice** (rule 2, `resolveSeized`): pay ransom (ship `max(500 k, 35 % value)`, crew
   `150 k + 120 k × crew level`, justice bail as above; freed in 2–5 / 10–20 days) or abandon (ship
@@ -88,5 +89,6 @@ delivery. Never names real groups (store policy: people smuggling, not trafficki
 
 ## Shady-deal hub
 
-Plots (pirates, corrupt officials, sabotage) can only be ordered with a ship in a shady port — see
+Plots (pirates, corrupt officials, sabotage) are sold by « La Mafia » (EN "the underworld") and can only be
+ordered with a ship in a shady port — see
 [14](14-rivalry-takeovers.md).

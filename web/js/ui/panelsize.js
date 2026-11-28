@@ -3,8 +3,8 @@
 // un double-clic sur la poignée revient à la largeur par défaut. Largeurs en px de l'interface (zoom de ui/scale.js).
 
 import { toLocal, viewport } from './scale.js';
+import { KEYS, read, write, remove } from './storage.js';
 
-const KEY = 'pda-panel-w';
 const MIN = 460;      // px : en dessous, les fiches se replient mal
 const MAP_MIN = 420;  // px : la carte garde toujours au moins cette largeur
 
@@ -16,8 +16,8 @@ function apply(w) {
   if (!w) { root.style.removeProperty('--panel-w'); return; }
   root.style.setProperty('--panel-w', `${Math.round(Math.max(MIN, Math.min(maxWidth(), w)))}px`);
 }
-function load() { try { return +localStorage.getItem(KEY) || 0; } catch { return 0; } }
-function save(w) { try { if (w) localStorage.setItem(KEY, String(Math.round(w))); else localStorage.removeItem(KEY); } catch { /* stockage indisponible */ } }
+function load() { return +read(KEYS.panelWidth) || 0; }
+function save(w) { if (w) write(KEYS.panelWidth, Math.round(w)); else remove(KEYS.panelWidth); }
 
 // La poignée se cache pendant que le tiroir sort (elle apparaît quand il est en place).
 let grip = null, token = 0;

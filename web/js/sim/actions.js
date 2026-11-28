@@ -6,7 +6,7 @@ import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { GOODS, OIL_GOODS } from '../data/goods.js';
 import * as eco from './economy.js';
 import {
-  money, news, shipById, contractById, companyOf, creditLimit, createShip, shipLog, portName, changeReputation, changeTrust, standing, removeShip, shipTrack, lastTrip, TRIPS_KEPT, loanOwedAt, changeVirtue, oilVirtueLoss,
+  book, news, shipById, contractById, companyOf, creditLimit, createShip, shipLog, portName, changeReputation, changeTrust, standing, removeShip, shipTrack, lastTrip, TRIPS_KEPT, loanOwedAt, changeVirtue, oilVirtueLoss,
 } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { CANAL_NAMES } from './context.js';
@@ -15,16 +15,16 @@ import { taintShip, isEmbargoed } from './shady.js';
 import { equipMod } from './equipment.js';
 import { clientRefusal, imageFactor } from './clients.js';
 import { lenderTerms, openLoan, settleLoan, tenderShare, deliverTender, commitOnDeparture, FINANCE, financedShare } from './trade.js';
-import { skillSpeed, skillHandling } from './crew.js';
+import { skillSpeed, skillHandling, rank, MAX_RANK } from './crew.js';
 import { isSeasonal, iceOpen, iceRisk, escortFee, iceClass, forecastText } from './ice.js';
 import { onTradeSale } from './honours.js';
 import { payCut } from './plots.js';
 import { SHADY_PORTS } from '../data/sanctions.js';
 import { closedPort } from './shadow.js';
+import { money, num } from './format.js';
 
 // why : la raison, quand l'interface doit y réagir (« carburant-fonds » : pas de quoi payer le plein).
 const fail = (msg, why = null) => ({ ok: false, msg, why });
-const fmtM = (v) => (v / 1e6).toFixed(2).replace('.', ',') + ' M$';
 
 // Chantiers navals : coefficient de prix et délai de livraison (jours).
 export const YARDS = {
@@ -64,8 +64,8 @@ export function buyFuel(state, shipId, tonnes) {
   if (qty < 1) return fail('Les soutes sont déjà pleines.');
   const price = eco.fuelPrice(state, ship.port);
   const cost = qty * price;
-  if (cost > company.cash) return fail(`Il faut ${fmtM(cost)} pour ce plein.`, 'carburant-fonds');
-  money(state, company, -cost, 'carburant', ship);
+  if (cost > company.cash) return fail(`Il faut ${money(cost)} pour ce plein.`, 'carburant-fonds');
+  book(state, company, -cost, 'carburant', ship);
   ship.fuel += qty;
   return { ok: true, qty, cost };
 }
@@ -79,8 +79,8 @@ export function repair(state, shipId, target) {
   if (!rc) return fail(`Pas de chantier de réparation à ${portName(ship.port)}.`);
   if (rc.points <= 0) return fail('Rien à réparer à ce niveau.');
   const company = companyOf(state, ship);
-  if (rc.cost > company.cash) return fail(`Il faut ${fmtM(rc.cost)} pour ces réparations.`);
-  money(state, company, -rc.cost, 'reparations', ship);
+  if (rc.cost > company.cash) return fail(`Il faut ${money(rc.cost)} pour ces réparations.`);
+  book(state, company, -rc.cost, 'reparations', ship);
   ship.repairTo = rc.to;
   startBusy(state, ship, 'réparation', rc.hours);
   shipLog(state, ship, `Réparations à ${portName(ship.port)} (${Math.round(ship.condition)} → ${rc.to} %)`);
@@ -153,12 +153,12 @@ function launch(state, ctx, ship, plan) {
   }
   for (const c of p.canals) {
     const fee = eco.canalFee(T, c);
-    money(state, company, -fee, 'ports', ship);
-    shipLog(state, ship, `Péage du ${CANAL_NAMES[c]} : ${fmtM(fee)}`);
+    book(state, company, -fee, 'ports', ship);
+    shipLog(state, ship, `Péage du ${CANAL_NAMES[c]} : ${money(fee)}`);
   }
   if (p.escortOut) { // port pris par les glaces : un brise-glace ouvre le chenal
-    money(state, company, -p.escortOut, 'ports', ship);
-    shipLog(state, ship, `Escorte d'un brise-glace pour sortir de ${portName(ship.port)} : ${fmtM(p.escortOut)}`);
+    book(state, company, -p.escortOut, 'ports', ship);
+    shipLog(state, ship, `Escorte d'un brise-glace pour sortir de ${portName(ship.port)} : ${money(p.escortOut)}`);
     ship.iced = null;
   }
   ship.voyage = {
@@ -251,7 +251,7 @@ export function checkContract(state, ctx, ship, contract) {
   const hold = eco.holdFor(ship.type, contract.good);
   if (!hold) return `Ce navire ne peut pas transporter : ${GOODS[contract.good].name.toLowerCase()}.`;
   if (!eco.portHandles(contract.from, hold) || !eco.portHandles(contract.to, hold)) return 'Un des ports ne peut pas manutentionner ce chargement.';
-  if (contract.qty > T.dwt) return `Capacité insuffisante (${T.dwt.toLocaleString('fr-FR')} t).`;
+  if (contract.qty > T.dwt) return `Capacité insuffisante (${num(T.dwt)} t).`;
   if (bannedUntil(companyOf(state, ship), PORTS[contract.to].flag) > state.t) return `${FLAGS[PORTS[contract.to].flag].name} interdit ses ports à votre compagnie (pollution).`;
   if (closedPort(companyOf(state, ship), contract.to)) return `Liste noire : ${FLAGS[PORTS[contract.to].flag].name} saisirait le navire à son arrivée.`;
   if (contract.minSpeed && T.maxSpeed < contract.minSpeed) return `Le chargeur exige un navire de ${String(contract.minSpeed).replace('.', ',')} nœuds au moins.`;
@@ -294,7 +294,7 @@ export function acceptContract(state, ctx, shipId, contractId, opts = {}) {
   taintShip(state, ship, c.from, c.pay);
   startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, c.qty, ship.type));
   ship.plan = { to: c.to, speed: p.speed, autoRefuel: opts.autoRefuel ?? true };
-  shipLog(state, ship, `Contrat : ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} avant le ${formatDate(c.deadline)}`);
+  shipLog(state, ship, `Contrat : ${num(c.qty)} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} avant le ${formatDate(c.deadline)}`);
   return { ok: true };
 }
 
@@ -304,13 +304,13 @@ export function abandonContract(state, shipId) {
   const c = contractById(state, ship.cargo.contractId);
   const company = companyOf(state, ship);
   const penalty = c ? Math.round(c.pay * 0.25) : 0;
-  money(state, company, -penalty, 'divers', ship);
+  book(state, company, -penalty, 'divers', ship);
   changeTrust(company, -8, 'contrats abandonnés');
   state.contracts = state.contracts.filter((x) => x !== c);
   ship.cargo = null;
   ship.plan = null;
   startBusy(state, ship, 'déchargement', 12);
-  shipLog(state, ship, `Contrat abandonné (pénalité ${fmtM(penalty)})`);
+  shipLog(state, ship, `Contrat abandonné (pénalité ${money(penalty)})`);
   return { ok: true, penalty };
 }
 
@@ -353,9 +353,9 @@ export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
     if (terms.share < 0.1) return fail('Plafond de vos prêts sur cargaison atteint : vendez d\'abord une cargaison financée.');
   }
   const down = terms ? q.total - Math.round((q.total * terms.share) / 1000) * 1000 : q.total;
-  if (down > company.cash) return fail(terms ? `Il faut ${fmtM(down)} d'apport pour cet achat.` : `Il faut ${fmtM(q.total)} pour cet achat.`);
+  if (down > company.cash) return fail(terms ? `Il faut ${money(down)} d'apport pour cet achat.` : `Il faut ${money(q.total)} pour cet achat.`);
   eco.applyTrade(state, ship.port, good, qty, 'buy');
-  money(state, company, -q.total, 'achats', ship);
+  book(state, company, -q.total, 'achats', ship);
   ship.cargo = { good, qty: onboard + qty, hold, cost: (ship.cargo?.cost || 0) + q.total, boughtAt: ship.port, loan: ship.cargo?.loan || null };
   if (terms) {
     ship.cargo.loan = openLoan(state, company, ship, terms, q.total);
@@ -363,7 +363,7 @@ export function buyCargo(state, ctx, shipId, good, qty, finance = null) {
   }
   taintShip(state, ship, ship.port, q.total);
   startBusy(state, ship, 'chargement', eco.handlingHours(ship.port, hold, qty, ship.type));
-  shipLog(state, ship, `Achat de ${qty.toLocaleString('fr-FR')} t de ${GOODS[good].name.toLowerCase()} à ${portName(ship.port)} (${fmtM(q.total)})`);
+  shipLog(state, ship, `Achat de ${num(qty)} t de ${GOODS[good].name.toLowerCase()} à ${portName(ship.port)} (${money(q.total)})`);
   return { ok: true, qty, total: q.total };
 }
 
@@ -392,23 +392,6 @@ export function quoteSale(state, ship) {
   };
 }
 
-// Prix garanti : contre une prime (1 à 5 % selon la volatilité de la marchandise et la
-// durée du voyage), la revente à ce port rapportera au moins le cours attendu aujourd'hui.
-export function guaranteeRate(good, days) {
-  return Math.max(0.01, Math.min(0.05, 0.6 * GOODS[good].vol * Math.sqrt(Math.max(1, days))));
-}
-export function guaranteePrice(state, shipId, port, unit, days) {
-  const ship = shipById(state, shipId);
-  if (!ship?.cargo || ship.cargo.contractId) return fail('Aucune cargaison à garantir.');
-  const company = companyOf(state, ship);
-  const premium = Math.round(guaranteeRate(ship.cargo.good, days) * unit * ship.cargo.qty / 1000) * 1000;
-  money(state, company, -premium, 'negoce', ship);
-  ship.cargo.cost += premium;
-  ship.cargo.floor = { port, unit, until: Math.round(state.t + (days * 1.5 + 5) * HOURS_PER_DAY) };
-  shipLog(state, ship, `Prix garanti à ${portName(port)} : ${Math.round(unit)} $/t (prime ${fmtM(premium)})`);
-  return { ok: true, premium };
-}
-
 export function sellCargo(state, ctx, shipId) {
   const ship = shipById(state, shipId);
   const err = notReady(ship);
@@ -418,14 +401,14 @@ export function sellCargo(state, ctx, shipId) {
   if (!q.possible) return fail(`${portName(ship.port)} ne peut pas décharger cette cargaison.`);
   const company = companyOf(state, ship);
   if (q.marketQty > 0) eco.applyTrade(state, ship.port, ship.cargo.good, q.marketQty, 'sell');
-  money(state, company, q.net, 'negoce', ship);
+  book(state, company, q.net, 'negoce', ship);
   if (q.tender) deliverTender(state, ship, q.tender);
   settleLoan(state, company, ship, ship.port); // remboursement du prêt sur la cargaison
   const tr = lastTrip(state, ship);
   if (tr && tr.rev == null && tr.to === ship.port) tr.rev = Math.round(q.net - (ship.cargo.cost || 0)); // marge du négoce
   taintShip(state, ship, ship.port, q.net);
   onTradeSale(state, company, { qty: ship.cargo.qty, good: ship.cargo.good, value: q.net });
-  shipLog(state, ship, `Vente de ${ship.cargo.qty.toLocaleString('fr-FR')} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${fmtM(Math.abs(q.profit))}`);
+  shipLog(state, ship, `Vente de ${num(ship.cargo.qty)} t de ${GOODS[ship.cargo.good].name.toLowerCase()} à ${portName(ship.port)} : ${q.profit >= 0 ? 'bénéfice' : 'perte'} de ${money(Math.abs(q.profit))}`);
   const hours = eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty, ship.type);
   ship.cargo = null;
   startBusy(state, ship, 'déchargement', hours);
@@ -450,8 +433,8 @@ export function reactivate(state, shipId) {
   const T = SHIP_TYPES[ship.type];
   const cost = 20000 + T.opex * 3;
   const company = companyOf(state, ship);
-  if (cost > company.cash) return fail(`Il faut ${fmtM(cost)} pour réarmer.`);
-  money(state, company, -cost, 'divers', ship);
+  if (cost > company.cash) return fail(`Il faut ${money(cost)} pour réarmer.`);
+  book(state, company, -cost, 'divers', ship);
   ship.status = 'port';
   delete ship.laidAt;
   startBusy(state, ship, 'réarmement', 48);
@@ -464,13 +447,13 @@ export function buyUsedShip(state, ctx, rng, companyId, listingId) {
   const company = state.companies[companyId];
   const l = state.used.find((x) => x.id === listingId);
   if (!l) return fail('Ce navire a déjà été vendu.');
-  if (l.price > company.cash) return fail(`Il faut ${fmtM(l.price)} pour cet achat.`);
+  if (l.price > company.cash) return fail(`Il faut ${money(l.price)} pour cet achat.`);
   company.cash -= l.price;
   const ship = createShip(state, rng, companyId, l.type, { port: l.port, age: l.age, condition: l.condition, name: l.name });
   ship.paid = l.price;
   winterKit(company, ship); // port d'hiver : classe glace offerte
   state.used = state.used.filter((x) => x !== l);
-  shipLog(state, ship, `Acheté d'occasion à ${portName(l.port)} pour ${fmtM(l.price)}`);
+  shipLog(state, ship, `Acheté d'occasion à ${portName(l.port)} pour ${money(l.price)}`);
   news(state, `${company.name} achète le ${ship.name} (${SHIP_TYPES[l.type].name.toLowerCase()}) à ${portName(l.port)}.`, { company: companyId, kind: 'fleet' });
   notifyRivals(state, company, ship, `${company.name} achète le ${ship.name} (${SHIP_TYPES[l.type].name.toLowerCase()}) à ${portName(l.port)}.`, false);
   return { ok: true, ship };
@@ -484,7 +467,7 @@ export function notifyRivals(state, company, ship, text, newbuild) {
   if (company.human || !state.companies.some((c) => c.human && !c.bankrupt)) return;
   if (!newbuild && state.t - (state.rivalSeen ?? 0) < 30 * HOURS_PER_DAY) return; // pas avant le 2e mois (achats de départ)
   state.rivalSeen = state.t;
-  (state.queuedNotes ??= []).push({ kind: 'rivalship', rival: company.id, color: company.color, shipType: ship.type, newbuild, text });
+  (state.queuedNotes ??= []).push({ kind: 'rivalship', rival: company.id, color: company.color, shipId: ship.id, shipType: ship.type, newbuild, text });
 }
 
 export function newBuildPrice(state, company, typeId, yard) {
@@ -495,7 +478,7 @@ export function orderNewShip(state, companyId, typeId, yard, name) {
   const company = state.companies[companyId];
   if (!YARDS[yard]) return fail('Chantier inconnu.');
   const price = newBuildPrice(state, company, typeId, yard);
-  if (price > company.cash) return fail(`Il faut ${fmtM(price)} pour cette commande.`);
+  if (price > company.cash) return fail(`Il faut ${money(price)} pour cette commande.`);
   company.cash -= price;
   const due = state.t + YARDS[yard].days * HOURS_PER_DAY;
   state.orders.push({ id: state.nextId++, owner: companyId, type: typeId, yard, due, paid: price, name: name || null });
@@ -516,12 +499,12 @@ export function sellShip(state, ctx, shipId) {
   if (detained && ship.detentionCost) {
     const left = Math.max(0, ship.busyUntil - state.t) / Math.max(1, ship.busyUntil - (ship.detentionStart ?? state.t));
     refund = Math.round(ship.detentionCost * left);
-    money(state, company, refund, 'reparations', ship);
+    book(state, company, refund, 'reparations', ship);
   }
   const price = eco.shipValue(state, ship) * 0.95;
   company.cash += price;
   removeShip(state, ctx, ship, 'vendu', price);
-  news(state, `${company.name} vend le ${ship.name} pour ${fmtM(price)}.`, { company: company.id, kind: 'fleet' });
+  news(state, `${company.name} vend le ${ship.name} pour ${money(price)}.`, { company: company.id, kind: 'fleet' });
   return { ok: true, price };
 }
 
@@ -529,17 +512,19 @@ export function sellShip(state, ctx, shipId) {
 // Monter en gamme coûte une prime d'embauche (un mois de la différence de salaire).
 export function crewChangeFee(state, ship, level) {
   const T = SHIP_TYPES[ship.type], company = companyOf(state, ship), cur = ship.crew || 0;
-  return level > cur ? Math.round((eco.crewDayCost(T, company.flag, level) - eco.crewDayCost(T, company.flag, cur)) * 30) : 0;
+  return level > cur ? Math.max(0, Math.round((eco.crewDayCost(T, company.flag, level) - eco.crewDayCost(T, company.flag, cur)) * 30)) : 0;
 }
 export function setCrew(state, shipId, level) {
   const ship = shipById(state, shipId);
   if (!ship || (ship.status !== 'port' && ship.status !== 'laidup')) return fail('On ne change d\'équipage qu\'au port.');
   level = Math.max(0, Math.min(CREW_LEVELS.length - 1, level | 0));
   if (level === (ship.crew || 0)) return fail('C\'est déjà l\'équipage actuel.');
+  if (CREW_LEVELS[level].unlock && rank(ship, CREW_LEVELS[level].unlock) < MAX_RANK) return fail('Il faut d\'abord la spécialité Vieux briscards au niveau 3.');
+  if (CREW_LEVELS[level].unlock) ship.crewWas = ship.crew || 0;
   const company = companyOf(state, ship);
   const fee = crewChangeFee(state, ship, level);
-  if (fee > company.cash) return fail(`Il faut ${fmtM(fee)} de primes d'embauche.`);
-  if (fee) money(state, company, -fee, 'equipage', ship);
+  if (fee > company.cash) return fail(`Il faut ${money(fee)} de primes d'embauche.`);
+  if (fee) book(state, company, -fee, 'equipage', ship);
   ship.crew = level;
   shipLog(state, ship, `Nouvel équipage : ${CREW_LEVELS[level].name.toLowerCase()}`);
   return { ok: true, fee };
@@ -581,8 +566,8 @@ export function relocate(state, companyId, portId) {
   const company = state.companies[companyId];
   if (portId === company.homePort) return fail('C\'est déjà votre port d\'attache.');
   const cost = relocateCost(state, companyId);
-  if (cost > company.cash) return fail(`Il faut ${fmtM(cost)} pour changer de pavillon.`);
-  money(state, company, -cost, 'divers');
+  if (cost > company.cash) return fail(`Il faut ${money(cost)} pour changer de pavillon.`);
+  book(state, company, -cost, 'divers');
   company.homePort = portId;
   company.flag = PORTS[portId].flag;
   const base = FLAGS[company.flag].rating * 0.5 + 25;

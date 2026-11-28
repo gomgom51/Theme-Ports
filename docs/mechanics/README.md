@@ -20,7 +20,7 @@ It exists so that a new task can start here instead of re-reading 30 simulation 
 | 03 | [home-ports.md](03-home-ports.md) | Home port = flag; the four home-port perks (shadow, financial hub, winter, family first), shadow lender, embargo takeover fine, relocation, start ports, the 36 ports with no perk | `sim/home.js`, `actions.relocate` |
 | 04 | [economy-market.md](04-economy-market.md) | Goods, world prices, local prices and stocks, freight cycle, fuel, repairs, ship values, running costs, handling | `sim/economy.js`, `data/goods.js` |
 | 05 | [contracts-clients-payments.md](05-contracts-clients-payments.md) | Contract generation and pay formula, golden deals, reservations, shippers (reliability, loyalty, grudges, image), payment resolution and disputes, prospecting | `economy.makeContract`, `sim/clients.js`, `sim/payments.js`, `sim/prospect.js` |
-| 06 | [trade-tenders-finance.md](06-trade-tenders-finance.md) | Buying and selling cargo, city tenders, cargo loans, price guarantee | `actions.buyCargo/sellCargo`, `sim/trade.js` |
+| 06 | [trade-tenders-finance.md](06-trade-tenders-finance.md) | Buying and selling cargo (quantity slider), city tenders, cargo loans, legacy price floors, intel estimates (best deal, sources, outlets) | `actions.buyCargo/sellCargo`, `sim/trade.js`, `sim/intel.js` |
 | 07 | [ships-crew-equipment.md](07-ships-crew-equipment.md) | 22 ship models, used market, new builds and yards, sale, lay-up, crew levels and XP skills, equipment | `data/ships.js`, `sim/crew.js`, `sim/equipment.js`, `data/equipment.js` |
 | 08 | [voyages-routing-ice.md](08-voyages-routing-ice.md) | Planning a voyage, routing and distance tables, canals, the hourly sailing step, arrival sequence, seasonal ice and the Northern Sea Route | `actions.planVoyage`, `sim/routing.js`, `sim/ice.js`, `game.sailHour/arrive` |
 | 09 | [sea-risks.md](09-sea-risks.md) | Incidents, sinking, wear, port-state inspections and detention, insurance, pollution, piracy, coastguard patrols, storms | `sim/incidents.js`, `sim/insurance.js`, `sim/pollution.js`, `sim/piracy.js`, `sim/patrols.js`, `sim/events.js` (weather) |
@@ -32,6 +32,7 @@ It exists so that a new task can start here instead of re-reading 30 simulation 
 | 15 | [victories-honours.md](15-victories-honours.md) | Office levels, deeds, records, misdeeds, the four victories and their alerts, end of game | `sim/victory.js`, `sim/honours.js`, `data/offices.js` |
 | 16 | [ai.md](16-ai.md) | How AI companies decide (ship idle loop, daily fleet/treasury, leanings), every AI-only knob | `sim/ai.js` + AI branches elsewhere |
 | — | [../balance/README.md](../balance/README.md) | Balance simulation: comparing two versions of the game on the same seeds (population, strategies, fleet, victories) | `tools/balance/compare.mjs`, `tools/balance/population.mjs` |
+| — | [../code-health.md](../code-health.md) | Code rules: where shared helpers live (formats, storage, save upgrades), what `tools/code-check.mjs` enforces, known debt | `sim/format.js`, `ui/storage.js`, `sim/migrations.js`, `tools/code-check.mjs` |
 
 ## How the systems connect
 

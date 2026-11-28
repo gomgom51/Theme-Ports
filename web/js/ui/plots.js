@@ -2,29 +2,27 @@
 // les rumeurs de menace dans les notifications importantes, le débauchage d'un chargeur.
 import { CLIENTS } from '../data/clients.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
-import { portName, shipsOf } from '../sim/core.js';
+import { portName, shipsOf, rivalsOf } from '../sim/core.js';
 import { relationOf } from '../sim/clients.js';
 import * as P from '../sim/plots.js';
-import { h, money, date, dialog, confirmBox, toast } from './dom.js';
+import { h, money, date, dialog, confirmBox, toast, pctOf } from './dom.js';
 
-const pc = (x) => `${Math.round(x * 100)} %`;
 const nameOf = (state, id) => state.companies[id]?.name || '?';
-const rivalsOf = (state, cid) => state.companies.filter((c) => c.id !== cid && !c.bankrupt);
 
 // ---------- Rumeurs et menaces (notifications importantes) ----------
 export function threatText(state, p, cid) {
   const who = p.known.includes(cid) ? ` Commanditaire : ${nameOf(state, p.by)}.` : ' Un informateur peut dire qui est derrière.';
   if (P.ATTACKS[p.kind]) return P.attackRumour(state, p) + who;
   if (p.kind === 'pirates') return `Rumeurs : des pirates seraient payés pour viser vos navires dans la zone ${P.zoneById(p.zone).name} jusqu'au ${date(p.until, true)} (attaques environ ${P.PIRATE_BOOST} fois plus probables, assaillants mieux armés). Évitez la zone ou renforcez la défense.${who}`;
-  return `Rumeurs : les autorités de ${portName(p.port)} seraient achetées contre vous jusqu'au ${date(p.until, true)} : vos navires risquent d'y être retenus sans motif (environ ${pc(P.HELD_CHANCE)} des escales). Évitez ce port.${who}`;
+  return `Rumeurs : les autorités de ${portName(p.port)} seraient achetées contre vous jusqu'au ${date(p.until, true)} : vos navires risquent d'y être retenus sans motif (environ ${pctOf(P.HELD_CHANCE)} des escales). Évitez ce port.${who}`;
 }
 // Ajoute aux notifications importantes : menaces contre vous, navires retenus ou dénoncés, vos affaires en cours.
 export function plotAlerts(state, cid, add) {
   const ICON = { pirates: '☠', corruption: '🏛', sabotage: '🧨', payments: '⏳', bank: '🏦', pricewar: '📉', smear: '📰', crew: '🧭' };
-  for (const p of P.plotsAgainst(state, cid)) add('watch', ICON[p.kind] || '⚠', threatText(state, p, cid), P.ATTACKS[p.kind] && p.counter && !p.countered ? { counter: p.id } : { plot: p.id }, ['Rumeur', P.ATTACKS[p.kind] ? `${P.ATTACKS[p.kind].name} contre vous` : p.kind === 'pirates' ? `pirates payés · ${P.zoneById(p.zone).name} · jusqu'au ${date(p.until, true)}` : `autorités de ${portName(p.port)} achetées · ${pc(P.HELD_CHANCE)} de retenue`]);
+  for (const p of P.plotsAgainst(state, cid)) add('watch', ICON[p.kind] || '⚠', threatText(state, p, cid), P.ATTACKS[p.kind] && p.counter && !p.countered ? { counter: p.id } : { plot: p.id }, ['Rumeur', P.ATTACKS[p.kind] ? `${P.ATTACKS[p.kind].name} contre vous` : p.kind === 'pirates' ? `pirates payés · ${P.zoneById(p.zone).name} · jusqu'au ${date(p.until, true)}` : `autorités de ${portName(p.port)} achetées · ${pctOf(P.HELD_CHANCE)} de retenue`]);
   for (const s of shipsOf(state, cid)) {
     if (s.heldBogus || s.busyWhat === 'retenue') add('urgent', '🏛', `Le ${s.name} est retenu sans motif sérieux à ${portName(s.port)} : un avocat peut le faire libérer sous 24 heures.`, { held: s.id }, [s.name, `retenu sans motif à ${portName(s.port)}`]);
-    if (s.contraband && P.tipped(state, s)) add('urgent', '📦', `Quelqu'un aurait parlé à la douane du colis du ${s.name} : fouille presque certaine (environ ${pc(P.TIP_DETECT)}) à sa prochaine escale. Jeter le colis par-dessus bord ?`, { jettison: s.id }, [s.name, `colis dénoncé · fouille ${pc(P.TIP_DETECT)}`]);
+    if (s.contraband && P.tipped(state, s)) add('urgent', '📦', `Quelqu'un aurait parlé à la douane du colis du ${s.name} : fouille presque certaine (environ ${pctOf(P.TIP_DETECT)}) à sa prochaine escale. Jeter le colis par-dessus bord ?`, { jettison: s.id }, [s.name, `colis dénoncé · fouille ${pctOf(P.TIP_DETECT)}`]);
   }
   for (const p of P.plotsBy(state, cid)) {
     if (P.ATTACKS[p.kind]) { add('info', '🕴', `${P.ATTACKS[p.kind].name} contre ${nameOf(state, p.target)} jusqu'au ${date(p.until, true)}.`, null, [P.ATTACKS[p.kind].name, `contre ${nameOf(state, p.target)} · jusqu'au ${date(p.until, true)}`]); continue; }
@@ -38,12 +36,12 @@ export function plotAlerts(state, cid, add) {
 export function hostileTag(state, cid, port) {
   const p = P.hostilePort(state, cid, port);
   if (!p) return null;
-  return h('span.tag.bad', { title: `Les autorités de ${portName(port)} seraient achetées contre vous jusqu'au ${date(p.until, true)} : environ ${pc(P.HELD_CHANCE)} de risque d'y être retenu sans motif (6 à 14 jours, ou un avocat).` }, '⚠ autorités hostiles');
+  return h('span.tag.bad', { title: `Les autorités de ${portName(port)} seraient achetées contre vous jusqu'au ${date(p.until, true)} : environ ${pctOf(P.HELD_CHANCE)} de risque d'y être retenu sans motif (6 à 14 jours, ou un avocat).` }, '⚠ autorités hostiles');
 }
 export function hostileLine(state, ship, to) {
   const p = to && P.hostilePort(state, ship.owner, to);
   if (!p) return null;
-  return h('div.risk-line.neg', `🏛 Les autorités de ${portName(to)} seraient achetées contre vous jusqu'au ${date(p.until, true)} : environ ${pc(P.HELD_CHANCE)} de risque que le ${ship.name} y soit retenu sans motif, 6 à 14 jours (un avocat peut le faire libérer sous 24 heures, contre paiement).`);
+  return h('div.risk-line.neg', `🏛 Les autorités de ${portName(to)} seraient achetées contre vous jusqu'au ${date(p.until, true)} : environ ${pctOf(P.HELD_CHANCE)} de risque que le ${ship.name} y soit retenu sans motif, 6 à 14 jours (un avocat peut le faire libérer sous 24 heures, contre paiement).`);
 }
 
 // ---------- Retenue abusive : attendre ou payer l'avocat ----------
@@ -113,8 +111,8 @@ export function underworldSection(app, port) {
     const tg = state.companies[target];
     const S = P.SCANDAL[kind];
     const body = kind === 'pirates'
-      ? `Pendant deux mois, les navires de ${tg.name} dans la zone ${P.zoneById(zoneSel.value).name} seront attaqués environ ${P.PIRATE_BOOST} fois plus souvent, par des pirates mieux armés. ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.pirates)} — vertu −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`
-      : `Pendant trois mois, les navires de ${tg.name} qui feront escale à ${portName(portSel.value)} y seront retenus sans motif (environ ${pc(P.HELD_CHANCE)} des escales, 6 à 14 jours, sauf s'ils paient un avocat). ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.corruption)} — vertu −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`;
+      ? `Pendant deux mois, les navires de ${tg.name} dans la zone ${P.zoneById(zoneSel.value).name} seront attaqués environ ${P.PIRATE_BOOST} fois plus souvent, par des pirates mieux armés. ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pctOf(P.EXPOSE.pirates)} — vertu −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`
+      : `Pendant trois mois, les navires de ${tg.name} qui feront escale à ${portName(portSel.value)} y seront retenus sans motif (environ ${pctOf(P.HELD_CHANCE)} des escales, 6 à 14 jours, sauf s'ils paient un avocat). ${tg.name} en entendra parler (une rumeur, sans votre nom). Risque que l'affaire s'ébruite : ${pctOf(P.EXPOSE.corruption)} — vertu −${S.rep}, amende de ${money(S.fine)}, et ${tg.name} saura.`;
     const price = kind === 'pirates' ? P.piratePrice(P.zoneById(zoneSel.value)) : P.corruptPrice(portSel.value);
     if (!(await confirmBox(kind === 'pirates' ? 'Payer des pirates ?' : 'Acheter des fonctionnaires ?', body, `Payer ${money(price)}`))) return;
     const r = app.act(() => app.withRng((rng) => P.orderPlot(state, rng, me, { kind, target, zone: zoneSel.value, port: portSel.value })), { sound: 'pay' });
@@ -137,7 +135,7 @@ export function informantSection(app, port) {
   const price = P.intelPrice(port);
   return h('div.informant', [
     h('h3', '👂 Informateur'),
-    h('p.hint', `Pour ${money(price)}, un informateur vous dit qui complote contre vous, et quels navires rivaux cachent un colis (vous pourrez les dénoncer à la douane : prime de ${pc(P.TIP_REWARD)} de l'amende si la saisie a lieu).`),
+    h('p.hint', `Pour ${money(price)}, un informateur vous dit qui complote contre vous, et quels navires rivaux cachent un colis (vous pourrez les dénoncer à la douane : prime de ${pctOf(P.TIP_REWARD)} de l'amende si la saisie a lieu).`),
     h('button.btn.small', { onclick: async () => {
       const r = app.act(() => P.buyIntel(state, me, port), { sound: 'pay' });
       if (r?.ok) await showIntel(app, r);
@@ -184,7 +182,7 @@ export function partnerInfo(app, clientId) {
     const price = P.poachPrice(state, clientId, tp.loyalty);
     const rival = state.companies[tp.id];
     out.push(' ', h('button.btn.small.ghost', { onclick: async () => {
-      const ok = await confirmBox(`Débaucher ${CLIENTS[clientId].name} ?`, `Pour ${money(price)}, ${CLIENTS[clientId].name} rompt son partenariat avec ${rival.name} : sa fidélité retombe à zéro et ses contrats réservés lui échappent. Votre propre fidélité monte un peu. Risque que l'affaire s'ébruite : ${pc(P.EXPOSE.poach)} — vertu −${P.SCANDAL.poach.rep}, et ${rival.name} saura.`, `Payer ${money(price)}`);
+      const ok = await confirmBox(`Débaucher ${CLIENTS[clientId].name} ?`, `Pour ${money(price)}, ${CLIENTS[clientId].name} rompt son partenariat avec ${rival.name} : sa fidélité retombe à zéro et ses contrats réservés lui échappent. Votre propre fidélité monte un peu. Risque que l'affaire s'ébruite : ${pctOf(P.EXPOSE.poach)} — vertu −${P.SCANDAL.poach.rep}, et ${rival.name} saura.`, `Payer ${money(price)}`);
       if (!ok) return;
       const r = app.act(() => app.withRng((rng) => P.poachClient(state, rng, me, clientId)), { sound: 'pay' });
       if (r?.ok) toast(r.leaked ? 'Fait… mais l\'affaire s\'est ébruitée.' : `${CLIENTS[clientId].name} rompt avec ${rival.name}.`, { timeout: 4000 });
@@ -203,7 +201,7 @@ function sabotageRow(app, rivals) {
   const go = async () => {
     const ship = Number(sel.value), owner = state.ships.find((x) => x.id === ship)?.owner;
     const A = P.ATTACKS.sabotage, price = P.attackPrice(state, 'sabotage', { target: owner, ship });
-    const ok = await confirmBox('Faire saboter ce navire ?', `À sa prochaine escale, le navire perd ${P.SABOTAGE_DAMAGE[0]} à ${P.SABOTAGE_DAMAGE[1]} points d'état, sauf s'il a des gardes à bord. Vertu −${A.rep} à coup sûr ; risque que l'affaire s'ébruite : ${pc(A.expose)} (vertu −${A.scandal.rep}, amende de ${money(A.scandal.fine)}). Son armateur entendra une rumeur et pourra mettre des gardes.`, `Payer ${money(price)}`);
+    const ok = await confirmBox('Faire saboter ce navire ?', `À sa prochaine escale, le navire perd ${P.SABOTAGE_DAMAGE[0]} à ${P.SABOTAGE_DAMAGE[1]} points d'état, sauf s'il a des gardes à bord. Vertu −${A.rep} à coup sûr ; risque que l'affaire s'ébruite : ${pctOf(A.expose)} (vertu −${A.scandal.rep}, amende de ${money(A.scandal.fine)}). Son armateur entendra une rumeur et pourra mettre des gardes.`, `Payer ${money(price)}`);
     if (!ok) return;
     const r = app.act(() => app.withRng((rng) => P.orderAttack(state, rng, me, { kind: 'sabotage', target: owner, ship })), { sound: 'pay' });
     if (r?.ok) toast('Un homme montera à bord à la prochaine escale.', { timeout: 4000 });

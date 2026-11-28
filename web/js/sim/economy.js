@@ -8,6 +8,7 @@ import { clientRel, clientDown, clientDemand, reserveFor, RESERVE_DAYS, RESERVE_
 import { EMBARGOED } from '../data/sanctions.js';
 import { clamp, HOURS_PER_DAY, formatDate } from './util.js';
 import { isSeasonal, iceOpen, iceRisk, ICE, ICE_SHIP } from './ice.js';
+import { money, num } from './format.js';
 
 export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffinés est à 1
 export const HOLD_TYPES = ['vrac', 'liquide', 'divers', 'conteneurs', 'chimique', 'gpl', 'gnl', 'vehicules', 'frigo', 'lourd'];
@@ -237,8 +238,6 @@ export function handlingRate(p, hold, qty = 0, typeId = null) {
 export function handlingHours(p, hold, qty, typeId = null) {
   return Math.max(6, Math.ceil((qty / handlingRate(p, hold, qty, typeId)) * HOURS_PER_DAY));
 }
-// Les grues de bord accélèrent-elles la manutention dans ce port ?
-export const gearHelps = (p, typeId) => geared(typeId) && PORTS[p].size < GEAR_SIZE;
 
 // Tirant d'eau admis pour un type de navire : certains ports ont des terminaux
 // plus profonds que leurs quais principaux (bouées pétrolières au large, quais minéraliers).
@@ -380,7 +379,9 @@ export function makeContract(state, ctx, rng, from, forType = null, { regional =
   const urgent = rng.chance(0.2);
   // Le chargeur (pas ceux en redressement judiciaire) : les clients peu fiables, ou dont la
   // réputation a pris un coup, paient mieux pour attirer les armateurs.
-  const clients = Object.entries(CLIENTS).filter(([id, c]) => c.goods.includes(good) && !clientDown(state, id));
+  // (Ceux qui soignent leur image ne touchent pas aux pays sous embargo.)
+  const sanctioned = isEmbargoedPort(from) || isEmbargoedPort(to);
+  const clients = Object.entries(CLIENTS).filter(([id, c]) => c.goods.includes(good) && !clientDown(state, id) && !(c.image && sanctioned));
   const client = clients.length ? rng.pick(clients)[0] : null;
   const riskPremium = client ? 1 + (70 - clientRel(state, client)) / 300 : 1;
   // Son partenaire le plus fidèle a la priorité quelques jours, avec un fret un peu meilleur.
@@ -429,7 +430,7 @@ function announceGolden(state, c) {
   for (const co of state.companies) {
     if (!co.human || co.bankrupt) continue;
     const ship = state.ships.find((s) => s.owner === co.id && s.status === 'port' && s.port === c.from);
-    (state.queuedNotes ??= []).push({ kind: 'golden', company: co.id, shipId: ship?.id ?? null, contractId: c.id, port: c.from, text: `Affaire en or à ${PORTS[c.from].name} : ${Math.round(c.pay / 1000).toLocaleString('fr-FR')} k$ pour ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} vers ${PORTS[c.to].name}. Offre valable jusqu'au ${formatDate(c.expires, true)}.` });
+    (state.queuedNotes ??= []).push({ kind: 'golden', company: co.id, shipId: ship?.id ?? null, contractId: c.id, port: c.from, text: `Affaire en or à ${PORTS[c.from].name} : ${money(c.pay)} pour ${num(c.qty)} t de ${GOODS[c.good].name.toLowerCase()} vers ${PORTS[c.to].name}. Offre valable jusqu'au ${formatDate(c.expires, true)}.` });
   }
 }
 export function refreshContracts(state, ctx, rng, fill = false) {

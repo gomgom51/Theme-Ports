@@ -12,10 +12,10 @@
 import { CLIENTS } from '../data/clients.js';
 import { HOURS_PER_DAY } from './util.js';
 import { onDenounce } from './honours.js';
-import { news, changeVirtue, standing, money as book } from './core.js';
+import { news, changeVirtue, standing, book } from './core.js';
+import { money } from './format.js';
 
 const D = HOURS_PER_DAY;
-const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
 export const LOYAL = 4; // fidélité à partir de laquelle on est « partenaire fidèle »
 export const MAX_LOYALTY = 10;
 export const GRUDGE_DAYS = 120;
@@ -73,12 +73,6 @@ export function paymentRisk(state, company, id) {
     dispute: Math.max(0.02, 0.03 + (100 - R) / 450 + (60 - rep) / 700) * (C.style === 'pinailleur' ? 1.8 : 1) * (1 - 0.05 * L),
     defer: (0.04 + (100 - R) / 600) * (C.style === 'lent' ? 2 : 1) * (1 - 0.04 * L),
   };
-}
-// Part du fret qu'on peut s'attendre à perdre : 65 % en cas de faillite, 12,5 % en cas de litige.
-export function expectedLoss(state, company, id) {
-  if (!id || !CLIENTS[id]) return 0.01;
-  const r = paymentRisk(state, company, id);
-  return r.bankrupt * 0.65 + r.dispute * 0.125 + r.defer * 0.01;
 }
 export function gratitudeChance(company, id) {
   return Math.min(0.9, (GRATITUDE[CLIENTS[id]?.style] ?? 0.4) + 0.03 * relationOf(company, id).loyalty);
@@ -187,6 +181,6 @@ export function clientsDaily(state, notes) {
     book(state, company, g.amount, 'fret');
     const r = relation(company, g.client);
     r.loyalty = Math.min(MAX_LOYALTY, r.loyalty + 1);
-    if (company.human) notes.push({ kind: 'paid', company: company.id, text: `${CLIENTS[g.client].name}, reconnaissant de votre discrétion, vous fait un geste commercial : ${k$(g.amount)}.`, amount: g.amount });
+    if (company.human) notes.push({ kind: 'paid', company: company.id, text: `${CLIENTS[g.client].name}, reconnaissant de votre discrétion, vous fait un geste commercial : ${money(g.amount)}.`, amount: g.amount });
   }
 }

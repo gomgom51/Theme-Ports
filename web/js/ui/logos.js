@@ -198,7 +198,6 @@ export const INITIAL = 'lettre';
 export const initialOf = (name) => (String(name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().match(/[A-Z0-9]/) || ['A'])[0];
 export const initialLogo = (name) => `${INITIAL}:${initialOf(name)}`;
 export const isInitialLogo = (id) => typeof id === 'string' && id.startsWith(`${INITIAL}:`);
-export const logoName = (id) => (isInitialLogo(id) ? 'Initiale' : (LOGOS[id] || LOGOS.ancre).name);
 // Partage du disque d'un emblème (l'initiale le tire de sa lettre).
 export function logoField(logoId) {
   if (isInitialLogo(logoId)) return FIELD_IDS[initialOf(logoId.slice(INITIAL.length + 1)).charCodeAt(0) % FIELD_IDS.length];
@@ -231,8 +230,6 @@ export function shade(hex, k) {
 }
 const INK = '#1d2731', CREAM = '#fbf1d8';
 export const emblemInk = (color) => (isLightColor(color) ? '#1c2a33' : '#fffaf0');
-// Emblème posé sur un disque blanc (cheminée) : la couleur de la compagnie, assombrie si elle est trop claire.
-export const emblemOnWhite = (color) => (isLightColor(color) ? shade(color, -0.45) : color);
 
 const letterSVG = (ch, attrs) => `<text x="32" y="${'Q'.includes(ch) ? 47 : 49.5}" text-anchor="middle" font-family="'Stardos Stencil', Georgia, serif" font-weight="700" font-size="${'MW'.includes(ch) ? 42 : 50}" ${attrs}>${ch}</text>`;
 
@@ -266,11 +263,4 @@ export function logoBadge(logoId, color, size = 28) {
     + `<g clip-path="url(#${id})"><rect width="80" height="80" fill="${color}"/><path d="${field}" fill="${dark}" stroke="${CREAM}" stroke-width="${small ? 2.2 : 1.6}" stroke-linejoin="round"/></g>`
     + (small ? '' : `<circle cx="40" cy="40" r="36.8" fill="none" stroke="${CREAM}" stroke-width="1.2"/>`)
     + `<g transform="translate(${o} ${o}) scale(${k})">${emblemArt(logoId, fill, outline, small ? 2.8 : 2.4)}</g></svg>`;
-}
-
-export function badgeEl(logoId, color, size = 28) {
-  const span = document.createElement('span');
-  span.className = 'badge-wrap';
-  span.innerHTML = logoBadge(logoId, color, size);
-  return span;
 }

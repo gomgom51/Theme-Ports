@@ -7,11 +7,11 @@
 import { shipsOf, shipById } from '../sim/core.js';
 import { h, toast } from './dom.js';
 import { localRect, viewport } from './scale.js';
+import { KEYS, read, write } from './storage.js';
 
-const KEY = 'pda-guide-done';
 // Cochée d'office pour une première partie sur cet appareil.
-export function guideDefault() { try { return !localStorage.getItem(KEY); } catch { return true; } }
-function remember() { try { localStorage.setItem(KEY, '1'); } catch { /* stockage indisponible */ } }
+export const guideDefault = () => !read(KEYS.guideDone);
+const remember = () => write(KEYS.guideDone, '1');
 
 const DAY = 24;
 const $ = (sel) => document.querySelector(sel);
@@ -169,6 +169,16 @@ const STEPS = [
     show: () => {
       const b = rail('alerts');
       return b && { el: b, text: 'La cloche rassemble ce qui demande votre attention : retards, navires immobilisés, risques à venir. Un chiffre rouge, c\'est du nouveau.' };
+    },
+  },
+  {
+    // La colonne des opportunités (en bas à gauche), dès qu'une première carte s'y montre.
+    id: 'opportunites', title: 'Les opportunités', after: ['temps'], ok: true,
+    when: () => !dialogOpen() && !!shown($('[data-guide="opps"]')),
+    done: () => false,
+    show: () => {
+      const el = shown($('[data-guide="opps"]'));
+      return el ? { el, text: 'Les opportunités : affaires en or ★, appels d\'offres des villes 📣, aide d\'urgence ❤ et pistes de démarchage 📋. Affaires en or et appels d\'offres n\'apparaissent que si l\'un de vos navires peut en profiter. Survolez une carte pour le détail ; × la ferme.' } : 'skip';
     },
   },
   {

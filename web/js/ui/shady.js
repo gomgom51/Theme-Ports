@@ -5,17 +5,18 @@ import { PORTS, FLAGS } from '../data/ports.js';
 import { EMBARGOED, ENFORCING, SHADY_PORTS, customsLevel, corruption } from '../data/sanctions.js';
 import { portName } from '../sim/core.js';
 import { detectionChance, seizureFine, sanctionRisk, sanctionPreview, taintActive, isEmbargoed, acceptOffer, resolveCase, TAINT_DAYS, proposeParcel, acceptProposal } from '../sim/shady.js';
-import { h, money, date, dialog, toast } from './dom.js';
+import { h, money, date, dialog, toast, dec } from './dom.js';
 import { flagEl } from './flags.js';
 import { showScene, scenesOn } from './scenes.js';
+import { sceneShipOf } from './sceneship.js';
 import { concealEl } from './shiproles.js';
 import { hasEquip, equipOff } from '../sim/equipment.js';
+import { crewHint } from './risk.js';
 
-const fr = (x, d = 0) => x.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
 // Le risque, dit par l'équipage : avis général, arrondi, ou précis selon son expérience.
 export function riskWords(p, crewLevel) {
-  if (crewLevel >= 2) return `${fr(p * 100, p < 0.1 ? 1 : 0)} %`;
-  if (crewLevel === 1) return `≈ ${fr(Math.max(5, Math.round(p * 20) * 5))} %`;
+  if (crewLevel >= 2) return `${dec(p * 100, p < 0.1 ? 1 : 0)} %`;
+  if (crewLevel === 1) return `≈ ${dec(Math.max(5, Math.round(p * 20) * 5))} %`;
   return p < 0.1 ? 'faible' : p < 0.2 ? 'réel' : 'élevé';
 }
 const levelClass = (p) => (p >= 0.2 ? 'neg' : p >= 0.1 ? 'warn-text' : '');
@@ -35,7 +36,13 @@ export function shadyLines(state, ship, to, { general = true } = {}) {
   if (ship.contraband && to) {
     const p = detectionChance(ship, to, homeOf(state, ship));
     const dest = ship.contraband.to === to;
-    out.push(h(`div.risk-line.${levelClass(p) || 'x'}`, `📦 Colis caché à bord${dest ? ' (livraison ici)' : ` (pour ${portName(ship.contraband.to)})`} : risque de fouille à ${portName(to)} ${riskWords(p, ship.crew || 0)}. Si la douane le trouve : amende de ${money(seizureFine(ship.contraband.pay))} et 10 à 25 jours d'immobilisation${corruption(PORTS[to].flag) > 0.15 ? ' (un arrangement sera peut-être possible)' : ''}.`));
+    // Morceaux dans des nœuds séparés : chacun se traduit seul (la destination et le niveau de risque varient).
+    out.push(h(`div.risk-line.${levelClass(p) || 'x'}`, [
+      h('span', dest ? '📦 Colis caché à bord, à livrer ici.' : `📦 Colis caché à bord, à livrer à ${portName(ship.contraband.to)}.`), ' ',
+      h('span', `Risque de fouille à ${portName(to)} :`), ' ', h('b', riskWords(p, ship.crew || 0)), '.', crewHint(ship.crew), ' ',
+      h('span', `Si la douane le trouve : amende de ${money(seizureFine(ship.contraband.pay))} et 10 à 25 jours d'immobilisation.`),
+      corruption(PORTS[to].flag) > 0.15 ? h('span', ' Un arrangement sera peut-être possible.') : null,
+    ]));
   }
   // Navire marqué par un embargo : dit en permanence sur sa fiche, avec la date de fin (règle n° 1).
   const taint = taintActive(state, ship);
@@ -79,7 +86,7 @@ export function offersSection(app, ship) {
       h('div.card-main', [
         h('div.card-title', ['📦 Colis pour ', flagEl(PORTS[o.to].flag), ` ${portName(o.to)}`, h('span.tag', `douane ${customsWord(PORTS[o.to].flag)}`)]),
         h('div.card-sub', `À livrer avant le ${date(o.deadline, true)}. Risque de fouille à l'arrivée : `),
-        h('div.card-sub', [h('b', { class: levelClass(p) }, riskWords(p, ship.crew || 0)), ` (et à chaque escale en route). Si la douane le trouve : amende de ${money(seizureFine(o.pay))}, navire immobilisé 10 à 25 jours, vertu entachée.`]),
+        h('div.card-sub', [h('b', { class: levelClass(p) }, riskWords(p, ship.crew || 0)), ` (et à chaque escale en route). Si la douane le trouve : amende de ${money(seizureFine(o.pay))}, navire immobilisé 10 à 25 jours, vertu entachée.`, crewHint(ship.crew)]),
       ]),
       h('div.card-side', [h('div.price', money(o.pay)), h('button.btn.small', { onclick: () => app.act(() => acceptOffer(state, ship.id, o.id)) }, 'Accepter')]),
     ]));
@@ -111,7 +118,7 @@ export async function maybeProposeParcel(app, ship, to) {
       h('p', insisting
         ? `L'intermédiaire revient à la charge : il double la mise, ${money(offer.pay)} en liquide pour le même colis.`
         : `Sur le quai, un intermédiaire vous aborde : un petit colis à glisser dans la cargaison du ${ship.name}, pour ${portName(offer.to)}, payé ${money(offer.pay)} en liquide à la livraison (avant le ${date(offer.deadline, true)}).`),
-      h('p', [`Risque de fouille à l'arrivée : `, h('b', { class: levelClass(p) }, riskWords(p, ship.crew || 0)), ` (et à chaque escale en route). Si la douane le trouve : amende de ${money(seizureFine(offer.pay))}, 10 à 25 jours d'immobilisation, vertu entachée.`]),
+      h('p', [`Risque de fouille à l'arrivée : `, h('b', { class: levelClass(p) }, riskWords(p, ship.crew || 0)), ` (et à chaque escale en route). Si la douane le trouve : amende de ${money(seizureFine(offer.pay))}, 10 à 25 jours d'immobilisation, vertu entachée.`, crewHint(ship.crew)]),
       concealEl(ship),
     ]);
     const buttons = [
@@ -120,7 +127,7 @@ export async function maybeProposeParcel(app, ship, to) {
       { label: `Accepter (${money(offer.pay)})`, value: 'oui', kind: 'primary' },
     ];
     // Avec les illustrations : la scène de l'homme au manteau sur le quai.
-    if (scenesOn()) return showScene(app, 'offer', { title, content: body, buttons, clickClose: false, variant: insisting ? 'insist' : null, color: state.companies[ship.owner]?.color });
+    if (scenesOn()) return showScene(app, 'offer', { title, content: body, buttons, clickClose: false, variant: insisting ? 'insist' : null, color: state.companies[ship.owner]?.color, ship: sceneShipOf(state, ship) });
     return dialog({ title, body, buttons });
   };
   let choice = await ask(o, false);

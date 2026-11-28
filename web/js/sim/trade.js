@@ -16,8 +16,9 @@ import { GOODS, OIL_GOODS, isCleanGood } from '../data/goods.js';
 import { EMBARGOED, SHADY_PORTS } from '../data/sanctions.js';
 import { HOURS_PER_DAY, clamp, formatDate } from './util.js';
 import * as eco from './economy.js';
-import { news, portName, companyOf, shipLog, money, loanOwedAt, cargoLoans, netWorth, earnTrust, earnVirtue, VIRTUE_SOURCES, standing } from './core.js';
+import { news, portName, companyOf, shipLog, book, loanOwedAt, cargoLoans, netWorth, earnTrust, earnVirtue, VIRTUE_SOURCES, standing } from './core.js';
 import { isSeasonal } from './ice.js';
+import { money, num } from './format.js';
 
 const D = HOURS_PER_DAY;
 
@@ -89,7 +90,7 @@ export function tradeDaily(state, ctx, rng, notes) {
     if (t) {
       state.tenders.push(t);
       const G = GOODS[t.good];
-      const text = `Appel d'offres : ${portName(t.port)} achète ${t.qty.toLocaleString('fr-FR')} t de ${G.name.toLowerCase()} à ${t.unit.toLocaleString('fr-FR')} $/t, jusqu'au ${formatDate(t.until, true)}.`;
+      const text = `Appel d'offres : ${portName(t.port)} achète ${num(t.qty)} t de ${G.name.toLowerCase()} à ${num(t.unit)} $/t, jusqu'au ${formatDate(t.until, true)}.`;
       news(state, text, { kind: 'event' });
       for (const co of state.companies) if (co.human && !co.bankrupt) notes.push({ kind: 'tender', company: co.id, tenderId: t.id, text });
     }
@@ -107,7 +108,7 @@ export function commitOnDeparture(state, ship, to, eta) {
   t.commits.push({ company: ship.owner, shipId: ship.id, qty, eta: Math.round(eta) });
   const co = companyOf(state, ship);
   const left = Math.max(0, t.left - t.commits.reduce((s, c) => s + c.qty, 0));
-  const text = `${co.name} livrera ${qty.toLocaleString('fr-FR')} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} vers le ${formatDate(eta, true)} : il en resterait ${left.toLocaleString('fr-FR')} t.`;
+  const text = `${co.name} livrera ${num(qty)} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} vers le ${formatDate(eta, true)} : il en resterait ${num(left)} t.`;
   (state.queuedNotes ??= []).push({ kind: 'tenderCommit', tenderId: t.id, by: ship.owner, text });
 }
 
@@ -128,8 +129,8 @@ export function deliverTender(state, ship, share) {
   t.commits = t.commits.filter((c) => c.shipId !== ship.id);
   if (t.left <= 0) { t.left = 0; t.closedAt = state.t; }
   const text = t.left > 0
-    ? `${co.name} a livré ${share.qty.toLocaleString('fr-FR')} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} : il en reste ${t.left.toLocaleString('fr-FR')} t.`
-    : `${co.name} a livré ${share.qty.toLocaleString('fr-FR')} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} : l'appel d'offres est complet.`;
+    ? `${co.name} a livré ${num(share.qty)} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} : il en reste ${num(t.left)} t.`
+    : `${co.name} a livré ${num(share.qty)} t de ${GOODS[t.good].name.toLowerCase()} à ${portName(t.port)} : l'appel d'offres est complet.`;
   (state.queuedNotes ??= []).push({ kind: 'tenderDelivered', tenderId: t.id, by: ship.owner, text });
 }
 
@@ -193,7 +194,7 @@ export function settleLoan(state, company, ship, port) {
   const interest = loanInterest(loan, state.t);
   const fee = loan.dest && loan.dest !== port ? loan.amount * FINANCE.destFee : 0;
   company.cash -= loan.amount;
-  money(state, company, -(interest + fee), 'interets', ship);
+  book(state, company, -(interest + fee), 'interets', ship);
   if (!fee) (company.lenders ??= {})[loan.lender] = Math.min(FINANCE.trackMax, (company.lenders[loan.lender] || 0) + 1); // bon payeur
   ship.cargo.loan = null;
   return { amount: loan.amount, interest, fee };
@@ -205,7 +206,7 @@ export function loanToDebt(state, company, ship, late = false) {
   const owed = loanOwed(loan, state.t) + (late ? loan.amount * FINANCE.lateFee : 0);
   company.debt += owed;
   ship.cargo.loan = null;
-  shipLog(state, ship, late ? `Prêt sur cargaison échu : ${Math.round(owed / 1000)} k$ passent en dette bancaire` : `Cargaison perdue : le prêt (${Math.round(owed / 1000)} k$) passe en dette bancaire`);
+  shipLog(state, ship, late ? `Prêt sur cargaison échu : ${money(owed)} passent en dette bancaire` : `Cargaison perdue : le prêt (${money(owed)}) passe en dette bancaire`);
   return owed;
 }
 // Une fois par jour : les prêts échus deviennent des dettes (le joueur est prévenu à l'avance).
@@ -216,7 +217,7 @@ export function loansDaily(state, notes) {
     const co = state.companies[s.owner];
     if (state.t >= loan.due) {
       const owed = loanToDebt(state, co, s, true);
-      if (co.human) notes.push({ kind: 'info', shipId: s.id, company: co.id, text: `Le prêt sur la cargaison du ${s.name} est échu : ${Math.round(owed / 1000).toLocaleString('fr-FR')} k$ passent en dette bancaire (pénalité de ${Math.round(FINANCE.lateFee * 100)} %).` });
+      if (co.human) notes.push({ kind: 'info', shipId: s.id, company: co.id, text: `Le prêt sur la cargaison du ${s.name} est échu : ${money(owed)} passent en dette bancaire (pénalité de ${Math.round(FINANCE.lateFee * 100)} %).` });
     } else if (co.human && !loan.warned && loan.due - state.t <= 7 * D) {
       loan.warned = true;
       notes.push({ kind: 'info', shipId: s.id, company: co.id, text: `Le prêt sur la cargaison du ${s.name} arrive à échéance le ${formatDate(loan.due, true)} : vendez avant, ou il deviendra une dette bancaire (pénalité de ${Math.round(FINANCE.lateFee * 100)} %).` });

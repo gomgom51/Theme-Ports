@@ -1,8 +1,12 @@
 # Port d'Attache — design rules for this project
 
 **Start here:** `docs/mechanics/README.md` maps every game mechanic, its code, its constants and how
-the systems connect. Read the relevant file there before exploring the code, and update it when you
-change a mechanic.
+the systems connect. Read the relevant file there before exploring the code.
+
+**Docs in the same PR (owner's rule):** a PR that changes a mechanic, a constant, where something sits in the
+UI (a button, tab or panel that moves), or adds a code file updates the matching `docs/mechanics/` file in that
+same PR, or says in the PR body why none is needed (PR template checkbox). At release, the bundle thread checks
+every included PR for this and fixes small gaps in the bundle.
 
 This is a **management game**. Balance and player agency come before realism.
 Every design or balancing choice must be checked against these rules (set by the
@@ -63,7 +67,8 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   `clientDemand`) in `web/js/sim/clients.js`; shady deals (`PIRATE_*`, `HELD_CHANCE`,
   `EXPOSE`, `SCANDAL`, prices, `AI_PLOT_CHANCE`, `AI_POACH_CHANCE`) in `web/js/sim/plots.js`;
   per-goods trade spread `goodSpread` and `GOLDEN_CHANCE` in `economy.js`; crew skill
-  effects and `XP_STEPS` in `web/js/sim/crew.js`; ice (`ICE`: announcement delay,
+  effects and `XP_STEPS` in `web/js/sim/crew.js`, crew levels (`CREW_LEVELS`: wage, safety, `fight`, the free fourth
+  level unlocked by the Vieux briscards skill) in `web/js/data/ships.js`; ice (`ICE`: announcement delay,
   ice-class extension, icebreaker escort fees, end-of-season contract premium,
   Northern Sea Route safety horizon) in `web/js/sim/ice.js`, seasonal windows (`ice` on
   ports in `web/js/data/ports.js`, `ICE_PASSAGES`), Arctic fee `CANAL_FEE.nsr` in `economy.js`;
@@ -205,50 +210,24 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   (Barents–Kara, Northern Sea Route marked as canal `nsr`, Chukchi–Beaufort); the rest
   stays pack ice. Distance tables store closed-passage cases as diffs.
 
-### Final balance pass (done) — results to preserve
+### Final balance pass (done) — targets to preserve
 
-- AI population, 5 years, 96 companies: median ×8 net worth, bottom 10 % ≈ ×1,
-  no bankruptcy; every home port viable (Houston/US flag lowest, ×3–8 median).
-  After the owner's 6-hour playtest ("money is slow"), deliberately faster: median
-  ≈ ×19, bottom 10 % ≈ ×4, best ≈ ×54, Houston ×13 (trade, golden deals, crew skills).
-  Strategies then: bulk 8, liners 4, tankers 3, cargos 1 over 16 seeds; fleet OK.
-- 10 years: all AIs survive, growth turns linear once the fleet cap is reached.
-- Strategies over 16 seeds: bulk 7 wins, tankers 5, liners 3, cargos 1 (cargos'
-  edge is grey/black trade, which the test bots barely use); medians ×13–24.
-- Fleet test: every model profitable.
-- After tenders, cargo financing and prospecting (5 years, 96 companies): median ×29, bottom 10 % ×6.7, best ×85,
-  no bankruptcy; Houston (US flag) lowest at ×19, Singapore highest at ×46. Faster than before (×19): trade now
-  pays, as the owner asked, and cash-rich companies fill every hold once their fleet is capped. No trade knob
-  slows it much (tender premium, loan share, exposure cap, `SPREAD` each move it by less than the seed noise);
-  `BALLAST` 1.6 gives ×26 but drops the bottom 10 % to ×3. Strategies over 16 seeds: tankers 7, liners 5,
-  cargos 2, bulk 2, medians ×36–61. Fleet test OK. 10 years: all AIs survive, linear growth once capped.
-- Victories (16 AI games, 14 years, one company per leaning): 10 games won, median first victory 9.5 years, 7 before
-  year 10; reputation 5, shadow fleet 3, legend 2 (owner's call: shadow felt weak, reputation too resilient, fixed with
-  the six-month hold, shell companies, 7 years / 16 ships on the blacklist); domination is the hardest (conquerors
-  usually eliminate one rival, never all three). After the new Clean Seas (no polluting cargo for 4 years) and the rule that a
-  blacklisted buyer can only buy blacklisted companies: 9 won, median 9.5 years, 6 before year 10; reputation 6, shadow 2,
-  legend 1 (same seeds: a shadow fleet that used to win at 9 years is now dismantled first, a legend at 13.5 years slips past 14). After the trust/virtue split (economy on
-  trust, virtue for the reputation victory, image customers and ports): 9 won, median 9.9 years, 5 before year 10;
-  reputation 5, shadow 3, legend 1. Population: median ×36, bottom 10 % ×9.6, no bankruptcy, 13 bought (mostly shadow
-  fleets). Strategies: tankers 8, liners 4, cargos 2, bulk 2 (tankers led in every run since the split: watch rule 3).
-  First tries with the economy reading the minimum of the two scores crushed every risk-taker (bottom 10 % ×2.5,
-  conquerors bought in 13 of 16 games): the economy must read trust only. With oil costing virtue: victories 4 of 16, median
-  13.3 years, reputation 1 (the virtuous AI carries oil like everyone, so it rarely gets there; a human chasing that
-  victory would avoid oil); strategies tankers 7. With the refinery crisis (2 to 4 weeks): victories 6, median 9.8
-  years (legend 3, shadow 2, reputation 1); strategies tankers 7, bulk 5, liners 3, cargos 1, tanker median ×57 → ×50
-  (a short crisis trims tanker income but does not change which strategy tops a market). Then the virtuous AI avoids oil
-  (35 % of an oil job's revenue counted as an image cost, no oil or chemical tankers bought: `VIRTUOUS_OIL_PENALTY` in
-  `ai.js`), as a human chasing that victory would: victories 7 of 16, median 9.5 years, 5 before year 10; reputation 3,
-  legend 3, shadow 1 — no path dominates (reputation was 5–6 before the split). One shadow AI went bankrupt. A shadow fleet that survives wins; its survival hinges on
-  `TAKEOVER.dismantleK` (×1 → 2 wins, ×1.5 → 2, ×2 with 6 years → 6, ×2 with 7 years → 3). With leanings: population survivors median
-  ×27, bottom 10 % ×10, no bankruptcy; most shadow fleets are bought or dismantled within five years. Strategies over
-  16 seeds (neutral leanings, victories off): tankers 5, cargos 4, bulk 4, liners 3. Fleet test OK.
+Full results and their history: `docs/balance/history.md` (add new runs there, not here). Targets: population runs
+(5 years, 96 companies) with no bankruptcy and every home port viable; no strategy dominant over 16 seeds (each wins
+some markets); every ship model profitable; AI-only victory games won about half the time, first victory around
+year 9–10, no victory path dominating; 10-year runs: all AIs survive.
+
 - Lessons: used-ship prices must follow earning power (slow `AGING.dep`),
   otherwise cheap old hulls give runaway returns; the AI must price expected
   embargo fines (it now does, `embargoCost` in `ai.js`) or it bleeds billions.
 
 ## Conventions
 
+- **Code health (read `docs/code-health.md` before adding a helper, a setting or a saved field):** sums and
+  percentages through `sim/format.js` (`money`, `num`, `pctOf`…), money booked with `book(state, …)`, storage only
+  through `ui/storage.js`, a new saved field gets a default in `fillDefaults` (`sim/migrations.js`) and released
+  saves in `tests/saves/` must keep loading, no dead exports or imports. `node tools/code-check.mjs` (npm test, CI)
+  enforces the mechanical rules.
 - In-game text is French; code comments in French.
 - English option: French stays the source language in the code. `web/js/i18n.js`
   translates every French text as it reaches the screen (DOM text nodes and
@@ -264,21 +243,29 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   separate text nodes). `node tools/i18n-screens.mjs` (Playwright, not in CI: run at release, part of `npm test`)
   plays a 2-year game in English in a hidden browser, opens every panel, tab and event
   window, and fails on any French actually on screen (runtime-glued pieces, lone words,
-  status labels, French around names in `data-no-tr`). Proper names and never-shown texts go in `tools/i18n-ignore.json`. Ship,
+  status labels, French around names in `data-no-tr`). Proper names and never-shown texts go in `tools/i18n-ignore.json`. In French, the
+  screen contracts generated text around names (`frenchGrammar` in `i18n.js`: « à Le Havre » → « au Havre », « du Écume » →
+  « de l'Écume »): write templates plainly (`à ${port}`, `du ${ship.name}`), never pre-contract them. Ship,
   company and captain names are registered at runtime (`registerGameNames`) and treated
   as untranslatable tokens, so any player-typed name works inside a sentence. Served on
   localhost or with `?dev`, the game warns in the console about every text still in
   French (`window.__i18nMissing`). Mark an element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
-- Interface size (`web/js/ui/scale.js`): the page is zoomed by `uiScale()` (1 at 1920 × 1080, 1.33 at 2560 × 1440, adjustable
-  in the ☰ menu). Write `calc(N * var(--vw))` / `var(--vh)` instead of `vw` / `vh`, convert screen coordinates with `localRect()` /
+- Interface size (`web/js/ui/scale.js`, owner's pick): one reference format, 16:9 at 2560 × 1440 (the owner's screen); check
+  every screen change there first, then 1920 × 1080, 2560 × 1600 (16:10) and 3440 × 1440 (21:9). The page is zoomed by
+  `uiScale()` = the largest 16:9 that fits the screen (the code counts in 1920 × 1080 px: 1 at 1080p, 1.33 at 1440p), never
+  below 0.75 on small screens (`MIN`), adjustable in the ☰ menu. On other shapes the interface keeps that 16:9 size, anchored
+  to the edges, and the map fills the rest (no black bars); dialogs and scenes stay centred cards of bounded width. Write `calc(N * var(--vw))` / `var(--vh)` instead of `vw` / `vh`, convert screen coordinates with `localRect()` /
   `viewport()` before positioning an element, and size a canvas with `pixelRatio()`; the map stays `.unzoom` and scales its own drawings.
-- Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (proportions in metres, beam `B`). Detail
+- Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (`ui/shipshapes.js`, proportions in metres, beam `B`). Detail
   views (inspect, ship sheet, broker cards, thumbnails) use `ui/pixelship.js` (a `<span class="px-ship">` that gets a
   canvas, slot `big` animated at 8 fps); the map uses side-view sprites from `ui/mapships.js` (laden = company hull,
   empty = pale hull with a company stripe, wake length follows speed, routes dashed in the company colour). Two styles,
-  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. `shipSVG` with `attrs`
-  still returns the old vector drawing (office shelf model). Map sizes (owner's pick): ships ×1.5 and port names 13 px
+  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. Event scenes (owner's pick)
+  draw the player's real ship, always chunky, to scale on the 200 × 112 scene grid (0.55 px per metre: a coaster stays
+  small, a Capesize fills the frame, a giant overflows), anchored by the bow, slopes by shifting pixel columns, never
+  rotating (`sceneShip` / `sceneShipOf` in `ui/sceneship.js`; scenes with no ship of the game use a stand-in model).
+  The level-up, record and misdeed scenes paint the pixel office (`ui/officescene.js`). Map sizes (owner's pick): ships ×1.5 and port names 13 px
   at 1920 × 1080, times `uiScale()` (`MAP_SHIPS`, `CITY_PX` in `mapships.js`); port names are drawn over the ships,
   under the selected ship and the dock badges; chunky blocks stop at 3 screen pixels.
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers

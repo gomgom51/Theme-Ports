@@ -2,17 +2,13 @@
 import { CLIENTS, STYLE_LABEL, stars } from '../data/clients.js';
 import { GOODS } from '../data/goods.js';
 import { portName } from '../sim/core.js';
-import { resolution, collect, paymentBase } from '../sim/payments.js';
-import { h, money, tonnes, date, dialog, dropToasts } from './dom.js';
+import { resolution, collect, paymentBase, arbitrationOdds } from '../sim/payments.js';
+import { oddsWords, crewHint } from './risk.js';
+import { h, money, tonnes, date, dialog, dropToasts, chance } from './dom.js';
 import { artForShip } from './shipart.js';
 import { gradeEl } from './grade.js';
 import { logoBadge } from './logos.js';
 import { clientRel, relationOf, paymentRisk, gratitudeChance, reportClient, LOYAL, RESERVE_LOYALTY, DENOUNCE_HIT, DENOUNCE_REP, GRUDGE_DAYS } from '../sim/clients.js';
-
-export function starsText(reliability) {
-  const n = stars(reliability);
-  return '★'.repeat(n) + '☆'.repeat(5 - n);
-}
 
 // Fidélité sur l'échelle de cinq crans du jeu (deux points de fidélité par cran).
 export function loyaltyDots(loyalty) {
@@ -36,16 +32,15 @@ export function clientLine(state, company, clientId) {
 }
 
 // Les risques à l'encaissement, chiffrés, avant d'accepter le contrat.
-const pc = (x) => (x > 0 && x < 0.005 ? '< 1 %' : `${Math.round(x * 100)} %`);
 export function riskLine(state, company, clientId, pay) {
   if (!CLIENTS[clientId]) return null;
   const r = paymentRisk(state, company, clientId);
   return h('div.card-sub.pay-risk', [
     'À l\'encaissement : ',
     h('span', { class: r.bankrupt >= 0.02 ? 'neg' : '', title: 'Le chargeur fait faillite : vous ne touchez que 20 à 50 % du fret.' },
-      r.bankrupt >= 0.005 ? `impayé ${pc(r.bankrupt)} (perte de ${money(pay * 0.5)} à ${money(pay * 0.8)})` : `impayé ${pc(r.bankrupt)}`),
-    ' · ', h('span', { title: 'Le chargeur conteste et retient 5 à 20 % du fret ; vous pouvez porter l\'affaire en arbitrage.' }, `litige ${pc(r.dispute)}`),
-    ' · ', h('span', { title: 'Le chargeur paie 15 à 45 jours plus tard.' }, `retard de paiement ${pc(r.defer)}`),
+      r.bankrupt >= 0.005 ? `impayé ${chance(r.bankrupt)} (perte de ${money(pay * 0.5)} à ${money(pay * 0.8)})` : `impayé ${chance(r.bankrupt)}`),
+    ' · ', h('span', { title: 'Le chargeur conteste et retient 5 à 20 % du fret ; vous pouvez porter l\'affaire en arbitrage.' }, `litige ${chance(r.dispute)}`),
+    ' · ', h('span', { title: 'Le chargeur paie 15 à 45 jours plus tard.' }, `retard de paiement ${chance(r.defer)}`),
   ]);
 }
 
@@ -107,7 +102,11 @@ export async function openPayment(app, paymentId) {
     h('p', [h('b', `${GOODS[p.good].icon} ${tonnes(p.qty)} de ${GOODS[p.good].name.toLowerCase()}`), ` livrés à ${portName(p.to)} par le ${p.shipName} le ${date(p.deliveredT, true)}.`]),
     C ? h('p', ['Client : ', clientLine(state, co, p.client)]) : null,
     lines, total,
-    ev?.kind === 'contestation' ? h('p.hint', 'Contester lance un arbitrage d\'environ un mois : votre confiance compte, et les frais d\'avocat sont de 3 %.') : null,
+    ev?.kind === 'contestation' ? h('p.hint', [
+      h('span', 'Contester lance un arbitrage d\'environ un mois : votre confiance compte, et les frais d\'avocat sont de 3 %.'), ' ',
+      h('span', 'Chances de gagner :'), ' ', h('b', oddsWords(arbitrationOdds(state, co, p.client), p.crew ?? shipNow?.crew ?? 0)), '.',
+      crewHint(p.crew ?? shipNow?.crew ?? 0, ' Un équipage plus expérimenté saurait les chiffrer.'),
+    ]) : null,
   ]);
   let buttons;
   if (ev?.kind === 'contestation') {

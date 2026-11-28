@@ -6,15 +6,18 @@
 web/                     static site (no build step), also wrapped by android/ (WebView)
   index.html, sw.js      page + service worker
   js/main.js             entry: app object, render loop, notification handling, saves
-  js/i18n.js, i18n/en.js French→English translation at display time
+  js/i18n.js, i18n/en.js French→English translation at display time; in French, `frenchGrammar` contracts
+                         generated text around names (« à Le Havre » → « au Havre », « du Écume » → « de l'Écume »)
   js/sim/                pure simulation (no DOM) — everything in these docs
   js/data/               static data: ports, flags, ships, goods, clients, equipment, offices,
                          sanctions, zones; generated: world.js, distances.js, countries.js
   js/ui/                 panels, map, scenes (pixel art), audio, saves, guide, credits
-tests/                   balance tools (node), see CLAUDE.md
+tests/                   balance tools (node), see CLAUDE.md; saves.test.mjs + saves/ (released games must load)
 tools/                   generators: build_world, build_distances, build_countries, i18n-extract;
                          i18n-check (guard: no French left in the English version),
-                         i18n-screens (same guard on the real screens, hidden browser)
+                         i18n-screens (same guard on the real screens, hidden browser),
+                         code-check (guard: storage, formats, dead code; rules in docs/code-health.md),
+                         save-fixture (makes a test save from any version of the game)
 docs/mechanics/          this reference
 ```
 
@@ -28,7 +31,8 @@ The other repository (`Rocket-to-planet`, "Fusée Planètes") is a separate kids
   starting trust = virtue = `rating × 0.5 + 25`, 3 market days, contracts, 3 starter contracts per
   home port (2 `caboteur` + 1 `polyvalent`, `minRep 0`), starter used ships at each (start) home port.
 - `tick(state, ctx, hours)` → `notes[]` for the UI. Runs `stepHour` per hour.
-- `migrateState(state)` upgrades old saves (`SAVE_VERSION = 3`).
+- Old saves are upgraded by `migrate(state)` in `sim/migrations.js` (`SAVE_VERSION = 3`, numbered `STEPS`,
+  `fillDefaults` for fields added over time and new ports/goods; rules in [code-health](../code-health.md)).
 - `ranking(state)` sorts by net worth.
 
 ### Order of one hour (`stepHour`)
@@ -148,28 +152,38 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `risk.js`, `piracy.js`, `shady.js`, `dark.js` | risk lines shown before decisions (rule 1) and decision dialogs |
 | `payment.js` | collection window (accept / contest, denounce / stay discreet) |
 | `opps.js` | persistent opportunity cards (golden deals, aid, tenders) |
-| `rivals.js`, `plots.js` | Office → Rivals (takeover, attacks, parries), shady-deal UI |
-| `victory.js`, `codex.js`, `standing.js` | Office → Victories / Trophies, victory guide, monthly trust/virtue summary |
+| `rivals.js`, `plots.js` | Rivals tab of the domination medal (takeover, attacks, parries), shady-deal UI (« La Mafia », EN "the underworld") |
+| `victory.js`, `codex.js`, `standing.js` | victory panel opened by the four medals under the side rail (`.vic-rail`, see [15](15-victories-honours.md)), trophies, victory guide, monthly trust/virtue summary |
 | `alerts.js` | important notifications panel |
 | `screens.js`, `homebonus.js` | title, new game (home-port picker with perks), end screen |
 | `map.js`, `mapships.js`, `waters.js` | world map canvas, ship sprites, national waters. Layers: the base (sea, land, port dots) and the port names are cached and redrawn on a view change; every frame draws zones, routes and ships, then lays the port names over the ships, then the selected ship (ring and stencil name) and the dock badges on top. Port names are placed biggest ports first, on their `LABEL_PLACE` side or the first free side, and a small port with no room waits for a closer zoom; docked ships take the cheapest water spot near their port (`dockSlotsFor`: four rings around the port, land read from a quarter-resolution mask of the land as drawn, a spot on a name or far from the open-sea side costs more, overlapping another port's docked ship costs three rings, so in crowded areas they huddle instead of drifting far; never on land). Sizes (`mapSize()` in `mapships.js`): ships ×`MAP_SHIPS`, port names `CITY_PX` px at 1920 × 1080, both × `uiScale()`, like the other map text. Fine pixels redraw the sprite with more pixels; chunky blocks go from 2 to 3 screen pixels, never more |
-| `scenes*.js`, `pixel.js`, `shipart.js`, `officeart.js`, `trophyart.js`, `logos.js`, `flags.js` | art |
+| `scenes*.js` (ships from `sceneship.js`, office from `officescene.js`), `pixel.js`, `shipart.js`, `trophyart.js`, `logos.js`, `flags.js` | art (`logos.js` = company emblems, shipowner-flag style) |
+| `brand.js` | game logo (owner's pick): master anchor `anchorShapes`, sunset-anchor seal, sea-chart plaque with the name in Stardos Stencil (`brandTitle`); title card, intro, credits, app icon and Steam assets (`tools/brand/render.mjs`). Not the « Ancre » company emblem in `logos.js` |
+| `tooltip.js` | the game's own tooltips: replace the browser's, read any element's `title` (nothing to change elsewhere), shown after 200 ms on hover or a long press on touch, positioned with `localRect()` / `viewport()` |
+| `grade.js` | the one graded scale (rising bars) used by every 1–5 rating (ship roles, discretion) |
 | `officepx.js`, `officeroom.js` | the company office in fine pixel art (ships' style), painted as the background of the Office panel on every tab: one window view per level, brass level plate, clickable jukebox, trophies and misdeeds pixelized from `trophyart.js` at screen resolution on a separate layer (`hi`, option `S`: screen pixels per art pixel); the tab content is a sheet sliding over the room (`def.room`, `def.mount` in `renderPanel`) |
-| `audio.js`, `sounds.js`, `jukebox.js`, `intro.js`, `credits.js` | sound, music, intro, end credits |
+| `audio.js`, `sounds.js`, `jukebox.js`, `intro.js`, `credits.js` | sound, music, intro, end credits. Volume sliders in the ☰ menu (`SOUND_ROWS` in `main.js`: general, music, ambience, effects; zero mutes the track). Ship-name easter eggs: `data/eggs.js` (`EASTER_EGGS`: names that play a sound on christening, departure or arrival, player ships only; files in `web/sons/oeufs/`, a synthesized fallback otherwise) |
 | `motion.js` | interface motion (owner's picks, "mechanical but smooth"): panels slide out from under the rail like a drawer and stop firmly (the old panel slides back in first), a brass bar sweeps a new tab in below the part shared by every tab (Office picture, ship header; the underline slides), dialogs are stamped onto the map with a small jolt and a soft synthesized thud (`stamp` in `sounds.js`, effects volume; drawer and wiper stay silent). The collection receipt, shown after nearly every delivery, keeps the stamp and thud without the jolt (`dialog({ shake: false })`, owner's call: the jolt stays for rare dialogs such as ice, takeover, blacklist). Only opening, closing, switching panel or tab animates, never the 1.2 s refresh; nothing moves when the player turns animations off (☰ → Animations, `animationsOn` / `setAnimationsOn`, key `pda-animations`, on by default). The game ignores the system's reduced-motion setting (owner's call: Windows animation effects were silently hiding every motion), and every former `prefers-reduced-motion` check reads `reducedMotion()`: map flags, map ship wakes, the animated big pixel ship, intro, credits, and CSS through `html.no-motion` (`applyMotionClass`). Timings in `MOTION` |
-| `scale.js` | interface size: the game is laid out for 1920 × 1080 and grows with the screen (CSS `zoom` on `<html>`, factor `uiScale()` = max(1, min(width / 1920, height / 1080)) × the ☰ menu size: Petite 0.85, Normale 1, Grande 1.15, Très grande 1.3; 2560 × 1440 → 1.33). Rules: viewport units in `style.css` go through `--vw` / `--vh`; screen coordinates (`clientX`, `getBoundingClientRect`, `innerWidth`) are converted with `localRect()` / `viewport()` before setting a CSS position; a canvas inside the zoomed interface counts `pixelRatio()` device pixels per CSS px (`pixelship.js`); the map and the intro canvas are `.unzoom` (drawn 1:1 in screen pixels, the map reads `uiScale()` for its own sizes). Event `uiscale` on `window` when it changes |
+| `scale.js` | interface size: one reference format, 16:9 at 2560 × 1440 (owner's pick); the code counts in 1920 × 1080 px and the page follows the screen (CSS `zoom` on `<html>`, factor `uiScale()` = max(`MIN` 0.75, min(width / 1920, height / 1080)) × the ☰ menu size: Petite 0.85, Normale 1, Grande 1.15, Très grande 1.3; 2560 × 1440 → 1.33, 1280 × 800 → 0.75). Every 16:9 screen sees the same picture; on 16:10 or ultrawide the interface keeps the size of the 16:9 that fits, anchored to the edges, and the map fills the rest (no black bars); dialogs and scenes are centred cards of bounded width. Rules: viewport units in `style.css` go through `--vw` / `--vh`; screen coordinates (`clientX`, `getBoundingClientRect`, `innerWidth`) are converted with `localRect()` / `viewport()` before setting a CSS position; a canvas inside the zoomed interface counts `pixelRatio()` device pixels per CSS px (`pixelship.js`); the map and the intro canvas are `.unzoom` (drawn 1:1 in screen pixels, the map reads `uiScale()` for its own sizes). Event `uiscale` on `window` when it changes |
 | `panelsize.js` | side panel width (owner's pick): about 40 % of the screen by default (`--panel-w`, clamp 560–820 px), and a brass drawer pull on its left edge to drag it wider or narrower (the map keeps at least 420 px); the width is remembered (`pda-panel-w`), a double-click restores the default. The pull hides while the drawer slides in (`gripAfter`). Toasts and the ticker follow `--panel-cur` |
 | `boss.js` | boss key (owner's call): `A` hides the game behind a bare world map (`html.boss` hides every element but `#map`, `MapView.setBare` drops ports, ships, routes, zones and ice), stops time (the main loop only draws the map), hushes sound (`AudioManager.hush`: the song resumes where it stopped, even if the window comes back to the front meanwhile), holds toast timers (`holdToasts` in `dom.js`), swallows every other key and titles the window "Carte du monde"; `A` again restores speed, panels, windows, toasts, volume and map view, instantly and without the pause bell. Ignored while typing, with Ctrl/Cmd, during the intro and the credits |
-| `profile.js` | player profile, shared by every save (today: jukebox unlocks). A track unlocks when heard, or as soon as a save reaches its milestone (`earnedTracks` in `jukebox.js`: office reached, net worth peak in `history`, brush with bankruptcy (net worth under 5 M$, banker warning, ship seized by the bank), blacklist, victory alerts, game over), checked on load, once per game day, and once over all save slots. The one place to change when the desktop build moves the profile to a file |
+| `profile.js` | player profile, shared by every save (today: jukebox unlocks). A track unlocks when heard, or as soon as a save reaches its milestone (`earnedTracks` in `jukebox.js`: office reached, net worth peak in `history`, brush with bankruptcy (net worth under 5 M$, banker warning, ship seized by the bank), blacklist, victory alerts, game over), checked on load, once per game day, and once over all save slots. Stored through `storage.js`, the one place to change when the desktop build moves to files |
 | `shipnames.js` | every boat name in Stardos Stencil (owner's call), including inside sentences: after translation, known ship names (fleet, broker, cumulated over the session) are wrapped in `span.nm` inside a `span.nm-text[data-no-tr]`; skip an element with `data-no-name`. On the map (canvas, `map.js` `label`), only the selected ship shows its name, in 15 px stencil × `uiScale()` (owner's call). The same pass makes every city name clickable (owner's call): French and English port names (plus « Havre », « Pirée » after au/du) become `span.city[data-port]`, green underline on hover; a click (capture phase, so a list row does not open) calls `app.focusPort` → `map.flashCity` (the map glides, zoom kept, when the city is off-screen or hidden by a panel, then a green halo and rings like `flashShip`'s gold ones) and a sonar `ping` (`sounds.js`, one clear note and its echo; `focusShip` plays the same one, owner's call). Not in action buttons (`.btn`, `.chip`, `.icon-btn`, `.opp-port`), links, labels or the title screens (`#screen`); `data-no-city` opts an element out. Company and captain names are matched first and left alone (a captain Valdez is not a link) |
 | `guide.js` | guided tour (keep `data-guide` markers) |
-| `save.js` | localStorage slots, export/import, `migrateState` on load |
+| `i18n.js` | English: every French text node, tooltip and map label is translated as it reaches the screen (`tr`, dictionary `i18n/en.js`). Known names (ships, companies, captains, shippers) are untranslatable tokens, also when a name alone fills a text node or a pattern slot (a ship « Mistral » stays « Mistral », not the wind). French: the same observer runs `frenchGrammar` on text nodes and tooltips, so templates stay plain (`à ${port}`, `du ${ship.name}`) and the screen reads « au Havre », « du Pirée », « de l'Albatros », « L'Armen »: à/de + Le/Les → au/du/aux/des, du/au/de/le/la + vowel → de l'/à l'/d'/l' (h stays aspirated, Y elides only before a consonant: « d'Ys », « de Yokohama »). The original text is kept so a switch to English translates what the code composed. Never pre-contract in a template |
+| `save.js` | save slots (through `storage.js`), export/import, `migrate` on load; `main.js` `autoSave` warns once if the autosave fails |
+| `storage.js` | the only module that touches localStorage: every key in `KEYS` (original names kept), guarded reads and writes |
 
 ## Tests and tools
 
 See the "Balance tools" section of `CLAUDE.md`. `npm test` = routing + 3-year sim (correctness)
 + `tools/i18n-check.mjs` (English version: no French text left, from the code, glued fragments or a simulated game)
++ `tools/icons-check.mjs` (every emoji in the code has a drawing in the colour icon font `web/fonts/pda-icons.woff2`,
+built from `tools/icons/` by `node tools/icons/build.mjs`, or is listed in `TEXT_GLYPHS`)
 + `tools/i18n-screens.mjs` (the same on screen: a game played in English in a hidden browser, every panel opened);
 `npm run balance` = fleet + strategies (final balance pass only). `npm run build:world` regenerates
 map, countries and distance tables. To measure what a change does to players, compare versions with
 `tools/balance/compare.mjs` (see `docs/balance/README.md`).
+
+`npm test` and CI also run `tools/code-check.mjs` (code rules: storage, formats, dead code, see `docs/code-health.md`)
+and `tests/saves.test.mjs` (every save in `tests/saves/`, made by a released version, loads and plays on).

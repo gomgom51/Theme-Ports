@@ -13,6 +13,7 @@ import { portName, companyOf, shipLog } from './core.js';
 import { relationOf } from './clients.js';
 import { rank } from './crew.js';
 import { familyBlocked } from './home.js';
+import { num } from './format.js';
 
 const D = HOURS_PER_DAY;
 export const PROSPECT = {
@@ -125,7 +126,7 @@ export function resolveProspect(state, ctx, rng, ship, notes) {
       if (!c) continue;
       c.prospectShip = ship.id; // la carte « piste » et la liste des destinations s'en souviennent
       state.contracts.push(c);
-      say(`Démarchage réussi : ${CLIENTS[c.client]?.name || 'un chargeur'} chargera ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} à ${portName(q)} pour ${portName(c.to)}, réservé au ${ship.name} jusqu'au ${formatDate(c.reservedUntil, true)}.`, { contractId: c.id, port: q });
+      say(`Démarchage réussi : ${CLIENTS[c.client]?.name || 'un chargeur'} chargera ${num(c.qty)} t de ${GOODS[c.good].name.toLowerCase()} à ${portName(q)} pour ${portName(c.to)}, réservé au ${ship.name} jusqu'au ${formatDate(c.reservedUntil, true)}.`, { contractId: c.id, port: q });
       return c;
     }
   }
@@ -133,6 +134,6 @@ export function resolveProspect(state, ctx, rng, ship, notes) {
   if (!c) { say(`Démarchage à ${portName(port)} : vos commerciaux n'ont rien trouvé pour le ${ship.name} cette fois.`); return null; }
   c.prospectShip = ship.id;
   state.contracts.push(c);
-  say(`Démarchage réussi à ${portName(port)} : ${CLIENTS[c.client]?.name || 'un chargeur'} confie au ${ship.name} ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} (réservé jusqu'au ${formatDate(c.reservedUntil, true)}).`, { contractId: c.id, port });
+  say(`Démarchage réussi à ${portName(port)} : ${CLIENTS[c.client]?.name || 'un chargeur'} confie au ${ship.name} ${num(c.qty)} t de ${GOODS[c.good].name.toLowerCase()} pour ${portName(c.to)} (réservé jusqu'au ${formatDate(c.reservedUntil, true)}).`, { contractId: c.id, port });
   return c;
 }

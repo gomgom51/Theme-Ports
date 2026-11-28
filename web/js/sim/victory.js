@@ -7,12 +7,13 @@
 // Chaque compagnie voit la progression de toutes les autres (icônes de victoire de l'écran principal) ; à 75 % puis
 // à 90 % d'une victoire, tout le monde est prévenu (règle n° 1 : pas de défaite surprise).
 import { HOURS_PER_DAY } from './util.js';
-import { netWorth, news, shipsOf } from './core.js';
+import { netWorth, news, shipsOf, levelOf } from './core.js';
 import { OFFICE_TIERS, officeTier } from '../data/offices.js';
 import { hon, deedCount, recordsHeld, RECORD_IDS, DARK_COUNTRIES } from './honours.js';
 import { EMBARGOED } from '../data/sanctions.js';
 import { takeoverPrice, netCash } from './takeover.js';
 import { embargoPenalty } from './home.js';
+import { num1 } from './format.js';
 
 const D = HOURS_PER_DAY;
 const YEAR = 365 * D;
@@ -38,7 +39,7 @@ export const VICTORY_INFO = {
 export const victoryOn = (state, kind) => !state.victoryClaimed && (state.settings.victories?.[kind] ?? true)
   && (kind !== 'domination' || state.companies.length > 1);
 export const activeCompanies = (state) => state.companies.filter((c) => !c.bankrupt);
-export const levelOf = (company) => company.level ?? 0;
+export { levelOf }; // (défini dans core.js)
 
 // Progression d'une compagnie vers une victoire : parts (libellé, avancement 0..1, texte) et total.
 export function victoryProgress(state, company, kind) {
@@ -77,7 +78,7 @@ export function victoryProgress(state, company, kind) {
     const ships = shipsOf(state, company.id).length;
     const done = DARK_COUNTRIES.filter((f) => H.darkFrom[f]);
     parts = [
-      part('Sur la liste noire', years / VICTORY.shadowYears, company.blacklisted ? `${years.toFixed(1).replace('.', ',')} / ${VICTORY.shadowYears} ans` : 'pas encore'),
+      part('Sur la liste noire', years / VICTORY.shadowYears, company.blacklisted ? `${num1(years)} / ${VICTORY.shadowYears} ans` : 'pas encore'),
       part('Navires', ships / VICTORY.shadowShips, `${ships} / ${VICTORY.shadowShips}`),
       part('Pays sous embargo', done.length / DARK_COUNTRIES.length, [`${done.length} / ${DARK_COUNTRIES.length}`, ...(done.length < DARK_COUNTRIES.length // pays un à un (traduits chacun à l'écran)
         ? [' ', '(reste :', ' ', ...DARK_COUNTRIES.filter((f) => !H.darkFrom[f]).flatMap((f, i) => [i ? ', ' : null, EMBARGOED[f].name]), ')'] : [])]),

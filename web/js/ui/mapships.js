@@ -6,7 +6,7 @@
 // de la couleur de la compagnie à la flottaison, plus haute sur l'eau. La cheminée porte
 // toujours la couleur de la compagnie. Les navires du joueur ont un liseré clair.
 // En mer, le sillage s'allonge avec la vitesse ; à quai, le navire est plus petit (cap à droite).
-import { SHIP_ART } from './shipart.js';
+import { SHIP_ART } from './shipshapes.js';
 import { shipStyle, ramp, mix, rng } from './pixelship.js';
 import { uiScale } from './scale.js';
 import { reducedMotion } from './motion.js';
@@ -289,5 +289,3 @@ export function drawMapShip(g, dpr, x, y, spr, { left = false, moving = false, s
   const hw = W / dpr / 2, hh = H / dpr / 2;
   return { hw, hh, r: Math.max(hw, hh) };
 }
-
-export function clearMapShipCache() { cache.clear(); }

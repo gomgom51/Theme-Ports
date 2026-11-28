@@ -1,5 +1,6 @@
 // Petits utilitaires d'interface : création d'éléments, formats français, notifications.
 import { formatDate } from '../sim/util.js';
+import { num, num1 } from '../sim/format.js';
 import { stampIn, stampOut } from './motion.js';
 
 // h('div.card', { onclick }, [enfants...])
@@ -28,30 +29,16 @@ export const $ = (sel, root = document) => root.querySelector(sel);
 // Retire les notifications portant une étiquette (ex. un paiement déjà encaissé).
 export function dropToasts(tag) { document.querySelectorAll(`#toasts [data-tag="${tag}"]`).forEach((e) => e.remove()); }
 
-const nf0 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
-const nf1 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
-const nf2 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
-
-export function money(v, signed = false) {
-  const s = signed && v > 0 ? '+' : v < 0 ? '−' : '';
-  const a = Math.abs(v);
-  if (a >= 1e9) return `${s}${nf2.format(a / 1e9)} Md$`;
-  if (a >= 1e6) return `${s}${nf2.format(a / 1e6)} M$`;
-  if (a >= 1e4) return `${s}${nf0.format(a / 1e3)} k$`;
-  return `${s}${nf0.format(a)} $`;
-}
-export const num = (v) => nf0.format(v);
-export const num1 = (v) => nf1.format(v);
-export const tonnes = (v) => `${nf0.format(v)} t`;
-export const pct = (v) => `${nf0.format(v)} %`;
+// Sommes, nombres et pourcentages : sim/format.js (le même format dans la simulation et à l'écran).
+export { money, num, num1, tonnes, pct, pctOf, chance, dec } from '../sim/format.js';
 export const date = (t, short) => formatDate(t, short);
 export function duration(hours) {
   if (hours < 1) return 'moins d\'une heure';
   if (hours < 36) return `${Math.round(hours)} h`;
   const d = hours / 24;
-  return d < 10 ? `${nf1.format(d)} jours` : `${nf0.format(d)} jours`;
+  return d < 10 ? `${num1(d)} jours` : `${num(d)} jours`;
 }
-export const days = (d) => (d < 10 ? `${nf1.format(d)} j` : `${nf0.format(d)} j`);
+export const days = (d) => (d < 10 ? `${num1(d)} j` : `${num(d)} j`);
 
 // Barre de progression (0..1) avec une couleur selon le niveau.
 export function bar(value, { good = 0.6, warn = 0.3, invert = false, label } = {}) {

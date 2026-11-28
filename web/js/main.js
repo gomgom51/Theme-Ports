@@ -8,16 +8,16 @@ import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName, trus
 import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
-import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
+import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks, pctOf } from './ui/dom.js';
 import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine, animationsOn, setAnimationsOn, applyMotionClass } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
-import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
+import { titleScreen, hideScreen, endScreen } from './ui/screens.js';
 import { playIntro } from './ui/intro.js';
 import { saveGame, loadGame, listSaves, savedStates, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { unlockEarned, unlockFromSaves, BLACKLIST_SONG_YEARS } from './ui/jukebox.js';
 import { AudioManager } from './ui/audio.js';
-import { renderOpps, pruneDismissed, goldenReach } from './ui/opps.js';
+import { renderOpps, pruneDismissed, goldenNear, tenderServable } from './ui/opps.js';
 import { guideTick, startGuide, guideMenuLabel, toggleGuide } from './ui/guide.js';
 import { logoBadge } from './ui/logos.js';
 import { flagSVG } from './ui/flags.js';
@@ -29,11 +29,13 @@ import { openPayment } from './ui/payment.js';
 import { unreadCounts, markSeen } from './ui/alerts.js';
 import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
-import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
+import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW } from './data/offices.js';
+import { officeShot, honourSpot } from './ui/officescene.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
 import { registerStateShips, watchShipNames, onCityClick } from './ui/shipnames.js';
 import { initPanelSize, gripAfter } from './ui/panelsize.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
+import { sceneShipOf } from './ui/sceneship.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
@@ -46,15 +48,28 @@ import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
 import { initBossKey } from './ui/boss.js';
 import { initScale, localRect, UI_SIZES, uiSize, setUiSize } from './ui/scale.js';
+import { KEYS, read, write } from './ui/storage.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Vitesse par défaut, choisie par le joueur (double-clic sur ▶, ▶▶ ou ▶▶▶) et gardée sur l'appareil : c'est à elle que
 // le temps repart, quelle que soit la cause (fenêtre fermée, Espace, dernier navire qui reçoit ses ordres).
-const SPEED_KEY = 'port-dattache-speed';
 function defaultSpeed() {
-  try { const v = +localStorage.getItem(SPEED_KEY); return v >= 1 && v <= 3 ? v : 1; } catch { return 1; }
+  const v = +read(KEYS.speed);
+  return v >= 1 && v <= 3 ? v : 1;
 }
-function setDefaultSpeed(v) { try { localStorage.setItem(SPEED_KEY, String(v)); } catch { /* stockage indisponible */ } }
+const setDefaultSpeed = (v) => write(KEYS.speed, v);
+// Sauvegarde automatique : si le stockage est plein ou bloqué, le joueur est prévenu une fois (jusqu'à la
+// prochaine sauvegarde réussie), avec de quoi garder sa partie dans un fichier quand c'est possible.
+let autoSaveWarned = false;
+function autoSave(state) {
+  if (saveGame(state, 'auto')) { autoSaveWarned = false; return; }
+  if (autoSaveWarned) return;
+  autoSaveWarned = true;
+  toast('Sauvegarde automatique impossible (stockage plein ou bloqué) : la partie n\'est pas enregistrée.', {
+    kind: 'bad', timeout: 0,
+    ...(app.canImport ? { action: 'Exporter un fichier', onAction: () => exportFile(app.state) } : {}),
+  });
+}
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
 const INCIDENT_SCENES = { incendie: 'fire', abordage: 'collision', echouement: 'grounding', voie_eau: 'leak', machine: 'breakdown', froid: 'reefer', gros_temps: 'storm' };
@@ -375,12 +390,13 @@ function honourNote(n, scenes, prefix) {
   const tier = shownTier(co, netWorth(app.state, co.id));
   const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0];
   const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
-  const toImg = (svg, w, h) => { const i = new Image(); i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" `)); return i; };
-  const office = toImg(officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `hon${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, hide: { kind, id: n.record }, shadow: !!co.blacklisted }), 960, 400);
+  const held = { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') };
+  held[kind] = held[kind].filter((id) => id !== n.record); // l'objet n'est pas encore à sa place : il y vole
+  const office = officeShot({ tier, shadow: !!co.blacklisted, color: co.color, logo: co.logo, model, held });
   const item = new Image(); item.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(honourSVG(kind, n.record, { size: 192 }));
   const logo = new Image(); logo.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(logoBadge(co.logo, co.color, 96).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
   const name = (kind === 'evil' ? EVIL : RECORDS)[n.record]?.name || '';
-  playScene(kind === 'evil' ? 'grim' : 'trophy', { title: kind === 'evil' ? `Méfait : « ${name} »` : `Record : « ${name} »`, text: prefix + n.text, color: co.color, variant: { office, item, logo, slot: honourSlot(tier, kind, n.record), id: n.record } });
+  playScene(kind === 'evil' ? 'grim' : 'trophy', { title: kind === 'evil' ? `Méfait : « ${name} »` : `Record : « ${name} »`, text: prefix + n.text, color: co.color, variant: { office, item, logo, slot: honourSpot(tier, kind, n.record), id: n.record } });
 }
 function levelUp(co, from, to) {
   const T = OFFICE_TIERS[to], n = OFFICE_TIERS.length;
@@ -389,12 +405,8 @@ function levelUp(co, from, to) {
   if (!scenesOn()) { toast(several ? `🏢 ${co.name} atteint le niveau ${to + 1}/${n} : ${T.name}.` : `🏢 Niveau ${to + 1}/${n} atteint : ${T.name}.`, { kind: 'money', timeout: 9000 }); return; }
   const best = shipsOf(app.state, co.id).sort((a, b) => eco.shipValue(app.state, b) - eco.shipValue(app.state, a))[0]; // la maquette du bureau
   const model = best ? { typeId: best.type, color: co.color, logo: co.logo, name: best.name } : null;
-  const img = (tier) => {
-    const svg = officeSVG(tier, { color: co.color, logo: co.logo, model, uid: `lvl${co.id}-`, honours: { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') }, shadow: !!co.blacklisted }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200" ');
-    const i = new Image();
-    i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-    return i;
-  };
+  const held = { record: recordsHeld(app.state, co.id), evil: recordsHeld(app.state, co.id, 'evil') };
+  const img = (tier) => officeShot({ tier, shadow: !!co.blacklisted, color: co.color, logo: co.logo, model, held });
   playScene('office', { title: several ? `Un nouveau bureau pour ${co.name} !` : 'Un nouveau bureau !', text: `Niveau ${to + 1}/${n} atteint : ${T.name}. ${T.text}`, color: co.color, variant: { from: img(from), to: img(to), level: to + 1 } });
 }
 
@@ -655,12 +667,21 @@ async function nextScene() {
   if (!hold && app.mode === 'game' && !app.state.over) app.speed = defaultSpeed();
 }
 const companyColor = (id) => app.state.companies[id ?? app.ui.activeCompany]?.color || '#c0392b';
+// Le navire d'une notification, pour la scène : celui de la partie, ou sa fiche d'ancien navire
+// s'il vient de disparaître (naufrage, saisie).
+function noteShip(n) {
+  if (n.shipId == null) return null;
+  const ship = shipById(app.state, n.shipId);
+  if (ship) return sceneShipOf(app.state, ship);
+  const past = app.state.companies[n.company]?.pastShips?.find((p) => p.id === n.shipId);
+  return past ? sceneShipOf(app.state, { ...past, owner: n.company, condition: 40, cargo: true }) : null;
+}
 
 function handleNotes(notes) {
   let paused = false, switched = false;
   const scenes = scenesOn();
   const prefixOf = (n) => (n.company != null && app.state.companies.filter((c) => c.human).length > 1 ? `${app.state.companies[n.company].name} : ` : '');
-  const sceneOpts = (n, extra = {}) => ({ text: prefixOf(n) + n.text, color: companyColor(n.company), ...extra });
+  const sceneOpts = (n, extra = {}) => ({ text: prefixOf(n) + n.text, color: companyColor(n.company), ship: noteShip(n), ...extra });
   // Un navire qui vient de livrer : le message de paiement suffit.
   const delivered = new Set(notes.filter((n) => n.kind === 'payment').map((n) => n.shipId));
   const crewUps = []; // points de spécialité gagnés : une petite scène par compagnie, sans son
@@ -702,7 +723,7 @@ function handleNotes(notes) {
         if (v === 'go') { app.open('ship', n.shipId, 'depart'); app.focusShip(n.shipId); return true; } // le temps reste arrêté pendant le choix
         return false;
       };
-      const buttons = [{ label: 'Désarmer pour l\'hiver', value: 'layup', kind: 'ghost' }, { label: `Brise-glace (${Math.round(escortFee(ship) / 1000)} k$)`, value: 'go', kind: 'primary' }];
+      const buttons = [{ label: 'Désarmer pour l\'hiver', value: 'layup', kind: 'ghost' }, { label: `Brise-glace (${money(escortFee(ship))})`, value: 'go', kind: 'primary' }];
       toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Voir', onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); app.open('ship', n.shipId); app.focusShip(n.shipId); } });
       if (scenes) playScene('icecaught', sceneOpts(n, { variant: shipKind(ship.type), buttons }), choose);
       else popup(async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); return dialog({ title: 'Pris par les glaces', body: h('p', n.text), buttons }); }, choose);
@@ -712,7 +733,7 @@ function handleNotes(notes) {
       if (app.state.settings.autoPause) paused = true;
       continue;
     }
-    if (n.kind === 'over') { app.speed = 0; unlockEarned(app.state); saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
+    if (n.kind === 'over') { app.speed = 0; unlockEarned(app.state); autoSave(app.state); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
     if (n.kind === 'event') {
       toast(`📰 ${n.text}`, { timeout: 9000 });
       if (scenes && EVENT_SCENES[n.id]) playScene(EVENT_SCENES[n.id], { title: n.title, text: n.body, variant: n.variant, color: companyColor() });
@@ -749,15 +770,16 @@ function handleNotes(notes) {
     if (n.kind === 'rivalship') {
       // Un concurrent agrandit sa flotte (navire neuf, ou occasion au plus une fois par mois).
       const rival = app.state.companies[n.rival];
-      if (scenes && rival) playScene('rivalship', { title: n.newbuild ? 'Un concurrent lance un navire neuf' : 'Un concurrent agrandit sa flotte', text: n.text, color: rival.color || n.color, variant: shipKind(n.shipType) + (n.newbuild ? '/new' : '') });
+      if (scenes && rival) playScene('rivalship', { title: n.newbuild ? 'Un concurrent lance un navire neuf' : 'Un concurrent agrandit sa flotte', text: n.text, color: rival.color || n.color, ship: noteShip({ ...n, company: n.rival }) || { type: n.shipType, logo: rival.logo }, variant: shipKind(n.shipType) + (n.newbuild ? '/new' : '') });
       else toast(`📰 ${n.text}`, { timeout: 9000 });
       continue;
     }
     if (n.kind === 'golden') {
-      // Affaire en or qu'un de vos navires peut prendre à temps : on la signale sans arrêter le
-      // jeu ; sa carte reste à l'écran jusqu'à fermeture. Les autres passent inaperçues.
+      // Affaire en or : alerte (son et message) seulement si un navire libre est sur place ou à moins
+      // d'un jour ; sinon sa carte apparaît sans bruit dans la colonne des opportunités (si un navire
+      // peut la prendre à temps). Une alerte presque chaque jour, c'était du bruit.
       const gc = app.state.contracts.find((c) => c.id === n.contractId);
-      if (!gc || !goldenReach(app.state, ctx, n.company, gc).length) continue;
+      if (!gc || !goldenNear(app.state, ctx, n.company, gc)) continue;
       app.audio.play('cash');
       toast(prefixOf(n) + n.text, { kind: 'money', timeout: 9000, action: 'Voir', onAction: () => {
         if (n.company !== app.ui.activeCompany) switchCompany(n.company);
@@ -827,10 +849,16 @@ function handleNotes(notes) {
       continue;
     }
     // Appels d'offres : l'annonce, puis les engagements et livraisons des concurrents.
-    if (n.kind === 'tender') { app.audio.play('bell'); toast(prefixOf(n) + n.text, { timeout: 9000 }); continue; }
+    // Appel d'offres : alerte seulement si l'un de vos navires peut le servir (il reste dans les nouvelles).
+    if (n.kind === 'tender') {
+      const t = (app.state.tenders || []).find((x) => x.id === n.tenderId);
+      if (t && tenderServable(app.state, n.company, t)) { app.audio.play('bell'); toast(prefixOf(n) + n.text, { timeout: 9000 }); }
+      continue;
+    }
+    // Un concurrent s'engage sur un appel d'offres ou le livre : seulement si vous en avez vu la carte.
     if (n.kind === 'tenderCommit' || n.kind === 'tenderDelivered') {
       const viewer = app.state.companies[app.ui.activeCompany];
-      if (n.by !== app.ui.activeCompany && viewer?.human) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
+      if (n.by !== app.ui.activeCompany && viewer?.human && viewer.seenOpps?.[`tender:${n.tenderId}`] != null) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
       continue;
     }
     if (n.kind === 'held') {
@@ -991,7 +1019,7 @@ function loop(now) {
       const day = Math.floor(app.state.t / HOURS_PER_DAY);
       const notes = tick(app.state, ctx, 1);
       if (notes.length) changed = true;
-      if (Math.floor(app.state.t / HOURS_PER_DAY) !== day && (app.state.t / HOURS_PER_DAY) % 7 === 0) saveGame(app.state, 'auto');
+      if (Math.floor(app.state.t / HOURS_PER_DAY) !== day && (app.state.t / HOURS_PER_DAY) % 7 === 0) autoSave(app.state);
       if (notes.length && handleNotes(notes)) { acc = 0; break; }
     }
     if ((changed || now - lastRefresh > 1200) && now - lastInteraction > 2500 && !document.querySelector('.dialog-wrap')) {
@@ -1034,7 +1062,7 @@ app.newGame = (opts) => {
   const state = newGame(opts, ctx);
   if (opts.guide) startGuide(state);
   enterGame(state);
-  saveGame(state, 'auto');
+  autoSave(state);
   const humans = state.companies.filter((c) => c.human);
   // Visite guidée : un mot d'accueil, puis les bulles prennent le relais.
   if (opts.guide) {
@@ -1085,7 +1113,7 @@ app.importSave = async () => {
 };
 
 app.toTitle = () => {
-  if (app.state && app.mode === 'game') saveGame(app.state, 'auto');
+  if (app.state && app.mode === 'game') autoSave(app.state);
   document.querySelectorAll('.scene-wrap').forEach((w) => w.remove());
   app.mode = 'title';
   app.state = null;
@@ -1109,18 +1137,17 @@ app.continueEndless = () => {
 // ---------- Menu ----------
 // Son : volume général, puis musique, ambiance et bruitages (à zéro, la piste est coupée).
 const SOUND_ROWS = [['master', 'Général'], ['music', 'Musique'], ['ambience', 'Ambiance'], ['sfx', 'Bruitages']];
-const pct = (v) => `${Math.round(v * 100)} %`;
 function soundLabel() {
   const a = app.audio;
-  return a.level('master') && ['music', 'ambience', 'sfx'].some((k) => a.level(k)) ? pct(a.level('master')) : 'coupé';
+  return a.level('master') && ['music', 'ambience', 'sfx'].some((k) => a.level(k)) ? pctOf(a.level('master')) : 'coupé';
 }
 function soundDialog() {
   const a = app.audio;
   const rows = SOUND_ROWS.map(([kind, label]) => {
-    const out = h('span.vol-val', pct(a.level(kind)));
+    const out = h('span.vol-val', pctOf(a.level(kind)));
     const slider = h('input.range', {
       type: 'range', min: 0, max: 100, step: 5, value: Math.round(a.level(kind) * 100), 'aria-label': label,
-      oninput: () => { a.setLevel(kind, slider.value / 100); out.textContent = pct(a.level(kind)); },
+      oninput: () => { a.setLevel(kind, slider.value / 100); out.textContent = pctOf(a.level(kind)); },
       onchange: () => { if (kind === 'sfx' || kind === 'master') a.play('bell'); }, // aperçu au relâché
     });
     return [h('span', label), slider, out];
@@ -1201,13 +1228,13 @@ window.handleBack = () => {
   if (scr.classList.contains('setup')) { titleScreen(app); return true; }
   return false;
 };
-const pauseAndSave = () => { if (app.mode === 'game' && app.state) { app.speed = 0; saveGame(app.state, 'auto'); } };
+const pauseAndSave = () => { if (app.mode === 'game' && app.state) { app.speed = 0; autoSave(app.state); } };
 window.onAppPause = () => { pauseAndSave(); app.audio.suspend(); };
 window.onAppResume = () => app.audio.resume();
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { pauseAndSave(); app.audio.suspend(); } else app.audio.resume();
 });
-window.addEventListener('beforeunload', () => { if (app.mode === 'game' && app.state) saveGame(app.state, 'auto'); });
+window.addEventListener('beforeunload', () => { if (app.mode === 'game' && app.state) autoSave(app.state); });
 
 // Version navigateur : installable comme une application et jouable hors ligne.
 if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'https:' || location.hostname === 'localhost')) {
@@ -1241,7 +1268,7 @@ requestAnimationFrame(loop);
 // Navire d'occasion acheté : la scène de la remise des papiers (le temps repart ensuite).
 app.boughtShip = (ship) => {
   if (!scenesOn() || !ship) return;
-  playScene('buyship', { text: `Le ${ship.name} est à vous : l'équipage hisse vos couleurs à ${PORTS[ship.port]?.name || ''}.`, color: companyColor(ship.owner), variant: shipKind(ship.type) });
+  playScene('buyship', { text: `Le ${ship.name} est à vous : l'équipage hisse vos couleurs à ${PORTS[ship.port]?.name || ''}.`, color: companyColor(ship.owner), ship: sceneShipOf(app.state, ship), variant: shipKind(ship.type) });
 };
 window.__app = app; // pratique pour le débogage dans la console
 app.handleNotes = handleNotes; // idem : rejouer une notification (scènes, tests)

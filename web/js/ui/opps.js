@@ -11,10 +11,10 @@ import { h, money, tonnes, date, days } from './dom.js';
 import { etaOf } from './panel-ship.js';
 import { logoBadge } from './logos.js';
 import { localRect, viewport } from './scale.js';
+import { KEYS, readFlag, writeFlag } from './storage.js';
 
 const D = 24;
 const TAKEN_SHOWN = 3 * D; // « prise par … » reste affiché trois jours (ou jusqu'à fermeture)
-const COLLAPSE_KEY = 'pda-opps-collapsed';
 
 // Délai (jours) pour qu'un navire soit disponible dans un port : fin du voyage ou de l'escale en
 // cours, puis la traversée. null s'il ne peut pas y aller (immobilisé, passage fermé).
@@ -36,6 +36,18 @@ function reachList(state, ctx, ships, port) {
 export function goldenReach(state, ctx, cid, c) {
   const free = shipsFor(state, cid, c).filter((s) => !(s.status === 'port' && (s.cargo || s.dark))); // occupé par une autre cargaison
   return reachList(state, ctx, free, c.from).filter((r) => state.t + r.days * D <= c.expires);
+}
+
+// Un navire libre (cales vides) sur place ou à moins d'un jour : seule une affaire en or aussi proche
+// mérite une alerte sonore ; les autres apparaissent sans bruit dans la colonne.
+const GOLDEN_ALERT_DAYS = 1;
+export function goldenNear(state, ctx, cid, c) {
+  return goldenReach(state, ctx, cid, c).some((r) => r.days <= GOLDEN_ALERT_DAYS && !r.ship.cargo && !r.ship.dark);
+}
+// Un appel d'offres que l'un de vos navires peut servir (une cale pour cette marchandise, et il entre
+// dans le port acheteur). Sinon, ni carte, ni alerte : « Aucun navire pour cette cargaison » ne sert à rien.
+export function tenderServable(state, cid, t) {
+  return usable(state, cid).some((s) => eco.holdFor(s.type, t.good) && eco.fitsPort(t.port, s.type));
 }
 
 // Les opportunités du moment pour une compagnie (sans celles qu'elle a fermées). Affaires en or :
@@ -71,12 +83,13 @@ export function opportunities(state, ctx, cid) {
     if (dismissed[key] != null) continue;
     out.push({ key, kind: 'lead', c, open: true });
   }
-  // Appels d'offres des villes : tous (ils sont rares), et quelques jours encore une fois complets.
+  // Appels d'offres des villes : ceux qu'un de vos navires peut servir, et quelques jours encore une
+  // fois complets (une carte déjà montrée reste jusqu'au bout).
   for (const t of state.tenders || []) {
     const key = `tender:${t.id}`;
     if (dismissed[key] != null) continue;
     const open = t.left > 0 && t.until > state.t;
-    if (open || co.seenOpps?.[key] != null) out.push({ key, kind: 'tender', t, open });
+    if ((open && tenderServable(state, cid, t)) || co.seenOpps?.[key] != null) out.push({ key, kind: 'tender', t, open });
   }
   return out;
 }
@@ -248,16 +261,16 @@ export function renderOpps(app) {
   root.style.top = `${tk && tk.height ? Math.round(tk.bottom + 10) : 64}px`;
   root.style.width = `${Math.max(372, Math.round(r?.width || 0))}px`;
   let collapsed = false;
-  try { collapsed = (localStorage.getItem(COLLAPSE_KEY) ?? '0') === '1'; } catch { /* stockage indisponible */ }
+  collapsed = readFlag(KEYS.oppsCollapsed, false);
   const key = `${cid}|${collapsed}|${Math.floor(state.t / 6)}|` + list.map((o) => `${o.key}:${o.open ?? ''}:${o.c?.takenBy ?? ''}:${o.list?.length ?? ''}:${o.t ? `${o.t.left}/${o.t.commits.length}` : ''}`).join(',');
   root.hidden = !list.length;
   if (key === lastKey) return;
   lastKey = key;
   if (!list.length) { root.replaceChildren(); return; }
-  const toggle = () => { try { localStorage.setItem(COLLAPSE_KEY, collapsed ? '0' : '1'); } catch { /* stockage indisponible */ } lastKey = ''; renderOpps(app); };
+  const toggle = () => { writeFlag(KEYS.oppsCollapsed, !collapsed); lastKey = ''; renderOpps(app); };
   const dismiss = (k) => { const co = state.companies[cid]; (co.dismissedOpps ??= {})[k] = state.t; lastKey = ''; renderOpps(app); };
   root.replaceChildren(
-    h('button.opps-toggle', { type: 'button', 'aria-expanded': collapsed ? 'false' : 'true', onclick: toggle }, [h('span', `Opportunités (${list.length})`), ' ', h('span', collapsed ? '▴' : '▾')]),
+    h('button.opps-toggle', { type: 'button', 'data-guide': 'opps', 'aria-expanded': collapsed ? 'false' : 'true', onclick: toggle }, [h('span', `Opportunités (${list.length})`), ' ', h('span', collapsed ? '▴' : '▾')]),
     ...(collapsed ? [] : list.map((o) => {
       const k = o.kind === 'golden' ? goldenCard(app, o) : o.kind === 'tender' ? tenderCard(app, o) : o.kind === 'lead' ? leadCard(app, o) : aidCard(app, o);
       const card = h('div.opp', { class: `${o.kind}${o.open === false ? ' gone' : ''}${k.more && openKey === o.key ? ' open' : ''}` }, [

@@ -25,7 +25,7 @@ export const emptyBook = () => Object.fromEntries(Object.keys(BOOK_LABELS).map((
 export const bookTotal = (b) => Object.values(b).reduce((s, v) => s + v, 0);
 
 // `ship` : le navire concerné, s'il y en a un (ses comptes à lui, pour le juger seul).
-export function money(state, company, amount, category, ship = null) {
+export function book(state, company, amount, category, ship = null) {
   company.cash += amount;
   company.month[category] = (company.month[category] || 0) + amount;
   company.total[category] = (company.total[category] || 0) + amount;
@@ -75,6 +75,10 @@ export function news(state, text, opts = {}) {
 
 export const companyOf = (state, ship) => state.companies[ship.owner];
 export const shipsOf = (state, companyId) => state.ships.filter((s) => s.owner === companyId);
+// Concurrents encore en lice (ni la compagnie elle-même, ni les faillites).
+export const rivalsOf = (state, companyId) => state.companies.filter((c) => c.id !== companyId && !c.bankrupt);
+// Niveau de bureau acquis (0 à 4) : rachats, victoire de la réputation, pression de la banque.
+export const levelOf = (company) => company.level ?? 0;
 export const shipById = (state, id) => state.ships.find((s) => s.id === id);
 export const contractById = (state, id) => state.contracts.find((c) => c.id === id);
 export const portName = (p) => PORTS[p]?.name || p;

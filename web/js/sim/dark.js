@@ -17,17 +17,16 @@ import { shadowHome, homeOf } from './home.js';
 import { PORTS, PORT_IDS } from '../data/ports.js';
 import { SHIP_TYPES, CREW_LEVELS } from '../data/ships.js';
 import { SHADY_PORTS } from '../data/sanctions.js';
-import { money, news, changeReputation, changeVirtue, portName, shipLog, shipById, companyOf, costStat, removeShip, repCap, lastTrip } from './core.js';
+import { book, news, changeReputation, changeVirtue, portName, shipLog, shipById, companyOf, costStat, removeShip, repCap, lastTrip } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import * as eco from './economy.js';
 import { isEmbargoed, detectionChance } from './shady.js';
 import { onDarkDone, onStain, onDirty } from './honours.js';
 import { closedPort, crossesLine } from './shadow.js';
+import { money } from './format.js';
 
 const D = HOURS_PER_DAY;
 const fail = (msg) => ({ ok: false, msg });
-const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
-const M$ = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 
 export const DARK = {
   trust: 2,          // colis livrés depuis ce port avant les affaires noires
@@ -91,7 +90,7 @@ export function maybeDarkOffer(state, ctx, rng, ship, port, notes, note) {
   (company.darkOfferAt ??= {})[port] = state.t;
   if (company.human) {
     const n0 = notes.length;
-    note(state, notes, 'darkoffer', ship, `À ${portName(port)}, les contacts du ${ship.name} proposent une « vraie » affaire : ${DARK_KINDS[o.kind].name.toLowerCase()} pour ${portName(o.to)}, ${M$(o.pay)}.`);
+    note(state, notes, 'darkoffer', ship, `À ${portName(port)}, les contacts du ${ship.name} proposent une « vraie » affaire : ${DARK_KINDS[o.kind].name.toLowerCase()} pour ${portName(o.to)}, ${money(o.pay)}.`);
     if (notes.length > n0) notes[n0].offer = o;
     return o;
   }
@@ -117,14 +116,21 @@ export function acceptDark(state, shipId, o) {
   shipLog(state, ship, `Cargaison noire embarquée pour ${portName(o.to)}`);
   return { ok: true, infamy: company.infamy, cap: repCap(company) };
 }
+// Ce que coûte un refus dans ce port : null si rien (port de l'ombre de la compagnie : chez vous, on peut
+// dire non sans rancune ni saisie). Seule source de vérité, lue par la simulation ET par la fenêtre de
+// l'offre (ui/dark.js) : l'écran ne peut plus annoncer un risque qui n'existe pas (règle 1).
+export function refusalRisk(company, port) {
+  if (shadowHome(company, port)) return null;
+  return { seize: DARK.refuseSeize, grudgeDays: DARK.grudgeDays, grudgeSeize: DARK.grudgeSeize };
+}
 export function refuseDark(state, rng, shipId, o, notes = null, note = null) {
   const ship = shipById(state, shipId);
   if (!ship) return fail('Navire introuvable.');
   const company = companyOf(state, ship);
-  // Port de l'ombre : chez vous, on peut dire non sans rancune ni saisie.
-  if (shadowHome(company, o.from)) { shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)} (chez vous, sans rancune)`); return { ok: true, seized: null }; }
-  (company.grudge ??= {})[o.from] = state.t + DARK.grudgeDays * D;
-  if (rng.chance(DARK.refuseSeize)) return { ok: true, seized: seize(state, rng, ship, 'gang', notes, note) };
+  const risk = refusalRisk(company, o.from);
+  if (!risk) { shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)} (chez vous, sans rancune)`); return { ok: true, seized: null }; }
+  (company.grudge ??= {})[o.from] = state.t + risk.grudgeDays * D;
+  if (rng.chance(risk.seize)) return { ok: true, seized: seize(state, rng, ship, 'gang', notes, note) };
   shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)}`);
   return { ok: true, seized: null };
 }
@@ -141,10 +147,10 @@ export function seize(state, rng, ship, by, notes = null, note = null, caught = 
   ship.busyUntil = state.t + 365 * D;
   ship.plan = null;
   const text = by === 'justice'
-    ? (caught ? `La justice de ${portName(port)} confisque le ${ship.name} (${company.name}) après la découverte de sa cargaison. Caution pour le récupérer : ${M$(ransom)}.` : `La justice de ${portName(port)} confisque le ${ship.name} (${company.name}). Caution pour le récupérer : ${M$(ransom)}.`)
+    ? (caught ? `La justice de ${portName(port)} confisque le ${ship.name} (${company.name}) après la découverte de sa cargaison. Caution pour le récupérer : ${money(ransom)}.` : `La justice de ${portName(port)} confisque le ${ship.name} (${company.name}). Caution pour le récupérer : ${money(ransom)}.`)
     : kind === 'ship'
-      ? `À ${portName(port)}, des hommes armés s'emparent du ${ship.name} (${company.name}) et de son équipage. Ils réclament ${M$(ransom)}.`
-      : `À ${portName(port)}, des hommes armés enlèvent l'équipage du ${ship.name} (${company.name}). Ils réclament ${k$(ransom)}.`;
+      ? `À ${portName(port)}, des hommes armés s'emparent du ${ship.name} (${company.name}) et de son équipage. Ils réclament ${money(ransom)}.`
+      : `À ${portName(port)}, des hommes armés enlèvent l'équipage du ${ship.name} (${company.name}). Ils réclament ${money(ransom)}.`;
   news(state, text, { company: company.id, kind: 'disaster' });
   shipLog(state, ship, by === 'justice' ? `Confisqué par la justice à ${portName(port)}` : kind === 'ship' ? `Pris par un gang à ${portName(port)}` : `Équipage enlevé à ${portName(port)}`);
   if (company.human) {
@@ -160,19 +166,19 @@ export function resolveSeized(state, ctx, rng, shipId, choice) {
   if (!s) return fail('Ce navire n\'est pas retenu.');
   const company = companyOf(state, ship);
   if (choice === 'payer') {
-    if (company.cash < s.ransom) return fail(`Il faut ${M$(s.ransom)} en caisse.`);
-    money(state, company, -s.ransom, 'sinistres', ship);
+    if (company.cash < s.ransom) return fail(`Il faut ${money(s.ransom)} en caisse.`);
+    book(state, company, -s.ransom, 'sinistres', ship);
     costStat(state, 'rancons', s.ransom);
     ship.seized = null;
     ship.busyUntil = state.t + (s.by === 'justice' ? rng.int(10, 20) : rng.int(2, 5)) * D;
-    shipLog(state, ship, s.by === 'justice' ? `Caution versée (${M$(s.ransom)})` : `Rançon versée (${M$(s.ransom)})`);
+    shipLog(state, ship, s.by === 'justice' ? `Caution versée (${money(s.ransom)})` : `Rançon versée (${money(s.ransom)})`);
     return { ok: true, paid: s.ransom };
   }
   if (s.kind === 'crew') {
     ship.seized = null;
     ship.crew = 0; ship.xp = 0; ship.skills = {};
     const hire = 60000;
-    money(state, company, -hire, 'divers', ship);
+    book(state, company, -hire, 'divers', ship);
     ship.busyWhat = 'recrutement';
     ship.busyUntil = state.t + 7 * D;
     changeVirtue(company, -8, 'affaires noires'); // des marins abandonnés à leur sort : ça se sait
@@ -206,21 +212,21 @@ export function darkOnArrival(state, ctx, rng, ship, port, notes, note) {
       company.infamy = (company.infamy || 0) + DARK.caughtInfamy;
       changeVirtue(company, -25, 'affaires noires');
       onStain(state, company);
-      money(state, company, -Math.round(dk.pay * 0.5), 'sinistres', ship);
+      book(state, company, -Math.round(dk.pay * 0.5), 'sinistres', ship);
       costStat(state, 'douane', Math.round(dk.pay * 0.5));
-      news(state, `Scandale : la douane de ${portName(port)} découvre à bord du ${ship.name} (${company.name}) ${DARK_KINDS[dk.kind].name.toLowerCase()}. Amende de ${M$(dk.pay * 0.5)}, l'équipage est arrêté.`, { company: company.id, kind: 'disaster' });
+      news(state, `Scandale : la douane de ${portName(port)} découvre à bord du ${ship.name} (${company.name}) ${DARK_KINDS[dk.kind].name.toLowerCase()}. Amende de ${money(dk.pay * 0.5)}, l'équipage est arrêté.`, { company: company.id, kind: 'disaster' });
       seize(state, rng, ship, 'justice', notes, note, true);
       return;
     } else if (port === dk.to) {
       ship.dark = null;
-      money(state, company, dk.pay, 'discret', ship);
+      book(state, company, dk.pay, 'discret', ship);
       const tr = lastTrip(state, ship);
       if (tr && tr.rev == null) tr.rev = Math.round(dk.pay);
       shipLog(state, ship, `Cargaison noire livrée à ${portName(port)}`);
       onDarkDone(state, company, dk.from);
       if (company.human) {
         const n0 = notes.length;
-        note(state, notes, 'paid', ship, `La cargaison noire du ${ship.name} est livrée à ${portName(port)} : ${M$(dk.pay)} en liquide. Personne n'a rien vu.`);
+        note(state, notes, 'paid', ship, `La cargaison noire du ${ship.name} est livrée à ${portName(port)} : ${money(dk.pay)} en liquide. Personne n'a rien vu.`);
         if (notes.length > n0) Object.assign(notes[n0], { amount: dk.pay, parcel: true, dark: true });
       }
       scheduleAftermath(state, rng, company, port, dk.kind, true);
@@ -276,7 +282,13 @@ function aftermathDaily(state, notes) {
 export const CHARITY = { rep: 6, payShare: 0.45, expires: 6, cooldown: 90, randomRate: 1 / 70, stormNm: 0.5, stormForce: 11 };
 export const CHARITIES = ['Fondation Bouée de Secours', 'Les Amarres Solidaires', 'Escales sans frontières'];
 const AID_GOODS = [['cereales', 3], ['manufactures', 2], ['raffines', 1]];
-const QUAKE_PORTS = ['chittagong', 'manille', 'karachi', 'jakarta', 'veracruz', 'valparaiso', 'mersin', 'colombo', 'ho_chi_minh', 'luanda'];
+// Ports exposés aux catastrophes hors tempêtes, et celles qui leur arrivent vraiment (relief, failles, deltas).
+const DISASTER_PORTS = {
+  chittagong: ['Inondations', 'Glissements de terrain'], manille: ['Séisme', 'Inondations', 'Glissements de terrain'],
+  karachi: ['Inondations', 'Séisme'], jakarta: ['Inondations', 'Séisme'], veracruz: ['Inondations', 'Séisme'],
+  valparaiso: ['Séisme', 'Glissements de terrain'], mersin: ['Séisme', 'Inondations'], colombo: ['Inondations', 'Glissements de terrain'],
+  ho_chi_minh: ['Inondations'], luanda: ['Inondations', 'Glissements de terrain'],
+};
 
 function charityContract(state, ctx, rng, to, charity) {
   for (let tries = 0; tries < 8; tries++) {
@@ -330,8 +342,8 @@ export function darkDaily(state, ctx, rng, notes) {
     }
   }
   if (rng.chance(CHARITY.randomRate)) {
-    const ports = QUAKE_PORTS.filter((p) => PORTS[p]);
-    disaster(state, ctx, rng, rng.pick(ports), rng.pick(['Séisme', 'Inondations', 'Glissements de terrain']));
+    const port = rng.pick(Object.keys(DISASTER_PORTS).filter((p) => PORTS[p]));
+    disaster(state, ctx, rng, port, rng.pick(DISASTER_PORTS[port]));
   }
 }
 // Livraison d'une aide d'urgence : réputation (dans la limite du plafond) et bonne presse.

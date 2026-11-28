@@ -5,24 +5,21 @@
 //           l'étagère du bureau.
 //  grim   : un bureau dans la nuit, une lampe qui se balance ; la preuve s'abat sur le bureau
 //           (le couteau se plante), une silhouette s'éloigne, puis la preuve rejoint sa place.
-// variant : { office (Image du bureau sans l'objet), item (Image de l'objet), slot ({ x, b, h }
-//           dans le dessin du bureau 480 × 200), logo (Image), id }.
+// variant : { office (bureau en pixel art sans l'objet, officeShot), item (Image de l'objet), slot (sa place
+//           dans le bureau, honourSpot), logo (Image), id }.
 import { W, H, hash, clamp01, ease } from './pixel.js';
+import { drawOfficeShot, officeLeft, spotRect } from './officescene.js';
 
-const OFFICE = { x: -34, w: 268, k: 268 / 480, ky: 112 / 200 }; // le bureau dessiné dans la scène (comme la scène « office »)
 const smooth = (p) => { const q = clamp01(p); return q * q * (3 - 2 * q); };
 const lerp = (a, b, p) => a + (b - a) * p;
 const ok = (img) => img && img.complete && img.naturalWidth > 0;
-// Le bureau est plus large que la scène : on le cadre pour que la place de l'objet soit visible.
-const officeX = (slot) => (slot ? Math.max(W - OFFICE.w, Math.min(0, W / 2 - slot.x * OFFICE.k)) : OFFICE.x);
-const slotRect = (slot) => {
-  const h = slot.h * OFFICE.ky, w = h * 0.75;
-  return { x: officeX(slot) + slot.x * OFFICE.k - w / 2, y: slot.b * OFFICE.ky - h, w, h };
-};
-function drawOffice(g, img, dark = 0, slot = null) {
+// Le bureau en pixel art, cadré pour que la place de l'objet soit visible (v.office : officeShot).
+function drawOffice(g, v, dark = 0) {
   g.fillStyle = '#1b1f27'; g.fillRect(0, 0, W, H);
-  if (ok(img)) g.drawImage(img, officeX(slot), 0, OFFICE.w, H);
+  const shot = typeof v.office === 'function' ? v.office() : null;
+  if (shot) drawOfficeShot(g, shot, officeLeft(shot, v.slot));
   if (dark) { g.fillStyle = `rgba(8,10,24,${dark})`; g.fillRect(0, 0, W, H); }
+  return shot;
 }
 function glint(g, x, y, r, t, color = '#fff6c8') {
   g.save();
@@ -37,8 +34,7 @@ function glint(g, x, y, r, t, color = '#fff6c8') {
   g.restore();
 }
 // L'objet vole du milieu de la scène jusqu'à sa place (de p = 0 à 1).
-function flight(g, item, slot, p, from = { x: 100, y: 78, h: 40 }) {
-  const r = slotRect(slot);
+function flight(g, item, r, p, from = { x: 100, y: 78, h: 40 }) {
   const q = smooth(p);
   const h = lerp(from.h, r.h, q), w = h * 0.75;
   const cx = lerp(from.x, r.x + r.w / 2, q), by = lerp(from.y, r.y + r.h, q) - Math.sin(q * Math.PI) * 26;
@@ -172,10 +168,10 @@ export const HONOUR_SCENES = {
         return;
       }
       // Le bureau : le trophée rejoint sa place sur l'étagère.
-      drawOffice(g, v.office, 0, v.slot);
+      const shot = drawOffice(g, v);
       if (t < 4.6) { g.fillStyle = `rgba(0,0,0,${1 - smooth((t - 4.2) / 0.4)})`; g.fillRect(0, 0, W, H); }
       const p = clamp01((t - 4.4) / 1.5);
-      const r = v.slot ? flight(g, v.item, v.slot, p) : null;
+      const r = v.slot && shot ? flight(g, v.item, spotRect(shot, v.slot, officeLeft(shot, v.slot)), p) : null;
       if (r && t > 5.9) glint(g, r.x + r.w / 2, r.y + r.h * 0.3, 4, ((t - 5.9) * 0.7) % 1);
     },
   },
@@ -224,10 +220,10 @@ export const HONOUR_SCENES = {
         if (t > 3.0) { g.fillStyle = `rgba(0,0,0,${smooth((t - 3.0) / 0.6)})`; g.fillRect(0, 0, W, H); }
         return;
       }
-      drawOffice(g, v.office, 0.45, v.slot);
+      const shot = drawOffice(g, v, 0.45);
       if (t < 4.0) { g.fillStyle = `rgba(0,0,0,${1 - smooth((t - 3.6) / 0.4)})`; g.fillRect(0, 0, W, H); }
       const p = clamp01((t - 3.9) / 1.5);
-      const r = v.slot ? flight(g, v.item, v.slot, p, { x: 100, y: 84, h: 36 }) : null;
+      const r = v.slot && shot ? flight(g, v.item, spotRect(shot, v.slot, officeLeft(shot, v.slot)), p, { x: 100, y: 84, h: 36 }) : null;
       if (r && t > 5.4) glint(g, r.x + r.w / 2, r.y + r.h * 0.35, 3.6, ((t - 5.4) * 0.6) % 1, '#ff5a4a');
     },
   },

@@ -164,13 +164,18 @@ export const CREW_DAY_COST = 140;
 //  wage   : coefficient sur les salaires
 //  safety : coefficient sur la fréquence des incidents et le risque de naufrage
 //  info   : 0 avis qualitatif, 1 fourchettes, 2 chiffres précis et risque du voyage
+//  fight  : points de défense à l'abordage et au combat à bord (sim/piracy.js)
+//  unlock : niveau qu'on n'engage pas, débloqué par une spécialité de l'équipage (sim/crew.js)
 export const CREW_LEVELS = [
-  { name: 'Équipage de base', short: 'de base', wage: 1, safety: 1, info: 0,
+  { name: 'Équipage de base', short: 'de base', wage: 1, safety: 1, info: 0, fight: 0,
     blurb: 'Le minimum réglementaire. Le capitaine ne vous donne qu\'un avis général sur les dangers.' },
-  { name: 'Équipage confirmé', short: 'confirmé', wage: 1.35, safety: 0.85, info: 1,
+  { name: 'Équipage confirmé', short: 'confirmé', wage: 1.35, safety: 0.85, info: 1, fight: 0.8,
     blurb: 'Des officiers expérimentés : moins d\'incidents, et une estimation chiffrée des risques.' },
-  { name: 'Équipage chevronné', short: 'chevronné', wage: 1.8, safety: 0.7, info: 2,
+  { name: 'Équipage chevronné', short: 'chevronné', wage: 1.8, safety: 0.7, info: 2, fight: 1,
     blurb: 'Le chef mécanicien connaît chaque boulon : beaucoup moins d\'incidents, risques évalués précisément, voyage par voyage.' },
+  // Débloqué par la spécialité « Vieux briscards » au niveau 3 : sans prime d'embauche, au salaire de base.
+  { name: 'Équipage de vieux briscards', short: 'de vieux briscards', wage: 1, safety: 0.6, info: 2, fight: 1.3, unlock: 'briscard',
+    blurb: 'Ils ont tout vu : le moins d\'incidents, la meilleure défense, des risques chiffrés précisément. Ils restent pour le navire, pas pour la paie.' },
 ];
 
 // Noms proposés pour les nouveaux navires.

@@ -2,7 +2,7 @@
 
 Files: `data/offices.js` (`OFFICE_TIERS`), `sim/victory.js` (`VICTORY`, `victoryProgress`,
 `levelsDaily`, `victoryDaily`), `sim/honours.js` (`HONOURS`, `DEEDS`, `RECORDS`, `EVIL`, hooks),
-UI: `ui/victory.js`, `ui/codex.js`, office art `ui/officepx.js` (pixel room behind the Office panel, `ui/officeroom.js`; `ui/officeart.js` keeps the vector office for the award and level-up scenes), trophies `ui/trophyart.js`,
+UI: `ui/victory.js`, `ui/codex.js`, office art `ui/officepx.js` (pixel room behind the Office panel, `ui/officeroom.js`; `ui/officescene.js` paints the same room in the award and level-up scenes), trophies `ui/trophyart.js`,
 scenes `ui/scenes-honours.js`.
 
 ## Office levels (company maturity)
@@ -30,7 +30,7 @@ Each of the first five raises both reputation caps by 1 (95 → 100) and both sc
 | fideles | Partenaires fidèles | 14 shippers at loyalty 10 at once |
 | alerte | Lanceur d'alerte | 14 shippers denounced |
 | mainspropres | Le Juste | 8 years without any dirty act, never any infamy |
-| ecole | École de la mer | 16 ships with fully trained crews (5 points) |
+| ecole | École de la mer | 16 ships with fully trained crews (6 points since the 6th XP step) |
 | merspropres | Mers propres | 4 years without carrying polluting cargo, ≥ 100 deliveries |
 | pirates | Corsaire | 12 pirate attacks repelled |
 
@@ -69,7 +69,11 @@ checked daily in `honoursDaily` (which also applies clean-conduct virtue).
   share of its takeover price (embargo fine included) you hold in net cash (capped 99 %); 0 if it is
   above your level.
 - Alerts at 75 % and 90 % to every human (rule 1); the last rival gets its own wording. Everyone sees
-  everyone's progress (Office → Victories).
+  everyone's progress on the four medal buttons under the side rail (`.vic-rail`, `data-victory`; 🚩 domination,
+  🌟 reputation, 🏆 legend, 🗡 shadow; `updateVictoryRail` in `main.js`, once per game day): a progress ring
+  (halo at 75 %, breathing at 90 %) and a red dot when a rival reaches 75 % (beating at 90 %). A medal opens
+  panel `victory` (`ui/victory.js`) with tab `course` plus, per path: domination → `concurrents` (takeovers,
+  attacks, parries) and `classement`; reputation → `hauts-faits`; legend → `records`; shadow → `mefaits`.
 - Victories can be switched off per game (`settings.victories`); the time limit decides otherwise
   (ranking by net worth). The first victory ends the game (`state.victoryClaimed`, `state.over`).
 

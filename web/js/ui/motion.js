@@ -6,6 +6,7 @@
 // système (« effets d'animation » de Windows) : choix du propriétaire, qui ne voyait aucun mouvement sans le
 // savoir. Les rafraîchissements du panneau (toutes les 1,2 s) ne rejouent rien : seuls l'ouverture, la
 // fermeture, le changement de panneau et d'onglet animent.
+import { KEYS, readFlag, writeFlag } from './storage.js';
 
 export const MOTION = {
   drawerIn: 240,   // ms : sortie du tiroir, rebond compris
@@ -18,15 +19,14 @@ export const MOTION = {
 };
 
 // Réglage des animations, pour tout le jeu (carte, navires, panneaux, intro, générique, CSS via html.no-motion).
-const ANIM_KEY = 'pda-animations';
 let animOn = null;
 export function animationsOn() {
-  if (animOn == null) { try { animOn = localStorage.getItem(ANIM_KEY) !== '0'; } catch { animOn = true; } }
+  if (animOn == null) animOn = readFlag(KEYS.animations, true);
   return animOn;
 }
 export function setAnimationsOn(on) {
   animOn = !!on;
-  try { localStorage.setItem(ANIM_KEY, on ? '1' : '0'); } catch { /* stockage indisponible */ }
+  writeFlag(KEYS.animations, on);
   applyMotionClass();
 }
 // Classe html.no-motion : les animations CSS s'arrêtent aussi (à appeler au démarrage).

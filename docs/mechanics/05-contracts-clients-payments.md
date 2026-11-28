@@ -13,7 +13,9 @@ Per port, three categories with target open counts (`CONTRACT_DENSITY 0.75`):
 
 Missing slots are filled (each extra one at 60 % chance unless initial fill). Reserved offers
 (loyal partner, family, prospect) are **extra**, not counted against the pool (CLAUDE.md lesson).
-Expired untaken contracts are dropped. New golden deals are announced to humans.
+Expired untaken contracts are dropped. New golden deals are announced to humans: a card in the opportunities
+column when one of their ships can take it in time (`goldenReach`), and a toast with a sound only when a free ship
+(empty holds) is on site or less than a day away (`goldenNear`, `ui/opps.js`).
 
 ## `makeContract(state, ctx, rng, from, forType?, {regional, big})`
 
@@ -52,6 +54,10 @@ draft at destination; end-of-season ice needs ice class; shipper grudge (denounc
 someone else; shipper requirement (`clientRep`, unless loyal or blacklisted in a shady port);
 **trust** < `minRep` (waived for blacklisted companies in shady ports); deadline passed.
 
+The "réservé pour vous" tag explains its origin (`reservedTip` in `ui/panel-ship.js`): a loyal shipper (freight
++`RESERVE_BONUS`), a prospecting lead (`c.prospect`, freight × `PROSPECT.pay`) or a family-first contract (`c.family`,
+no trust requirement).
+
 On accept: price war cut (×0.8 if a rival's `pricewar` targets you in that port), image shipper
 factor (`imageFactor`, fixed at signing), golden-taken note, cargo loaded (taints if embargoed),
 loading time, departure queued.
@@ -74,7 +80,8 @@ honours (`onDelivered`).
 ## Shippers (`data/clients.js`, `sim/clients.js`)
 
 30 fictional shippers: `goods`, `reliability` (fixed nature), `style` (ponctuel, lent, pinailleur,
-fragile), `image` (6 image-minded: beauce, gulfcrest, hansa, rheinwerk, lebrun, coastal).
+fragile), `image` (6 image-minded: beauce, gulfcrest, hansa, rheinwerk, lebrun, coastal). Image-minded
+shippers never ship from or to an embargoed port (`makeContract`).
 
 - Live reliability `state.clients[id].rel` drifts back to nature (1/240 per day); −10 on a client
   bankruptcy (out 60–120 days: no new contracts); −`DENOUNCE_HIT` when denounced
@@ -105,8 +112,9 @@ stalled by a rival's "payments" attack                     → paid in 40–75 d
 market move > 5 %: 25 % chance of renegotiation (−6 % max) or bonus (+5 % max)
 ```
 
-Dispute: accept the 5–20 % withholding, or **contest** (fees 3 %, win odds
-`0.45 + trust/250 − R/500`, trust ±1, paid in 20–40 days). Charity payments never have events.
+Dispute: accept the 5–20 % withholding, or **contest** (fees 3 %, win odds `arbitrationOdds` =
+`0.45 + trust/250 − R/500`, trust ±1, paid in 20–40 days). The receipt shows the odds as precisely as the
+delivering ship's crew can tell (`payment.crew`: good/average/low, ≈ rounded to 10 %, exact). Charity payments never have events.
 Pending payments and receivables count in net worth.
 
 ## Prospecting (`prospect.js`)

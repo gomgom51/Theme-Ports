@@ -7,25 +7,25 @@
 // aux bosses, à la peinture arrachée et à la fumée noire. La compagnie n'apparaît que sur la
 // cheminée (sa couleur et son emblème).
 //
-// Dans l'interface, shipSVG() rend un <span class="px-ship"> ; ce module y pose un canevas dès
+// Dans l'interface, shipMarkup() (shipart.js) rend un <span class="px-ship"> ; ce module y pose un canevas dès
 // que l'élément est affiché, à sa taille, avec un nombre entier de pixels d'écran par pixel
 // du dessin (net à 125 % ou 150 %). Seul le grand cadre (inspection, achat) s'anime.
-import { SHIP_ART } from './shipart.js';
+import { SHIP_ART } from './shipshapes.js';
 import { logoMarkup, emblemInk } from './logos.js';
 import { pixelRatio } from './scale.js';
 import { reducedMotion as reduceMotion } from './motion.js';
+import { KEYS, read, write } from './storage.js';
 
 // ---------- Réglage du joueur ----------
-const STYLE_KEY = 'pda-ship-style';
 let style = null;
 export function shipStyle() {
   if (style) return style;
-  try { style = localStorage.getItem(STYLE_KEY) === 'chunky' ? 'chunky' : 'fine'; } catch { style = 'fine'; }
+  style = read(KEYS.shipStyle) === 'chunky' ? 'chunky' : 'fine';
   return style;
 }
 export function setShipStyle(s) {
   style = s === 'chunky' ? 'chunky' : 'fine';
-  try { localStorage.setItem(STYLE_KEY, style); } catch { /* stockage indisponible */ }
+  write(KEYS.shipStyle, style);
   cache.clear();
   repaintAll();
 }
@@ -303,7 +303,8 @@ function funnelH(A, hsp) {
 
 /**
  * Calque du navire (sans décor), dans un tampon W × H.
- * o : style, W, H, laden, wear (0..1), dmg (0..1), color, logo, name, seed, sky
+ * o : style, W, H, laden, wear (0..1), dmg (0..1), color, logo, name, seed, sky,
+ *     tiny (forcer ou non le dessin simplifié des petites vignettes)
  */
 function buildShip(typeId, o) {
   const A0 = SHIP_ART[typeId] || SHIP_ART.caboteur;
@@ -328,7 +329,7 @@ function buildShip(typeId, o) {
   const invH = (e) => (e <= Href * exH ? e / exH : Href + (e - Href * exH) / ex);
   const xmOf = (x) => Math.max(0, Math.min(L, (x + 0.5 - x0) * mpp));
   const nearZ = (x) => C2 - G.half(x);
-  const tiny = W < 140; // vignettes : on simplifie
+  const tiny = o.tiny ?? W < 140; // vignettes : on simplifie
   // Rampes de couleurs : 5 tons (fins) ou 3 tons (gros pixels).
   const T3 = (rmp) => (fine ? rmp : [rmp[1], rmp[1], rmp[2], rmp[3], rmp[3]]);
   const P = {};
@@ -1063,7 +1064,12 @@ function buildShip(typeId, o) {
       }, P.orange);
     }
   }
-  return { W, H, fine, sh, WL, water, mpp, X, Y, C2, B, L, horizon: WL - Math.round(B * kz) - (fine ? 6 : 4), funnelTop, bowX: Math.round(X(L - G.STEM)), bowY: Math.round(Y(0, C2 - 0.2)), sternX: Math.round(X(G.sternWL)), smokeDark: wear > 0.45, halfWL: G.halfWL, hawse, tiny };
+  // Repères pour les scènes : pont (axe et bord proche) à une fraction de la longueur, passerelle.
+  const deckAt = (fr) => Y(G.topAt(Math.max(0, Math.min(1, fr)) * L), C2);
+  const rimAt = (fr) => topY(Math.max(0, Math.min(1, fr)) * L);
+  const br = houses.find((h) => h.hsp === A.house) || houses[0];
+  const bridge = br ? { x1: X(br.hx1), x2: X(br.hx2), top: Y(br.base + br.levels.length * DK, C2), base: Y(br.base, C2) } : null;
+  return { W, H, fine, sh, WL, water, mpp, X, Y, C2, B, L, horizon: WL - Math.round(B * kz) - (fine ? 6 : 4), funnelTop, bowX: Math.round(X(L - G.STEM)), bowY: Math.round(Y(0, C2 - 0.2)), sternX: Math.round(X(G.sternWL)), smokeDark: wear > 0.45, halfWL: G.halfWL, hawse, tiny, deckAt, rimAt, bridge };
 }
 
 // ---------- Décor et animation : ciel, mer, fumée, reflet, écume, mouettes ----------
@@ -1173,6 +1179,29 @@ export function renderShipCanvas(canvas, typeId, o) {
   canvas.width = S.W; canvas.height = S.H;
   canvas.getContext('2d').putImageData(compose(S, o.t ?? 0.7, o.sky !== false), 0, 0);
   return S;
+}
+
+// Calque du navire seul, fond transparent, pour les scènes (scenes.js) : len = longueur du
+// navire en pixels du dessin. Renvoie le canevas recadré et le bâti brut (repères en pixels
+// du tampon d'origine : x0, y0 = coin du recadrage).
+const layers = new Map();
+export function shipLayer(typeId, o) {
+  const st = o.style || shipStyle();
+  const key = `${st}|${typeId}|${o.len}|${o.laden ? 1 : 0}|${o.wear || 0}|${o.dmg || 0}|${o.color}|${o.logo || ''}|${o.name || ''}|${o.seed ?? ''}`;
+  let lay = layers.get(key);
+  if (lay) { layers.delete(key); layers.set(key, lay); return lay; }
+  const W = Math.ceil(o.len / 0.93) + 2;
+  const S = buildShip(typeId, { ...o, style: st, W, H: W, tiny: o.tiny ?? W < 90 });
+  const { x0, y0, x1, y1 } = S.sh, cw = Math.max(1, x1 - x0 + 1), ch = Math.max(1, Math.max(y1, S.WL - 1) - y0 + 1);
+  const canvas = document.createElement('canvas');
+  canvas.width = cw; canvas.height = ch;
+  const img = new ImageData(cw, ch), px = new Uint32Array(img.data.buffer);
+  for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) { const c = S.sh.c[(y + y0) * S.W + x + x0]; if (c) px[y * cw + x] = toInt(c); }
+  canvas.getContext('2d').putImageData(img, 0, 0);
+  lay = { canvas, S, x0, y0 };
+  layers.set(key, lay);
+  if (layers.size > 48) layers.delete(layers.keys().next().value);
+  return lay;
 }
 
 // ---------- Dans l'interface ----------
