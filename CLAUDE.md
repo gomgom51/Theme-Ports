@@ -8,6 +8,9 @@ UI (a button, tab or panel that moves), or adds a code file updates the matching
 same PR, or says in the PR body why none is needed (PR template checkbox). At release, the bundle thread checks
 every included PR for this and fixes small gaps in the bundle.
 
+**Changelog (owner's rule):** every release bundle adds its entry to `docs/changelog.md`: what is new and every bug
+fix (symptom for the player, cause, guard against a repeat).
+
 This is a **management game**. Balance and player agency come before realism.
 Every design or balancing choice must be checked against these rules (set by the
 project owner):
