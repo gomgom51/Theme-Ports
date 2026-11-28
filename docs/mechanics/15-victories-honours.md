@@ -2,7 +2,7 @@
 
 Files: `data/offices.js` (`OFFICE_TIERS`), `sim/victory.js` (`VICTORY`, `victoryProgress`,
 `levelsDaily`, `victoryDaily`), `sim/honours.js` (`HONOURS`, `DEEDS`, `RECORDS`, `EVIL`, hooks),
-UI: `ui/victory.js`, `ui/codex.js`, office art `ui/officeart.js`, trophies `ui/trophyart.js`,
+UI: `ui/victory.js`, `ui/codex.js`, office art `ui/officepx.js` (pixel room behind the Office panel, `ui/officeroom.js`; `ui/officeart.js` keeps the vector office for the award and level-up scenes), trophies `ui/trophyart.js`,
 scenes `ui/scenes-honours.js`.
 
 ## Office levels (company maturity)
@@ -17,7 +17,7 @@ scenes `ui/scenes-honours.js`.
 
 Sticky (`company.level` never goes down). Gates: takeovers (buy only your level or below), attack
 `minLevel`, bank-pressure attack (target ≤ your level), reputation victory (level 4), prospecting
-(+0.04 per level). A blacklisted company's office turns ostentatious (`officeSVG` option `shadow`).
+(+0.04 per level). A blacklisted company's office turns ostentatious (`paintOffice` option `shadow`).
 
 ## Deeds (badges, everyone can earn all 8)
 

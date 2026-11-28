@@ -31,7 +31,7 @@ import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
-import { registerStateShips, watchShipNames } from './ui/shipnames.js';
+import { registerStateShips, watchShipNames, onCityClick } from './ui/shipnames.js';
 import { initPanelSize, gripAfter } from './ui/panelsize.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
@@ -178,13 +178,21 @@ app.act = (fn, opts = {}) => {
   if (opts.close && r?.ok) app.close(); else if (opts.refresh !== false) app.refresh();
   return r;
 };
-app.focusShip = (id) => {
+app.focusShip = (id, { quiet = false } = {}) => {
   const ship = shipById(app.state, id);
   if (!ship) return;
   const pos = ship.status === 'sea' ? ctx.shipPosition(ship) : PORTS[ship.port];
   if (pos) app.map.centerOn(pos.lon, pos.lat, Math.max(app.map.view.scale, 5));
   app.map.flashShip(id); // il clignote : on le repère d'un coup d'œil
+  if (!quiet) app.audio.play('ping'); // et un ping de sonar
 };
+// Nom de ville cliqué (partout dans l'interface, shipnames.js) : elle clignote en vert sur la carte, même ping.
+app.focusPort = (id) => {
+  if (app.mode !== 'game' || !PORTS[id]) return;
+  app.map.flashCity(id);
+  app.audio.play('ping');
+};
+onCityClick((id) => app.focusPort(id));
 
 function renderPanel() {
   const p = app.ui.panel;
@@ -220,10 +228,9 @@ function renderPanel() {
 
   const body = h('div.panel-body');
   if (def.top) body.append(def.top);
-  if (tabs) {
-    const current = tabs.find((t) => t[0] === tabId);
-    body.append(current[2]());
-  } else if (def.body) body.append(def.body);
+  const content = tabs ? tabs.find((t) => t[0] === tabId)[2]() : def.body;
+  // Panneau à décor (le Bureau) : le contenu est une feuille posée devant la pièce.
+  if (content) body.append(def.room ? h('div.panel-sheet', [content]) : content);
 
   panelEl.replaceChildren(...[
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
@@ -242,7 +249,10 @@ function renderPanel() {
   panelEl.dataset.ident = ident;
   panelEl.dataset.tab = curTab;
   panelEl.hidden = false;
+  panelEl.classList.toggle('panel-room', !!def.room);
   document.body.classList.add('panel-open');
+  panelEl._mount = def.mount ? () => def.mount(body) : null;
+  panelEl._mount?.(); // la pièce se mesure une fois le panneau affiché
   if (motion === 'in' || (motion === 'swap' && outMs >= 0)) gripAfter(drawerIn(panelEl, Math.max(0, outMs))?.finished);
   else if (motion === 'tab' && tabs) {
     const ix = (id) => tabs.findIndex((t) => t[0] === id);
@@ -1193,7 +1203,12 @@ initTooltips();
 initBossKey(app); // touche A : cacher le jeu derrière une simple carte, et le retrouver tel quel
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
-initPanelSize(); // largeur du panneau, réglable à sa poignée
+// Largeur du panneau, réglable à sa poignée ; le décor du Bureau suit (une fois par image).
+let refitting = 0;
+const refitRoom = () => { if (!refitting) refitting = requestAnimationFrame(() => { refitting = 0; panelEl._mount?.(); }); };
+initPanelSize(refitRoom);
+window.addEventListener('uiscale', refitRoom);
+window.addEventListener('resize', refitRoom);
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });

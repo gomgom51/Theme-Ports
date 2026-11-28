@@ -1228,6 +1228,7 @@ export default {
   "🏢 Niveau {0}/{1} · le sommet !": "🏢 Level {0}/{1} · the top!",
   "Niveau {0}/{1} · prochain bureau à {2} de valeur nette, vous en êtes à {3}": "Level {0}/{1} · next office at {2} net worth, you are at {3}",
   "Niveau {0}/{1} : le sommet !": "Level {0}/{1}: the top!",
+  "Niveau {0}/{1}": "Level {0}/{1}",
   "Prêts « intérêts seuls » :": "Interest-only loans:",
   "Prêt « intérêts seuls » :": "Interest-only loan:",
   "vous ne payez que les intérêts, soit environ {0} par mois pour 1 M$ emprunté. Le capital n'a pas d'échéance : vous le remboursez quand vous voulez.": "you only pay the interest, about {0} per month for $1M borrowed. The capital has no due date: you repay it whenever you like.",

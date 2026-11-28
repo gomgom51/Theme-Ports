@@ -130,6 +130,9 @@ html.boss, html.boss * { cursor: default !important; }
 b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-sub.nm { font-size: 16px; color: var(--ink-2); }
 .row b.nm { font-size: 16px; }
+/* Noms de villes (shipnames.js) : rien au repos ; au survol, soulignés en vert et main du pointeur. Un clic la fait clignoter sur la carte. */
+.city { cursor: var(--cursor-click); border-radius: 3px; }
+.city:hover { text-decoration: underline 2px #2e9e5b; text-underline-offset: 3px; background: rgba(46, 158, 91, 0.1); }
 .hud-cash { font-weight: 800; font-variant-numeric: tabular-nums; }
 .hud-cash.neg { color: var(--bad); }
 /* Sous la trésorerie : ce qui est emprunté (banque et prêts sur cargaison, le détail au survol). */
@@ -281,7 +284,6 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .standings-level { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--ink-2); }
 .level-bar { display: block; height: 5px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
 .level-bar > span { display: block; height: 100%; background: var(--teal); border-radius: 3px; }
-.office-next { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
 @media (max-width: 600px) { .standings-row:not(.me) > * { display: none; } }
 
 /* ---------- Panneau latéral ---------- */
@@ -321,6 +323,40 @@ b.nm, .panel-sub.nm { font-weight: 700; }
   position: absolute; left: 0; width: 12px; z-index: 2; pointer-events: none;
   background: linear-gradient(to right, #5a4119, #ecc77c 40%, #c99a48 65%, #5a4119); box-shadow: 0 0 8px rgba(28, 42, 51, 0.4);
 }
+/* Panneau à décor (le Bureau, officeroom.js) : la pièce en pixel art est le fond du corps du panneau (elle ne
+   défile pas), la plaque de laiton et le juke-box restent collés en haut, la feuille des chiffres glisse devant. */
+.panel-room .panel-body { padding: 0; background-color: #2a1d14; image-rendering: pixelated; }
+.panel-room .panel-body.wipe-old { background-color: #2a1d14; }
+.office-room { position: sticky; top: 0; z-index: 0; height: 340px; }
+.panel-sheet {
+  position: relative; z-index: 1; margin: 0 14px; padding: 14px 16px calc(24px + var(--safe-b)); min-height: var(--sheet-min, 0);
+  background: var(--paper); border: 1px solid var(--line-2); border-bottom: 0; border-radius: 8px 8px 0 0;
+  box-shadow: 0 -3px 14px rgba(20, 14, 8, 0.4); image-rendering: auto;
+}
+.office-plate {
+  position: absolute; left: 10px; top: 8px; z-index: 1; display: flex; flex-direction: column; gap: 3px; min-width: 160px; padding: 6px 14px 7px;
+  background: linear-gradient(#f2d48c, #d7aa55 55%, #c3913e); border: 2px solid #5a4119; border-radius: 4px; color: #2a1a0e;
+  box-shadow: 0 2px 0 #3a2a10, 0 4px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.office-plate::before, .office-plate::after { /* deux vis */
+  content: ''; position: absolute; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff2c4, #7a5a22 70%);
+}
+.office-plate::before { left: 4px; } .office-plate::after { right: 4px; }
+.office-plate b { font-family: var(--stencil); font-size: 15px; letter-spacing: 0.03em; white-space: nowrap; }
+.office-plate-row { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #4a3414; }
+.office-plate .level-bar { flex: 1; min-width: 60px; background: rgba(58, 42, 16, 0.28); }
+.office-juke-spot { position: absolute; z-index: 1; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; }
+.office-juke-spot:focus-visible { outline: none; }
+.office-juke-spot .juke-sprite { position: absolute; inset: 0; background-size: 100% 100%; image-rendering: pixelated; transition: filter 0.12s; }
+.office-juke-spot:hover .juke-sprite, .office-juke-spot:focus-visible .juke-sprite { filter: drop-shadow(0 0 3px rgba(255, 236, 170, 0.95)) brightness(1.1); }
+.office-juke-spot .juke-notes { position: absolute; right: -4px; top: -6px; width: 20px; height: 20px; pointer-events: none; }
+.office-juke-spot.juke-on .juke-notes { display: block; }
+.office-juke-spot .juke-notes i {
+  position: absolute; left: 0; top: 0; font: 700 16px/1 var(--icons), sans-serif; font-style: normal; color: #b8600c;
+  text-shadow: 0 0 2px #fff8e6, 0 0 2px #fff8e6, 0 0 1px #fff8e6; animation: juke-float 2.4s ease-in var(--juke-phase, 0s) infinite;
+}
+.office-juke-spot .juke-notes i + i { left: 9px; top: 5px; animation-delay: calc(var(--juke-phase, 0s) - 1.2s); }
 /* Poignée du tiroir : sur le bord gauche du panneau, une poignée de laiton à saisir pour l'élargir. */
 .panel-grip {
   position: fixed; z-index: 13; display: none; top: calc(var(--hud-h) + var(--safe-t)); bottom: 0; width: 14px;
@@ -524,10 +560,6 @@ select.input { width: auto; max-width: 100%; }
 .help p { color: var(--ink-2); }
 
 /* ---------- Bureau ---------- */
-.office-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); line-height: 0; margin-bottom: 6px; }
-.office-hero svg { width: 100%; height: auto; display: block; }
-.office-caption { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; }
-.office-caption b { font-family: var(--stencil); font-size: 15px; letter-spacing: 0.03em; color: var(--ink); }
 
 /* ---------- Paiement ---------- */
 .pay-lines { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
@@ -782,7 +814,6 @@ select.input { width: auto; max-width: 100%; }
 .pay-ship-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .dialog:has(.pay-lines) .dialog-buttons { animation: pay-in 0.4s ease-out 1.8s both; }
 @media (max-height: 460px) {
-  .office-hero svg { height: calc(30 * var(--vh)); }
 }
 .stars-empty { color: var(--line); }
 /* Jauge et pompe à carburant. */
@@ -1144,15 +1175,8 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .title-card .link-btn.credits { font-size: 13px; }
 
 /* Juke-box du bureau : l'objet dessiné se clique, des notes s'envolent quand il joue. */
-.office-juke { cursor: pointer; outline: none; }
-.office-juke:hover, .office-juke:focus-visible { filter: drop-shadow(0 0 3px rgba(255, 236, 170, 0.95)) brightness(1.08); }
-.juke-notes { display: none; }
-.office-hero.juke-on .juke-notes { display: inline; }
-.juke-note { font-size: 15px; font-weight: 700; fill: #b8600c; stroke: #fff8e6; stroke-width: 1.4px; paint-order: stroke; transform-box: fill-box; animation: juke-float 2.4s ease-in var(--juke-phase, 0s) infinite; }
-.juke-note + .juke-note { animation-delay: calc(var(--juke-phase, 0s) - 1.2s); }
+.juke-notes { display: none; } /* notes du juke-box dessiné en vecteur (scènes) : jamais animées */
 @keyframes juke-float { 0% { opacity: 0; transform: translate(0, 4px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(8px, -22px); } }
-.office-caption .juke-chip { align-self: flex-start; }
-.juke-chip.on { background: var(--accent-soft, #e6f2f1); }
 .juke-modes { display: flex; gap: 6px; margin: 8px 0; }
 .juke-modes .chip.on { background: #0f6f76; color: #fff; border-color: #0f6f76; }
 .juke-now { margin: 6px 0 8px; }
