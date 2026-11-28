@@ -970,6 +970,213 @@ export function paintOffice(o) {
     clip = save;
   };
   // Store bateau bleu roi : plis, bas festonné, franges dorées.
+  // Reflet dans l'eau de ce que dessine draw() entre x0 et x1, au-dessus de la ligne d'eau wl : les pixels
+  // changés sont recopiés à l'envers sous wl, fondus dans l'eau et brisés par les vaguelettes.
+  const reflect = (x0, x1, y0, wl, water, k, draw) => {
+    const w = x1 - x0 + 1, snap = new Uint32Array(w * (wl - y0 + 1));
+    for (let y = y0; y <= wl; y++) for (let x = x0; x <= x1; x++) snap[(y - y0) * w + x - x0] = get(x, y);
+    draw();
+    const wc = I(water);
+    for (let y = wl; y >= y0; y--) for (let x = x0; x <= x1; x++) {
+      const c = get(x, y);
+      if (c === snap[(y - y0) * w + x - x0]) continue;
+      const ry = 2 * wl - y + 1, d = ry - wl;
+      if ((ry + Math.floor(x / 3)) % 4 === 3 && d > 2) continue; // vaguelettes
+      set(x + (d > 3 && (ry % 3 === 0) ? 1 : 0), ry, mixI(c, wc, Math.min(0.85, k + d * 0.02)));
+    }
+  };
+  // Un chalutier de profil, étrave à droite : coque à tonture, liston blanc, timonerie, mât et tangons.
+  const trawler = (x, wl, s, hull, night, cab = '#f2efe6') => {
+    const n = Math.round(30 * s), hh = Math.max(3, Math.round(5 * s)), r = RP(hull), c = RP(night ? '#5a6278' : cab);
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1), rise = Math.round(t * t * 3 * s), tp = wl - hh - rise + (i === 0 ? 1 : 0);
+      const bot = wl - (t > 0.9 ? Math.round((t - 0.9) * 10 * hh * 0.6) : 0);
+      for (let y = tp; y <= bot; y++) set(x + i, y, y === tp ? (night ? c[2] : I('#f6f2e8')) : y === tp + 1 ? r[1] : y >= wl - 1 ? I(night ? '#2a1414' : '#8e2a22') : i < n * 0.25 ? r[3] : r[2]);
+    }
+    // timonerie vers l'avant, vitres
+    const wx = x + Math.round(n * 0.52), ww = Math.max(4, Math.round(8 * s)), wh = Math.max(3, Math.round(6 * s)), wy = wl - hh - Math.round(0.3 * 3 * s) - wh;
+    rect(wx, wy, ww, wh, c[2]); rect(wx, wy, ww, 1, c[4]); rect(wx + ww - 1, wy, 1, wh, c[1]);
+    for (let i = 1; i < ww - 1; i += 2) set(wx + i, wy + 1 + Math.floor(wh / 3), night ? I('#ffd27a') : I('#2a3a4a'));
+    rect(wx - 1, wy - 1, ww + 2, 1, night ? c[1] : I('#c4362c'));
+    // mât, vergue, tangons, portique arrière
+    const mx = wx + Math.round(ww * 0.4), mt = wy - Math.round(16 * s), mc = I(night ? '#3a4054' : '#3a3632');
+    rect(mx, mt, 1, wy - mt, mc); rect(mx - Math.round(3 * s), mt + Math.round(4 * s), Math.round(6 * s) + 1, 1, mc);
+    line(mx, wy - Math.round(3 * s), mx - Math.round(12 * s), mt + Math.round(2 * s), mc);
+    line(x + 2, wl - hh - 1, x + 2, wl - hh - Math.round(7 * s), mc); line(x + 2 + Math.round(4 * s), wl - hh - 1, x + 2 + Math.round(3 * s), wl - hh - Math.round(7 * s), mc);
+    rect(x + 2, wl - hh - Math.round(7 * s), Math.round(3 * s) + 1, 1, mc);
+    for (let k = 0; k < 8; k++) { const t = k / 8; set(Math.round(mx + (x + n - 1 - mx) * t), Math.round(mt + (wl - hh - 3 * s - mt) * t), mixI(mc, get(mx, mt - 2), 0.5)); }
+    if (night) { set(mx, mt - 1, I('#fff6dc')); glow(mx, mt - 1, 4, '#fff6dc', 0.4); set(x + n - 2, wl - hh - Math.round(3 * s) - 1, I('#7fe08a')); }
+  };
+  // Vue du cagibi : la pluie sur le quai. Un navire à quai juste derrière la vitre, la jambe d'un portique,
+  // des conteneurs, des bollards et des flaques ; des gouttes sur la vitre. La nuit, le lampadaire au sodium.
+  const rainyQuay = (x0, y0, w, h, night) => {
+    const save = clip;
+    clip = [x0 + ox, y0, x0 + w + ox, y0 + h];
+    const qy = y0 + Math.round(h * 0.72), sb = y0 + h, haze = I(night ? '#121826' : '#9aa4a8'), hk = night ? 0.2 : 0.28;
+    const sc = (c) => mixI(I(c), haze, hk); // la pluie délave tout ce qui est au-delà de la vitre
+    grad(x0, y0, w, qy - y0 + 1, night ? ['#0b101c', '#111827', '#182031', '#222838', '#2c2c34'] : ['#6c7880', '#7a868e', '#8a959b', '#9ba5a9', '#a9b1b2']);
+    for (let k = 0; k < 6; k++) {
+      const cx = x0 + ((k * 47 + 13) % w), cy = y0 + 2 + ((k * 13) % Math.max(4, Math.round((qy - y0) * 0.3))), cw = 22 + (k % 3) * 12;
+      for (let i = 0; i < cw; i++) { set(cx - cw / 2 + i, cy, mixI(get(cx - cw / 2 + i, cy), I(night ? '#070a12' : '#5c6870'), 0.4)); if (i > 5 && i < cw - 7) set(cx - cw / 2 + i, cy + 1, mixI(get(cx - cw / 2 + i, cy + 1), I(night ? '#070a12' : '#5c6870'), 0.25)); }
+    }
+    // au loin, deux portiques noyés dans la pluie, au-dessus du pont du navire
+    const far = I(night ? '#1a2030' : '#8c979c');
+    for (const fx of [0.5, 0.8]) {
+      const cx = x0 + Math.round(w * fx), ct = y0 + Math.round(h * 0.16);
+      rect(cx, ct, 1, qy - ct, far); rect(cx + 8, ct, 1, qy - ct, far); rect(cx - 10, ct, 34, 2, far); line(cx, ct, cx + 4, ct - 6, far); line(cx + 8, ct, cx + 4, ct - 6, far);
+      if (night) set(cx + 4, ct - 7, I('#ff4a3a'));
+    }
+    // le navire à quai, tout contre la vitre : sa muraille, la passerelle à gauche, les conteneurs en pontée
+    const ht = qy - Math.round(h * 0.2), hull = RP(night ? '#16121a' : '#2c2a30');
+    const topAt = (x) => ht - Math.round(((x - x0) / w) * 3);
+    for (let x = x0; x < x0 + w; x++) {
+      const t = topAt(x);
+      for (let y = t; y < qy; y++) set(x, y, y === t ? sc('#e8e6e0') : y < t + 3 ? sc(color) : (x - x0) % 18 === 0 ? mixI(hull[1], haze, hk) : mixI(hull[2], haze, hk));
+      if ((x * 7) % 23 === 0) for (let y = t + 4; y < t + 4 + 4 + (x % 5); y++) set(x, y, sc(night ? '#3a2418' : '#7a4a2e')); // coulures de rouille
+    }
+    for (let x = x0; x < x0 + w; x += 4) set(x, topAt(x) - 2, sc('#d8d8d4')); // le garde-corps
+    for (let x = x0; x < x0 + w; x++) set(x, topAt(x) - 3, sc('#d8d8d4'));
+    // passerelle blanche, fenêtres, ailerons ; cheminée à la couleur de la compagnie
+    const px0 = x0 + Math.round(w * 0.08), pw = Math.round(w * 0.26), pt = y0 + Math.round(h * 0.12);
+    const fx = px0 + Math.round(pw * 0.3);
+    rect(fx, pt - 6, 9, 12, sc(color)); rect(fx, pt - 6, 9, 2, sc('#1c1c1e')); rect(fx, pt - 1, 9, 2, sc('#f2efe6'));
+    rect(px0, pt, pw, topAt(px0) - 3 - pt, sc('#e8e4da')); rect(px0, pt, 1, topAt(px0) - 3 - pt, sc('#f6f4ee')); rect(px0 + pw - 1, pt, 1, topAt(px0) - 3 - pt, sc('#b8b4aa'));
+    rect(px0 - 5, pt + 3, pw + 10, 2, sc('#e8e4da'));
+    for (let yy = pt + 7; yy < topAt(px0) - 6; yy += 5) for (let xx = px0 + 2; xx < px0 + pw - 2; xx += 3) rect(xx, yy, 2, 2, night ? ((xx + yy) % 3 ? I('#ffd27a') : I('#2a3040')) : sc('#3a4a5a'));
+    rect(px0 + 1, pt + 1, pw - 2, 2, night ? I('#ffe6a0') : sc('#2a3a4a')); // la timonerie
+    // conteneurs en pontée
+    const cols = ['#c4362c', '#2f6fb0', '#e09a2a', '#2e8b57', '#8f98a5', '#b9442f', '#f2efe6'];
+    for (let cx = px0 + pw + 6, k = 0; cx < x0 + w; cx += 13, k++) for (let r = 0; r < 2 + (k % 3 === 1 ? 1 : 0); r++) {
+      const c = RP(cols[(k * 3 + r * 2) % cols.length]), cy = topAt(cx) - 3 - (r + 1) * 7;
+      rect(cx, cy, 12, 7, mixI(c[2], haze, hk + (night ? 0.4 : 0))); rect(cx, cy, 12, 1, mixI(c[3], haze, hk + (night ? 0.4 : 0)));
+      for (let i = 2; i < 11; i += 2) rect(cx + i, cy + 2, 1, 4, mixI(c[1], haze, hk + (night ? 0.4 : 0)));
+    }
+    // écubier et amarre
+    const hx = x0 + Math.round(w * 0.78), hy = ht + 6;
+    ellipse(hx, hy, 2.5, 1.6, I('#0c0c10'));
+    // le quai : béton mouillé, ligne jaune, rails, bollards, reflets de la muraille
+    grad(x0, qy, w, sb - qy, night ? ['#1d1f26', '#22242a', '#282a2e'] : ['#666b6d', '#5c6163', '#53585a']);
+    for (let y = qy + 2; y < sb; y++) for (let x = x0; x < x0 + w; x++) if ((x + y * 3) % 5 < 2) { const src = qy - (y - qy) * 1.6; if (src > y0) set(x, y, mixI(get(x, y), get(x, src), 0.28)); } // le béton mouillé fait miroir
+    rect(x0, qy, w, 1, I(night ? '#3a3a40' : '#8a8f90'));
+    for (let x = x0; x < x0 + w; x++) if (Math.floor((x - x0) / 4) % 2) set(x, qy + 1, I(night ? '#6a5a20' : '#d9b02a'));
+    const ry = qy + Math.round((sb - qy) * 0.6); rect(x0, ry, w, 1, I(night ? '#4a4c54' : '#9aa0a2')); rect(x0, ry + 1, w, 1, I(night ? '#121318' : '#45494b'));
+    for (const bxf of [0.34, 0.86]) {
+      const bx = x0 + Math.round(w * bxf), by = qy + 5;
+      rect(bx - 2, by - 3, 5, 3, I('#1c1c1e')); rect(bx - 3, by - 4, 7, 1, I('#2c2c30')); set(bx - 2, by - 4, I('#5a5a60'));
+    }
+    line(x0 + Math.round(w * 0.86), qy + 1, hx, hy + 1, I(night ? '#4a4030' : '#c8b88a'));
+    // jambe d'un portique au premier plan
+    const g = RP(night ? '#4a2418' : '#c9572f'), lx = x0 + 4;
+    rect(lx, y0, 8, sb - y0 - 3, g[2]); rect(lx, y0, 2, sb - y0 - 3, g[3]); rect(lx + 6, y0, 2, sb - y0 - 3, g[1]);
+    for (let y = y0 + 6; y < sb - 8; y += 14) { line(lx + 8, y, lx + 16, y + 9, g[1]); line(lx + 8, y + 1, lx + 16, y + 10, g[2]); }
+    rect(lx - 2, sb - 5, 12, 3, I('#2a2a2e')); rect(lx - 2, sb - 5, 12, 1, I('#4a4a50'));
+    // lampadaire au sodium
+    const lpx = x0 + Math.round(w * 0.64), lpt = y0 + Math.round(h * 0.3);
+    rect(lpx, lpt, 1, qy + 3 - lpt, I(night ? '#2a2c34' : '#4a5054')); rect(lpx - 5, lpt, 6, 1, I(night ? '#2a2c34' : '#4a5054'));
+    rect(lpx - 6, lpt + 1, 3, 1, I(night ? '#ffcf6e' : '#c8ccc8'));
+    if (night) { glow(lpx - 5, lpt + 3, 18, '#ff9a3a', 0.4); for (let j = 3; j < sb - qy; j += 3) rect(lpx - 6 - (j % 2), qy + j, 2 + (j % 3), 1, mixI(get(lpx - 6, qy + j), I('#ffb050'), 0.5)); }
+    // la pluie, en hachures obliques
+    for (let k = 0; k < (w * h) / 60; k++) {
+      const rx = x0 + ((k * 53 + (k * k) % 7) % w), rr = y0 + ((k * 29 + k * k * 3) % h), len = 4 + (k % 4);
+      const lit = night && Math.hypot(rx - lpx + 5, rr - lpt - 3) < 18;
+      for (let j = 0; j < len; j++) { const xx = rx - Math.floor(j / 4), yy = rr + j; set(xx, yy, mixI(get(xx, yy), I(lit ? '#ffd890' : night ? '#7a88a6' : '#eef4f6'), lit ? 0.45 : night ? 0.22 : 0.32)); }
+    }
+    for (let k = 0; k < w / 7; k++) { const sx = x0 + ((k * 37) % w), sy = qy + 3 + ((k * 11) % Math.max(1, sb - qy - 4)); set(sx, sy, mixI(get(sx, sy), I('#ffffff'), 0.35)); } // éclaboussures
+    // gouttes et ruisselets sur la vitre
+    for (let k = 0; k < (w * h) / 160; k++) {
+      const gx = x0 + 2 + ((k * 71 + 5) % (w - 4)), gy = y0 + 2 + ((k * 43 + k * k) % (h - 4));
+      const run = k % 3 === 0 ? 3 + (k % 6) : 0;
+      for (let j = 1; j <= run; j++) set(gx + (j % 4 === 0 ? 1 : 0), gy + j, mixI(get(gx, gy + j), I('#ffffff'), 0.14));
+      set(gx, gy, mixI(get(gx, gy), I('#ffffff'), 0.45)); set(gx + 1, gy, mixI(get(gx + 1, gy), I('#ffffff'), 0.2));
+      set(gx, gy + 1, mixI(get(gx, gy + 1), DEEP, 0.2)); set(gx + 1, gy + 1, mixI(get(gx + 1, gy + 1), DEEP, 0.3));
+    }
+    clip = save;
+  };
+  // Vue du bureau sur le port : le port de pêche au petit matin. Le soleil se lève derrière la colline, les
+  // maisons colorées du quai d'en face se reflètent dans le bassin, la brume traîne, les chalutiers rentrent.
+  const fishingHarbour = (x0, y0, w, h, night) => {
+    const save = clip;
+    clip = [x0 + ox, y0, x0 + w + ox, y0 + h];
+    const hz = y0 + Math.round(h * 0.6), sb = y0 + h, sky = hz - y0;
+    grad(x0, y0, w, sky, night ? ['#060a1a', '#0b1430', '#13204a', '#1c2a58', '#28305e'] : ['#7fa7cf', '#9db9da', '#c3cde0', '#e8d2d2', '#f7d8bc', '#fbe6c6']);
+    const sx = x0 + Math.round(w * 0.2), sy = y0 + Math.round(sky * 0.56);
+    if (night) {
+      for (let k = 0; k < (w * sky) / 70; k++) { const px = x0 + ((k * 53 + 11) % w), py = y0 + ((k * 37 + k * k * 3) % Math.max(1, sky - 14)); set(px, py, k % 6 ? mixI(I('#c9d2e8'), get(px, py), 0.45) : I('#ffffff')); }
+      const mx = x0 + Math.round(w * 0.78), my = y0 + Math.round(sky * 0.22);
+      glow(mx, my, 14, '#9fb0d8', 0.35); ellipse(mx, my, 4.5, 4.5, '#f2efdc', (x, y) => (x > mx + 1 && y > my ? I('#d8d2b8') : I('#f6f2e2')));
+    } else {
+      glow(sx, sy, 34, '#fff3d0', 0.6);
+      ellipse(sx, sy, 7, 7, '#fff6dc', (x, y) => (y > sy + 2 ? I('#ffe8b0') : I('#fffaea')));
+      // nuages roses en longues bandes
+      for (const [cx, cy, cw] of [[0.45, 0.2, 40], [0.78, 0.34, 30], [0.12, 0.12, 26], [0.62, 0.5, 22]]) {
+        const X = x0 + Math.round(w * cx) - cw / 2, Y = y0 + Math.round(sky * cy);
+        rect(X + 4, Y, cw - 8, 1, I('#f4e4e6')); rect(X, Y + 1, cw, 1, I('#e9b8b4')); rect(X + 6, Y + 2, cw - 14, 1, I('#d8a2a8'));
+      }
+      // mouettes
+      for (const [gx, gy] of [[0.36, 0.3], [0.42, 0.36], [0.7, 0.18]]) { const X = x0 + Math.round(w * gx), Y = y0 + Math.round(sky * gy); set(X - 1, Y, I('#4a4a52')); set(X, Y + 1, I('#4a4a52')); set(X + 1, Y, I('#4a4a52')); set(X - 2, Y - 1, I('#6a6a72')); set(X + 2, Y - 1, I('#6a6a72')); }
+    }
+    // la colline derrière le village (le soleil passe juste au-dessus)
+    const hill = RP(night ? '#141c30' : '#93a487');
+    for (let x = x0; x < x0 + w; x++) {
+      const t = (x - x0) / w, hh = Math.round(sky * (0.2 + 0.16 * Math.sin(t * 3.1 + 0.4) + 0.06 * Math.sin(t * 11)));
+      for (let y = hz - hh; y < hz; y++) set(x, y, y === hz - hh ? hill[3] : (x * 7 + y * 3) % 23 === 0 ? hill[1] : mixI(hill[2], I(night ? '#1c2a58' : '#f7d8bc'), night ? 0.2 : 0.35));
+    }
+    // les maisons du quai d'en face, façades pastel éclairées de la gauche, et le clocher
+    const facades = ['#efe2c4', '#e8b48a', '#f2d68a', '#dce4e6', '#e7a79a', '#f4efe6', '#b9d0d8', '#e9c9a0'];
+    let x = x0 - 3, k = 0;
+    while (x < x0 + w) {
+      const bw = 9 + ((k * 5) % 7), bh = 12 + ((k * 7) % 9) + (k % 4 === 1 ? 5 : 0), top = hz - 3 - bh, tower = k === 6;
+      const f = RP(night ? mix(facades[k % facades.length], '#141a34', 0.72) : facades[k % facades.length]);
+      if (tower) { // le clocher
+        const tw = 7, th = bh + 18;
+        rect(x + 1, hz - 3 - th, tw, th, f[2]); rect(x + 1, hz - 3 - th, 1, th, f[3]); rect(x + tw, hz - 3 - th, 1, th, f[1]);
+        poly([[x, hz - 3 - th], [x + tw + 2, hz - 3 - th], [x + 1 + tw / 2, hz - 3 - th - 9]], I(night ? '#1e2236' : '#5a6470'));
+        rect(x + 3, hz - th + 2, 3, 4, I('#2a2a30')); ellipse(x + 4.5, hz - th + 10, 1.5, 1.5, I(night ? '#ffe6a0' : '#f6f2e6'));
+        x += tw + 2; k++; continue;
+      }
+      rect(x, top, bw, bh, f[2]); rect(x, top, 1, bh, f[3]); rect(x + bw - 1, top, 1, bh, f[1]);
+      const tile = k % 3 !== 1, roof = RP(night ? '#1e2236' : tile ? '#b8603e' : '#5a6672');
+      poly([[x - 1, top], [x + bw, top], [x + bw - 2, top - 3], [x + 1, top - 3]], roof[2]); rect(x + 1, top - 3, bw - 3, 1, roof[3]);
+      const sh = RP(['#3a6f9a', '#3d7a5a', '#b04a3a', '#2f5f8a'][k % 4]);
+      for (let yy = top + 3; yy < hz - 5; yy += 5) for (let xx = x + 2; xx < x + bw - 2; xx += 4) {
+        const lit = night && (xx * 3 + yy + k) % 4 !== 0;
+        rect(xx, yy, 2, 2, lit ? I('#ffd27a') : I(night ? '#0e1222' : '#3a3a44'));
+        if (!night) { set(xx - 1, yy, sh[2]); set(xx + 2, yy, sh[2]); set(xx - 1, yy + 1, sh[1]); set(xx + 2, yy + 1, sh[1]); }
+      }
+      x += bw; k++;
+    }
+    // le quai de pierre d'en face, ses lampadaires
+    const qs = RP(night ? '#232838' : '#b8ab92');
+    rect(x0, hz - 3, w, 3, qs[2]); rect(x0, hz - 3, w, 1, qs[3]); rect(x0, hz - 1, w, 1, qs[1]);
+    for (let lx = x0 + 10; lx < x0 + w; lx += 26) { rect(lx, hz - 9, 1, 6, I(night ? '#3a3a48' : '#4a4a52')); set(lx, hz - 10, I(night ? '#ffe6a0' : '#e8e2d0')); if (night) glow(lx, hz - 10, 6, '#ffd890', 0.4); }
+    // le bassin : reflets des façades, brume du matin
+    const water = night ? ['#141c36', '#101830', '#0c1328'] : ['#a9bfc6', '#8fb0bb', '#749cab', '#5f8a9c'];
+    grad(x0, hz, w, sb - hz, water);
+    for (let y = hz; y < sb; y++) {
+      const d = y - hz, wob = Math.round(Math.sin(y * 1.7) * (d > 4 ? 1 : 0));
+      for (let xx = x0; xx < x0 + w; xx++) {
+        const src = hz - 1 - Math.round(d * 1.1);
+        if (src < y0) continue;
+        if ((y + Math.floor(xx / 4)) % 5 === 4 && d > 2) continue;
+        set(xx, y, mixI(get(xx + wob, src), get(xx, y), 0.5 + Math.min(0.35, d * 0.012)));
+      }
+    }
+    if (!night) for (let j = 1; j < 14; j += 2) rect(sx - 3 + ((j * 5) % 4), hz + j, 7 - j / 3, 1, I('#ffe8b8')); // le soleil dans l'eau
+    else for (let lx = x0 + 10; lx < x0 + w; lx += 26) for (let j = 1; j < 12; j += 2) rect(lx - 1 + (j % 2), hz + j, 2, 1, I('#e8c070'));
+    tint(x0, hz - 6, w, 12, night ? '#2a3460' : '#f6ece4', (i, j) => (j < 6 ? (j / 6) * 0.45 : (1 - (j - 6) / 6) * 0.45) * (0.7 + 0.3 * Math.sin(i * 0.13))); // la brume
+    // les chalutiers : deux à quai en face, un qui rentre au premier plan
+    const wl1 = hz + 6, wl2 = hz + Math.round((sb - hz) * 0.62), wt = night ? '#101830' : '#7aa0b0';
+    reflect(x0, x0 + w - 1, y0, wl1, wt, 0.55, () => { trawler(x0 + Math.round(w * 0.06), wl1, 0.55, '#2f6fb0', night); trawler(x0 + Math.round(w * 0.6), wl1, 0.6, '#3d7a5a', night); });
+    reflect(x0, x0 + w - 1, y0, wl2, wt, 0.5, () => trawler(x0 + Math.round(w * 0.28), wl2, 1, '#c4362c', night));
+    for (let i = 0; i < 16; i++) { set(x0 + Math.round(w * 0.28) - 2 - i * 2, wl2 + 1 + Math.round(i * 0.3), mixI(get(x0, wl2 + 2), I('#ffffff'), 0.5)); } // sillage
+    // notre quai, en bas : bord de pierre, caisses de poisson, filet
+    const qy = sb - 6, st = RP(night ? '#262a38' : '#a89c86');
+    rect(x0, qy, w, sb - qy, st[2]); rect(x0, qy, w, 1, st[4]); rect(x0, qy + 1, w, 1, st[3]);
+    for (let xx = x0; xx < x0 + w; xx += 11) rect(xx, qy + 2, 1, sb - qy - 2, st[1]);
+    for (let c = 0; c < 3; c++) { const cr = RP(night ? '#1c2a44' : ['#2f7fc0', '#e0a02a', '#2f7fc0'][c]), cx = x0 + w - 34 + c * 9 - (c === 2 ? 13 : 0), cy = qy - (c === 2 ? 10 : 5); rect(cx, cy, 8, 5, cr[2]); rect(cx, cy, 8, 1, cr[3]); rect(cx + 1, cy + 2, 6, 1, cr[1]); }
+    for (let i = 0; i < 14; i++) for (let j = 0; j < 4 - Math.abs(i - 7) / 3; j++) if ((i + j) % 2 === 0) set(x0 + 14 + i, qy - 1 - j, I(night ? '#2a3a3a' : '#6a8a5a')); // filet
+    clip = save;
+  };
   const valance = (x, y, w, dark) => {
     const b = RP(dark ? '#6a1626' : '#1f3f8f'), g = RP('#d9b25a');
     piece(() => {
@@ -1086,64 +1293,101 @@ export function paintOffice(o) {
   const juke = (fn) => { const d = dest; dest = jukeBuf; T = jukeBuf; fn(); dest = d; T = d; };
 
   if (tier === 0) {
-    // ---- Le cagibi du quai : plâtre défraîchi, petite fenêtre, bureau de tôle, ampoule nue.
-    const wall = shadow ? '#3a3d33' : '#adb399';
-    grad(L, 0, R - L, F, shadow ? ['#2e3029', '#34362e', '#3a3d33'] : ['#a3a990', '#adb399', '#b5bba1']);
-    // taches d'humidité, écaillures
-    tint(18, 8, 40, 30, '#7e846d', (i, j) => { const d = Math.hypot((i - 20) / 20, (j - 15) / 15); return d < 1 ? 0.35 * (1 - d) : 0; });
-    tint(150, 20, 30, 40, '#8f9580', (i, j) => (Math.abs(i - 15 - Math.sin(j * 0.4) * 3) < 1.2 ? 0.5 : 0));
-    for (const [x, y] of [[230, F - 140], [36, F - 70], [120, F - 150]]) { rect(x, y, 5, 3, I(mix(wall, '#e0e3d2', 0.4))); rect(x + 1, y + 3, 3, 1, I(mix(wall, '#6d725e', 0.4))); }
-    // soubassement peint
-    const dado = shadow ? '#2a2c25' : '#8d957c';
-    rect(L, F - 34, R - L, 34, dado); rect(L, F - 34, R - L, 1, I(mix(dado, '#ffffff', 0.25))); rect(L, F - 35, R - L, 1, I(mix(dado, '#000000', 0.3)));
-    dith(L, F - 33, R - L, 33, I(dado), I(mix(dado, '#000000', 0.12)), (i, j) => j / 33 * 0.5);
-    rect(L, F - 4, R - L, 4, '#5a4632'); rect(L, F - 4, R - L, 1, '#7a6046');
-    // tuyau au plafond
-    if (F > 150) {
-      const p = RP('#8a9396');
-      rect(L, 6, R - L, 4, p[2]); rect(L, 6, R - L, 1, p[4]); rect(L, 9, R - L, 1, p[1]);
-      for (let x = L + 10; x < R; x += 60) { rect(x, 3, 3, 9, p[1]); rect(x, 3, 3, 1, p[3]); }
-      tint(L, 10, R - L, 3, DEEP, 0.18);
+    // ---- Le cagibi du quai : plâtre taché, lambris de planches vert bouteille écaillé, une grande fenêtre
+    // d'atelier sur le quai sous la pluie, bureau de tôle, ampoule nue, ciré qui goutte, seau sous la fuite.
+    const top = F > 150 ? 12 : 3, wain = F - 40;
+    const pl = shadow ? ['#25261f', '#2b2c24', '#31332a'] : ['#b3b29c', '#bcbba5', '#c4c3ad'];
+    grad(L, 0, R - L, wain, pl);
+    dith(L, 0, R - L, wain, I(pl[1]), I(mix(pl[1], '#000000', 0.06)), (i, j) => (Math.sin(i * 0.11 + j * 0.07) + Math.sin(j * 0.23 - i * 0.05) > 1.2 ? 0.5 : 0.06));
+    // auréoles d'humidité sous la fuite, plâtre écaillé
+    tint(206, top, 50, 46, shadow ? '#141510' : '#8d8c74', (i, j) => { const d = Math.hypot((i - 25) / 25, (j - 6) / 40); return d < 1 ? 0.35 * (1 - d) * (Math.sin(d * 14) > 0 ? 1 : 0.7) : 0; });
+    tint(8, wain - 30, 46, 30, shadow ? '#141510' : '#9a9a82', (i, j) => { const d = Math.hypot((i - 23) / 23, (j - 30) / 30); return d < 1 ? 0.3 * (1 - d) : 0; });
+    for (const [x, y] of [[72, wain - 22], [96, F - 140], [250, wain - 12], [30, F - 132]]) { rect(x, y, 6, 3, I(mix(pl[1], '#f0efe0', 0.45))); rect(x + 1, y + 3, 4, 1, I(mix(pl[1], '#5e5d4c', 0.5))); set(x - 1, y + 1, I(mix(pl[1], '#5e5d4c', 0.4))); }
+    // lambris de planches peintes, la peinture part par plaques
+    const g = RP(shadow ? '#1c2a22' : '#3f6650');
+    rect(L, wain, R - L, F - wain, g[2]);
+    for (let x = L - ((L % 7) + 7) % 7; x < R; x += 7) { rect(x, wain + 2, 1, F - wain - 6, g[1]); rect(x + 1, wain + 2, 1, F - wain - 6, mixI(g[2], g[3], 0.5)); }
+    for (let k = 0; k < 14; k++) { const cx = L + ((k * 61 + 17) % (R - L)), cy = wain + 6 + ((k * 13) % (F - wain - 14)); rect(cx, cy, 3 + (k % 3), 2, I(shadow ? '#3a3020' : '#a48a62')); set(cx, cy + 2, I(shadow ? '#2a2418' : '#7a6448')); }
+    rect(L, wain - 2, R - L, 3, g[3]); rect(L, wain - 2, R - L, 1, g[4]); rect(L, wain + 1, R - L, 1, g[0]);
+    rect(L, F - 4, R - L, 4, I(shadow ? '#1a1a14' : '#3a3a2e')); rect(L, F - 4, R - L, 1, I(shadow ? '#2a2a20' : '#55553f'));
+    // plafond : poutre d'acier rivetée, tuyau
+    if (top > 3) {
+      const st = RP(shadow ? '#2c3034' : '#6f7a80'), p = RP('#8a9396');
+      rect(L, 0, R - L, top - 3, st[2]); rect(L, top - 4, R - L, 1, st[3]); rect(L, top - 3, R - L, 1, st[0]);
+      for (let x = L - ((L % 12) + 12) % 12; x < R; x += 12) set(x, 3, st[4]);
+      rect(L, top - 1, R - L, 3, p[2]); rect(L, top - 1, R - L, 1, p[4]); rect(L, top + 1, R - L, 1, p[1]);
+      for (let x = L + 20; x < R; x += 64) { rect(x, top - 3, 2, 6, p[1]); rect(x, top - 3, 2, 1, p[3]); }
+      tint(L, top + 2, R - L, 3, DEEP, 0.15);
     }
-    // fenêtre
-    const wx = 196, wy = F - 120, ww = 50, wh = 38;
-    if (shadow) { view(wx, wy, ww, wh, 'night', { ship: true }); } else view(wx, wy, ww, wh, 'day', { ship: true });
-    sash(wx, wy, ww, wh, '#e8e3d4', { bars: 1, cross: true, t: 3 });
-    if (shadow) curtains(wx - 2, wy - 2, ww + 4, wh + 6);
-    // affiche (ou portrait du patron) et calendrier
-    if (shadow) portrait(66, F - 126, 28, 34);
+    // la fenêtre d'atelier : châssis d'acier à petits carreaux, un carreau fêlé scotché
+    const wx = 110, ww = 130, wy = top + 10, wb = wain - 4, wh = wb - wy;
+    rainyQuay(wx, wy, ww, wh, shadow);
+    piece(() => {
+      const fr = RP(shadow ? '#2a3430' : '#5d7068');
+      rect(wx - 4, wy - 4, ww + 8, 4, fr[3]); rect(wx - 4, wb, ww + 8, 3, fr[2]); rect(wx - 4, wy, 4, wh, fr[3]); rect(wx + ww, wy, 4, wh, fr[1]);
+      const c = RP('#a8a294'); rect(wx - 7, wb + 3, ww + 14, 3, c[3]); rect(wx - 7, wb + 3, ww + 14, 1, c[4]); rect(wx - 7, wb + 6, ww + 14, 1, c[1]); // appui de béton
+    });
+    { // les petits fers du châssis, sans contour, puis le carreau fêlé et sa croix de scotch
+      const fr = RP(shadow ? '#2a3430' : '#5d7068');
+      for (let k = 1; k < 4; k++) { const bx = wx + Math.round((ww * k) / 4) - 1; rect(bx, wy, 2, wh, fr[2]); rect(bx, wy, 1, wh, fr[3]); }
+      rect(wx, wy + Math.round(wh * 0.45) - 1, ww, 2, fr[2]); rect(wx, wy + Math.round(wh * 0.45) - 1, ww, 1, fr[3]);
+      const cx = wx + Math.round(ww * 0.86), cy = wy + Math.round(wh * 0.2), tape = I(shadow ? '#6a6450' : '#e9dfae');
+      line(cx - 5, cy - 4, cx + 6, cy + 5, tape); line(cx - 5, cy + 4, cx + 5, cy - 4, tape);
+      line(cx + 2, cy - 1, cx + 9, cy + 2, mixI(get(cx, cy), I('#ffffff'), 0.5));
+    }
+    if (shadow) curtains(wx - 2, wy - 2, ww + 4, wh + 8);
+    // affiche de navire (portrait du patron chez l'armateur de l'ombre), calendrier, table des marées
+    if (shadow) portrait(72, F - 128, 28, 34);
     else {
-      piece(() => { rect(66, F - 124, 28, 36, I('#f3efe2')); rect(66, F - 124, 28, 1, I('#ffffff')); });
-      grad(69, F - 121, 22, 18, ['#9cc6d8', '#d8e8ec']); rect(69, F - 106, 22, 3, I('#4b819b'));
-      piece(() => { poly([[71, F - 106], [89, F - 106], [86, F - 103], [73, F - 103]], I('#c4362c')); rect(80, F - 112, 4, 6, I('#efe6d2')); rect(81, F - 114, 2, 2, I('#1c2a33')); });
-      rect(69, F - 99, 22, 3, I('#1c2a33')); rect(72, F - 94, 16, 1, I('#8f98a5'));
-      rect(64, F - 126, 4, 2, I('#e9e0a8')); rect(92, F - 126, 4, 2, I('#e9e0a8'));
+      piece(() => { rect(74, F - 126, 28, 36, I('#f3efe2')); rect(74, F - 126, 28, 1, I('#ffffff')); });
+      grad(77, F - 123, 22, 18, ['#9cc6d8', '#d8e8ec']); rect(77, F - 108, 22, 3, I('#4b819b'));
+      piece(() => { poly([[79, F - 108], [97, F - 108], [94, F - 105], [81, F - 105]], I('#c4362c')); rect(88, F - 114, 4, 6, I('#efe6d2')); rect(89, F - 116, 2, 2, I('#1c2a33')); });
+      rect(77, F - 101, 22, 3, I('#1c2a33')); rect(80, F - 96, 16, 1, I('#8f98a5'));
+      rect(72, F - 128, 4, 2, I('#e9e0a8')); rect(100, F - 128, 4, 2, I('#e9e0a8'));
+      set(101, F - 92, I('#d8d2bc')); set(100, F - 91, I('#d8d2bc')); // coin corné
     }
-    piece(() => { rect(104, F - 112, 16, 18, I('#f6f3ea')); rect(104, F - 112, 16, 4, I('#c4362c')); for (let k = 0; k < 9; k++) set(106 + (k % 3) * 4, F - 105 + Math.floor(k / 3) * 3, I('#8f98a5')); set(110, F - 102, I('#c4362c')); });
-    rect(111, F - 114, 1, 2, I('#3a3a3a'));
-    // enseigne : une feuille scotchée avec l'écusson
-    sign(160, F - 122, 24, '#f6f2e6', 'paper');
-    // ampoule nue (ou lustre ridicule chez l'armateur de l'ombre)
-    if (shadow) chandelier(150, 0, 0.8);
+    piece(() => { rect(54, F - 118, 14, 16, I('#f6f3ea')); rect(54, F - 118, 14, 4, I('#c4362c')); for (let k = 0; k < 9; k++) set(56 + (k % 3) * 4, F - 111 + Math.floor(k / 3) * 3, I('#8f98a5')); set(60, F - 108, I('#c4362c')); });
+    rect(60, F - 120, 1, 2, I('#3a3a3a'));
+    piece(() => { rect(54, F - 96, 14, 18, I('#efe9d6')); for (let k = 0; k < 6; k++) { rect(56, F - 93 + k * 3, 5, 1, I('#6a7a8a')); rect(62, F - 93 + k * 3, 4, 1, I('#9aa6b0')); } rect(56, F - 95, 10, 1, I('#2f6fb0')); }); // table des marées
+    // enseigne : une feuille scotchée avec l'écusson, au-dessus du classeur
+    sign(13, F - 104, 22, '#f6f2e6', 'paper');
+    // ampoule nue (lustre ridicule chez l'armateur de l'ombre)
+    if (shadow) chandelier(174, 0, 0.8);
     else {
       const by = Math.min(F - 132, 40);
-      rect(150, 0, 1, by, I('#2f2f2f'));
-      glow(150, by + 4, 34, '#fff3c0', 0.4);
-      piece(() => { rect(149, by, 3, 3, I('#5a5a5a')); ellipse(150.5, by + 6, 3, 3.5, I('#fff8d8')); set(150, by + 5, I('#ffffff')); });
+      rect(174, 0, 1, Math.max(2, by), I('#2f2f2f'));
+      glow(174, by + 4, 34, '#fff3c0', 0.4);
+      piece(() => { rect(173, by, 3, 3, I('#5a5a5a')); ellipse(174.5, by + 6, 3, 3.5, I('#fff8d8')); set(174, by + 5, I('#ffffff')); });
     }
-    // armoire de classement
+    // armoire de classement, bouilloire et tasses
     piece(() => {
-      const r = box(12, F - 60, 32, 60, shadow ? '#5f6668' : '#7f8a8c');
-      for (let k = 0; k < 3; k++) { drawer(14, F - 57 + k * 19, 28, 17, shadow ? '#5f6668' : '#7f8a8c', '#c9c9c9'); rect(24, F - 54 + k * 19, 8, 3, I('#efe6d2')); }
-      set(36, F - 30, r[1]); set(37, F - 29, r[1]);
+      const r = box(8, F - 60, 32, 60, shadow ? '#5a6264' : '#7f8a8c');
+      for (let k = 0; k < 3; k++) { drawer(10, F - 57 + k * 19, 28, 17, shadow ? '#5a6264' : '#7f8a8c', '#c9c9c9'); rect(20, F - 54 + k * 19, 8, 3, I('#efe6d2')); }
+      set(32, F - 30, r[1]); set(33, F - 29, r[1]); rect(9, F - 21, 3, 2, r[1]); // bosses
     });
-    shadowUnder(12, 32);
-    mug(16, F - 63); piece(() => { for (let k = 0; k < 4; k++) rect(24 + (k % 2), F - 64 - k * 2, 16, 2, I(['#e2c26a', '#c4362c', '#2f6fb0', '#e2c26a'][k])); });
+    shadowUnder(8, 32);
+    piece(() => { const k = RP(shadow ? '#6a6a6a' : '#c8ccd0'); rect(12, F - 69, 9, 6, k[2]); rect(13, F - 70, 7, 1, k[3]); rect(12, F - 69, 1, 6, k[3]); rect(21, F - 67, 2, 2, k[1]); rect(15, F - 72, 3, 2, I('#2a2a2a')); rect(10, F - 64, 13, 1, I('#3a3a3a')); });
+    for (let k = 0; k < 3; k++) set(17 + (k % 2), F - 75 - k * 2, I('#e8ecee'));
+    mug(26, F - 63); mug(32, F - 63, '#c4362c');
+    // le portemanteau : ciré jaune et suroît qui gouttent dans une flaque
+    piece(() => {
+      const w = RP('#5a4632'); rect(46, F - 78, 2, 76, w[2]); rect(46, F - 78, 1, 76, w[3]); rect(41, F - 2, 12, 2, w[1]); rect(43, F - 79, 8, 2, w[3]);
+    });
+    piece(() => {
+      const y = RP('#e8b828');
+      poly([[40, F - 70], [54, F - 70], [57, F - 30], [37, F - 30]], y[2]);
+      rect(40, F - 70, 4, 40, y[3]); rect(52, F - 68, 3, 38, y[1]); rect(46, F - 70, 2, 38, y[1]);
+      for (let k = 0; k < 4; k++) set(49, F - 64 + k * 8, I('#3a3a3a'));
+      rect(38, F - 31, 19, 1, y[1]);
+      ellipse(47, F - 76, 6, 4, y[2], (px, py) => (px < 46 && py < F - 77 ? y[4] : y[2])); rect(39, F - 74, 17, 2, y[3]); rect(52, F - 73, 5, 2, y[1]); // le suroît
+    });
+    for (const [dx, dy] of [[39, F - 24], [54, F - 18], [44, F - 10]]) { set(dx, dy, I('#cfe2ea')); set(dx, dy + 1, I('#8fb0c0')); }
+    tint(34, F + 1, 26, 3, '#aac4d0', (i, j) => (Math.abs(i - 13) / 13 + j / 3 < 1 ? 0.45 : 0)); // la flaque
     // cartons (ou chariot des méfaits)
     if (!anyEvil) {
-      piece(() => { box(52, F - 20, 26, 20, '#b08a5a'); rect(52, F - 13, 26, 2, I('#d9c79a')); });
-      piece(() => { box(58, F - 34, 20, 14, '#a07a4a'); rect(66, F - 34, 4, 14, I('#d9c79a')); });
-      shadowUnder(52, 26);
+      piece(() => { box(62, F - 20, 26, 20, '#b08a5a'); rect(62, F - 13, 26, 2, I('#d9c79a')); rect(66, F - 8, 8, 4, I('#f2efe6')); });
+      piece(() => { box(68, F - 34, 20, 14, '#a07a4a'); rect(76, F - 34, 4, 14, I('#d9c79a')); });
+      shadowUnder(62, 26);
     } else {
       piece(() => {
         const m = RP('#5a5f63');
@@ -1154,20 +1398,26 @@ export function paintOffice(o) {
       shadowUnder(52, 38);
     }
     // bureau de tôle
-    chair(146, F - 56, F - 30, shadow ? '#5a2a1c' : '#4f6272', { w: 18 });
-    chairBase(146, F - 30, '#3a3a3a');
+    chair(150, F - 56, F - 30, shadow ? '#5a2a1c' : '#4f6272', { w: 18 });
+    chairBase(150, F - 30, '#3a3a3a');
     piece(() => {
-      const r = box(104, F - 30, 94, 3, shadow ? '#6a7275' : '#8a9396', { d: 3 });
+      const r = box(104, F - 30, 96, 3, shadow ? '#6a7275' : '#8a9396', { d: 3 });
       rect(106, F - 27, 3, 27, r[1]);
-      box(166, F - 27, 30, 27, shadow ? '#5f6668' : '#7f8a8c', { d: 0 });
-      for (let k = 0; k < 3; k++) drawer(168, F - 26 + k * 8, 26, 7, shadow ? '#5f6668' : '#7f8a8c', '#c9c9c9');
+      box(168, F - 27, 30, 27, shadow ? '#5f6668' : '#7f8a8c', { d: 0 });
+      for (let k = 0; k < 3; k++) drawer(170, F - 26 + k * 8, 26, 7, shadow ? '#5f6668' : '#7f8a8c', '#c9c9c9');
     });
-    shadowUnder(104, 94);
+    shadowUnder(104, 96);
     monitor(112, F - 33, 26, 22, '#d7d2c2', '#21352c', (x, y, w, h) => { for (let j = 0; j < h; j += 2) rect(x, y + j, w, 1, I('#2a4237')); chart(x + 1, y + 2, w - 2, h - 4, shadow ? '#ff4050' : '#7fe08a', 1); });
     piece(() => { const k = RP('#cfc9b8'); rect(114, F - 33, 22, 2, k[2]); rect(114, F - 33, 22, 1, k[3]); });
     papers(142, F - 33, 15);
-    if (shadow) whisky(160, F - 33);
-    phone(176, F - 33);
+    if (shadow) whisky(160, F - 33); else mug(162, F - 33, '#2f6fb0');
+    phone(178, F - 33);
+    piece(() => { rect(190, F - 34, 7, 1, I('#9aa0a6')); rect(191, F - 35, 5, 1, I('#c8ccd0')); set(196, F - 36, I('#e8e0d0')); }); // cendrier
+    // le seau sous la fuite
+    if (shadow) safe(204, F, 1);
+    piece(() => { const b = RP('#8a9aa2'); poly([[232, F - 12], [246, F - 12], [244, F - 1], [234, F - 1]], b[2]); rect(232, F - 12, 14, 1, b[4]); rect(233, F - 11, 2, 9, b[3]); rect(234, F - 11, 10, 1, I('#5a7a8a')); line(232, F - 12, 239, F - 18, b[1]); line(246, F - 12, 239, F - 18, b[1]); });
+    shadowUnder(232, 14);
+    for (const dy of [top + 4, top + 30, top + 62, F - 40]) if (dy < F - 16) { set(239, dy, I('#cfe2ea')); set(239, dy + 1, I('#9cc0d0')); }
     // radio sur sa caisse (le juke-box du cagibi)
     juke(() => {
       piece(() => { const r = box(258, F - 22, 34, 22, '#9b7a52'); for (let k = 0; k < 3; k++) rect(259, F - 21 + k * 7, 32, 1, r[1]); rect(262, F - 16, 26, 4, I('#3a2a1a')); });
@@ -1184,66 +1434,111 @@ export function paintOffice(o) {
     // étagère des records
     for (const sy of [-80, -110]) piece(() => { const r = RP('#8a6440'); rect(250, F + sy, 64, 3, r[2]); rect(250, F + sy, 64, 1, r[4]); rect(254, F + sy + 3, 2, 5, r[1]); rect(308, F + sy + 3, 2, 5, r[1]); });
     // serpillière
-    piece(() => { line(306, F - 2, 314, F - 46, I('#b8936a')); line(307, F - 2, 315, F - 46, I('#8a6a46')); });
-    piece(() => { const r = RP('#9a9a8a'); rect(300, F - 10, 14, 10, r[2]); rect(300, F - 10, 14, 1, r[4]); rect(300, F - 10, 1, 10, r[3]); });
-    if (shadow) { safe(204, F, 1); leopard(110, 250); }
+    piece(() => { line(306, F - 2, 314, F - 46, I('#b8936a')); line(307, F - 2, 315, F - 46, I('#8a6a46')); for (let k = 0; k < 5; k++) line(303 + k * 2, F - 1, 305 + k, F - 6, I('#d8d0b8')); });
+    if (shadow) leopard(110, 250);
   } else if (tier === 1) {
-    // ---- Le bureau sur le port : papier peint crème, grande fenêtre, bibliothèque, carte marine.
-    if (shadow) { grad(L, 0, R - L, F, ['#3d1620', '#4a1d27', '#521f2b']); damask(L, 0, R - L, F - 30, '#c9a24a'); }
-    else { grad(L, 0, R - L, F, ['#e3d6b8', '#e8dcc0', '#eee3c9']); for (let x = L + (L & 1); x < R; x += 12) dith(x, 0, 6, F - 30, I('#e8dcc0'), I('#e2d5b6'), 0.5); }
-    const lam = shadow ? '#2e1219' : '#b08a5e';
-    rect(L, F - 30, R - L, 30, lam);
-    for (let x = L - (L % 14) - 14; x < R; x += 14) { rect(x, F - 30, 1, 30, I(mix(lam, '#000000', 0.25))); rect(x + 1, F - 30, 1, 30, I(mix(lam, '#ffffff', 0.15))); }
-    rect(L, F - 32, R - L, 3, I(mix(lam, '#ffffff', 0.2))); rect(L, F - 29, R - L, 1, I(mix(lam, '#000000', 0.3)));
-    rect(L, F - 4, R - L, 4, I(mix(lam, '#000000', 0.25)));
-    if (F > 160) { const c = RP(shadow ? '#5a2430' : '#d8c9a6'); rect(L, 0, R - L, 5, c[2]); rect(L, 5, R - L, 1, c[1]); rect(L, 6, R - L, 1, c[3]); }
-    // fenêtre
-    const wx = 160, wy = F - 142, ww = 96, wh = 64;
-    view(wx, wy, ww, wh, shadow ? 'night' : 'day', { city: 0 });
-    if (!shadow) for (let k = 0; k < 4; k++) { rect(wx, wy + k * 3, ww, 2, I('#f2ede0')); rect(wx, wy + k * 3 + 1, ww, 1, I('#d8d0bc')); } // store à moitié levé
-    sash(wx, wy, ww, wh, shadow ? '#c9a24a' : '#fbf8f1', { bars: 1, cross: false, t: 4 });
+    // ---- Le bureau sur le port : à l'étage de la capitainerie. Chaux blanche, lambris bleu, poutres, une grande
+    // fenêtre à petits carreaux sur le port de pêche au petit matin ; bibliothèque, carte marine, baromètre,
+    // radio VHF sur le bureau, ventilateur au plafond.
+    const top = F > 150 ? 12 : 3, wain = F - 36;
+    if (shadow) { grad(L, 0, R - L, wain, ['#3d1620', '#4a1d27', '#521f2b']); damask(L, top, R - L, wain - top, '#c9a24a'); }
+    else {
+      grad(L, 0, R - L, wain, ['#ebe5d4', '#f0eadb', '#f3eee2']);
+      dith(L, 0, R - L, wain, I('#f0eadb'), I('#e4ddca'), (i, j) => (Math.sin(i * 0.09 + Math.sin(j * 0.13) * 2) + Math.sin(j * 0.17 + i * 0.03) > 1.3 ? 0.45 : 0.05)); // la chaux
+    }
+    const b = RP(shadow ? '#2e1219' : '#4d86a8');
+    rect(L, wain, R - L, F - wain, b[2]);
+    for (let x = L - ((L % 8) + 8) % 8; x < R; x += 8) { rect(x, wain + 3, 1, F - wain - 7, b[1]); rect(x + 1, wain + 3, 1, F - wain - 7, mixI(b[2], b[3], 0.6)); }
+    rect(L, wain - 2, R - L, 3, I(shadow ? '#4a1d27' : '#f6f2e8')); rect(L, wain - 2, R - L, 1, I('#ffffff')); rect(L, wain + 1, R - L, 1, b[0]);
+    rect(L, F - 4, R - L, 4, b[1]); rect(L, F - 4, R - L, 1, b[3]);
+    // poutres du plafond
+    if (top > 3) {
+      const w = RP(shadow ? '#2a160e' : '#6b4a2e');
+      rect(L, 0, R - L, top - 2, I(shadow ? '#3a1a20' : '#f6f2e8'));
+      rect(L, top - 4, R - L, 4, w[2]); rect(L, top - 4, R - L, 1, w[3]); rect(L, top - 1, R - L, 1, w[0]);
+      for (let x = L - ((L % 48) + 48) % 48 + 24; x < R; x += 48) { rect(x, 0, 6, top - 4, w[2]); rect(x, 0, 1, top - 4, w[3]); rect(x + 5, 0, 1, top - 4, w[1]); }
+    }
+    // la grande fenêtre : deux battants à petits carreaux, ouverte sur le port de pêche
+    const wx = 126, ww = 120, wy = top + 9, wb = F - 40, wh = wb - wy;
+    fishingHarbour(wx, wy, ww, wh, shadow);
+    piece(() => {
+      const fr = RP(shadow ? '#c9a24a' : '#f8f5ee');
+      rect(wx - 4, wy - 4, ww + 8, 4, fr[3]); rect(wx - 4, wb, ww + 8, 3, fr[2]); rect(wx - 4, wy, 4, wh, fr[3]); rect(wx + ww, wy, 4, wh, fr[1]);
+      const mid = wx + Math.round(ww / 2); rect(mid - 2, wy, 4, wh, fr[2]); rect(mid - 2, wy, 1, wh, fr[3]); rect(mid + 1, wy, 1, wh, fr[1]);
+      rect(wx - 8, wb + 3, ww + 16, 3, fr[4]); rect(wx - 8, wb + 6, ww + 16, 1, fr[1]); // appui
+    });
+    { // les petits bois, fins et sans contour
+      const fr = RP(shadow ? '#c9a24a' : '#f8f5ee'), mid = wx + Math.round(ww / 2);
+      for (const [a, c] of [[wx, mid - 2], [mid + 2, wx + ww]]) {
+        for (let k = 1; k < 3; k++) { const bx = a + Math.round(((c - a) * k) / 3); rect(bx, wy, 1, wh, fr[3]); }
+        for (let k = 1; k < 4; k++) { const by = wy + Math.round((wh * k) / 4); rect(a, by, c - a, 1, fr[3]); rect(a, by + 1, c - a, 1, mixI(get(a, by + 1), DEEP, 0.25)); }
+      }
+    }
+    for (let k = 0; k < Math.min(wh, ww) * 0.4; k++) { const gx = wx + 4 + k, gy = wb - 4 - k * 2; if (gy > wy) set(gx, gy, mixI(get(gx, gy), I('#ffffff'), 0.22)); }
     if (shadow) curtains(wx - 3, wy - 3, ww + 6, wh + 8);
-    // suspension émaillée
-    if (shadow) chandelier(208, 0, 1);
-    else if (F > 150) { const ly = Math.min(F - 150, 28); rect(118, 0, 1, ly, I('#3a3a3a')); glow(118, ly + 6, 30, '#fff1c8', 0.3); piece(() => { const g = RP('#2f6b4a'); poly([[113, ly + 6], [124, ly + 6], [121, ly], [116, ly]], g[2]); rect(113, ly + 6, 12, 1, g[1]); rect(116, ly, 5, 1, g[4]); }); }
-    // bibliothèque et globe
+    else tint(wx - 4, wb + 7, ww + 30, F - wb - 7, '#fff1c8', (i, j) => (i > j * 0.9 && i < ww + j * 0.9 ? 0.12 : 0)); // le soleil du matin entre
+    // ventilateur au plafond (lustre chez l'armateur de l'ombre)
+    if (shadow) chandelier(186, 0, 1);
+    else if (top > 3) piece(() => {
+      const m = RP('#3a3632'), y = top + 3;
+      rect(186, top - 2, 1, 5, m[1]); rect(183, y, 7, 3, m[2]); rect(183, y, 7, 1, m[3]);
+      rect(166, y + 1, 17, 1, I('#6b4a2e')); rect(190, y + 1, 17, 1, I('#6b4a2e')); rect(168, y + 2, 12, 1, I('#4a321e')); rect(192, y + 2, 12, 1, I('#4a321e'));
+      ellipse(186.5, y + 5, 3, 2, I('#f4ead0')); set(186, y + 4, I('#ffffff'));
+    });
+    // bibliothèque, bouteille à la mer sur le dessus
     piece(() => books(8, F - 110, 44, 110, 5, shadow ? '#4a2716' : '#7a5434'));
     shadowUnder(8, 44);
-    piece(() => { const r = RP('#3d7aa8'); ellipse(30, F - 120, 7, 7, r[2], (x, y) => ((x * 3 + y * 5) % 11 < 3 ? I('#7fae6a') : x < 28 && y < F - 121 ? r[3] : r[2])); rect(29, F - 113, 3, 2, I('#c9a24a')); rect(25, F - 112, 11, 2, I('#6b4a2e')); });
+    piece(() => { rect(18, F - 117, 22, 6, I('#9fd0c8')); rect(40, F - 116, 4, 3, I('#9fd0c8')); rect(44, F - 116, 2, 3, I('#b8864a')); rect(20, F - 116, 18, 1, I('#e2f2ee')); rect(24, F - 115, 10, 3, I('#4a3020')); rect(28, F - 119, 1, 4, I('#4a3020')); rect(29, F - 118, 3, 2, I('#f6f0e0')); rect(20, F - 112, 18, 1, I('#3a6a8a')); }); // le bateau en bouteille
+    piece(() => { const r = RP('#6b4a2e'); rect(20, F - 111, 3, 1, r[2]); rect(36, F - 111, 3, 1, r[2]); });
     // carte marine (routes rouges chez l'armateur de l'ombre)
-    framed(64, F - 128, 52, 34, '#5a3c24', () => {
-      grad(64, F - 128, 52, 34, ['#b9d6df', '#cfe1e8']);
-      for (const [x, y, w, h] of [[68, F - 124, 14, 9], [74, F - 116, 8, 10], [98, F - 126, 14, 12], [94, F - 112, 18, 14]]) ellipse(x + w / 2, y + h / 2, w / 2, h / 2, I('#e9dcb7'), (px, py, d) => (d > 0.75 ? I('#c9b98f') : I('#e9dcb7')));
-      if (shadow) redRoutes(64, F - 128, 52, 34);
-      else for (let k = 0; k < 12; k++) set(80 + k * 1.3, F - 114 + Math.sin(k * 0.6) * 3, I('#2f6fb0'));
+    framed(60, F - 130, 52, 34, '#5a3c24', () => {
+      grad(60, F - 130, 52, 34, ['#b9d6df', '#cfe1e8']);
+      for (const [x, y, w, h] of [[64, F - 126, 14, 9], [70, F - 118, 8, 10], [94, F - 128, 14, 12], [90, F - 114, 18, 14]]) ellipse(x + w / 2, y + h / 2, w / 2, h / 2, I('#e9dcb7'), (px, py, d) => (d > 0.75 ? I('#c9b98f') : I('#e9dcb7')));
+      if (shadow) redRoutes(60, F - 130, 52, 34);
+      else for (let k = 0; k < 12; k++) set(76 + k * 1.3, F - 116 + Math.sin(k * 0.6) * 3, I('#2f6fb0'));
     });
+    // baromètre de laiton
+    piece(() => { const r = RP('#c9a24a'); ellipse(70, F - 80, 6, 6, r[2], (x, y) => (x < 69 && y < F - 81 ? r[4] : x > 72 ? r[1] : r[2])); ellipse(70, F - 80, 4, 4, I('#f6f0e0')); line(70, F - 80, 72, F - 83, I('#2a2a2a')); set(70, F - 80, I('#c4362c')); rect(69, F - 73, 3, 3, r[1]); });
     // plaque de la compagnie
-    sign(126, F - 126, 24, shadow ? '#c9a24a' : '#8a6440');
+    sign(94, F - 92, 20, shadow ? '#c9a24a' : '#8a6440');
     // gramophone sur son guéridon (sur le coffre-fort chez l'armateur de l'ombre)
     const gx = 80, gTop = shadow ? F - 28 : F - 24;
     if (shadow) safe(68, F, 1);
     else { piece(() => { const r = RP('#7a5434'); ellipse(gx, gTop + 1, 17, 2.5, r[3]); rect(gx - 17, gTop + 2, 35, 2, r[2]); rect(gx - 1, gTop + 4, 3, F - gTop - 6, r[2]); rect(gx - 8, F - 2, 17, 2, r[1]); }); shadowUnder(gx - 9, 18); }
     juke(() => {
       piece(() => { const r = RP('#6b4a2e'); rect(gx - 11, gTop - 9, 22, 9, r[2]); rect(gx - 11, gTop - 9, 22, 1, r[4]); rect(gx - 11, gTop - 9, 1, 9, r[3]); rect(gx + 10, gTop - 9, 1, 9, r[1]); rect(gx - 6, gTop - 5, 12, 1, r[1]); ellipse(gx - 2, gTop - 10, 9, 1.5, I('#1b1b1b')); set(gx - 2, gTop - 10, I('#c4362c')); });
-      piece(() => { const b = RP('#d4a64a'); line(gx + 7, gTop - 11, gx + 10, gTop - 20, b[1]); line(gx + 8, gTop - 11, gx + 11, gTop - 20, b[2]); poly([[gx + 9, gTop - 20], [gx + 12, gTop - 20], [gx + 26, gTop - 38], [gx + 14, gTop - 44]], b[2]); poly([[gx + 9, gTop - 20], [gx + 10, gTop - 21], [gx + 15, gTop - 43], [gx + 14, gTop - 44]], b[4]); ellipse(gx + 20, gTop - 41, 7, 3, b[1]); ellipse(gx + 20, gTop - 41, 5, 1.6, I('#5a3a12')); });
+      piece(() => { const b2 = RP('#d4a64a'); line(gx + 7, gTop - 11, gx + 10, gTop - 20, b2[1]); line(gx + 8, gTop - 11, gx + 11, gTop - 20, b2[2]); poly([[gx + 9, gTop - 20], [gx + 12, gTop - 20], [gx + 26, gTop - 38], [gx + 14, gTop - 44]], b2[2]); poly([[gx + 9, gTop - 20], [gx + 10, gTop - 21], [gx + 15, gTop - 43], [gx + 14, gTop - 44]], b2[4]); ellipse(gx + 20, gTop - 41, 7, 3, b2[1]); ellipse(gx + 20, gTop - 41, 5, 1.6, I('#5a3a12')); });
     });
-    // bureau en bois
-    chair(158, F - 54, F - 30, shadow ? '#5a1420' : '#6b4a2e', { w: 20 });
-    chairBase(158, F - 30, '#4a4540');
+    // bureau de chêne, fauteuil de capitaine
+    chair(162, F - 56, F - 30, shadow ? '#5a1420' : '#8a5a34', { w: 20, studs: shadow ? '#d9b46a' : null });
+    chairBase(162, F - 30, '#4a4540');
     piece(() => {
-      const wood = shadow ? '#4a2716' : '#8a5d3b';
-      box(110, F - 30, 98, 4, wood, { d: 3 });
-      box(112, F - 26, 28, 26, wood, { d: 0 }); box(178, F - 26, 28, 26, wood, { d: 0 });
-      for (let k = 0; k < 3; k++) { drawer(114, F - 25 + k * 8, 24, 7, wood); drawer(180, F - 25 + k * 8, 24, 7, wood); }
-      rect(140, F - 26, 38, 14, RP(wood)[1]);
+      const wood = shadow ? '#4a2716' : '#9a6a42';
+      box(112, F - 30, 100, 4, wood, { d: 3 });
+      box(114, F - 26, 28, 26, wood, { d: 0 }); box(182, F - 26, 28, 26, wood, { d: 0 });
+      for (let k = 0; k < 3; k++) { drawer(116, F - 25 + k * 8, 24, 7, wood); drawer(184, F - 25 + k * 8, 24, 7, wood); }
+      rect(142, F - 26, 40, 12, RP(wood)[1]);
     });
-    shadowUnder(110, 98);
-    monitor(118, F - 33, 28, 20, '#2c3a44', '#1f3f55', (x, y, w, h) => { grad(x, y, w, h, ['#3d6f8c', '#2b5670']); for (const [a, b, c2] of [[3, 3, 7], [12, 6, 9], [7, 10, 5]]) rect(x + a, y + b, c2, 3, I('#e9dcb7')); if (shadow) redRoutes(x, y, w, h); });
-    piece(() => { const k = RP('#3a4248'); rect(120, F - 33, 24, 2, k[2]); rect(120, F - 33, 24, 1, k[3]); });
-    papers(148, F - 33, 14);
-    if (shadow) whisky(166, F - 33); else phone(166, F - 33, '#d8cfb8');
-    piece(() => { const r = RP('#c4362c'); rect(194, F - 44, 6, 11, r[2]); rect(194, F - 44, 1, 11, r[3]); rect(196, F - 42, 2, 4, I('#f2efe6')); });
-    mug(186, F - 33, '#2f6fb0');
+    shadowUnder(112, 100);
+    // sur le bureau : la radio VHF et son combiné, les jumelles, le livre de bord, le téléphone, le café
+    piece(() => { const k = RP('#2c3034'); rect(118, F - 40, 24, 10, k[2]); rect(118, F - 40, 24, 1, k[3]); rect(118, F - 40, 1, 10, k[3]); rect(120, F - 38, 10, 4, I(shadow ? '#ff9a50' : '#9ad08a')); for (let i = 0; i < 4; i++) set(121 + i * 2, F - 36, I('#24402a')); for (let i = 0; i < 3; i++) ellipse(134 + i * 3, F - 35.5, 1, 1, I('#9aa0a6')); rect(120, F - 32, 20, 1, k[1]); });
+    piece(() => { const k = RP('#1c1c1e'); rect(144, F - 38, 4, 7, k[2]); rect(144, F - 38, 1, 7, k[3]); line(145, F - 31, 147, F - 30, k[1]); });
+    for (let i = 0; i < 6; i++) set(146 + i, F - 31 + (i % 2), I('#2a2a2e')); // le cordon en tire-bouchon
+    piece(() => { const k = RP('#2a2a2a'), c = RP('#c9a24a'); rect(154, F - 36, 5, 5, k[2]); rect(160, F - 36, 5, 5, k[2]); rect(158, F - 35, 3, 2, c[2]); rect(154, F - 36, 5, 1, c[3]); rect(160, F - 36, 5, 1, c[3]); });
+    piece(() => { rect(170, F - 33, 18, 3, I('#2f4a6a')); rect(170, F - 33, 18, 1, I('#4a6a8a')); rect(171, F - 31, 16, 1, I('#f2eee2')); });
+    if (shadow) whisky(192, F - 33); else phone(192, F - 33, '#1c1c1c');
+    mug(204, F - 33, '#f2efe6');
+    // la bouée de sauvetage accrochée près de la fenêtre
+    piece(() => {
+      const cx = 262, cy = F - 60;
+      ellipse(cx, cy, 9, 9, I('#f2efe6'), (x, y) => {
+        const d = Math.hypot(x - cx, y - cy); if (d < 5) return 0;
+        const a = Math.atan2(y - cy, x - cx), red = Math.floor(((a + Math.PI) / (Math.PI / 2)) + 0.5) % 2 === 0;
+        const c = RP(red ? '#c4362c' : '#f2efe6'); return x < cx - 2 && y < cy ? c[3] : x > cx + 3 && y > cy ? c[1] : c[2];
+      });
+      rect(cx, cy - 12, 1, 3, I('#3a3a3a'));
+    });
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + Math.PI / 4; set(Math.round(262 + Math.cos(a) * 10), Math.round(F - 60 + Math.sin(a) * 10), I('#c8b88a')); }
     // étagères des records
     for (const sy of [-84, -112]) piece(() => { const r = RP(shadow ? '#4a2716' : '#8a6440'); rect(262, F + sy, 56, 3, r[2]); rect(262, F + sy, 56, 1, r[4]); rect(266, F + sy + 3, 2, 5, r[1]); rect(312, F + sy + 3, 2, 5, r[1]); });
     if (anyEvil) {
@@ -1251,7 +1546,9 @@ export function paintOffice(o) {
       shadowUnder(266, 44);
     } else if (shadow) bust(296, F, 1);
     else { plant(298, F, 1.25); shadowUnder(290, 16); }
+    // tapis de chiffons rayé (léopard chez l'armateur de l'ombre)
     if (shadow) leopard(100, 230);
+    else for (let y = F + 2; y < H; y++) for (let x = 104; x < 224; x++) set(x, y, Math.floor((x - 104) / 6) % 3 === 0 ? I('#f2ede0') : Math.floor((x - 104) / 6) % 3 === 1 ? I('#3d6f9a') : (x + y) % 3 ? I('#6a9cbc') : I('#5a8cac'));
   } else if (tier === 2) {
     // ---- Le siège de la compagnie : murs bleu marine, boiseries de noyer, grande baie sur l'entrée du port
     // (couchant ; la nuit, le phare tourne), longue-vue, radiogramme, vitrine des records.
