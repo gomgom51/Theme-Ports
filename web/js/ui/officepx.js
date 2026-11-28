@@ -136,8 +136,8 @@ const row = (n, x0, dx, b, h) => Array.from({ length: n }, (_, i) => ({ x: x0 + 
 const SLOTS = [
   { record: [...row(4, 258, 15, -111, 16), ...row(4, 258, 15, -81, 16)], evil: [...row(3, 60, 11, -29, 14), ...row(3, 60, 11, -10, 14)] },
   { record: [...row(4, 269, 14, -113, 16), ...row(4, 269, 14, -85, 16)], evil: [...row(3, 276, 12, -27, 14), ...row(3, 276, 12, -9, 14)] },
-  { record: [...row(4, 244, 13, -32, 17), ...row(4, 244, 13, -5, 17)], evil: [...row(3, 59, 11, -27, 14), ...row(3, 59, 11, -9, 14)] },
   { record: [...row(4, 271, 11, -47, 15), ...row(4, 271, 11, -21, 15)], evil: [...row(3, 78, 11, -27, 14), ...row(3, 78, 11, -9, 14)] },
+  { record: [...row(4, 270, 11, -47, 15), ...row(4, 270, 11, -21, 15)], evil: [...row(3, 62, 11, -27, 14), ...row(3, 62, 11, -9, 14)] },
   { record: [...row(4, 268, 12, -45, 16), ...row(4, 268, 12, -18, 16)], evil: [...row(3, 82, 11, -27, 14), ...row(3, 82, 11, -9, 14)] },
 ];
 
@@ -445,7 +445,7 @@ export function paintOffice(o) {
   };
   // Fauteuil vu de face, derrière le bureau (dossier au-dessus du plateau) : haut arrondi, cuir modelé de la
   // gauche (lumière) vers la droite, capitons en bandes ou boutonnés, oreilles, clous de laiton, accoudoirs.
-  const chair = (cx, top, bottom, base, { wing = false, studs = null, w = 22, tuft = null, arms = false, head = false, rails = null } = {}) => {
+  const chair = (cx, top, bottom, base, { wing = false, studs = null, w = 22, tuft = null, arms = false, head = false, rails = null, gilt = null } = {}) => {
     const r = RP(base);
     piece(() => {
       const x = cx - Math.floor(w / 2), hgt = bottom - top, neck = head ? top + 9 : -1;
@@ -471,6 +471,12 @@ export function paintOffice(o) {
       }
       for (let i = head ? 8 : 5; i < w - (head ? 8 : 5); i++) set(x + i, top + 1, r[4]);
       if (studs) { for (let y = top + 4; y < bottom - 1; y += 2) { set(x, y, I(studs)); set(x + w - 1, y, I(studs)); } for (let i = 4; i < w - 4; i += 2) set(x + i, top, I(studs)); }
+      if (gilt) { // cadre de bois doré autour du dossier
+        const g = RP(gilt);
+        for (let y = top; y < bottom; y++) { const j = y - top, ins = j === 0 ? 4 : j === 1 ? 2 : j === 2 ? 1 : 0; set(x + ins, y, g[3]); set(x + w - 1 - ins, y, g[1]); }
+        for (let i = 4; i < w - 4; i++) set(x + i, top, g[4]);
+        rect(x - 3, bottom - 8, 4, 2, g[2]); rect(x + w - 1, bottom - 8, 4, 2, g[2]); set(x - 3, bottom - 9, g[4]); set(x + w + 2, bottom - 9, g[4]);
+      }
       if (rails) { const m = RP(rails); rect(x - 2, top + 3, 2, hgt - 3, m[2]); rect(x - 2, top + 3, 1, hgt - 3, m[4]); rect(x + w, top + 3, 2, hgt - 3, m[1]); set(x - 2, top + 2, m[3]); set(x + w + 1, top + 2, m[1]); }
       if (arms) { const ax = rails ? 5 : 3; rect(x - ax, bottom - 8, ax + 1, 3, r[1]); rect(x + w - 1, bottom - 8, ax + 1, 3, r[1]); rect(x - ax, bottom - 8, ax + 1, 1, r[3]); rect(x + w - 1, bottom - 8, ax + 1, 1, r[3]); }
     });
@@ -690,7 +696,7 @@ export function paintOffice(o) {
       const mx = 150, my = y0 + Math.round(sky * 0.28);
       glow(mx, my, 18, '#a8b8e0', 0.35); ellipse(mx, my, 6, 6, '#f4f1e2', (x, y) => ((x - mx) * 0.7 + (y - my) > 2 ? I('#cfc9b0') : I('#f8f5e8')));
     } else {
-      const sx = 276, sy = y0 + Math.round(sky * 0.3);
+      const sx = 226, sy = y0 + Math.round(sky * 0.3);
       glow(sx, sy, 36, '#fffbe0', 0.6); ellipse(sx, sy, 6, 6, '#fffef4');
       for (let k = 0; k < 64; k++) set(118 + k, y0 + 10 + Math.round(k * 0.22), mixI(get(118 + k, y0 + 10 + Math.round(k * 0.22)), I('#ffffff'), Math.min(0.85, k / 64 + 0.1))); // traînée d'avion
       set(182, y0 + 24, I('#ffffff')); set(183, y0 + 24, I('#d8e4f0'));
@@ -754,8 +760,8 @@ export function paintOffice(o) {
     tower(124, 16, y0 + Math.round(sky * 0.58), 0.25, true);
     layer(2, hz + 24, 9, 24, false, [140, 226]);
     layer(3, hz + 50, 14, sb - hz, true);
-    if (!night) { const hx = 250, hy = hz - 18; rect(hx, hy, 5, 2, I('#2a3038')); rect(hx + 5, hy, 4, 1, I('#2a3038')); rect(hx - 2, hy - 2, 10, 1, I('#4a5260')); set(hx + 1, hy + 2, I('#2a3038')); set(hx + 4, hy + 2, I('#2a3038')); }
-    else { set(250, hz - 18, I('#ff4a3a')); set(254, hz - 18, I('#7fe08a')); }
+    if (!night) { const hx = 196, hy = hz - 20; rect(hx, hy, 5, 2, I('#2a3038')); rect(hx + 5, hy, 4, 1, I('#2a3038')); rect(hx - 2, hy - 2, 10, 1, I('#4a5260')); set(hx + 1, hy + 2, I('#2a3038')); set(hx + 4, hy + 2, I('#2a3038')); }
+    else { set(196, hz - 20, I('#ff4a3a')); set(200, hz - 20, I('#7fe08a')); }
     clip = save;
   };
 
@@ -862,6 +868,165 @@ export function paintOffice(o) {
         set(x - 2, y + 1, g[1]); set(x - 1, y, g[1]); set(x, y, g[1]);
       });
     }
+  };
+  // Grandes plaques de marbre ouvertes en livre (blanc veiné de gris ; noir veiné d'or chez l'armateur de l'ombre).
+  // Coordonnées du décor : le veinage ne bouge pas quand le panneau change de largeur.
+  // Veinage : de longues veines ondulées en biais (la pente l'emporte sur le bruit, donc jamais de boucles fermées),
+  // qui s'estompent par endroits ; v petit = sur une veine, f = force de la veine, n = nuage.
+  const veinAt = (X, Y) => {
+    const ph = (X * 0.75 + Y) * 0.045 + 1.1 * Math.sin(X * 0.027 - Y * 0.033) + 0.55 * Math.sin(X * 0.067 + Y * 0.051 + 1.1) + 0.25 * Math.sin(X * 0.15 - Y * 0.12);
+    const ph2 = (X - Y * 0.6) * 0.07 + 1.3 * Math.sin(X * 0.041 + Y * 0.029 + 2) + 0.4 * Math.sin(Y * 0.13);
+    return { v: Math.abs(Math.sin(ph)), v2: Math.abs(Math.sin(ph2)), f: Math.sin(X * 0.019 + Y * 0.013 + 0.7), n: Math.sin(X * 0.031 + Y * 0.017) + 0.5 * Math.sin(X * 0.071 - Y * 0.043 + 1.7) };
+  };
+  const marbleWall = (x0, y0, w, h, dark = false) => {
+    const b0 = I(dark ? '#1b191d' : '#e2e0db'), cl = I(dark ? '#221f24' : '#eae9e5'), vein = I(dark ? '#b8923e' : '#a6a39d'), soft = I(dark ? '#4a3c22' : '#cfccc6'), joint = I(dark ? '#0b0a0c' : '#c6c3bd');
+    const mid = y0 + Math.round(h * 0.55);
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+      const k = ((x % 80) + 80) % 80, slab = Math.floor((x + 800) / 80);
+      if (k === 0 || y === mid) { set(x, y, joint); continue; }
+      const { v, v2, f, n } = veinAt((slab % 2 ? 80 - k : k) + (slab >> 1) * 37, y < mid ? y : y + 23);
+      set(x, y, f > -0.25 && v < 0.03 ? vein : (f > -0.5 && v < 0.07) || v2 < 0.02 ? soft : n > 0.9 ? cl : b0);
+    }
+    // les spots du plafond dessinent des festons de lumière sur le marbre
+    for (let sx = x0 - ((x0 % 40) + 40) % 40 + 20; sx < x0 + w; sx += 40) tint(sx - 16, y0, 32, 56, dark ? '#ffd877' : '#ffffff', (i, j) => { const d = Math.abs(i - 16) / (3 + j * 0.3); return d < 1 ? (dark ? 0.2 : 0.45) * (1 - d * d) * (1 - j / 56) : 0; });
+  };
+  // Monolithe de marbre noir veiné de blanc (d'or chez l'armateur de l'ombre), dessus poli.
+  const neroBlock = (x, y, w, h, gold = false) => piece(() => {
+    const vein = I(gold ? '#d9b46a' : '#cfcdc8'), vein2 = I(gold ? '#6a4e24' : '#4c4c54');
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const X = x + i, Y = y + j, { v, v2, f } = veinAt(X * 1.4, Y * 1.4);
+      let c = i < 2 ? I('#34343c') : i > w - 3 ? I('#0e0e11') : I('#1c1c21');
+      if (f > 0 && v < 0.035) c = vein; else if (v < 0.08 || v2 < 0.025) c = vein2;
+      set(X, Y, c);
+    }
+    for (let i = 0; i < w; i++) { set(x + i, y - 3, I('#7c7c88')); set(x + i, y - 2, I(Math.sin(i * 0.2) > 0.6 ? '#5a5a64' : '#3a3a42')); set(x + i, y - 1, I('#2a2a30')); }
+    for (let k = 0; k < 14; k++) { set(x + 8 + k, y + 3 + k, mixI(get(x + 8 + k, y + 3 + k), I('#ffffff'), 0.12)); set(x + 14 + k, y + 3 + k, mixI(get(x + 14 + k, y + 3 + k), I('#ffffff'), 0.08)); } // reflet poli
+  });
+  // Lustre de points de lumière en goutte renversée, suspendu à un câble.
+  const lightCluster = (cx, top, ry) => {
+    const rx = ry * 0.55, cy = top + 6 + ry;
+    rect(cx, top, 1, cy - ry - top, I('#4a4a52'));
+    glow(cx, cy, Math.round(ry * 1.5), '#fff4d0', 0.4);
+    tint(cx - rx * 1.3, cy - ry, rx * 2.6, ry * 2, '#fff8e4', (i, j) => { const t = (j - ry) / ry, wd = Math.sqrt(Math.max(0, 1 - t * t)) * (1 - 0.3 * t) * rx; return Math.abs(i - rx * 1.3) < wd ? 0.3 : 0; });
+    for (let k = 0; k < ry * rx * 1.1; k++) {
+      const t = ((k * 0.618034) % 1) * 2 - 1, a = ((k * 0.754877) % 1) * 2 - 1, wd = Math.sqrt(1 - t * t) * (1 - 0.3 * t) * rx;
+      set(cx + Math.round(a * wd), cy + Math.round(t * ry), k % 5 ? I('#fffcee') : I('#ffe39a'));
+    }
+  };
+  const chromeLamp = (x, base) => {
+    glow(x + 5, base - 16, 14, '#fff1c8', 0.25);
+    piece(() => { const m = RP('#c4ccd4'); rect(x - 3, base - 1, 7, 1, I('#1c1c21')); rect(x, base - 14, 1, 13, m[3]); line(x, base - 14, x + 4, base - 17, m[3]); });
+    piece(() => { const s2 = RP('#f6f2e8'); rect(x + 2, base - 18, 7, 2, s2[2]); rect(x + 2, base - 18, 7, 1, s2[4]); rect(x + 3, base - 16, 5, 1, I('#fff8dc')); });
+  };
+  // Vue de l'étage de direction : à mi-hauteur d'une tour, les gratte-ciel autour, la mer plus loin, un cap vert.
+  // La nuit : fenêtres allumées, lune sur la mer.
+  const hsh = (k) => { const v = Math.sin(k * 12.9898 + 4.1) * 43758.5453; return v - Math.floor(v); };
+  const cityView = (x0, y0, w, h, night) => {
+    const save = clip;
+    clip = [x0 + ox, y0, x0 + w + ox, y0 + h];
+    const hz = y0 + Math.round(h * 0.42), sb = y0 + h, sky = hz - y0;
+    grad(x0, y0, w, sky, night ? ['#040816', '#0a1430', '#142050', '#1e2c60'] : ['#2f74c4', '#4a8ad2', '#6ea4de', '#98c0e8', '#c8def2']);
+    if (night) {
+      for (let k = 0; k < (w * sky) / 70; k++) { const px = x0 + ((k * 47 + 3) % w), py = y0 + ((k * 31 + k * k * 7) % Math.max(1, sky - 4)); set(px, py, k % 6 ? mixI(I('#c9d2e8'), get(px, py), 0.4) : I('#ffffff')); }
+      glow(290, y0 + Math.round(sky * 0.3), 14, '#a8b8e0', 0.35); ellipse(290, y0 + Math.round(sky * 0.3), 4, 4, '#f4f1e2');
+    } else for (const [cx, cy, s] of [[132, 0.42, 1], [222, 0.26, 0.8], [292, 0.55, 0.9]]) { // cumulus
+      const X = cx, Y = y0 + Math.round(sky * cy), c = RP('#e8eef6');
+      for (const [dx, dy, r] of [[-9, 2, 6], [-3, -2, 7], [5, -1, 6], [11, 2, 5], [0, 3, 8]]) ellipse(X + dx * s, Y + dy * s, r * s * 1.2, r * s * 0.8, c[2], (px, py) => (py < Y + dy * s - r * s * 0.3 ? I('#ffffff') : py > Y + 2 * s ? c[1] : c[2]));
+      rect(X - 16 * s, Y + Math.round(4 * s), 30 * s, 1, c[1]);
+    }
+    // la mer, puis un cap vert à droite
+    grad(x0, hz, w, sb - hz, night ? ['#1a2448', '#121a36', '#0c1228'] : ['#2a66aa', '#285e9e', '#235492']);
+    rect(x0, hz, w, 1, I(night ? '#3a4a7a' : '#b4d4ee'));
+    for (let k = 0; k < w / 5; k++) { const gx = x0 + ((k * 37) % w), gy = hz + 2 + ((k * 13) % Math.max(1, sb - hz - 3)); rect(gx, gy, 2 + (k % 3), 1, I(night ? '#2c3a6a' : '#5a92cc')); }
+    for (let x = 292; x < x0 + w; x++) { const hh = Math.min(12, Math.round((x - 292) * 0.5 + Math.sin(x * 0.3))); for (let y = hz - hh; y < hz + 1; y++) set(x, y, I(night ? '#0e1424' : y < hz - hh + 2 ? '#5f9a52' : '#3f7a44')); }
+    seaShip('vraquier_supramax', 128, hz + 4, 24, night ? '#121a36' : '#7aa0c8', night ? 0.75 : 0.5, night);
+    seaShip('pc_panamax', 238, hz + 7, 30, night ? '#121a36' : '#7aa0c8', night ? 0.72 : 0.42, night);
+    // les tours : un rang lointain dans la brume (la mer reste visible au-dessus), un rang proche dont certaines dépassent l'horizon
+    const bldg = (bx, bw, ty, kind, haze, seed) => {
+      const pal = { glass: '#5f92bc', teal: '#4f9098', stone: '#c2b092', dark: '#465062', white: '#d8dce0' }[kind], r = RP(night ? mix(pal, '#0a1020', 0.75) : pal), hz2 = I(night ? '#1a2448' : '#a8c8e8');
+      const sw = Math.max(2, Math.round(bw * 0.18)), crown = hsh(seed * 3.3) < 0.35, cTop = crown ? ty - 6 : ty;
+      for (let y = cTop; y < sb; y++) for (let x = bx; x < bx + bw + sw; x++) {
+        if (crown && y < ty && (x < bx + Math.round(bw * 0.25) || x >= bx + bw + sw - Math.round(bw * 0.25))) continue;
+        const side = x >= bx + bw, lx = x - bx, ly = y - ty;
+        let c = side ? r[1] : lx < 2 ? r[3] : r[2];
+        if (!side && ly > 1) {
+          if (kind === 'stone' || kind === 'white') { if (lx % 3 === 1 && ly % 3 === 1) c = night ? (hsh(x * 7 + y * 13 + seed) < 0.45 ? I('#ffd27a') : r[0]) : r[0]; }
+          else if (night) { if (ly % 3 === 1 && lx % 2 === 0 && hsh(x * 5 + y * 11 + seed) < 0.4) c = I('#ffd890'); }
+          else { if (lx % 3 === 0) c = r[1]; else if (ly % 4 === 0) c = r[3]; if ((lx + ly) % 37 < 2 && lx > 1 && lx < bw * 0.5) c = r[4]; } // meneaux, reflets du ciel
+        }
+        if (y === cTop && !side) c = r[4];
+        set(x, y, haze ? mixI(c, hz2, haze) : c);
+      }
+      if (hsh(seed * 7.7) < 0.4) { const ax = bx + Math.round(bw / 2); rect(ax, cTop - 6, 1, 6, haze ? mixI(r[1], hz2, haze) : r[1]); set(ax, cTop - 7, I('#ff4a3a')); }
+      else if (hsh(seed * 5.1) < 0.5 && !crown) { rect(bx + 2, ty - 2, 4, 2, haze ? mixI(r[1], hz2, haze) : r[1]); }
+    };
+    for (let k = 0, x = x0 - 6; x < x0 + w; k++) { const bw = 8 + Math.floor(hsh(k + 50) * 8); bldg(x, bw, hz + 13 + Math.floor(hsh(k + 80) * 10) - (k % 5 === 2 ? 12 : 0), ['glass', 'stone', 'white', 'teal'][k % 4], 0.5, k + 50); x += bw + 2 + Math.floor(hsh(k + 20) * 5); }
+    for (let k = 0, x = x0 - 4; x < x0 + w; k++) {
+      const bw = 14 + Math.floor(hsh(k) * 12), tall = k % 3 === 1, ty = tall ? hz - 6 - Math.floor(hsh(k + 3) * 26) : hz + 24 + Math.floor(hsh(k + 4) * 12);
+      bldg(x, bw, ty, ['glass', 'dark', 'teal', 'stone', 'glass', 'white'][k % 6], 0, k);
+      x += bw + 4 + Math.floor(hsh(k + 40) * 14);
+    }
+    clip = save;
+  };
+  // Store bateau bleu roi : plis, bas festonné, franges dorées.
+  const valance = (x, y, w, dark) => {
+    const b = RP(dark ? '#6a1626' : '#1f3f8f'), g = RP('#d9b25a');
+    piece(() => {
+      for (let i = 0; i < w; i++) {
+        const sc = Math.round(Math.sin(((i % 12) / 12) * Math.PI) * 2), hh = 9 + sc;
+        for (let j = 0; j < hh; j++) set(x + i, y + j, j === 0 ? b[4] : j % 3 === 0 ? b[3] : j % 3 === 2 ? b[1] : b[2]);
+        set(x + i, y + hh, i % 2 ? g[2] : b[1]); if (i % 2 === 0) set(x + i, y + hh + 1, g[3]);
+      }
+    });
+  };
+  // Écusson d'or portant l'emblème de la compagnie.
+  const crest = (cx, cy) => {
+    piece(() => {
+      const g = RP('#d9b25a');
+      poly([[cx - 7, cy - 8], [cx + 8, cy - 8], [cx + 8, cy + 1], [cx, cy + 9], [cx - 7, cy + 1]], g[2]);
+      rect(cx - 7, cy - 8, 15, 1, g[4]); rect(cx - 7, cy - 8, 1, 9, g[3]); for (let k = 0; k < 8; k++) set(cx + k, cy + 1 + k, g[1]);
+      set(cx - 9, cy - 9, g[3]); set(cx + 9, cy - 9, g[3]);
+    });
+    roundel(cx + 0.5, cy - 1, 4, '#b8903e');
+  };
+  // Juke-box d'acajou à fronton arrondi, néons bleus (ambre chez l'armateur de l'ombre), grille dorée.
+  const jukeLux = (x, base) => {
+    const m = RP('#7a3020'), g = RP('#d9b25a'), ne = RP(shadow ? '#ffb040' : '#5aa8ff'), cx = x + 18;
+    piece(() => {
+      for (let y = base - 62; y < base; y++) for (let i = 0; i < 37; i++) {
+        const dy = base - 46 - y, inArch = dy <= 0 || (i - 18) ** 2 + dy * dy * 1.6 <= 18.5 ** 2;
+        if (!inArch) continue;
+        set(x + i, y, i < 2 ? m[3] : i > 34 ? m[1] : m[2]);
+      }
+      for (let a = Math.PI; a <= 2 * Math.PI; a += 0.02) { set(cx + Math.round(Math.cos(a) * 16), base - 46 + Math.round(Math.sin(a) * 12.6), g[3]); set(cx + Math.round(Math.cos(a) * 13), base - 46 + Math.round(Math.sin(a) * 10), ne[3]); set(cx + Math.round(Math.cos(a) * 12), base - 46 + Math.round(Math.sin(a) * 9.2), ne[4]); }
+      for (const tx of [x + 4, x + 31]) { rect(tx, base - 46, 2, 40, ne[3]); set(tx, base - 46, ne[4]); rect(tx + (tx < cx ? 0 : 1), base - 46, 1, 40, ne[4]); }
+      rect(x + 9, base - 47, 19, 14, I('#1a0e0a')); ellipse(cx, base - 40, 6, 1.6, I('#141010')); set(cx, base - 40, I('#c4362c')); line(x + 24, base - 46, x + 20, base - 41, g[3]);
+      for (let k = 0; k < 6; k++) rect(x + 9 + k * 3, base - 30, 2, 2, I(['#ffd877', '#7fd0c4', '#ff7a5c', '#ffd877', '#a8c8ff', '#ff7a5c'][k]));
+      rect(x + 9, base - 26, 19, 19, I('#2a1610'));
+      for (let j = 0; j < 19; j++) for (let i = 0; i < 19; i++) if ((i + j) % 4 === 0 || (i - j + 40) % 4 === 0) set(x + 9 + i, base - 26 + j, g[(i + j) % 8 === 0 ? 3 : 1]);
+      rect(x, base - 4, 37, 4, m[0]); rect(x, base - 4, 37, 1, g[2]);
+    });
+  };
+  // Bergère de velours bleu roi, capitonnée, cadre doré à volutes et roulettes, un coussin.
+  const armchairLux = (cx, base) => {
+    const v = RP(shadow ? '#6a1626' : '#1f3f8f'), g = RP('#d9b25a');
+    piece(() => {
+      for (let y = base - 42; y < base - 16; y++) {
+        const j = y - (base - 42), ins = j === 0 ? 5 : j === 1 ? 3 : j === 2 ? 2 : j < 5 ? 1 : 0;
+        for (let i = -13 + ins; i <= 13 - ins; i++) {
+          const bt = j > 4 && j % 5 === 2 && (i + (Math.floor(j / 5) % 2 ? 2 : 0) + 40) % 4 === 0;
+          set(cx + i, y, i === -13 + ins ? g[3] : i === 13 - ins ? g[1] : j === 0 ? g[4] : bt ? v[0] : i < -6 ? mixI(v[2], v[3], 0.35) : v[2]);
+        }
+      }
+      rect(cx - 14, base - 17, 29, 5, v[3]); rect(cx - 14, base - 17, 29, 1, v[4]); rect(cx - 14, base - 13, 29, 1, v[1]);
+      rect(cx - 15, base - 12, 31, 2, g[2]); rect(cx - 15, base - 12, 31, 1, g[4]);
+      for (const s of [-1, 1]) {
+        const ax = cx + s * 15;
+        rect(ax - (s < 0 ? 2 : 0), base - 26, 3, 14, g[2]); set(ax + (s < 0 ? -2 : 2), base - 27, g[4]); set(ax + (s < 0 ? -3 : 3), base - 26, g[3]);
+        line(cx + s * 12, base - 10, cx + s * 14, base - 2, g[2]); ellipse(cx + s * 14, base - 1, 1.6, 1.4, g[1]);
+      }
+    });
+    piece(() => { const p = RP('#8aa8d8'); rect(cx + 1, base - 29, 10, 11, p[2]); rect(cx + 1, base - 29, 10, 1, p[3]); for (let k = 0; k < 10; k += 2) for (let j = 1; j < 11; j += 2) set(cx + 1 + k + (j % 4 === 1 ? 1 : 0), base - 29 + j, p[1]); });
   };
   const brassLamp = (x, base) => {
     glow(x, base - 12, 16, '#ffe9b0', 0.28);
@@ -1087,78 +1252,7 @@ export function paintOffice(o) {
     else { plant(298, F, 1.25); shadowUnder(290, 16); }
     if (shadow) leopard(100, 230);
   } else if (tier === 2) {
-    // ---- Le siège : boiseries, tableau de navire, écusson, lustre, juke-box à l'ancienne.
-    const wain = F - 50;
-    if (shadow) { grad(L, 0, R - L, wain, ['#16301f', '#1d3a2d', '#21402f']); damask(L, 0, R - L, wain, '#c9a24a'); }
-    else grad(L, 0, R - L, wain, ['#d1c4a6', '#d9cdb2', '#e0d4b8']);
-    const pan = shadow ? '#4a2716' : '#8a5d3b', pr = RP(pan);
-    rect(L, wain, R - L, F - wain, pr[2]);
-    rect(L, wain - 4, R - L, 4, pr[1]); rect(L, wain - 4, R - L, 1, pr[3]); rect(L, wain - 1, R - L, 1, pr[0]);
-    for (let x = L - ((L % 32) + 32) % 32; x < R; x += 32) {
-      const px0 = x + 5, pw = 22, py0 = wain + 6, ph = F - wain - 14;
-      rect(px0, py0, pw, ph, pr[1]); rect(px0 + 1, py0 + 1, pw - 2, ph - 2, pr[2]);
-      rect(px0, py0 + ph - 1, pw, 1, shadow ? I('#c9a24a') : pr[3]); rect(px0 + pw - 1, py0, 1, ph, shadow ? I('#c9a24a') : pr[3]);
-    }
-    rect(L, F - 4, R - L, 4, pr[0]); rect(L, F - 4, R - L, 1, pr[1]);
-    if (F > 150) { const c = RP(shadow ? '#2a4a38' : '#c9b991'); rect(L, 0, R - L, 6, c[2]); rect(L, 0, R - L, 1, c[3]); rect(L, 6, R - L, 2, c[1]); rect(L, 8, R - L, 1, c[4]); for (let x = L; x < R; x += 4) set(x, 3, c[1]); }
-    // fenêtre
-    const wx = 196, wy = F - 144, ww = 104, wh = 64;
-    view(wx, wy, ww, wh, shadow ? 'night' : 'gold', { city: 1 });
-    sash(wx, wy, ww, wh, shadow ? '#c9a24a' : '#efe6d2', { bars: 1, cross: true, t: 4 });
-    if (shadow) curtains(wx - 3, wy - 3, ww + 6, wh + 8);
-    if (!shadow) tint(wx - 70, wy + wh + 6, ww + 40, F - wy - wh - 6, '#fff1c8', (i, j) => (i > (F - wy - wh - 6 - j) * 0.9 && i < ww + 40 - j * 0.3 ? 0.1 : 0)); // rayon de soleil
-    // tableau (ou portrait du patron)
-    if (shadow) portrait(72, F - 130, 38, 42); else shipPainting(64, F - 130, 54, 36);
-    // écusson et sa plaque
-    roundel(140, F - 124, 14);
-    piece(() => { const b = RP('#c9a24a'); rect(128, F - 104, 24, 4, b[2]); rect(128, F - 104, 24, 1, b[4]); rect(132, F - 102, 16, 1, b[1]); });
-    if (F > 140) chandelier(172, 4, 0.75);
-    // juke-box à l'ancienne
-    glow(25, F - 34, 30, '#ffc860', 0.22);
-    juke(() => piece(() => {
-      const w = RP('#6e2617'), x = 8;
-      rect(x, F - 50, 34, 50, w[2]); rect(x + 3, F - 56, 28, 6, w[2]); rect(x + 7, F - 60, 20, 4, w[2]); rect(x + 7, F - 60, 20, 1, w[4]); rect(x + 3, F - 56, 28, 1, w[3]);
-      rect(x, F - 50, 1, 50, w[3]); rect(x + 33, F - 50, 1, 50, w[1]);
-      const l = RP('#ffc860');
-      rect(x + 5, F - 54, 24, 2, l[3]); rect(x + 3, F - 50, 2, 34, l[3]); rect(x + 29, F - 50, 2, 34, l[3]); rect(x + 3, F - 50, 1, 34, l[4]);
-      rect(x + 8, F - 49, 18, 14, I('#2a1a14')); rect(x + 10, F - 47, 14, 10, I('#3b2a22')); ellipse(x + 17, F - 42, 4, 4, I('#141010')); ellipse(x + 17, F - 42, 1.5, 1.5, I('#c4362c'));
-      for (let k = 0; k < 5; k++) rect(x + 7 + k * 4, F - 32, 3, 2, I(['#f39a3a', '#ffd877', '#7fd0c4', '#f39a3a', '#ff7a5c'][k]));
-      rect(x + 7, F - 27, 20, 20, I('#d8d2c4')); for (let k = 0; k < 6; k++) rect(x + 8, F - 26 + k * 3, 18, 1, I('#a59d8e'));
-      rect(x, F - 3, 34, 3, w[0]);
-    }));
-    if (shadow && !anyEvil) bust(25, F - 61, 0.7);
-    shadowUnder(8, 34);
-    // table des méfaits
-    if (anyEvil) { piece(() => { const r = box(50, F - 26, 40, 3, '#2a1d14', { d: 2 }); rect(52, F - 23, 2, 23, r[1]); rect(86, F - 23, 2, 23, r[1]); rect(50, F - 8, 40, 2, r[2]); }); shadowUnder(50, 40); }
-    // bureau des associés et fauteuil Chesterfield
-    chair(156, F - 64, F - 32, '#6e2a1c', { wing: true, studs: '#c9a24a', w: 24 });
-    piece(() => {
-      const wood = '#5a3a22';
-      const r = box(96, F - 32, 122, 5, wood, { d: 4 });
-      rect(98, F - 36, 118, 2, I(shadow ? '#1f3a2c' : '#2f5a3e')); // sous-main de cuir
-      box(100, F - 27, 34, 27, wood, { d: 0 }); box(180, F - 27, 34, 27, wood, { d: 0 });
-      for (let k = 0; k < 3; k++) { drawer(102, F - 26 + k * 8, 30, 7, wood); drawer(182, F - 26 + k * 8, 30, 7, wood); }
-      rect(134, F - 27, 46, 12, r[1]); rect(134, F - 16, 46, 1, r[0]);
-    });
-    shadowUnder(96, 122);
-    lampGreen(104, F - 36);
-    shipModel(124, F - 36, 56);
-    papers(184, F - 36, 13);
-    if (shadow) whisky(196, F - 36); else phone(200, F - 36);
-    // vitrine des records
-    piece(() => {
-      const r = box(236, F - 58, 58, 58, '#4a2f1b', { d: 3 });
-      rect(239, F - 55, 52, 52, I('#2a1a10'));
-      dith(239, F - 55, 52, 52, I('#3a4a52'), I('#4a5a62'), (i, j) => (i + j) % 17 < 3 ? 1 : 0.1);
-      rect(239, F - 31, 52, 2, I('#cfe1e8')); rect(239, F - 30, 52, 1, I('#8fa9b2'));
-      rect(239, F - 4, 52, 1, I('#cfe1e8'));
-    });
-    shadowUnder(236, 58);
-    if (!shadow) { plant(308, F, 1.15); shadowUnder(300, 16); }
-    else bust(308, F, 0.9);
-    if (shadow) leopard(70, 240); else persian(70, 250);
-  } else if (tier === 3) {
-    // ---- L'étage de direction : murs bleu marine, boiseries de noyer, grande baie sur l'entrée du port
+    // ---- Le siège de la compagnie : murs bleu marine, boiseries de noyer, grande baie sur l'entrée du port
     // (couchant ; la nuit, le phare tourne), longue-vue, radiogramme, vitrine des records.
     const top = F > 150 ? 10 : 3, wain = F - 44;
     const wallC = shadow ? ['#2a0f16', '#33131b', '#3a1620'] : ['#1f3350', '#243a5a', '#294163'];
@@ -1232,61 +1326,128 @@ export function paintOffice(o) {
     for (let k = 0; k < 20; k++) set(268 + k, F - 24 - k * 2, mixI(get(268 + k, F - 24 - k * 2), I('#ffffff'), 0.18));
     shadowUnder(262, 52);
     if (shadow) { bust(288, F - 79, 0.8); leopard(110, 250); } else persian(112, 246);
+  } else if (tier === 3) {
+    // ---- L'étage de direction : haut dans une tour, les gratte-ciel et la mer plus loin. Acajou verni filé d'or,
+    // velours bleu roi capitonné, stores bateau bleus à franges, juke-box d'acajou aux néons bleus, écussons d'or.
+    const top = F > 150 ? 12 : 3, wain = F - 40;
+    const mh = RP(shadow ? '#4a1a12' : '#7a3020'), gold = RP('#d9b25a');
+    // murs d'acajou à panneaux filés d'or
+    rect(L, 0, R - L, F, mh[2]);
+    for (let x = L - ((L % 32) + 32) % 32; x < R; x += 32) {
+      for (const [py, ph] of [[top + 6, wain - top - 14], [wain + 6, F - wain - 12]]) {
+        if (ph < 6) continue;
+        rect(x + 4, py, 24, ph, mh[1]); rect(x + 5, py + 1, 22, ph - 2, mh[2]);
+        rect(x + 5, py + 1, 22, 1, gold[2]); rect(x + 5, py + 1, 1, ph - 2, gold[3]); rect(x + 26, py + 1, 1, ph - 2, gold[1]); rect(x + 5, py + ph - 2, 22, 1, gold[1]);
+        tint(x + 8, py + 2, 4, ph - 4, '#ffd8b0', (i, j) => (i === 1 || i === 2 ? 0.16 : 0.07) * (1 - Math.abs(j / (ph - 4) - 0.4))); // reflet du vernis
+      }
+    }
+    rect(L, wain - 3, R - L, 3, mh[3]); rect(L, wain - 3, R - L, 1, gold[3]); rect(L, wain, R - L, 1, gold[1]);
+    rect(L, F - 4, R - L, 4, mh[0]); rect(L, F - 4, R - L, 1, gold[2]);
+    // plafond : bandeau bleu roi passepoilé d'or, spots
+    if (top > 3) { const b = RP('#1e3f8f'); rect(L, 0, R - L, top - 2, b[2]); rect(L, top - 4, R - L, 1, b[3]); rect(L, top - 2, R - L, 2, gold[2]); rect(L, top - 2, R - L, 1, gold[4]); for (let x = L - ((L % 36) + 36) % 36 + 18; x < R; x += 36) { set(x, 2, I('#fff6dc')); glow(x, 3, 7, '#fff6dc', 0.25); } }
+    // trois grandes baies sur la ville et la mer, pilastres d'acajou, stores bateau
+    const wy = top + 4, wb = wain - 6, wins = [[104, 66], [176, 66], [248, 66]];
+    cityView(100, wy, 218, wb - wy, shadow);
+    for (const x of [100, 170, 242, 314]) { rect(x, wy - 1, x === 100 ? 4 : 6, wb - wy + 2, mh[2]); rect(x + 1, wy - 1, 2, wb - wy + 2, mh[3]); } // pilastres
+    for (const [x, w] of wins) {
+      piece(() => { rect(x - 1, wy - 1, 1, wb - wy + 2, gold[3]); rect(x + w, wy - 1, 1, wb - wy + 2, gold[1]); rect(x - 4, wb, w + 8, 3, gold[2]); rect(x - 4, wb, w + 8, 1, gold[4]); });
+      for (let k = 0; k < 22; k++) { const gx = x + 6 + k, gy = wb - 6 - k * 2; if (gy > wy + 10) set(gx, gy, mixI(get(gx, gy), I('#ffffff'), 0.2)); }
+      valance(x - 2, wy - 1, w + 4, shadow);
+    }
+    if (shadow) { curtains(102, wy, 214, wb - wy + 4); chandelier(210, 0, 1.2); }
+    // marine dans son cadre doré (portrait du patron chez l'armateur de l'ombre)
+    if (F > 150) { if (shadow) portrait(56, F - 128, 30, 36); else shipPainting(50, F - 124, 44, 30, true); }
+    // juke-box d'acajou aux néons bleus
+    glow(24, F - 34, 26, shadow ? '#ffb040' : '#7ab8ff', 0.22);
+    juke(() => jukeLux(5, F));
+    shadowUnder(5, 38);
+    // table des méfaits, coffre plein (ombre) ou bergère de velours bleu
+    if (anyEvil) { piece(() => { const r = box(56, F - 26, 34, 3, '#1d1916', { d: 2 }); rect(57, F - 23, 2, 23, r[1]); rect(87, F - 23, 2, 23, r[1]); rect(56, F - 8, 34, 2, r[2]); rect(56, F - 26, 34, 1, gold[2]); }); shadowUnder(56, 34); }
+    else if (shadow) safe(62, F, 1);
+    else armchairLux(74, F);
+    // le bureau d'acajou verni aux angles arrondis, écussons d'or ; fauteuil capitonné de velours bleu à cadre doré
+    chair(182, F - 72, F - 34, shadow ? '#6a1626' : '#1f3f8f', { w: 26, tuft: 'buttons', gilt: '#d9b25a' });
+    piece(() => {
+      const x = 118, w = 128, y = F - 34;
+      for (let j = 0; j < 34; j++) {
+        const ins = j > 30 ? 2 : 0;
+        for (let i = ins; i < w - ins; i++) {
+          const edge = i < 6 || i >= w - 6, rnd = edge ? Math.abs((i < 6 ? 6 - i : i - w + 7) / 6) : 0; // les bouts arrondis
+          set(x + i, y + j, rnd > 0.6 ? mh[1] : rnd > 0.25 ? mh[2] : i < w * 0.3 ? mixI(mh[2], mh[3], 0.3) : mh[2]);
+        }
+      }
+      rect(x - 1, y - 4, w + 2, 4, mh[3]); rect(x - 1, y - 4, w + 2, 1, mh[4]); rect(x - 1, y - 1, w + 2, 1, gold[2]); // plateau verni, jonc d'or
+      rect(x + 2, y + 2, w - 4, 1, gold[1]); rect(x + 2, F - 4, w - 4, 1, gold[1]);
+      for (const px of [x + 8, x + 46, x + 84]) { rect(px, y + 5, 36, 23, mh[1]); rect(px + 1, y + 6, 34, 21, mh[2]); rect(px + 1, y + 6, 34, 1, gold[3]); rect(px + 1, y + 6, 1, 21, gold[3]); rect(px + 34, y + 6, 1, 21, gold[1]); rect(px + 1, y + 26, 34, 1, gold[1]); for (let k = 0; k < 4; k++) line(px + 4 + k * 8, y + 25, px + 10 + k * 8, y + 8, mh[3]); }
+      rect(x + 3, F - 2, 6, 2, gold[2]); rect(x + w - 9, F - 2, 6, 2, gold[2]);
+    });
+    crest(144, F - 17); crest(220, F - 17);
+    shadowUnder(118, 128);
+    tint(120, F - 38, 124, 3, '#ffffff', (i, j) => (j === 0 && i % 9 < 4 ? 0.25 : 0)); // reflet du verni
+    lampGreen(126, F - 38);
+    shipModel(150, F - 38, 52);
+    piece(() => { rect(210, F - 41, 18, 3, I('#f2eee2')); rect(210, F - 41, 18, 1, I('#ffffff')); rect(211, F - 38, 16, 1, I('#2a3a5a')); }); // le livre de bord
+    if (shadow) whisky(232, F - 38); else phone(232, F - 38, '#1c1c1c');
+    // vitrine d'acajou des records
+    piece(() => {
+      const x = 260, w = 54, h = 74;
+      rect(x, F - h, w, h, mh[2]); rect(x, F - h - 3, w, 3, mh[3]); rect(x, F - h - 3, w, 1, gold[3]); rect(x, F - h, 1, h, mh[3]); rect(x + w - 1, F - h, 1, h, mh[1]);
+      rect(x + 3, F - h + 3, w - 6, 52, I('#2a1610'));
+      grad(x + 4, F - h + 4, w - 8, 50, shadow ? ['#3a2a1e', '#2a1e16'] : ['#4a3a4a', '#2e2430']);
+      for (const sy of [-47, -21]) { rect(x + 3, F + sy, w - 6, 2, I('#d8e6ea')); rect(x + 3, F + sy + 2, w - 6, 1, I('#8fa9b2')); }
+      rect(x + 3, F - h + 3, w - 6, 1, gold[3]); rect(x + 3, F - 19, w - 6, 1, gold[2]);
+      for (let k = 0; k < 2; k++) { drawer(x + 3 + k * 24, F - 17, 24, 15, shadow ? '#4a1a12' : '#7a3020', '#d9b25a'); }
+    });
+    for (let k = 0; k < 20; k++) set(266 + k, F - 24 - k * 2, mixI(get(266 + k, F - 24 - k * 2), I('#ffffff'), 0.18));
+    shadowUnder(260, 54);
+    if (shadow) { bust(287, F - 77, 0.8); leopard(110, 250); }
   } else {
-    // ---- La tour de verre : au-dessus des nuages. Mur-rideau du sol au plafond, piano à queue,
-    // bureau d'un seul plateau de noyer sur pieds de bronze, olivier, hélice de bronze, niches éclairées.
-    const top = F > 150 ? 8 : 3, base = F - 4;
+    // ---- La tour de verre : au-dessus des nuages. Plus de bois (choix du propriétaire) : piliers de marbre blanc,
+    // mur-rideau d'acier, bureau monolithe de marbre noir, lustre de points de lumière, niches creusées dans le marbre.
+    // Chez l'armateur de l'ombre : marbre noir veiné d'or, rideaux de velours, lustres de cristal, buste, coffre.
+    const top = F > 150 ? 8 : 3, base = F - 4, px0 = 46, px1 = 254;
     aboveClouds(L, top, R - L, base - top, shadow);
-    // montants de bronze sombre, plafond, rail de sol
-    const mull = RP('#2e2924');
-    for (let x = L - ((L % 80) + 80) % 80; x < R; x += 80) { rect(x - 1, top, 3, base - top, mull[2]); rect(x - 1, top, 1, base - top, mull[3]); rect(x + 1, top, 1, base - top, mull[1]); }
-    if (top > 3) { rect(L, 0, R - L, top, mull[1]); rect(L, top - 1, R - L, 1, mull[0]); for (let x = L - ((L % 40) + 40) % 40 + 20; x < R; x += 40) { rect(x - 2, top - 2, 5, 1, I('#fff6dc')); glow(x, top + 1, 9, '#fff6dc', 0.25); } }
-    rect(L, base, R - L, 4, mull[1]); rect(L, base, R - L, 1, mull[3]);
-    // reflets sur le verre
-    for (let x = L - ((L % 80) + 80) % 80; x < R; x += 80) for (let k = 0; k < 30; k++) { const gx = x + 10 + k, gy = base - 8 - k * 3; if (gy > top + 4) { set(gx, gy, mixI(get(gx, gy), I('#ffffff'), 0.18)); set(gx + 1, gy, mixI(get(gx + 1, gy), I('#ffffff'), 0.1)); } }
-    if (shadow) { curtains(L + 6, top + 4, R - L - 12, base - top - 6); chandelier(110, top, 1.1); chandelier(222, top, 1.1); }
-    else if (F > 150) barLight(120, 216, top, F - 112);
+    // mur-rideau : cadre et meneaux d'acier graphite
+    const st = RP('#3a3e46');
+    for (const x of [px0, 116, 184, px1 - 3]) { rect(x, top, 3, base - top, st[2]); rect(x, top, 1, base - top, st[4]); rect(x + 2, top, 1, base - top, st[1]); }
+    for (const x of [px0 + 8, 124, 192]) for (let k = 0; k < 30; k++) { const gx = x + k, gy = base - 8 - k * 3; if (gy > top + 4) { set(gx, gy, mixI(get(gx, gy), I('#ffffff'), 0.16)); set(gx + 1, gy, mixI(get(gx + 1, gy), I('#ffffff'), 0.08)); } } // reflets
+    // piliers de marbre, éclairés par le haut
+    marbleWall(L, top, px0 - L, base - top, shadow);
+    marbleWall(px1, top, R - px1, base - top, shadow);
+    rect(px0 - 1, top, 1, base - top, I(shadow ? '#060507' : '#b8b4ae')); rect(px1, top, 1, base - top, I(shadow ? '#060507' : '#b8b4ae'));
+    // plafond noir, spots ; plinthe d'acier
+    if (top > 3) { const c = RP('#1c1d22'); rect(L, 0, R - L, top, c[2]); rect(L, top - 1, R - L, 1, c[0]); for (let x = L - ((L % 40) + 40) % 40 + 20; x < R; x += 40) { rect(x - 2, top - 2, 5, 1, I('#fff6dc')); glow(x, top + 1, 9, '#fff6dc', 0.22); } }
+    rect(L, base, R - L, 4, st[1]); rect(L, base, R - L, 1, st[4]);
+    if (shadow) { curtains(px0 + 4, top + 4, px1 - px0 - 8, base - top - 6); chandelier(110, top, 1.1); chandelier(222, top, 1.1); }
+    else if (F > 150) lightCluster(166, top, 20);
     // piano à queue (le juke-box de la tour)
     juke(() => grandPiano(4, F));
     shadowUnder(2, 70, F, 3, 0.5);
-    // table des méfaits, coffre plein (ombre) ou olivier
+    // table des méfaits, coffre plein (ombre) ou figuier
     if (anyEvil) { piece(() => { const r = box(76, F - 26, 34, 3, '#0d0d10', { d: 2 }); rect(77, F - 23, 2, 23, r[1]); rect(107, F - 23, 2, 23, r[1]); rect(76, F - 8, 34, 2, r[2]); rect(76, F - 26, 34, 1, I('#c9a24a')); }); shadowUnder(76, 34); }
     else if (shadow) safe(80, F, 1);
     else ficus(93, F);
-    // bureau : un plateau massif de noyer, pieds-traîneaux de bronze
-    chair(166, F - 70, F - 34, shadow ? '#6a1626' : '#3a2e2a', { w: 20, tuft: 'pads', arms: true, rails: '#c4ccd4' });
-    chairBase(166, F - 34, '#9aa0a8');
-    piece(() => {
-      const wd = shadow ? '#3a2014' : '#5a3520', w = RP(wd), b = RP('#a77a3c');
-      rect(110, F - 37, 112, 7, w[2]); rect(110, F - 38, 112, 1, w[4]); rect(110, F - 37, 112, 1, w[3]); rect(110, F - 31, 112, 1, w[1]);
-      for (let i = 0; i < 112; i++) { if (Math.sin(i * 0.31) + Math.sin(i * 0.07) > 1.2) set(110 + i, F - 35, w[3]); if (Math.sin(i * 0.17 + 2) + Math.sin(i * 0.05) > 1.4) set(110 + i, F - 33, w[1]); } // fil du bois
-      rect(116, F - 30, 2, 30, b[3]); rect(122, F - 30, 2, 30, b[1]); rect(116, F - 2, 8, 2, b[2]); rect(116, F - 30, 8, 1, b[2]); // piétement de bronze
-      box(186, F - 30, 32, 30, wd, { d: 0 });
-      for (let k = 0; k < 3; k++) { drawer(188, F - 29 + k * 9, 28, 8, wd, '#c9a24a'); }
-      rect(124, F - 30, 62, 3, w[1]);
-    });
-    shadowUnder(110, 112, F, 3, 0.5);
-    brassLamp(119, F - 38);
-    shipModel(132, F - 38, 46);
-    vitrine(130, F - 38, 50, 26);
-    blotter(182, F - 38);
-    if (shadow) whisky(198, F - 38); else phone(204, F - 38, '#1c1c1c');
-    // hélice de bronze sur socle de pierre (buste d'or chez l'armateur de l'ombre)
+    // fauteuil de cuir noir sur piètement chromé, derrière un monolithe de marbre noir
+    chair(166, F - 70, F - 34, shadow ? '#6a1626' : '#26262c', { w: 20, tuft: 'pads', arms: true, rails: '#c4ccd4' });
+    neroBlock(110, F - 34, 112, 34, shadow);
+    tint(110, F, 112, 6, '#000000', (i, j) => 0.3 * (1 - j / 6)); // reflet sur le marbre poli
+    chromeLamp(118, F - 37);
+    shipModel(134, F - 37, 46);
+    vitrine(132, F - 37, 50, 26);
+    blotter(186, F - 37);
+    if (shadow) whisky(202, F - 37); else phone(206, F - 37, '#1c1c1c');
+    // hélice de bronze (buste d'or chez l'armateur de l'ombre)
     if (shadow) bust(239, F, 1.15); else propeller(239, F);
-    // niches éclairées des records, dans un meuble de noyer
-    piece(() => {
-      box(258, F - 72, 56, 72, shadow ? '#2a160e' : '#4e2e1a', { d: 3 });
-      const b = RP('#c9a24a');
-      for (const [sy, nh] of [[-68, 24], [-41, 24]]) {
-        grad(261, F + sy, 50, nh, shadow ? ['#5a3a1a', '#3a2412'] : ['#f6e2b4', '#d7b47e', '#a8835a']);
-        rect(261, F + sy, 50, 1, I(shadow ? '#ffd877' : '#fff3d0'));
-        rect(261, F + sy + nh - 1, 50, 1, b[1]);
-      }
-      rect(258, F - 15, 56, 1, b[3]);
-      for (let k = 0; k < 2; k++) drawer(260 + k * 26, F - 13, 26, 11, shadow ? '#2a160e' : '#4e2e1a', '#c9a24a');
-    });
-    shadowUnder(258, 56, F, 3, 0.5);
-    if (shadow) leopard(100, 250); else rugModern(100, 232);
+    // niches éclairées creusées dans le pilier de marbre
+    for (const [sy, nh] of [[-68, 24], [-41, 24]]) {
+      const ny = F + sy, fr = RP(shadow ? '#c9a24a' : '#c4ccd4');
+      grad(261, ny, 50, nh, shadow ? ['#6a4a1e', '#4a3214', '#2e1e0c'] : ['#fff6e0', '#f0e2c4', '#d8c8a8']);
+      tint(261, ny, 50, 4, '#000000', (i, j) => 0.3 * (1 - j / 4)); // profondeur de la niche
+      rect(261, ny + nh - 2, 50, 2, I(shadow ? '#2a2420' : '#f4f2ee')); rect(261, ny + nh - 2, 50, 1, I(shadow ? '#5a4a2a' : '#ffffff'));
+      rect(260, ny - 1, 52, 1, fr[3]); rect(260, ny + nh, 52, 1, fr[1]); rect(260, ny - 1, 1, nh + 1, fr[3]); rect(311, ny - 1, 1, nh + 1, fr[1]);
+      for (let i = 0; i < 50; i += 12) glow(267 + i, ny + 1, 6, '#fff8e0', 0.25);
+    }
+    if (shadow) leopard(100, 250);
   }
 
   // ---------- Trophées et méfaits ----------
@@ -1340,11 +1501,14 @@ const FLOORS = {
     return bay(x & 1023, y) < 0.12 * (1 + Math.sin(x * 0.13 + y)) ? I(mix(a, '#5f5646', 0.35)) : I(a);
   },
   1: (x, y) => planks(x, y, '#a07b55', 5, 72),
-  2: (x, y) => planks(x, y, '#5f3f27', 4, 56),
-  3: (x, y) => herringbone(x, y, '#8a5a36'), // parquet de chêne en chevrons
+  2: (x, y) => herringbone(x, y, '#8a5a36'), // parquet de chêne en chevrons
+  3: (x, y) => { // moquette bleu roi marbrée de clair
+    const v = Math.abs(Math.sin((x * 0.5 + y) * 0.11 + 2 * Math.sin(x * 0.045 + y * 0.21) + Math.sin(x * 0.13) * 0.6));
+    return v < 0.03 ? I('#8aa2c8') : v < 0.14 ? I('#3e5e94') : bay(x & 1023, y) < 0.15 ? I('#2e4c82') : I('#28457a');
+  },
   4: (x, y) => lightMarble(x, y), // marbre blanc veiné, filet de laiton
   shadow1: (x, y) => planks(x, y, '#3a2418', 5, 72),
-  shadow2: (x, y) => planks(x, y, '#2a1810', 4, 56),
+  shadow2: (x, y) => marble(x, y),
   shadow3: (x, y) => marble(x, y),
   shadow4: (x, y) => marble(x, y),
 };
