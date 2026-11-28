@@ -4,9 +4,8 @@ import { piracyRisk, resolveHijack } from '../sim/piracy.js';
 import { patrolRisk } from '../sim/patrols.js';
 import { defence } from '../sim/equipment.js';
 import { EQUIPMENT } from '../data/equipment.js';
-import { h, money, dialog, toast } from './dom.js';
+import { h, money, dialog, toast, pctOf } from './dom.js';
 
-const pctTxt = (p) => `${Math.round(p * 100)} %`;
 
 // Ligne de risque pour un voyage (zones traversées, risque d'attaque, chance de repousser).
 export function piracyLine(ship, route, speed, state = null) {
@@ -16,7 +15,7 @@ export function piracyLine(ship, route, speed, state = null) {
   const names = r.zones.flatMap((x, i) => [i ? ', ' : null, h('span', `${x.zone.name} (piraterie ${x.zone.level})`)]);
   const cls = r.attack * (1 - r.repel) > 0.05 ? 'neg' : r.attack > 0.03 ? 'warn-text' : '';
   const equip = (ship.equipment || []).filter((id) => EQUIPMENT[id].defence || EQUIPMENT[id].citadel).map((id) => EQUIPMENT[id].icon).join(' ');
-  return h(`div.risk-line${cls ? '.' + cls : ''}`, [h('span', '☠ Votre route traverse :'), ' ', ...names, '. ', h('span', `Risque d'attaque ≈ ${pctTxt(r.attack)}. Défense ${Math.round(defence(ship) * 10) / 10}${equip ? ` (${equip})` : ''} : chance de repousser une attaque ordinaire ${pctTxt(r.repel)}, les plus dangereuses ${pctTxt(r.repelWorst)}. Sans citadelle, un navire abordé est détourné contre rançon. Ralentir allonge le passage ; aller vite aide à semer les pirates.${r.targeted ? ' ⚠ Des pirates seraient payés pour viser vos navires sur cette route : le risque affiché en tient compte.' : ''}`)]);
+  return h(`div.risk-line${cls ? '.' + cls : ''}`, [h('span', '☠ Votre route traverse :'), ' ', ...names, '. ', h('span', `Risque d'attaque ≈ ${pctOf(r.attack)}. Défense ${Math.round(defence(ship) * 10) / 10}${equip ? ` (${equip})` : ''} : chance de repousser une attaque ordinaire ${pctOf(r.repel)}, les plus dangereuses ${pctOf(r.repelWorst)}. Sans citadelle, un navire abordé est détourné contre rançon. Ralentir allonge le passage ; aller vite aide à semer les pirates.${r.targeted ? ' ⚠ Des pirates seraient payés pour viser vos navires sur cette route : le risque affiché en tient compte.' : ''}`)]);
 }
 
 // Rapport de combat (auto battler) : défense, assaillants, phases, résultat.
@@ -75,7 +74,7 @@ export function patrolLine(ship, route, speed) {
   const r = patrolRisk(ship, route, speed);
   if (!r) return null;
   const names = [...new Set(r.zones.map((x) => x.zone.name))].slice(0, 3).join(', ');
-  return h(`div.risk-line${r.caught > 0.1 ? '.neg' : r.caught > 0.04 ? '.warn-text' : ''}`, `🚔 Eaux surveillées sur la route (${names}) : risque d'être contrôlé ≈ ${pctTxt(r.intercept)}. Chance de filer ${pctTxt(r.evade)}, que la fouille ne trouve rien ${pctTxt(r.hidden)} : au total, colis saisi ≈ ${pctTxt(r.caught)}. Les garde-côtes ne se laissent pas acheter.`);
+  return h(`div.risk-line${r.caught > 0.1 ? '.neg' : r.caught > 0.04 ? '.warn-text' : ''}`, `🚔 Eaux surveillées sur la route (${names}) : risque d'être contrôlé ≈ ${pctOf(r.intercept)}. Chance de filer ${pctOf(r.evade)}, que la fouille ne trouve rien ${pctOf(r.hidden)} : au total, colis saisi ≈ ${pctOf(r.caught)}. Les garde-côtes ne se laissent pas acheter.`);
 }
 export async function showPatrol(app, note) {
   const r = note.report;

@@ -7,11 +7,11 @@
 import { shipsOf, shipById } from '../sim/core.js';
 import { h, toast } from './dom.js';
 import { localRect, viewport } from './scale.js';
+import { KEYS, read, write } from './storage.js';
 
-const KEY = 'pda-guide-done';
 // Cochée d'office pour une première partie sur cet appareil.
-export function guideDefault() { try { return !localStorage.getItem(KEY); } catch { return true; } }
-function remember() { try { localStorage.setItem(KEY, '1'); } catch { /* stockage indisponible */ } }
+export const guideDefault = () => !read(KEYS.guideDone);
+const remember = () => write(KEYS.guideDone, '1');
 
 const DAY = 24;
 const $ = (sel) => document.querySelector(sel);

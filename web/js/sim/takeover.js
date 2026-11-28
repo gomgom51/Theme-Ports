@@ -11,14 +11,14 @@
 import { takeoverDiscount, embargoPenalty, HOME } from './home.js';
 import { PORTS, FLAGS } from '../data/ports.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
-import { netWorth, cargoLoans, fleetValue, shipsOf, news, money, removeShip, standing, changeTrust, changeVirtue, levelOf } from './core.js';
+import { netWorth, cargoLoans, fleetValue, shipsOf, news, book, removeShip, standing, changeTrust, changeVirtue, levelOf } from './core.js';
 import { onEliminated } from './honours.js';
 import { crossesLine } from './shadow.js';
 import { victoryProgress, VICTORY } from './victory.js';
 import { OFFICE_TIERS } from '../data/offices.js';
+import { money } from './format.js';
 
 const D = HOURS_PER_DAY;
-const M$ = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 export const TAKEOVER = {
   repK: 50,              // prix = valeur nette × (1 + réputation / 50)
   minWorth: 1e6,         // une compagnie au bord du gouffre vaut au moins cela pour ses actionnaires
@@ -69,8 +69,8 @@ export function canTakeover(state, buyerId, targetId, { ignoreBid = null } = {})
   const need = price + (embargo?.fine || 0);
   if (cash < need) {
     return { ...base, why: embargo
-      ? `Il faut ${M$(need)} de trésorerie nette, prix et amende compris (liquidités moins dettes et prêts sur cargaison) : un rachat se paie comptant, sans emprunt. Vous en avez ${M$(Math.max(0, cash))}.`
-      : `Il faut ${M$(need)} de trésorerie nette (liquidités moins dettes et prêts sur cargaison) : un rachat se paie comptant, sans emprunt. Vous en avez ${M$(Math.max(0, cash))}.` };
+      ? `Il faut ${money(need)} de trésorerie nette, prix et amende compris (liquidités moins dettes et prêts sur cargaison) : un rachat se paie comptant, sans emprunt. Vous en avez ${money(Math.max(0, cash))}.`
+      : `Il faut ${money(need)} de trésorerie nette (liquidités moins dettes et prêts sur cargaison) : un rachat se paie comptant, sans emprunt. Vous en avez ${money(Math.max(0, cash))}.` };
   }
   return { ...base, ok: true };
 }
@@ -96,7 +96,7 @@ export function executeTakeover(state, buyerId, targetId, notes = null) {
   const buyer = state.companies[buyerId], target = state.companies[targetId];
   const pv = takeoverPreview(state, buyerId, targetId);
   if (chk.dismantle) {
-    money(state, buyer, -chk.price, 'rachats');
+    book(state, buyer, -chk.price, 'rachats');
     for (const s of state.ships.filter((x) => x.owner === target.id)) removeShip(state, null, s, 'démantelé', 0);
     for (const o of state.orders || []) if (o.owner === target.id) o.owner = -1;
     state.orders = (state.orders || []).filter((o) => o.owner !== -1);
@@ -106,13 +106,13 @@ export function executeTakeover(state, buyerId, targetId, notes = null) {
     target.absorbed = { by: buyer.id, t: state.t, price: chk.price, dismantled: true };
     onEliminated(state, target, buyer.id);
     news(state, `${buyer.name} rachète ${target.name}, sur la liste noire, pour la démanteler : sa flotte part à la casse.`, { company: buyer.id, kind: 'event' });
-    if (notes && target.human) notes.push({ kind: 'absorbed', company: target.id, other: buyer.id, text: `${buyer.name} a racheté votre compagnie pour ${M$(chk.price)} et la démantèle : vos navires partent à la casse. La partie est finie pour ${target.name}.` });
+    if (notes && target.human) notes.push({ kind: 'absorbed', company: target.id, other: buyer.id, text: `${buyer.name} a racheté votre compagnie pour ${money(chk.price)} et la démantèle : vos navires partent à la casse. La partie est finie pour ${target.name}.` });
     if (notes && buyer.human) notes.push({ kind: 'takeover', company: buyer.id, other: target.id, text: `${target.name} est démantelée : sa flotte part à la casse.` });
     return { ok: true, price: chk.price, ships: 0, dismantled: true };
   }
   // Argent : le prix aux actionnaires ; les liquidités et les dettes de la cible passent au racheteur.
-  money(state, buyer, -chk.price, 'rachats');
-  money(state, buyer, target.cash, 'rachats');
+  book(state, buyer, -chk.price, 'rachats');
+  book(state, buyer, target.cash, 'rachats');
   buyer.debt += target.debt;
   // Navires, commandes, contrats en cours, paiements à encaisser.
   for (const s of state.ships) if (s.owner === target.id) s.owner = buyer.id;
@@ -140,21 +140,21 @@ export function executeTakeover(state, buyerId, targetId, notes = null) {
   target.bankrupt = true;
   target.absorbed = { by: buyer.id, t: state.t, price: chk.price };
   onEliminated(state, target, buyer.id);
-  news(state, `${buyer.name} rachète ${target.name} pour ${M$(chk.price)} : sa flotte de ${pv.ships} navire(s) passe sous ses couleurs.`, { company: buyer.id, kind: 'event' });
+  news(state, `${buyer.name} rachète ${target.name} pour ${money(chk.price)} : sa flotte de ${pv.ships} navire(s) passe sous ses couleurs.`, { company: buyer.id, kind: 'event' });
   // Place financière qui a racheté une compagnie d'un pays sous embargo : amende, et expulsion vers ce pays.
   if (chk.embargo) {
     const e = chk.embargo, F = FLAGS[PORTS[e.port].flag];
-    money(state, buyer, -e.fine, 'sinistres');
+    book(state, buyer, -e.fine, 'sinistres');
     buyer.homePort = e.port; buyer.flag = PORTS[e.port].flag;
     const base = F.rating * 0.5 + 25;
     changeTrust(buyer, (standing(buyer).confidence * 0.7 + base * 0.3) - buyer.confidence, 'changement de pavillon');
     changeVirtue(buyer, (buyer.virtue * 0.7 + base * 0.3) - buyer.virtue - HOME.embargoVirtue, 'douanes et amendes');
-    news(state, `Sanctions : ${buyer.name} paie ${M$(e.fine)} d'amende pour avoir racheté une compagnie de ${F.name}, et doit quitter sa place financière : son siège part à ${PORTS[e.port].name}.`, { company: buyer.id, kind: 'event' });
-    if (notes && buyer.human) notes.push({ kind: 'info', company: buyer.id, text: `Sanctions : amende de ${M$(e.fine)} et expulsion. Votre siège est désormais à ${PORTS[e.port].name} (pavillon ${F.name}).` });
+    news(state, `Sanctions : ${buyer.name} paie ${money(e.fine)} d'amende pour avoir racheté une compagnie de ${F.name}, et doit quitter sa place financière : son siège part à ${PORTS[e.port].name}.`, { company: buyer.id, kind: 'event' });
+    if (notes && buyer.human) notes.push({ kind: 'info', company: buyer.id, text: `Sanctions : amende de ${money(e.fine)} et expulsion. Votre siège est désormais à ${PORTS[e.port].name} (pavillon ${F.name}).` });
   }
   if (notes) {
-    if (buyer.human) notes.push({ kind: 'takeover', company: buyer.id, other: target.id, text: `Vous avez racheté ${target.name} pour ${M$(chk.price)} : sa flotte de ${pv.ships} navire(s) rejoint la vôtre.` });
-    if (target.human) notes.push({ kind: 'absorbed', company: target.id, other: buyer.id, text: `${buyer.name} a racheté votre compagnie pour ${M$(chk.price)}. Vos actionnaires ont vendu : la partie est finie pour ${target.name}.` });
+    if (buyer.human) notes.push({ kind: 'takeover', company: buyer.id, other: target.id, text: `Vous avez racheté ${target.name} pour ${money(chk.price)} : sa flotte de ${pv.ships} navire(s) rejoint la vôtre.` });
+    if (target.human) notes.push({ kind: 'absorbed', company: target.id, other: buyer.id, text: `${buyer.name} a racheté votre compagnie pour ${money(chk.price)}. Vos actionnaires ont vendu : la partie est finie pour ${target.name}.` });
   }
   return { ok: true, price: chk.price, ships: pv.ships };
 }
@@ -167,8 +167,8 @@ export function makeBid(state, buyerId, targetId, notes = null) {
   if (!target.human) return executeTakeover(state, buyerId, targetId, notes);
   const bid = { id: state.nextId++, by: buyerId, target: targetId, price: chk.price, t: state.t, until: state.t + TAKEOVER.bidDays * D, status: 'pending', asked: false };
   (state.bids ??= []).push(bid);
-  news(state, `${buyer.name} fait une offre de rachat sur ${target.name} : ${M$(chk.price)}.`, { company: buyer.id, kind: 'event' });
-  (notes || (state.queuedNotes ??= [])).push({ kind: 'bid', company: targetId, bidId: bid.id, text: `${buyer.name} propose ${M$(chk.price)} à vos actionnaires pour racheter votre compagnie. Sans réaction, la vente se fera dans ${TAKEOVER.bidDays} jours si l'offre tient toujours.` });
+  news(state, `${buyer.name} fait une offre de rachat sur ${target.name} : ${money(chk.price)}.`, { company: buyer.id, kind: 'event' });
+  (notes || (state.queuedNotes ??= [])).push({ kind: 'bid', company: targetId, bidId: bid.id, text: `${buyer.name} propose ${money(chk.price)} à vos actionnaires pour racheter votre compagnie. Sans réaction, la vente se fera dans ${TAKEOVER.bidDays} jours si l'offre tient toujours.` });
   return { ok: true, bid };
 }
 
@@ -215,7 +215,7 @@ export function takeoverDaily(state, notes) {
     const before = c.buyersSeen || [];
     for (const id of able) if (!before.includes(id)) {
       const o = state.companies[id];
-      notes.push({ kind: 'takeoverRisk', company: c.id, other: id, text: `${o.name} a désormais les moyens de racheter votre compagnie (${M$(takeoverPrice(state, c, o))}). Pour vous protéger : une meilleure confiance (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.` });
+      notes.push({ kind: 'takeoverRisk', company: c.id, other: id, text: `${o.name} a désormais les moyens de racheter votre compagnie (${money(takeoverPrice(state, c, o))}). Pour vous protéger : une meilleure confiance (elle multiplie votre prix), un niveau supérieur au sien, ou une valeur nette qui grandit plus vite que sa trésorerie.` });
     }
     c.buyersSeen = able;
   }

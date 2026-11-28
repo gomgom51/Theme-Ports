@@ -8,13 +8,13 @@ import { COUNTRIES } from './data/countries.js';
 import { FLAGS, PORTS } from './data/ports.js';
 import { CLIENTS } from './data/clients.js';
 import { SHIP_NAMES, CAPTAIN_NAMES } from './data/ships.js';
+import { KEYS, read, write } from './ui/storage.js';
 
-const KEY = 'pda-lang';
 export const LANGS = { fr: 'Français', en: 'English' };
 let lang = detect();
 
 function detect() {
-  try { const s = localStorage.getItem(KEY); if (s && s in LANGS) return s; } catch { /* stockage indisponible */ }
+  const s = read(KEYS.lang); if (s && s in LANGS) return s;
   const n = (typeof navigator !== 'undefined' && navigator.language) || 'fr';
   return n.toLowerCase().startsWith('fr') ? 'fr' : 'en';
 }
@@ -306,6 +306,7 @@ function englishFormats(s) {
     .replace(RE_SHORT, (_, d, m) => `${d} ${SHORT[m]}`)
     .replace(/(\d),(\d)/g, '$1.$2')
     .replace(new RegExp(`(\\d)${SP}(?=\\d{3}(?!\\d))`, 'g'), '$1,')
+    .replace(new RegExp(`([+−-]?)(\\d[\\d.,]*)${SP}?Md\\$`, 'g'), '$1$$$2B')
     .replace(new RegExp(`([+−-]?)(\\d[\\d.,]*)${SP}?([kM])\\$`, 'g'), '$1$$$2$3')
     .replace(new RegExp(`([+−-]?)(\\d[\\d.,]*)${SP}?\\$`, 'g'), '$1$$$2')
     .replace(new RegExp(`(\\d)${SP}%`, 'g'), '$1%')
@@ -483,7 +484,7 @@ export function initI18n() {
 export function setLang(l) {
   if (!(l in LANGS) || l === lang) return;
   lang = l;
-  try { localStorage.setItem(KEY, l); } catch { /* stockage indisponible */ }
+  write(KEYS.lang, l);
   cache.clear();
   document.documentElement.lang = l;
   if (l === 'fr') { observer?.disconnect(); observer = null; restore(document.body); } else { walk(document.body); watch(); }

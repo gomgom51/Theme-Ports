@@ -14,18 +14,18 @@ import { SHIP_ART } from './shipshapes.js';
 import { logoMarkup, emblemInk } from './logos.js';
 import { pixelRatio } from './scale.js';
 import { reducedMotion as reduceMotion } from './motion.js';
+import { KEYS, read, write } from './storage.js';
 
 // ---------- Réglage du joueur ----------
-const STYLE_KEY = 'pda-ship-style';
 let style = null;
 export function shipStyle() {
   if (style) return style;
-  try { style = localStorage.getItem(STYLE_KEY) === 'chunky' ? 'chunky' : 'fine'; } catch { style = 'fine'; }
+  style = read(KEYS.shipStyle) === 'chunky' ? 'chunky' : 'fine';
   return style;
 }
 export function setShipStyle(s) {
   style = s === 'chunky' ? 'chunky' : 'fine';
-  try { localStorage.setItem(STYLE_KEY, style); } catch { /* stockage indisponible */ }
+  write(KEYS.shipStyle, style);
   cache.clear();
   repaintAll();
 }

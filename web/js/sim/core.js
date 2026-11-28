@@ -25,7 +25,7 @@ export const emptyBook = () => Object.fromEntries(Object.keys(BOOK_LABELS).map((
 export const bookTotal = (b) => Object.values(b).reduce((s, v) => s + v, 0);
 
 // `ship` : le navire concerné, s'il y en a un (ses comptes à lui, pour le juger seul).
-export function money(state, company, amount, category, ship = null) {
+export function book(state, company, amount, category, ship = null) {
   company.cash += amount;
   company.month[category] = (company.month[category] || 0) + amount;
   company.total[category] = (company.total[category] || 0) + amount;

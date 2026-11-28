@@ -3,12 +3,13 @@
 // détention, marée noire, et les événements mondiaux de scenes-world.js).
 // Un son facultatif par scène : sons/scene-<nom>.mp3.
 import { h } from './dom.js';
-import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, box, cloud, disc, smoke, flame } from './pixel.js';
+import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, cloud, disc, smoke, flame } from './pixel.js';
 import { WORLD_SCENES } from './scenes-world.js';
 import { HONOUR_SCENES } from './scenes-honours.js';
 const sea_ = (...a) => sea(...a); // (la variable « sea » sert aussi de drapeau dans les scènes des glaces)
 import { SHIP_TYPES } from '../data/ships.js';
 import { getLang } from '../i18n.js';
+import { KEYS, readFlag, writeFlag } from './storage.js';
 import { sceneShip } from './sceneship.js';
 import { drawOfficeShot, officeLeft } from './officescene.js';
 
@@ -1304,6 +1305,5 @@ export function showScene(app, kind, { title, text = '', content = null, color =
 }
 
 // Préférence : illustrations des événements (oui par défaut).
-const KEY = 'pda-scenes';
-export function scenesOn() { try { return localStorage.getItem(KEY) !== '0'; } catch { return true; } }
-export function setScenesOn(on) { try { localStorage.setItem(KEY, on ? '1' : '0'); } catch { /* stockage indisponible */ } }
+export const scenesOn = () => readFlag(KEYS.scenes, true);
+export const setScenesOn = (on) => writeFlag(KEYS.scenes, on);

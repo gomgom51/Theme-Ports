@@ -8,7 +8,7 @@ import { pointsEarned, XP_STEPS } from '../sim/crew.js';
 import * as P from '../sim/plots.js';
 import * as TK from '../sim/takeover.js';
 import { crossesLine, BLACKLIST } from '../sim/shadow.js';
-import { h, money, date, pct, dialog, confirmBox, toast } from './dom.js';
+import { h, money, dec, date, pct, dialog, confirmBox, toast } from './dom.js';
 import { logoBadge } from './logos.js';
 
 const badge = (c, size = 34) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
@@ -89,7 +89,7 @@ export async function takeoverDialog(app, targetId) {
     return;
   }
   const ok = await confirmBox(`Racheter ${c.name} ?`, h('div', [
-    h('p', `Prix : ${money(pv.price)} payés comptant (valeur nette ${money(pv.worth)} × ${(1 + (c.confidence ?? c.reputation) / TK.TAKEOVER.repK).toFixed(2).replace('.', ',')} pour sa confiance).`),
+    h('p', `Prix : ${money(pv.price)} payés comptant (valeur nette ${money(pv.worth)} × ${dec(1 + (c.confidence ?? c.reputation) / TK.TAKEOVER.repK, 2)} pour sa confiance).`),
     h('p', `Vous reprenez ${pv.ships} navire(s), ses commandes et ses contrats, ${money(pv.cash)} de liquidités et ${money(pv.debt)} de dettes.`),
     h('p', [`Votre confiance passerait de ${Math.floor(state.companies[me].confidence ?? 0)} à environ ${Math.floor(pv.confidence)}, votre vertu de ${Math.floor(state.companies[me].virtue ?? 0)} à environ ${Math.floor(pv.virtue)}.`, pv.infamy > (state.companies[me].infamy || 0) + 0.5 ? ' Vous hériteriez aussi d\'une part de son infamie.' : null]),
     crossesLine(state.companies[me], pv.infamy - (state.companies[me].infamy || 0)) ? h('p.warn-text', `⛔ Son infamie porterait la vôtre à ${Math.round(pv.infamy)} : à ${BLACKLIST.infamy}, votre compagnie entrerait sur la liste noire internationale, pour toujours.`) : null,

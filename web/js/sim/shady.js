@@ -6,13 +6,14 @@
 import { HOME, homeKind, homeOf, shadowHome, lenderParcel } from './home.js';
 import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { EMBARGOED, ENFORCING, customsLevel, corruption, CONCEALMENT, SHADY_PORTS } from '../data/sanctions.js';
-import { money, news, changeVirtue, portName, shipLog, shipById, companyOf, costStat } from './core.js';
+import { book, news, changeVirtue, portName, shipLog, shipById, companyOf, costStat } from './core.js';
 import { HOURS_PER_DAY, formatDate } from './util.js';
 import { equipMod } from './equipment.js';
 import { onDirty, onEmbargoTrade, onStain, onParcel } from './honours.js';
 import { tipped, tipReward, TIP_DETECT } from './plots.js';
 import { skillConceal } from './crew.js';
 import { addTrust, parcelNature, scheduleAftermath } from './dark.js';
+import { money } from './format.js';
 
 const D = HOURS_PER_DAY;
 export const TAINT_DAYS = 365;
@@ -51,14 +52,14 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   const risk = sanctionRisk(state, ship, port);
   if (!risk || !rng.chance(risk.odds)) return null;
   const company = companyOf(state, ship);
-  money(state, company, -risk.fine, 'sinistres', ship);
+  book(state, company, -risk.fine, 'sinistres', ship);
   costStat(state, 'sanctions', risk.fine);
   onStain(state, company);
   if (company.ai) company.ai.noEmbargoUntil = state.t + 365 * D; // l'ordinateur retient la leçon un an
   changeVirtue(company, -8, 'douanes et amendes');
   ship.taint = null;
   const from = FLAGS[PORTS[risk.taint.port].flag].name;
-  const text = `${FLAGS[PORTS[port].flag].name} sanctionne le ${ship.name} pour commerce avec un pays sous embargo (${from}) : amende de ${(risk.fine / 1e6).toFixed(2).replace('.', ',')} M$.`;
+  const text = `${FLAGS[PORTS[port].flag].name} sanctionne le ${ship.name} pour commerce avec un pays sous embargo (${from}) : amende de ${money(risk.fine)}.`;
   news(state, text, { company: company.id, kind: 'disaster' });
   onNote?.('sanction', text);
   return risk;
@@ -169,7 +170,7 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
       (state.cases ??= []).push(c);
       ship.busyWhat = 'saisie';
       ship.busyUntil = state.t + 60 * D; // en attente de votre décision
-      onNote?.('customs', `La douane de ${portName(port)} a trouvé le colis caché à bord du ${ship.name} ! Amende de ${(fine / 1e6).toFixed(2).replace('.', ',')} M$ et ${days} jours d'immobilisation… à moins qu'un arrangement soit possible.`, { caseId: c.id });
+      onNote?.('customs', `La douane de ${portName(port)} a trouvé le colis caché à bord du ${ship.name} ! Amende de ${money(fine)} et ${days} jours d'immobilisation… à moins qu'un arrangement soit possible.`, { caseId: c.id });
       return { caught: true, pending: c };
     }
     applySeizure(state, ship, company, port, fine, days, onNote);
@@ -177,25 +178,25 @@ export function contrabandOnArrival(state, rng, ship, port, onNote) {
   }
   if (port === cb.to) {
     ship.contraband = null;
-    money(state, company, cb.pay, 'discret', ship);
+    book(state, company, cb.pay, 'discret', ship);
     shipLog(state, ship, `Colis discret livré à ${portName(port)}`);
     onParcel(state, company);
     lenderParcel(state, company); // prêteur de l'ombre : quota de colis
     addTrust(company, cb.from); // les gangs d'un port sous embargo commencent à vous faire confiance
     scheduleAftermath(state, rng, company, port, cb.nature); // ce qu'il contenait finira peut-être dans les nouvelles
-    onNote?.('paid', `Le colis caché à bord du ${ship.name} a été remis à ${portName(port)} : ${Math.round(cb.pay / 1000).toLocaleString('fr-FR')} k$ en liquide.`, { amount: cb.pay, parcel: true });
+    onNote?.('paid', `Le colis caché à bord du ${ship.name} a été remis à ${portName(port)} : ${money(cb.pay)} en liquide.`, { amount: cb.pay, parcel: true });
     return { delivered: true };
   }
   return null;
 }
 function applySeizure(state, ship, company, port, fine, days, onNote) {
   onStain(state, company);
-  money(state, company, -fine, 'sinistres', ship);
+  book(state, company, -fine, 'sinistres', ship);
   costStat(state, 'douane', fine);
   changeVirtue(company, -15, 'douanes et amendes');
   ship.busyWhat = 'saisie';
   ship.busyUntil = Math.max(ship.busyUntil || 0, state.t) + days * D;
-  const text = `La douane de ${portName(port)} saisit un colis de contrebande à bord du ${ship.name} (${company.name}) : amende de ${(fine / 1e6).toFixed(2).replace('.', ',')} M$, navire immobilisé ${days} jours.`;
+  const text = `La douane de ${portName(port)} saisit un colis de contrebande à bord du ${ship.name} (${company.name}) : amende de ${money(fine)}, navire immobilisé ${days} jours.`;
   news(state, text, { company: company.id, kind: 'disaster' });
   onNote?.('detention', text, { seizure: true });
 }
@@ -209,7 +210,7 @@ export function resolveCase(state, rng, caseId, choice) {
   if (!ship) return { ok: true };
   ship.busyUntil = state.t;
   if (choice === 'soudoyer') {
-    money(state, company, -c.bribe, 'discret', ship);
+    book(state, company, -c.bribe, 'discret', ship);
     if (rng.chance(c.chance)) {
       changeVirtue(company, -2, 'douanes et amendes');
       ship.busyUntil = state.t + 12;

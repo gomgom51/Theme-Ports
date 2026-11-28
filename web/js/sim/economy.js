@@ -8,6 +8,7 @@ import { clientRel, clientDown, clientDemand, reserveFor, RESERVE_DAYS, RESERVE_
 import { EMBARGOED } from '../data/sanctions.js';
 import { clamp, HOURS_PER_DAY, formatDate } from './util.js';
 import { isSeasonal, iceOpen, iceRisk, ICE, ICE_SHIP } from './ice.js';
+import { money, num } from './format.js';
 
 export const FUEL_BASE = 620;          // $/t de fuel quand le cours des raffinés est à 1
 export const HOLD_TYPES = ['vrac', 'liquide', 'divers', 'conteneurs', 'chimique', 'gpl', 'gnl', 'vehicules', 'frigo', 'lourd'];
@@ -427,7 +428,7 @@ function announceGolden(state, c) {
   for (const co of state.companies) {
     if (!co.human || co.bankrupt) continue;
     const ship = state.ships.find((s) => s.owner === co.id && s.status === 'port' && s.port === c.from);
-    (state.queuedNotes ??= []).push({ kind: 'golden', company: co.id, shipId: ship?.id ?? null, contractId: c.id, port: c.from, text: `Affaire en or à ${PORTS[c.from].name} : ${Math.round(c.pay / 1000).toLocaleString('fr-FR')} k$ pour ${c.qty.toLocaleString('fr-FR')} t de ${GOODS[c.good].name.toLowerCase()} vers ${PORTS[c.to].name}. Offre valable jusqu'au ${formatDate(c.expires, true)}.` });
+    (state.queuedNotes ??= []).push({ kind: 'golden', company: co.id, shipId: ship?.id ?? null, contractId: c.id, port: c.from, text: `Affaire en or à ${PORTS[c.from].name} : ${money(c.pay)} pour ${num(c.qty)} t de ${GOODS[c.good].name.toLowerCase()} vers ${PORTS[c.to].name}. Offre valable jusqu'au ${formatDate(c.expires, true)}.` });
   }
 }
 export function refreshContracts(state, ctx, rng, fill = false) {

@@ -8,7 +8,7 @@ import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName, trus
 import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
-import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
+import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks, pctOf } from './ui/dom.js';
 import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine, animationsOn, setAnimationsOn, applyMotionClass } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
@@ -48,15 +48,28 @@ import { heldDialog } from './ui/plots.js';
 import { initTooltips } from './ui/tooltip.js';
 import { initBossKey } from './ui/boss.js';
 import { initScale, localRect, UI_SIZES, uiSize, setUiSize } from './ui/scale.js';
+import { KEYS, read, write } from './ui/storage.js';
 
 const HOURS_PER_SECOND = [0, 3, 8, 24];
 // Vitesse par défaut, choisie par le joueur (double-clic sur ▶, ▶▶ ou ▶▶▶) et gardée sur l'appareil : c'est à elle que
 // le temps repart, quelle que soit la cause (fenêtre fermée, Espace, dernier navire qui reçoit ses ordres).
-const SPEED_KEY = 'port-dattache-speed';
 function defaultSpeed() {
-  try { const v = +localStorage.getItem(SPEED_KEY); return v >= 1 && v <= 3 ? v : 1; } catch { return 1; }
+  const v = +read(KEYS.speed);
+  return v >= 1 && v <= 3 ? v : 1;
 }
-function setDefaultSpeed(v) { try { localStorage.setItem(SPEED_KEY, String(v)); } catch { /* stockage indisponible */ } }
+const setDefaultSpeed = (v) => write(KEYS.speed, v);
+// Sauvegarde automatique : si le stockage est plein ou bloqué, le joueur est prévenu une fois (jusqu'à la
+// prochaine sauvegarde réussie), avec de quoi garder sa partie dans un fichier quand c'est possible.
+let autoSaveWarned = false;
+function autoSave(state) {
+  if (saveGame(state, 'auto')) { autoSaveWarned = false; return; }
+  if (autoSaveWarned) return;
+  autoSaveWarned = true;
+  toast('Sauvegarde automatique impossible (stockage plein ou bloqué) : la partie n\'est pas enregistrée.', {
+    kind: 'bad', timeout: 0,
+    ...(app.canImport ? { action: 'Exporter un fichier', onAction: () => exportFile(app.state) } : {}),
+  });
+}
 // Pause automatique : navire qui attend des ordres (arrivé à vide, déchargement terminé…) ou coup dur.
 // L'arrivée d'un navire qui décharge ne met plus en pause : la cloche suffit.
 const INCIDENT_SCENES = { incendie: 'fire', abordage: 'collision', echouement: 'grounding', voie_eau: 'leak', machine: 'breakdown', froid: 'reefer', gros_temps: 'storm' };
@@ -710,7 +723,7 @@ function handleNotes(notes) {
         if (v === 'go') { app.open('ship', n.shipId, 'depart'); app.focusShip(n.shipId); return true; } // le temps reste arrêté pendant le choix
         return false;
       };
-      const buttons = [{ label: 'Désarmer pour l\'hiver', value: 'layup', kind: 'ghost' }, { label: `Brise-glace (${Math.round(escortFee(ship) / 1000)} k$)`, value: 'go', kind: 'primary' }];
+      const buttons = [{ label: 'Désarmer pour l\'hiver', value: 'layup', kind: 'ghost' }, { label: `Brise-glace (${money(escortFee(ship))})`, value: 'go', kind: 'primary' }];
       toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Voir', onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); app.open('ship', n.shipId); app.focusShip(n.shipId); } });
       if (scenes) playScene('icecaught', sceneOpts(n, { variant: shipKind(ship.type), buttons }), choose);
       else popup(async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); return dialog({ title: 'Pris par les glaces', body: h('p', n.text), buttons }); }, choose);
@@ -720,7 +733,7 @@ function handleNotes(notes) {
       if (app.state.settings.autoPause) paused = true;
       continue;
     }
-    if (n.kind === 'over') { app.speed = 0; unlockEarned(app.state); saveGame(app.state, 'auto'); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
+    if (n.kind === 'over') { app.speed = 0; unlockEarned(app.state); autoSave(app.state); endScreen(app); app.mode = 'end'; app.audio.setScene('end'); return true; }
     if (n.kind === 'event') {
       toast(`📰 ${n.text}`, { timeout: 9000 });
       if (scenes && EVENT_SCENES[n.id]) playScene(EVENT_SCENES[n.id], { title: n.title, text: n.body, variant: n.variant, color: companyColor() });
@@ -999,7 +1012,7 @@ function loop(now) {
       const day = Math.floor(app.state.t / HOURS_PER_DAY);
       const notes = tick(app.state, ctx, 1);
       if (notes.length) changed = true;
-      if (Math.floor(app.state.t / HOURS_PER_DAY) !== day && (app.state.t / HOURS_PER_DAY) % 7 === 0) saveGame(app.state, 'auto');
+      if (Math.floor(app.state.t / HOURS_PER_DAY) !== day && (app.state.t / HOURS_PER_DAY) % 7 === 0) autoSave(app.state);
       if (notes.length && handleNotes(notes)) { acc = 0; break; }
     }
     if ((changed || now - lastRefresh > 1200) && now - lastInteraction > 2500 && !document.querySelector('.dialog-wrap')) {
@@ -1042,7 +1055,7 @@ app.newGame = (opts) => {
   const state = newGame(opts, ctx);
   if (opts.guide) startGuide(state);
   enterGame(state);
-  saveGame(state, 'auto');
+  autoSave(state);
   const humans = state.companies.filter((c) => c.human);
   // Visite guidée : un mot d'accueil, puis les bulles prennent le relais.
   if (opts.guide) {
@@ -1093,7 +1106,7 @@ app.importSave = async () => {
 };
 
 app.toTitle = () => {
-  if (app.state && app.mode === 'game') saveGame(app.state, 'auto');
+  if (app.state && app.mode === 'game') autoSave(app.state);
   document.querySelectorAll('.scene-wrap').forEach((w) => w.remove());
   app.mode = 'title';
   app.state = null;
@@ -1117,18 +1130,17 @@ app.continueEndless = () => {
 // ---------- Menu ----------
 // Son : volume général, puis musique, ambiance et bruitages (à zéro, la piste est coupée).
 const SOUND_ROWS = [['master', 'Général'], ['music', 'Musique'], ['ambience', 'Ambiance'], ['sfx', 'Bruitages']];
-const pct = (v) => `${Math.round(v * 100)} %`;
 function soundLabel() {
   const a = app.audio;
-  return a.level('master') && ['music', 'ambience', 'sfx'].some((k) => a.level(k)) ? pct(a.level('master')) : 'coupé';
+  return a.level('master') && ['music', 'ambience', 'sfx'].some((k) => a.level(k)) ? pctOf(a.level('master')) : 'coupé';
 }
 function soundDialog() {
   const a = app.audio;
   const rows = SOUND_ROWS.map(([kind, label]) => {
-    const out = h('span.vol-val', pct(a.level(kind)));
+    const out = h('span.vol-val', pctOf(a.level(kind)));
     const slider = h('input.range', {
       type: 'range', min: 0, max: 100, step: 5, value: Math.round(a.level(kind) * 100), 'aria-label': label,
-      oninput: () => { a.setLevel(kind, slider.value / 100); out.textContent = pct(a.level(kind)); },
+      oninput: () => { a.setLevel(kind, slider.value / 100); out.textContent = pctOf(a.level(kind)); },
       onchange: () => { if (kind === 'sfx' || kind === 'master') a.play('bell'); }, // aperçu au relâché
     });
     return [h('span', label), slider, out];
@@ -1209,13 +1221,13 @@ window.handleBack = () => {
   if (scr.classList.contains('setup')) { titleScreen(app); return true; }
   return false;
 };
-const pauseAndSave = () => { if (app.mode === 'game' && app.state) { app.speed = 0; saveGame(app.state, 'auto'); } };
+const pauseAndSave = () => { if (app.mode === 'game' && app.state) { app.speed = 0; autoSave(app.state); } };
 window.onAppPause = () => { pauseAndSave(); app.audio.suspend(); };
 window.onAppResume = () => app.audio.resume();
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { pauseAndSave(); app.audio.suspend(); } else app.audio.resume();
 });
-window.addEventListener('beforeunload', () => { if (app.mode === 'game' && app.state) saveGame(app.state, 'auto'); });
+window.addEventListener('beforeunload', () => { if (app.mode === 'game' && app.state) autoSave(app.state); });
 
 // Version navigateur : installable comme une application et jouable hors ligne.
 if ('serviceWorker' in navigator && !isAndroid() && (location.protocol === 'https:' || location.hostname === 'localhost')) {

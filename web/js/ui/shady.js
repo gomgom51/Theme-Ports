@@ -5,18 +5,17 @@ import { PORTS, FLAGS } from '../data/ports.js';
 import { EMBARGOED, ENFORCING, SHADY_PORTS, customsLevel, corruption } from '../data/sanctions.js';
 import { portName } from '../sim/core.js';
 import { detectionChance, seizureFine, sanctionRisk, sanctionPreview, taintActive, isEmbargoed, acceptOffer, resolveCase, TAINT_DAYS, proposeParcel, acceptProposal } from '../sim/shady.js';
-import { h, money, date, dialog, toast } from './dom.js';
+import { h, money, date, dialog, toast, dec } from './dom.js';
 import { flagEl } from './flags.js';
 import { showScene, scenesOn } from './scenes.js';
 import { sceneShipOf } from './sceneship.js';
 import { concealEl } from './shiproles.js';
 import { hasEquip, equipOff } from '../sim/equipment.js';
 
-const fr = (x, d = 0) => x.toLocaleString('fr-FR', { maximumFractionDigits: d, minimumFractionDigits: d });
 // Le risque, dit par l'équipage : avis général, arrondi, ou précis selon son expérience.
 export function riskWords(p, crewLevel) {
-  if (crewLevel >= 2) return `${fr(p * 100, p < 0.1 ? 1 : 0)} %`;
-  if (crewLevel === 1) return `≈ ${fr(Math.max(5, Math.round(p * 20) * 5))} %`;
+  if (crewLevel >= 2) return `${dec(p * 100, p < 0.1 ? 1 : 0)} %`;
+  if (crewLevel === 1) return `≈ ${dec(Math.max(5, Math.round(p * 20) * 5))} %`;
   return p < 0.1 ? 'faible' : p < 0.2 ? 'réel' : 'élevé';
 }
 const levelClass = (p) => (p >= 0.2 ? 'neg' : p >= 0.1 ? 'warn-text' : '');

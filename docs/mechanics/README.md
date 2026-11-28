@@ -32,6 +32,7 @@ It exists so that a new task can start here instead of re-reading 30 simulation 
 | 15 | [victories-honours.md](15-victories-honours.md) | Office levels, deeds, records, misdeeds, the four victories and their alerts, end of game | `sim/victory.js`, `sim/honours.js`, `data/offices.js` |
 | 16 | [ai.md](16-ai.md) | How AI companies decide (ship idle loop, daily fleet/treasury, leanings), every AI-only knob | `sim/ai.js` + AI branches elsewhere |
 | — | [../balance/README.md](../balance/README.md) | Balance simulation: comparing two versions of the game on the same seeds (population, strategies, fleet, victories) | `tools/balance/compare.mjs`, `tools/balance/population.mjs` |
+| — | [../code-health.md](../code-health.md) | Code rules: where shared helpers live (formats, storage, save upgrades), what `tools/code-check.mjs` enforces, known debt | `sim/format.js`, `ui/storage.js`, `sim/migrations.js`, `tools/code-check.mjs` |
 
 ## How the systems connect
 

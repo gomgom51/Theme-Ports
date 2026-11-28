@@ -3,7 +3,7 @@ import { CLIENTS, STYLE_LABEL, stars } from '../data/clients.js';
 import { GOODS } from '../data/goods.js';
 import { portName } from '../sim/core.js';
 import { resolution, collect, paymentBase } from '../sim/payments.js';
-import { h, money, tonnes, date, dialog, dropToasts } from './dom.js';
+import { h, money, tonnes, date, dialog, dropToasts, chance } from './dom.js';
 import { artForShip } from './shipart.js';
 import { gradeEl } from './grade.js';
 import { logoBadge } from './logos.js';
@@ -31,16 +31,15 @@ export function clientLine(state, company, clientId) {
 }
 
 // Les risques à l'encaissement, chiffrés, avant d'accepter le contrat.
-const pc = (x) => (x > 0 && x < 0.005 ? '< 1 %' : `${Math.round(x * 100)} %`);
 export function riskLine(state, company, clientId, pay) {
   if (!CLIENTS[clientId]) return null;
   const r = paymentRisk(state, company, clientId);
   return h('div.card-sub.pay-risk', [
     'À l\'encaissement : ',
     h('span', { class: r.bankrupt >= 0.02 ? 'neg' : '', title: 'Le chargeur fait faillite : vous ne touchez que 20 à 50 % du fret.' },
-      r.bankrupt >= 0.005 ? `impayé ${pc(r.bankrupt)} (perte de ${money(pay * 0.5)} à ${money(pay * 0.8)})` : `impayé ${pc(r.bankrupt)}`),
-    ' · ', h('span', { title: 'Le chargeur conteste et retient 5 à 20 % du fret ; vous pouvez porter l\'affaire en arbitrage.' }, `litige ${pc(r.dispute)}`),
-    ' · ', h('span', { title: 'Le chargeur paie 15 à 45 jours plus tard.' }, `retard de paiement ${pc(r.defer)}`),
+      r.bankrupt >= 0.005 ? `impayé ${chance(r.bankrupt)} (perte de ${money(pay * 0.5)} à ${money(pay * 0.8)})` : `impayé ${chance(r.bankrupt)}`),
+    ' · ', h('span', { title: 'Le chargeur conteste et retient 5 à 20 % du fret ; vous pouvez porter l\'affaire en arbitrage.' }, `litige ${chance(r.dispute)}`),
+    ' · ', h('span', { title: 'Le chargeur paie 15 à 45 jours plus tard.' }, `retard de paiement ${chance(r.defer)}`),
   ]);
 }
 

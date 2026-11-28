@@ -1,10 +1,9 @@
 // Avantage du port d'attache : étiquette (liste des ports) et encadré (choix du port, Bureau).
-import { h } from './dom.js';
+import { h, money, pctOf } from './dom.js';
 import { HOME, homeKind, takeoverDiscount, START_PORT, embargoedPort } from '../sim/home.js';
 import { SHADOW_LENDER } from '../sim/core.js';
 import { PORTS } from '../data/ports.js';
 
-const pctTxt = (x) => `${Math.round(x * 100)} %`;
 export function homeTag(port) {
   const k = homeKind(port);
   if (k === 'ombre') return h('span.tag.home-tag.shadow', { title: 'Port de l\'ombre : un coup de pouce vers la flotte fantôme' }, '💀 port de l\'ombre');
@@ -41,9 +40,9 @@ function kindBox(port, company) {
     const d = company ? takeoverDiscount(company) : null;
     return h('div.card.home-bonus.hub', [h('div.card-main', [
       h('div.card-title', '$ Place financière : vers « Seul maître à bord »'),
-      h('div.card-sub', `Banquiers et avocats sur place : racheter un concurrent coûte moins cher quand on a la confiance des marchés. Remise de 0 % à ${HOME.takeoverFrom} de confiance, jusqu'à ${pctTxt(HOME.takeoverMax)} à 100.`),
-      d != null ? h('div.card-sub', [h('span', 'Votre remise actuelle :'), ' ', h('b', pctTxt(d))]) : null,
-      h('div.card-sub.warn-text', `Revers : racheter une compagnie d'un pays sous embargo vous coûterait une amende (la moitié du prix, ${Math.round(HOME.embargoFineMin / 1e6)} M$ au moins) et l'expulsion : votre siège partirait dans ce pays.`),
+      h('div.card-sub', `Banquiers et avocats sur place : racheter un concurrent coûte moins cher quand on a la confiance des marchés. Remise de 0 % à ${HOME.takeoverFrom} de confiance, jusqu'à ${pctOf(HOME.takeoverMax)} à 100.`),
+      d != null ? h('div.card-sub', [h('span', 'Votre remise actuelle :'), ' ', h('b', pctOf(d))]) : null,
+      h('div.card-sub.warn-text', `Revers : racheter une compagnie d'un pays sous embargo vous coûterait une amende (la moitié du prix, ${money(HOME.embargoFineMin)} au moins) et l'expulsion : votre siège partirait dans ce pays.`),
     ])]);
   }
   if (k === 'famille') {

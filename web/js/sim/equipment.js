@@ -2,8 +2,9 @@
 import { EQUIPMENT } from '../data/equipment.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS } from '../data/ports.js';
-import { money, shipById, companyOf, shipLog, portName } from './core.js';
+import { book, shipById, companyOf, shipLog, portName } from './core.js';
 import { skillDefence } from './crew.js';
+import { money } from './format.js';
 
 const fail = (msg) => ({ ok: false, msg });
 export const hasEquip = (ship, id) => !!ship?.equipment?.includes(id);
@@ -51,8 +52,8 @@ export function installEquipment(state, shipId, id) {
   if (!canEquip(ship, id)) return fail('Inutile sur ce type de navire.');
   const company = companyOf(state, ship);
   const price = equipPrice(ship, id);
-  if (price > company.cash) return fail(`Il faut ${(price / 1e6).toFixed(2).replace('.', ',')} M$.`);
-  money(state, company, -price, 'reparations', ship);
+  if (price > company.cash) return fail(`Il faut ${money(price)}.`);
+  book(state, company, -price, 'reparations', ship);
   (ship.equipment ??= []).push(id);
   ship.busyWhat = 'installation';
   ship.busyUntil = state.t + E.hours;

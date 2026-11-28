@@ -11,10 +11,12 @@ web/                     static site (no build step), also wrapped by android/ (
   js/data/               static data: ports, flags, ships, goods, clients, equipment, offices,
                          sanctions, zones; generated: world.js, distances.js, countries.js
   js/ui/                 panels, map, scenes (pixel art), audio, saves, guide, credits
-tests/                   balance tools (node), see CLAUDE.md
+tests/                   balance tools (node), see CLAUDE.md; saves.test.mjs + saves/ (released games must load)
 tools/                   generators: build_world, build_distances, build_countries, i18n-extract;
                          i18n-check (guard: no French left in the English version),
-                         i18n-screens (same guard on the real screens, hidden browser)
+                         i18n-screens (same guard on the real screens, hidden browser),
+                         code-check (guard: storage, formats, dead code; rules in docs/code-health.md),
+                         save-fixture (makes a test save from any version of the game)
 docs/mechanics/          this reference
 ```
 
@@ -28,7 +30,8 @@ The other repository (`Rocket-to-planet`, "Fusée Planètes") is a separate kids
   starting trust = virtue = `rating × 0.5 + 25`, 3 market days, contracts, 3 starter contracts per
   home port (2 `caboteur` + 1 `polyvalent`, `minRep 0`), starter used ships at each (start) home port.
 - `tick(state, ctx, hours)` → `notes[]` for the UI. Runs `stepHour` per hour.
-- `migrateState(state)` upgrades old saves (`SAVE_VERSION = 3`).
+- Old saves are upgraded by `migrate(state)` in `sim/migrations.js` (`SAVE_VERSION = 3`, numbered `STEPS`,
+  `fillDefaults` for fields added over time and new ports/goods; rules in [code-health](../code-health.md)).
 - `ranking(state)` sorts by net worth.
 
 ### Order of one hour (`stepHour`)
@@ -160,10 +163,11 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `scale.js` | interface size: the game is laid out for 1920 × 1080 and grows with the screen (CSS `zoom` on `<html>`, factor `uiScale()` = max(1, min(width / 1920, height / 1080)) × the ☰ menu size: Petite 0.85, Normale 1, Grande 1.15, Très grande 1.3; 2560 × 1440 → 1.33). Rules: viewport units in `style.css` go through `--vw` / `--vh`; screen coordinates (`clientX`, `getBoundingClientRect`, `innerWidth`) are converted with `localRect()` / `viewport()` before setting a CSS position; a canvas inside the zoomed interface counts `pixelRatio()` device pixels per CSS px (`pixelship.js`); the map and the intro canvas are `.unzoom` (drawn 1:1 in screen pixels, the map reads `uiScale()` for its own sizes). Event `uiscale` on `window` when it changes |
 | `panelsize.js` | side panel width (owner's pick): about 40 % of the screen by default (`--panel-w`, clamp 560–820 px), and a brass drawer pull on its left edge to drag it wider or narrower (the map keeps at least 420 px); the width is remembered (`pda-panel-w`), a double-click restores the default. The pull hides while the drawer slides in (`gripAfter`). Toasts and the ticker follow `--panel-cur` |
 | `boss.js` | boss key (owner's call): `A` hides the game behind a bare world map (`html.boss` hides every element but `#map`, `MapView.setBare` drops ports, ships, routes, zones and ice), stops time (the main loop only draws the map), hushes sound (`AudioManager.hush`: the song resumes where it stopped, even if the window comes back to the front meanwhile), holds toast timers (`holdToasts` in `dom.js`), swallows every other key and titles the window "Carte du monde"; `A` again restores speed, panels, windows, toasts, volume and map view, instantly and without the pause bell. Ignored while typing, with Ctrl/Cmd, during the intro and the credits |
-| `profile.js` | player profile, shared by every save (today: jukebox unlocks). A track unlocks when heard, or as soon as a save reaches its milestone (`earnedTracks` in `jukebox.js`: office reached, net worth peak in `history`, brush with bankruptcy (net worth under 5 M$, banker warning, ship seized by the bank), blacklist, victory alerts, game over), checked on load, once per game day, and once over all save slots. The one place to change when the desktop build moves the profile to a file |
+| `profile.js` | player profile, shared by every save (today: jukebox unlocks). A track unlocks when heard, or as soon as a save reaches its milestone (`earnedTracks` in `jukebox.js`: office reached, net worth peak in `history`, brush with bankruptcy (net worth under 5 M$, banker warning, ship seized by the bank), blacklist, victory alerts, game over), checked on load, once per game day, and once over all save slots. Stored through `storage.js`, the one place to change when the desktop build moves to files |
 | `shipnames.js` | every boat name in Stardos Stencil (owner's call), including inside sentences: after translation, known ship names (fleet, broker, cumulated over the session) are wrapped in `span.nm` inside a `span.nm-text[data-no-tr]`; skip an element with `data-no-name`. On the map (canvas, `map.js` `label`), only the selected ship shows its name, in 15 px stencil × `uiScale()` (owner's call). The same pass makes every city name clickable (owner's call): French and English port names (plus « Havre », « Pirée » after au/du) become `span.city[data-port]`, green underline on hover; a click (capture phase, so a list row does not open) calls `app.focusPort` → `map.flashCity` (the map glides, zoom kept, when the city is off-screen or hidden by a panel, then a green halo and rings like `flashShip`'s gold ones) and a sonar `ping` (`sounds.js`, one clear note and its echo; `focusShip` plays the same one, owner's call). Not in action buttons (`.btn`, `.chip`, `.icon-btn`, `.opp-port`), links, labels or the title screens (`#screen`); `data-no-city` opts an element out. Company and captain names are matched first and left alone (a captain Valdez is not a link) |
 | `guide.js` | guided tour (keep `data-guide` markers) |
-| `save.js` | localStorage slots, export/import, `migrateState` on load |
+| `save.js` | save slots (through `storage.js`), export/import, `migrate` on load; `main.js` `autoSave` warns once if the autosave fails |
+| `storage.js` | the only module that touches localStorage: every key in `KEYS` (original names kept), guarded reads and writes |
 
 ## Tests and tools
 
@@ -173,3 +177,6 @@ See the "Balance tools" section of `CLAUDE.md`. `npm test` = routing + 3-year si
 `npm run balance` = fleet + strategies (final balance pass only). `npm run build:world` regenerates
 map, countries and distance tables. To measure what a change does to players, compare versions with
 `tools/balance/compare.mjs` (see `docs/balance/README.md`).
+
+`npm test` and CI also run `tools/code-check.mjs` (code rules: storage, formats, dead code, see `docs/code-health.md`)
+and `tests/saves.test.mjs` (every save in `tests/saves/`, made by a released version, loads and plays on).

@@ -13,7 +13,7 @@ import { PORTS, PORT_IDS } from '../data/ports.js';
 import { CLIENTS } from '../data/clients.js';
 import { corruption, SHADY_PORTS } from '../data/sanctions.js';
 import { HOURS_PER_DAY } from './util.js';
-import { money, news, changeReputation, changeVirtue, shipLog, shipsOf, portName, shipById, fleetValue, rivalsOf } from './core.js';
+import { book, news, changeReputation, changeVirtue, shipLog, shipsOf, portName, shipById, fleetValue, rivalsOf } from './core.js';
 import { formatDate } from './util.js';
 import { pointsEarned, pointsSpent, XP_STEPS, SKILL_IDS } from './crew.js';
 import * as eco from './economy.js';
@@ -21,10 +21,9 @@ import { VICTORY_KINDS, victoryOn, victoryProgress } from './victory.js';
 import { relationOf, clientRel, LOYAL } from './clients.js';
 import { PIRACY_ZONES, piracyZoneAt } from './piracy.js';
 import { onHostile } from './honours.js';
+import { money } from './format.js';
 
 const D = HOURS_PER_DAY;
-const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
-const M$ = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 export const PIRATE_DAYS = 60;
 export const CORRUPT_DAYS = 90;
 export const PIRATE_BOOST = 4; // attaques 4 fois plus probables pour les navires visés
@@ -77,10 +76,10 @@ export function orderPlot(state, rng, byId, { kind, target, zone, port }) {
   if (kind === 'pirates') { const z = zoneById(zone); if (!z) return { ok: false, msg: 'Zone inconnue.' }; price = piratePrice(z); }
   else if (kind === 'corruption') { if (!corruptiblePorts().includes(port)) return { ok: false, msg: 'Ces fonctionnaires ne se laissent pas acheter.' }; price = corruptPrice(port); }
   else return { ok: false, msg: 'Commande inconnue.' };
-  if (by.cash < price) return { ok: false, msg: `Il faut ${k$(price)} en caisse.` };
+  if (by.cash < price) return { ok: false, msg: `Il faut ${money(price)} en caisse.` };
   // Une seule affaire à la fois contre la même cible au même endroit (quel qu'en soit le commanditaire).
   if (activePlots(state).some((p) => p.target === target && p.kind === kind && (kind === 'pirates' ? p.zone === zone : p.port === port))) return { ok: false, msg: 'Quelqu\'un s\'en occupe déjà : la Mafia ne prend pas deux fois la même commande.' };
-  money(state, by, -price, 'divers');
+  book(state, by, -price, 'divers');
   onHostile(state, by, tg);
   const days = kind === 'pirates' ? PIRATE_DAYS : CORRUPT_DAYS;
   const plot = {
@@ -100,7 +99,7 @@ function scandal(state, p) {
   p.until = state.t; // les complices lâchent l'affaire
   if (!p.known.includes(p.target)) p.known.push(p.target);
   changeVirtue(by, -S.rep, 'scandales');
-  if (S.fine) money(state, by, -S.fine, 'sinistres');
+  if (S.fine) book(state, by, -S.fine, 'sinistres');
   if (p.kind === 'bank' && tg.creditCut?.plot === p.id) tg.creditCut = null;
   const sh = p.ship != null ? shipById(state, p.ship) : null;
   const what = {
@@ -114,7 +113,7 @@ function scandal(state, p) {
     crew: () => `d'avoir débauché l'équipage du ${sh?.name || 'navire'} de ${tg.name}`,
   }[p.kind]();
   news(state, `Scandale : ${by.name} est accusé ${what}.`, { company: by.id, kind: 'disaster' });
-  queue(state, by, 'scandal', S.fine ? `Scandale : votre coup contre ${tg.name} a été découvert. Vertu −${S.rep} et amende de ${M$(S.fine)}.` : `Scandale : votre coup contre ${tg.name} a été découvert. Vertu −${S.rep}.`);
+  queue(state, by, 'scandal', S.fine ? `Scandale : votre coup contre ${tg.name} a été découvert. Vertu −${S.rep} et amende de ${money(S.fine)}.` : `Scandale : votre coup contre ${tg.name} a été découvert. Vertu −${S.rep}.`);
   queue(state, tg, 'info', `On sait désormais qui vous visait : ${by.name}. L'affaire a fait scandale et ses complices ont renoncé.`);
 }
 
@@ -133,11 +132,11 @@ export function hireLawyer(state, shipId) {
   const pending = ship.heldBogus, active = ship.busyWhat === 'retenue';
   if (!pending && !active) return { ok: false, msg: 'Ce navire n\'est pas retenu.' };
   const price = pending ? pending.lawyer : ship.lawyer || lawyerPrice(Math.ceil((ship.busyUntil - state.t) / 24));
-  money(state, company, -price, 'divers');
+  book(state, company, -price, 'divers');
   if (pending) pending.hours = Math.min(pending.hours, 24);
   if (active) ship.busyUntil = Math.min(ship.busyUntil, state.t + 24);
   ship.lawyer = null;
-  shipLog(state, ship, `Avocat payé (${k$(price)}) : libération sous 24 h`);
+  shipLog(state, ship, `Avocat payé (${money(price)}) : libération sous 24 h`);
   return { ok: true, price };
 }
 
@@ -164,9 +163,9 @@ export function poachClient(state, rng, byId, clientId) {
   const tp = topPartner(state, clientId, byId);
   if (!by || !C || !tp) return { ok: false, msg: 'Ce chargeur n\'a pas de partenaire à qui le prendre.' };
   const price = poachPrice(state, clientId, tp.loyalty);
-  if (by.cash < price) return { ok: false, msg: `Il faut ${k$(price)} en caisse.` };
+  if (by.cash < price) return { ok: false, msg: `Il faut ${money(price)} en caisse.` };
   const rival = state.companies[tp.id];
-  money(state, by, -price, 'divers');
+  book(state, by, -price, 'divers');
   onHostile(state, by, rival);
   rival.clients[clientId].loyalty = 0;
   for (const c of state.contracts) if (c.client === clientId && c.reservedFor === rival.id && c.takenBy === null) { c.reservedFor = null; c.reservedUntil = 0; }
@@ -190,8 +189,8 @@ export function buyIntel(state, cid, port) {
   const company = state.companies[cid];
   if (!shipsOf(state, cid).some((s) => s.status === 'port' && s.port === port)) return { ok: false, msg: 'Il faut un navire à quai dans ce port.' };
   const price = intelPrice(port);
-  if (company.cash < price) return { ok: false, msg: `Il faut ${k$(price)} en caisse.` };
-  money(state, company, -price, 'divers');
+  if (company.cash < price) return { ok: false, msg: `Il faut ${money(price)} en caisse.` };
+  book(state, company, -price, 'divers');
   const plots = plotsAgainst(state, cid);
   for (const p of plots) if (!p.known.includes(cid)) p.known.push(cid);
   const traffickers = state.ships.filter((s) => s.owner !== cid && s.contraband && !state.companies[s.owner].bankrupt)
@@ -215,8 +214,8 @@ export function tipReward(state, ship, fine) {
   ship.tip = null;
   if (!by || by.bankrupt) return;
   const reward = Math.round(fine * TIP_REWARD / 1000) * 1000;
-  money(state, by, reward, 'divers');
-  queue(state, by, 'paid', `Votre tuyau a payé : la douane a saisi le colis du ${ship.name}. Prime d'informateur : ${k$(reward)}.`, { amount: reward });
+  book(state, by, reward, 'divers');
+  queue(state, by, 'paid', `Votre tuyau a payé : la douane a saisi le colis du ${ship.name}. Prime d'informateur : ${money(reward)}.`, { amount: reward });
 }
 export function jettison(state, shipId) {
   const ship = state.ships.find((s) => s.id === shipId);
@@ -287,7 +286,7 @@ export function attackCheck(state, byId, kind, { target, ship, client, port, toS
   if (kind === 'pricewar' && !PORTS[port]) return 'Port inconnu.';
   const same = activePlots(state).find((p) => p.kind === kind && p.target === target && (p.ship ?? null) === (ship ?? null) && (p.port ?? null) === (port ?? null) && (p.client ?? null) === (client ?? null));
   if (same) return 'Une affaire de ce genre le vise déjà.';
-  if (by.cash < attackPrice(state, kind, { target, ship, port })) return `Il faut ${k$(attackPrice(state, kind, { target, ship, port }))} en caisse.`;
+  if (by.cash < attackPrice(state, kind, { target, ship, port })) return `Il faut ${money(attackPrice(state, kind, { target, ship, port }))} en caisse.`;
   return null;
 }
 export function orderAttack(state, rng, byId, opts) {
@@ -296,7 +295,7 @@ export function orderAttack(state, rng, byId, opts) {
   if (why) return { ok: false, msg: why };
   const by = state.companies[byId], tg = state.companies[target], A = ATTACKS[kind];
   const price = attackPrice(state, kind, opts);
-  money(state, by, -price, 'divers');
+  book(state, by, -price, 'divers');
   changeVirtue(by, -A.rep, 'coups bas'); // le milieu jase, même sans preuve
   onHostile(state, by, tg);
   const strikeAt = kind === 'sabotage' ? state.t + rng.int(SABOTAGE_DELAY[0], SABOTAGE_DELAY[1]) * D : kind === 'crew' ? state.t + CREW_DELAY * D : 0;
@@ -315,8 +314,8 @@ export function counterPlot(state, cid, plotId) {
   const p = activePlots(state).find((x) => x.id === plotId && x.target === cid);
   if (!p || !p.counter) return { ok: false, msg: 'Rien à parer.' };
   const c = state.companies[cid];
-  if (c.cash < p.counter) return { ok: false, msg: `Il faut ${k$(p.counter)} en caisse.` };
-  money(state, c, -p.counter, 'divers');
+  if (c.cash < p.counter) return { ok: false, msg: `Il faut ${money(p.counter)} en caisse.` };
+  book(state, c, -p.counter, 'divers');
   p.countered = true;
   p.until = state.t;
   if (p.kind === 'bank' && c.creditCut?.plot === p.id) c.creditCut = null;
@@ -326,7 +325,7 @@ export function counterPlot(state, cid, plotId) {
 }
 // Rumeur chez la victime : quoi, jusqu'à quand, comment parer.
 export function attackRumour(state, p) {
-  const until = formatDate(p.until, true), parry = k$(p.counter);
+  const until = formatDate(p.until, true), parry = money(p.counter);
   const sh = p.ship != null ? shipById(state, p.ship) : null;
   if (p.kind === 'sabotage') return `Rumeurs : quelqu'un rôderait autour du ${sh?.name || 'navire'}. Sabotage possible à sa prochaine escale (${SABOTAGE_DAMAGE[0]} à ${SABOTAGE_DAMAGE[1]} points d'état perdus). Des gardes à bord pour un mois : ${parry}.`;
   if (p.kind === 'payments') return `Rumeurs : ${CLIENTS[p.client]?.name || 'un chargeur'} aurait promis à un concurrent de faire traîner vos paiements jusqu'au ${until} (${PAYMENT_DELAY[0]} à ${PAYMENT_DELAY[1]} jours de retard). Évitez ses contrats, ou mandatez un cabinet de recouvrement : ${parry}.`;
