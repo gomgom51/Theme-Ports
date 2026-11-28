@@ -144,7 +144,7 @@ export const SCENES = {
       if (flash) { g.strokeStyle = '#fffbe6'; g.lineWidth = 1; g.beginPath(); g.moveTo(150, 0); g.lineTo(144, 18); g.lineTo(152, 22); g.lineTo(146, 44); g.stroke(); }
       sea(g, t, STORM, 58, 58, H, 2);
       // Le navire sombre par la poupe, l'étrave se dresse (moins haut pour un grand navire).
-      const p = clamp01((t - 0.5) / 5), sh = sceneShip(o);
+      const p = clamp01((t - 1) / 4.8), sh = sceneShip(o);
       const bx = bowAt(sh, 112), wy = 76 + 22 * Math.pow(p, 1.7);
       const slope = -Math.atan(Math.min(0.45, 30 / sh.len) * ease(p * 1.6));
       sh.draw(g, bx, wy, { slope });
@@ -442,7 +442,8 @@ export const SCENES = {
     draw(g, t, o) {
       g.drawImage(bands('sky-pale', ['#cfe0e8', '#bcd3de', '#aac7d5'], 44), 0, 0);
       sea(g, t, DAY, 44);
-      sceneShip(o, 'tank', { far: 0.6 }).draw(g, 188, 63, { slope: 0.1 }); // au loin, l'étrave sur les cailloux
+      const sh = sceneShip(o, 'tank', { far: 0.6 });
+      sh.draw(g, 188, 63, { slope: Math.atan(Math.min(0.1, 5 / sh.len)) }); // au loin, l'étrave sur les cailloux
       const p = ease(t / 4.5);
       g.save(); g.globalAlpha = 0.9; g.fillStyle = '#111316';
       for (let i = 0; i < 9; i++) {
@@ -481,10 +482,15 @@ export const SCENES = {
         }
       };
       water(0, W, 0);
-      // Le navire suit la pente de la houle en son milieu ; un long navire tangue moins.
-      const sh = sceneShip(o), half = sh.len / 2;
-      const sx = 100, sy = surf(sx), a = Math.atan((surf(sx + 3) - surf(sx - 3)) / 6) * Math.min(1, 90 / sh.len);
-      const bx = Math.round(sx + half), wy = sy + 3 + Math.tan(a) * half;
+      // Le navire se pose sur la houle (droite des moindres carrés sous sa coque) : un petit navire en épouse
+      // la pente, un long navire enjambe les creux et y montre sa carène.
+      const sh = sceneShip(o), half = sh.len / 2, sx = 100;
+      let n = 0, su = 0, sv = 0, suu = 0, suv = 0;
+      for (let u = -half; u <= half; u += 2) { const v = surf(sx + u); n++; su += u; sv += v; suu += u * u; suv += u * v; }
+      const a = Math.atan((suv - (su * sv) / n) / Math.max(1e-6, suu - (su * su) / n)), sy = sv / n + (Math.tan(a) * su) / n;
+      let gap = 0; // sous un long navire, un creux plus profond que sa carène : il s'y enfonce un peu
+      for (let u = -half; u <= half; u += 2) gap = Math.max(gap, surf(sx + u) - (sy + 3 + Math.tan(a) * u + sh.depth));
+      const bx = Math.round(sx + half), wy = sy + 3 + Math.min(6, gap) + Math.tan(a) * half;
       // Conteneurs arrachés (au début seulement, la boucle reste calme).
       if (o.variant === 'boxes' && t < 2) for (let i = 0; i < 3; i++) {
         const k = clamp01((t - 0.6 - i * 0.2) / 1.1);
@@ -492,7 +498,7 @@ export const SCENES = {
         const x = sx - 6 + i * 7 - k * (14 + i * 6), y = sy + sh.deck(0.5) - Math.sin(k * PI) * 8 + k * k * 22;
         g.save(); g.translate(x, y); g.rotate(k * (2 + i)); R(g, -2, -2, 5, 4, ['#c0392b', '#d4ac0d', '#2e86c1'][i]); g.restore();
       }
-      sh.draw(g, bx, wy, { slope: a });
+      sh.draw(g, bx, wy, { slope: a, keel: true });
       water(Math.max(0, Math.round(bx - sh.len) - 4), Math.min(W, bx + 4), 4); // la vague devant recouvre le bas de la coque
       // Cargaison avariée : un paquet de mer déferle sur le pont (au début seulement).
       if (o.variant === 'cargo' && t > 0.7 && t < 2) {
@@ -684,7 +690,7 @@ export const SCENES = {
       }
       if (t < 1.8) for (let i = 0; i < 4; i++) { const x = B0 - (i + 1) * Math.min(26, sh.len / 5); R(g, x, rampY(x) - 3, 3, 3, '#8a6a3a'); } // ber de lancement
       sh.draw(g, bx, wy, { slope: ang, keel: true });
-      g.save(); g.globalAlpha = 0.8; g.beginPath(); g.rect(0, SEA, 104, H); g.clip(); sea(g, t, pal, 58, SEA, H); g.restore(); // l'eau recouvre la carène
+      g.save(); g.globalAlpha = 0.9; g.beginPath(); g.rect(0, SEA, 104, H); g.clip(); sea(g, t, pal, 58, SEA, H); g.restore(); // l'eau recouvre la carène
       // Gerbe d'eau quand la poupe touche l'eau (au bord de l'image si elle en sort).
       const stx = Math.max(6, Math.min(96, bx - sh.len));
       if (t > 2.5 && t < 4.2) for (let i = 0; i < 18; i++) {
@@ -760,7 +766,7 @@ export const SCENES = {
       const ox = Math.round(Math.sin(t * 1.7) * 1.5), oy = Math.round(Math.cos(t * 1.3)); // les mains qui tiennent les jumelles
       // Son navire (le vrai modèle, à ses couleurs) entre par la droite, cap à gauche : l'étrave
       // est à gauche, la poupe et le sillage à droite. Neuf : coque propre ; d'occasion : rouillé.
-      const sh = sceneShip(o, kind, { wear: isNew ? 0 : 0.5, laden: false });
+      const sh = sceneShip(o, kind, { wear: isNew ? 0 : 0.5, laden: false, name: '' }); // cap à gauche : pas de nom à l'envers
       const sx = Math.round(100 - sh.len / 2 + 120 * (1 - ease(t / 2.4))), sy = 76 + Math.round(Math.sin(t * 2) * 0.6);
       const stern = sx + sh.len;
       for (let i = 0; i < 14; i++) { const k = ((t * 1.5 + i / 14) % 1); R(g, stern + 2 + k * 50, sy + 1 + Math.round(Math.sin(i * 2.1) * 2 * k), 3 + k * 4, 1, 'rgba(235,245,250,' + (0.8 * (1 - k)).toFixed(2) + ')'); }
@@ -1101,7 +1107,7 @@ export const SCENES = {
       sea_(g, t, SEAL, 52, 84, H); // l'eau monte sur la coque
       // Vue en coupe de la cale, sur le flanc : l'eau entre par la fissure.
       const ww = Math.round(Math.max(18, Math.min(32, sh.len * 0.4))), wh = 13;
-      const wx0 = Math.round(bx + sh.x(0.62) - ww / 2), wy0 = y - wh - 2;
+      const wx0 = Math.round(bx + sh.x(0.55) - ww / 2), wy0 = y - wh - 2;
       R(g, wx0 - 1, wy0 - 1, ww + 2, wh + 2, '#f4f4f4'); R(g, wx0, wy0, ww, wh, '#2b2f38');
       for (let i = 0; i * 8 + 8 <= ww; i++) R(g, wx0 + 3 + i * 8, wy0 + 2, 5, 5, '#6b4f2e'); // marchandise
       const wl = Math.round(wh * level);

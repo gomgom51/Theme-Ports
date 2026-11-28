@@ -251,8 +251,11 @@ year 9–10, no victory path dominating; 10-year runs: all AIs survive.
   views (inspect, ship sheet, broker cards, thumbnails) use `ui/pixelship.js` (a `<span class="px-ship">` that gets a
   canvas, slot `big` animated at 8 fps); the map uses side-view sprites from `ui/mapships.js` (laden = company hull,
   empty = pale hull with a company stripe, wake length follows speed, routes dashed in the company colour). Two styles,
-  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. `shipMarkup` (`ui/shipart.js`) with `attrs`
-  still returns the old vector drawing (office shelf model). Map sizes (owner's pick): ships ×1.5 and port names 13 px
+  fine (default) and chunky, switched in the ☰ menu (`pda-ship-style`); both must keep working. Event scenes (owner's pick)
+  draw the player's real ship, always chunky, to scale on the 200 × 112 scene grid (0.55 px per metre: a coaster stays
+  small, a Capesize fills the frame, a giant overflows), anchored by the bow, slopes by shifting pixel columns, never
+  rotating (`sceneShip` / `sceneShipOf` in `ui/sceneship.js`; scenes with no ship of the game use a stand-in model).
+  The level-up, record and misdeed scenes paint the pixel office (`ui/officescene.js`). Map sizes (owner's pick): ships ×1.5 and port names 13 px
   at 1920 × 1080, times `uiScale()` (`MAP_SHIPS`, `CITY_PX` in `mapships.js`); port names are drawn over the ships,
   under the selected ship and the dock badges; chunky blocks stop at 3 screen pixels.
 - Guided tour (`web/js/ui/guide.js`): bubbles point at real buttons through stable markers

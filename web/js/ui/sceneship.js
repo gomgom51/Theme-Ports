@@ -48,7 +48,8 @@ function keeled(lay, S, depth) {
 /**
  * Le navire d'une scène. o : options de la scène (o.ship, o.color, o.variant = silhouette) ;
  * kind : silhouette de secours ('box', 'tank', 'bulk') ;
- * opts : far (échelle d'un navire au loin), type, color, laden, wear, ship (à la place de o.ship).
+ * opts : far (échelle d'un navire au loin), type, color, laden, wear, dmg, name ('' pour un navire
+ *        dessiné cap à gauche : le nom serait à l'envers), ship (à la place de o.ship).
  * Repères (en pixels de scène, relatifs à l'étrave à la flottaison ; y < 0 vers le haut) :
  * len, x(fr) et deck(fr) (fr : 0 poupe, 1 avant), fr(ux), rim(fr) (liston), top, funnel, bridge.
  */
@@ -60,7 +61,7 @@ export function sceneShip(o, kind = 'box', opts = {}) {
   const far = opts.far || 1;
   const lay = shipLayer(type, {
     style: 'chunky', len: Math.max(14, Math.round(A.L * PX_PER_M * far)),
-    color: opts.color || o.color || s?.color || '#c0392b', logo: s?.logo, name: far < 1 ? '' : s?.name || '',
+    color: opts.color || o.color || s?.color || '#c0392b', logo: s?.logo, name: opts.name ?? (far < 1 ? '' : s?.name || ''),
     wear: opts.wear ?? s?.wear ?? 0, dmg: opts.dmg ?? s?.dmg ?? 0, laden: opts.laden ?? !!s?.laden, seed: s?.seed ?? type,
   });
   const S = lay.S, bx = S.bowX, wl = S.WL;
