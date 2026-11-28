@@ -151,13 +151,14 @@ const MOODS = {
 
 /**
  * Dessine le bureau. o : tier (0..4), shadow (liste noire), color, logo, model { typeId, color, logo, name },
- * held { record: [ids], evil: [ids] }, W, H (pixels du dessin).
- * Renvoie { room, floor, juke: { x, y, w, h, img }, F } : room et floor (motif de sol à répéter sous la pièce)
- * sont des ImageData ; juke est le juke-box à part (il se clique et s'illumine au survol).
+ * held { record: [ids], evil: [ids] }, W, H (pixels du dessin), S (pixels de l'écran par pixel du dessin).
+ * Renvoie { room, floor, juke: { x, y, w, h, img }, hi: { x, y, w, h, img }, F } : room et floor (motif de sol à
+ * répéter sous la pièce) sont des ImageData ; juke est le juke-box à part (il se clique et s'illumine au survol) ;
+ * hi porte les trophées et les méfaits, S fois plus fins (x, y, w, h en pixels du dessin, img à S × la taille).
  */
 export function paintOffice(o) {
   const { tier, shadow = false, color = '#1e3a55', logo = 'ancre', model = null, held = null } = o;
-  const W = Math.max(40, Math.round(o.W)), H = Math.max(60, Math.round(o.H));
+  const W = Math.max(40, Math.round(o.W)), H = Math.max(60, Math.round(o.H)), S = Math.max(1, Math.min(4, Math.round(o.S || 2)));
   const F = H - FLOOR_GAP, ox = Math.floor((W - CORE_W) / 2);
   const L = -ox, R = W - ox; // bords du canevas, en coordonnées du décor
   const room = new Uint32Array(W * H), jukeBuf = new Uint32Array(W * H), tmp = new Uint32Array(W * H);
@@ -1329,34 +1330,30 @@ export function paintOffice(o) {
   } else if (tier === 3) {
     // ---- L'étage de direction : haut dans une tour, les gratte-ciel et la mer plus loin. Acajou verni filé d'or,
     // velours bleu roi capitonné, stores bateau bleus à franges, juke-box d'acajou aux néons bleus, écussons d'or.
-    const top = F > 150 ? 12 : 3, wain = F - 40;
+    const top = F > 150 ? 12 : 3;
     const mh = RP(shadow ? '#4a1a12' : '#7a3020'), gold = RP('#d9b25a');
-    // murs d'acajou à panneaux filés d'or
-    rect(L, 0, R - L, F, mh[2]);
-    for (let x = L - ((L % 32) + 32) % 32; x < R; x += 32) {
-      for (const [py, ph] of [[top + 6, wain - top - 14], [wain + 6, F - wain - 12]]) {
-        if (ph < 6) continue;
-        rect(x + 4, py, 24, ph, mh[1]); rect(x + 5, py + 1, 22, ph - 2, mh[2]);
-        rect(x + 5, py + 1, 22, 1, gold[2]); rect(x + 5, py + 1, 1, ph - 2, gold[3]); rect(x + 26, py + 1, 1, ph - 2, gold[1]); rect(x + 5, py + ph - 2, 22, 1, gold[1]);
-        tint(x + 8, py + 2, 4, ph - 4, '#ffd8b0', (i, j) => (i === 1 || i === 2 ? 0.16 : 0.07) * (1 - Math.abs(j / (ph - 4) - 0.4))); // reflet du vernis
-      }
-    }
-    rect(L, wain - 3, R - L, 3, mh[3]); rect(L, wain - 3, R - L, 1, gold[3]); rect(L, wain, R - L, 1, gold[1]);
-    rect(L, F - 4, R - L, 4, mh[0]); rect(L, F - 4, R - L, 1, gold[2]);
     // plafond : bandeau bleu roi passepoilé d'or, spots
+    rect(L, 0, R - L, F, mh[2]);
     if (top > 3) { const b = RP('#1e3f8f'); rect(L, 0, R - L, top - 2, b[2]); rect(L, top - 4, R - L, 1, b[3]); rect(L, top - 2, R - L, 2, gold[2]); rect(L, top - 2, R - L, 1, gold[4]); for (let x = L - ((L % 36) + 36) % 36 + 18; x < R; x += 36) { set(x, 2, I('#fff6dc')); glow(x, 3, 7, '#fff6dc', 0.25); } }
-    // trois grandes baies sur la ville et la mer, pilastres d'acajou, stores bateau
-    const wy = top + 4, wb = wain - 6, wins = [[104, 66], [176, 66], [248, 66]];
-    cityView(100, wy, 218, wb - wy, shadow);
-    for (const x of [100, 170, 242, 314]) { rect(x, wy - 1, x === 100 ? 4 : 6, wb - wy + 2, mh[2]); rect(x + 1, wy - 1, 2, wb - wy + 2, mh[3]); } // pilastres
-    for (const [x, w] of wins) {
-      piece(() => { rect(x - 1, wy - 1, 1, wb - wy + 2, gold[3]); rect(x + w, wy - 1, 1, wb - wy + 2, gold[1]); rect(x - 4, wb, w + 8, 3, gold[2]); rect(x - 4, wb, w + 8, 1, gold[4]); });
-      for (let k = 0; k < 22; k++) { const gx = x + 6 + k, gy = wb - 6 - k * 2; if (gy > wy + 10) set(gx, gy, mixI(get(gx, gy), I('#ffffff'), 0.2)); }
-      valance(x - 2, wy - 1, w + 4, shadow);
+    // rien que des baies, d'un bord à l'autre : cadres et meneaux d'acajou filés d'or, main courante chromée, stores bateau
+    const wy = top + 4, wb = F - 6, ex0 = L + 2, ex1 = R - 7;
+    cityView(ex0, wy, ex1 - ex0 + 5, wb - wy, shadow);
+    const posts = [ex0];
+    for (let x = 22 - 80 * 4; x < R; x += 80) if (x > ex0 + 20 && x < ex1 - 20) posts.push(x);
+    posts.push(ex1);
+    rect(L, wb, R - L, F - wb, mh[0]); rect(L, wb, R - L, 1, gold[2]); // plinthe
+    const rail = RP('#c4ccd4');
+    rect(ex0, F - 32, ex1 - ex0, 2, rail[3]); rect(ex0, F - 32, ex1 - ex0, 1, rail[4]); rect(ex0, F - 19, ex1 - ex0, 1, rail[2]);
+    for (let k = 0; k + 1 < posts.length; k++) {
+      const x = posts[k] + 5, w = posts[k + 1] - x;
+      for (let q = 1; q < 3; q++) { const px = x + Math.round((w * q) / 3); rect(px, F - 30, 1, wb - F + 30, rail[1]); }
+      for (let i = 0; i < 22; i++) { const gx = x + 6 + i, gy = F - 40 - i * 2; if (gy > wy + 12) set(gx, gy, mixI(get(gx, gy), I('#ffffff'), 0.18)); } // reflet
     }
-    if (shadow) { curtains(102, wy, 214, wb - wy + 4); chandelier(210, 0, 1.2); }
-    // marine dans son cadre doré (portrait du patron chez l'armateur de l'ombre)
-    if (F > 150) { if (shadow) portrait(56, F - 128, 30, 36); else shipPainting(50, F - 124, 44, 30, true); }
+    for (const x of posts) piece(() => { rect(x, wy - 1, 5, wb - wy + 1, mh[2]); rect(x + 1, wy - 1, 1, wb - wy + 1, mh[3]); rect(x, wy - 1, 1, wb - wy + 1, gold[3]); rect(x + 4, wy - 1, 1, wb - wy + 1, gold[1]); });
+    if (L < ex0) rect(L, wy - 1, ex0 - L, wb - wy + 1, mh[1]);
+    if (ex1 + 5 < R) rect(ex1 + 5, wy - 1, R - ex1 - 5, wb - wy + 1, mh[1]);
+    for (let k = 0; k + 1 < posts.length; k++) valance(posts[k] + 4, wy - 1, posts[k + 1] - posts[k] - 3, shadow);
+    if (shadow) { curtains(ex0 + 8, wy, ex1 - ex0 - 11, wb - wy - 2); chandelier(182, 0, 1.2); }
     // juke-box d'acajou aux néons bleus
     glow(24, F - 34, 26, shadow ? '#ffb040' : '#7ab8ff', 0.22);
     juke(() => jukeLux(5, F));
@@ -1451,16 +1448,19 @@ export function paintOffice(o) {
   }
 
   // ---------- Trophées et méfaits ----------
+  // Exprès plus fins que la pièce (choix du propriétaire) : dessinés S fois plus fin, un pixel du trophée pour un
+  // pixel de l'écran, sur une couche à part (hi) posée par-dessus la pièce ; seule leur ombre reste dans la pièce.
+  const honours = [];
   if (held) {
     const slots = SLOTS[tier];
-    const place = (kind, ids, list) => ids.forEach((id, i) => {
+    const place = (kind, ids, list) => ids.forEach((id) => {
       const k = (kind === 'evil' ? EVIL_IDS : RECORD_IDS).indexOf(id), sl = list[k];
       if (!sl) return;
-      const s = honourSprite(kind, id, sl.h);
+      const s = honourSprite(kind, id, Math.round(sl.h * S));
       if (!s) return;
-      const x0 = Math.round(sl.x - s.w / 2), y0 = F + sl.b - s.h;
-      tint(x0, F + sl.b, s.w, 1, DEEP, 0.35);
-      piece(() => { for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) { const c = s.px[y * s.w + x]; if (c) set(x0 + x, y0 + y, c); } });
+      const wa = s.w / S;
+      tint(Math.round(sl.x - wa / 2), F + sl.b, Math.ceil(wa), 1, DEEP, 0.4);
+      honours.push({ s, X: Math.round((sl.x + ox) * S - s.w / 2), Y: (F + sl.b) * S - s.h });
     });
     place('record', held.record || [], slots.record);
     place('evil', held.evil || [], slots.evil);
@@ -1476,9 +1476,27 @@ export function paintOffice(o) {
     for (let y = 0; y < jh; y++) for (let x = 0; x < jw; x++) jb[y * jw + x] = jukeBuf[(y + jy0) * W + x + jx0];
     jukeOut = { x: jx0, y: jy0, w: jw, h: jh, img: toImage(jb, jw, jh) };
   }
+  let hi = null;
+  if (honours.length) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const { s, X, Y } of honours) { x0 = Math.min(x0, X - 1); y0 = Math.min(y0, Y - 1); x1 = Math.max(x1, X + s.w + 1); y1 = Math.max(y1, Y + s.h + 1); }
+    x0 = Math.floor(x0 / S) * S; y0 = Math.floor(y0 / S) * S; x1 = Math.ceil(x1 / S) * S; y1 = Math.ceil(y1 / S) * S; // calé sur la grille de la pièce
+    const hw = x1 - x0, hh = y1 - y0, hb = new Uint32Array(hw * hh);
+    for (const { s, X, Y } of honours) {
+      const ox2 = X - x0, oy2 = Y - y0, at = (x, y) => (x < 0 || y < 0 || x >= s.w || y >= s.h ? 0 : s.px[y * s.w + x]);
+      for (let y = -1; y <= s.h; y++) for (let x = -1; x <= s.w; x++) {
+        const c = at(x, y), X2 = ox2 + x, Y2 = oy2 + y;
+        if (X2 < 0 || Y2 < 0 || X2 >= hw || Y2 >= hh) continue;
+        if (c) { hb[Y2 * hw + X2] = c; continue; }
+        const dn = at(x, y + 1), up = at(x, y - 1), rt = at(x + 1, y), lf = at(x - 1, y), nb = dn || rt || up || lf; // cerne fin
+        if (nb && !hb[Y2 * hw + X2]) hb[Y2 * hw + X2] = outlineOf(nb, (dn || rt) && !up && !lf);
+      }
+    }
+    hi = { x: x0 / S, y: y0 / S, w: hw / S, h: hh / S, img: toImage(hb, hw, hh) };
+  }
   const TILE = 16, fl = new Uint32Array(W * TILE);
   for (let y = 0; y < TILE; y++) for (let x = 0; x < W; x++) fl[y * W + x] = floorFill(x - ox, H - F + y);
-  return { room: toImage(room, W, H), floor: toImage(fl, W, TILE), juke: jukeOut, F, ox };
+  return { room: toImage(room, W, H), floor: toImage(fl, W, TILE), juke: jukeOut, hi, F, ox };
 
   // Damas doré sur un mur sombre (bureaux de l'ombre).
   function damask(x, y, w, h, gold) {
