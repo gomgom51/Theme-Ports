@@ -5,10 +5,11 @@ import { PORTS, PORT_IDS, FLAGS } from '../data/ports.js';
 import { ENFORCING, CONCEALMENT } from '../data/sanctions.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { haversineNm } from './routing.js';
-import { money, news, changeVirtue, shipLog, companyOf } from './core.js';
+import { book, news, changeVirtue, shipLog, companyOf } from './core.js';
 import { HOURS_PER_DAY } from './util.js';
 import { equipMod, equipActive } from './equipment.js';
 import { seizureFine, crewDiscretion } from './shady.js';
+import { money } from './format.js';
 
 const D = HOURS_PER_DAY;
 // Eaux surveillées : 200 milles autour des ports des pays qui appliquent les sanctions,
@@ -76,13 +77,13 @@ export function patrolHour(state, rng, ship, pos) {
   const fine = seizureFine(ship.contraband.pay);
   const days = rng.int(10, 25);
   ship.contraband = null;
-  money(state, company, -fine, 'sinistres', ship);
+  book(state, company, -fine, 'sinistres', ship);
   changeVirtue(company, -15, 'contrebande');
   ship.voyage.stalledUntil = state.t + days * D;
   report.outcome = 'seized';
   report.fine = fine;
   report.days = days;
-  news(state, `Les ${z.name} saisissent un colis de contrebande à bord du ${ship.name} (${company.name}) : amende de ${(fine / 1e6).toFixed(2).replace('.', ',')} M$, navire retenu ${days} jours.`, { company: company.id, kind: 'disaster' });
+  news(state, `Les ${z.name} saisissent un colis de contrebande à bord du ${ship.name} (${company.name}) : amende de ${money(fine)}, navire retenu ${days} jours.`, { company: company.id, kind: 'disaster' });
   shipLog(state, ship, `Colis saisi par les ${z.name}`);
   return report;
 }

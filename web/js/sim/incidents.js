@@ -8,6 +8,7 @@ import { HOURS_PER_DAY } from './util.js';
 import * as eco from './economy.js';
 import { equipMod, hasEquip } from './equipment.js';
 import { SEAWORTHY, coverage } from './insurance.js';
+import { money } from './format.js';
 export { SEAWORTHY };
 
 const D = HOURS_PER_DAY;
@@ -94,7 +95,7 @@ export function incidentText(inc, ship) {
   const G = ship.cargo ? GOODS[ship.cargo.good] : null;
   const dmg = inc.damage > 0.005 && G ? ` ${Math.round(inc.damage * 100)} % de la cargaison (${G.name.toLowerCase()}) est perdue ou avariée.` : '';
   const days = inc.delayH ? ` Immobilisé ${Math.round((inc.delayH / 24) * 10) / 10} j.` : '';
-  const cost = ` Coût : ${Math.round(inc.cost / 1000).toLocaleString('fr-FR')} k$.`;
+  const cost = ` Coût : ${money(inc.cost)}.`;
   const containers = ship.cargo?.hold === 'conteneurs';
   const T = {
     machine: `Avarie de machine à bord du ${ship.name}.`,

@@ -15,12 +15,12 @@ import { HOURS_PER_DAY } from './util.js';
 import { news, changeReputation, changeVirtue, standing, shipsOf, STANDING } from './core.js';
 import { pointsEarned, XP_STEPS } from './crew.js';
 import { MAX_LOYALTY } from './clients.js';
+import { money, num, num1 } from './format.js';
+
+const megatonnes = (v) => `${num1(v / 1e6)} Mt`;
 
 const D = HOURS_PER_DAY;
 const YEAR = 365 * D;
-const num = (v) => Math.round(v).toLocaleString('fr-FR');
-const Mt = (v) => `${(v / 1e6).toFixed(1).replace('.', ',')} Mt`;
-const M$ = (v) => `${Math.round(v / 1e6).toLocaleString('fr-FR')} M$`;
 
 // Familles de navires (cale principale) et marchandises légales : pour les records « complets ».
 export const FAMILIES = [...new Set(Object.values(SHIP_TYPES).map((T) => T.holds[0]))];
@@ -131,7 +131,7 @@ export const DEEDS = {
     progress: (s, c) => {
       if (c.infamy > 0) return { frac: 0, text: 'Impossible : votre compagnie porte une infamie.', impossible: true };
       const y = (s.t - hon(c).lastDirty) / YEAR;
-      return { frac: frac(y, HONOURS.handsYears), text: `${Math.min(y, HONOURS.handsYears).toFixed(1).replace('.', ',')} / ${HONOURS.handsYears} ans` };
+      return { frac: frac(y, HONOURS.handsYears), text: `${num1(Math.min(y, HONOURS.handsYears))} / ${HONOURS.handsYears} ans` };
     },
   },
   ecole: {
@@ -144,7 +144,7 @@ export const DEEDS = {
       const H = hon(c);
       H.lastPolluting ??= s.t; // ancienne sauvegarde : on compte à partir d'aujourd'hui
       const y = (s.t - H.lastPolluting) / YEAR, n = H.seasDeliveries || 0;
-      return { frac: Math.min(frac(y, HONOURS.seasYears), frac(n, HONOURS.seasDeliveries)), text: `${Math.min(y, HONOURS.seasYears).toFixed(1).replace('.', ',')} / ${HONOURS.seasYears} ans sans cargaison polluante · ${n} / ${HONOURS.seasDeliveries} livraisons` };
+      return { frac: Math.min(frac(y, HONOURS.seasYears), frac(n, HONOURS.seasDeliveries)), text: `${num1(Math.min(y, HONOURS.seasYears))} / ${HONOURS.seasYears} ans sans cargaison polluante · ${n} / ${HONOURS.seasDeliveries} livraisons` };
     },
   },
   pirates: {
@@ -159,8 +159,8 @@ export const DEED_IDS = Object.keys(DEEDS);
 // missing : ce qui manque encore à la compagnie (liste affichée, pour ne pas avoir à s'en souvenir).
 export const RECORDS = {
   armada: { name: 'L\'Armada', text: 'La plus grande flotte jamais réunie', unit: 'navires', min: () => HONOURS.armada, value: (s, c) => hon(c).best.fleet, fmt: (v) => `${v} navires` },
-  mois: { name: 'Le mois du siècle', text: 'Le plus de tonnes livrées en trente jours', min: () => HONOURS.month, value: (s, c) => hon(c).best.month, fmt: Mt },
-  tonnes: { name: 'Le géant du fret', text: 'Le plus de tonnes livrées depuis la création', min: () => HONOURS.tons, value: (s, c) => hon(c).tons, fmt: Mt },
+  mois: { name: 'Le mois du siècle', text: 'Le plus de tonnes livrées en trente jours', min: () => HONOURS.month, value: (s, c) => hon(c).best.month, fmt: megatonnes },
+  tonnes: { name: 'Le géant du fret', text: 'Le plus de tonnes livrées depuis la création', min: () => HONOURS.tons, value: (s, c) => hon(c).tons, fmt: megatonnes },
   ponctuel: { name: 'Réglé comme une horloge', text: 'La plus longue série de livraisons à l\'heure', min: () => HONOURS.streak, value: (s, c) => hon(c).best.streak, fmt: (v) => `${num(v)} livraisons` },
   equipages: { name: 'Les loups de mer', text: 'Le plus d\'expérience d\'équipage réunie dans une flotte', min: () => HONOURS.crew, value: (s, c) => hon(c).best.crew, fmt: (v) => `${num(v)} points` },
   produits: { missing: (s, c) => LEGAL_GOODS.filter((g) => !hon(c).goods[g]).map((g) => GOODS[g].name),  name: 'Tout ce qui flotte', get text() { return `Avoir transporté ${HONOURS.goods} des ${LEGAL_GOODS.length} marchandises légales`; }, binary: true, min: () => HONOURS.goods, value: (s, c) => LEGAL_GOODS.filter((g) => hon(c).goods[g]).length, fmt: (v) => `${v} / ${LEGAL_GOODS.length} marchandises` },
@@ -170,7 +170,7 @@ export const RECORDS = {
 export const EVIL = {
   couteau: { name: 'Le couteau dans le bureau', text: 'Le plus d\'affaires noires menées à bien', min: () => HONOURS.dark, value: (s, c) => hon(c).darkDone, fmt: (v) => `${v} affaires` },
   passeur: { name: 'Le passeur', text: 'Le plus de colis discrets livrés', min: () => HONOURS.parcels, value: (s, c) => hon(c).parcels, fmt: (v) => `${v} colis` },
-  embargo: { name: 'Briseur d\'embargo', text: 'Le plus de commerce avec les pays sous embargo', min: () => HONOURS.embargo, value: (s, c) => hon(c).embargoValue, fmt: M$ },
+  embargo: { name: 'Briseur d\'embargo', text: 'Le plus de commerce avec les pays sous embargo', min: () => HONOURS.embargo, value: (s, c) => hon(c).embargoValue, fmt: money },
   marionnettiste: { name: 'Le marionnettiste', text: 'Le plus de coups bas contre les concurrents', min: () => HONOURS.hostile, value: (s, c) => hon(c).hostile, fmt: (v) => `${v} coups bas` },
   ennemi: { name: 'Ennemi public numéro un', text: 'La première compagnie sur la liste noire internationale', binary: true, min: () => 1, value: (s, c) => (c.blacklisted ? 1 : 0), fmt: (v) => (v ? 'sur la liste noire' : 'pas encore') },
   fossoyeur: { name: 'Le fossoyeur', text: 'Le plus de concurrents rachetés ou ruinés (une faillite revient au dernier concurrent qui l\'a attaquée dans l\'année)', min: () => HONOURS.eliminated, value: (s, c) => hon(c).eliminated, fmt: (v) => `${v} compagnies` },

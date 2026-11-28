@@ -1,6 +1,6 @@
 // Une page par victoire (icônes de l'écran principal) : où en est chaque compagnie sur ce chemin,
 // et ce qui s'y rattache (hauts faits, records, méfaits ; concurrents et classement dans panels.js).
-import { h, date, money } from './dom.js';
+import { h, date, money, pctOf } from './dom.js';
 import { logoBadge } from './logos.js';
 import { VICTORY, VICTORY_INFO, victoryOn, victoryProgress } from '../sim/victory.js';
 import { DEEDS, DEED_IDS, RECORDS, RECORD_IDS, EVIL, EVIL_IDS, deedCount, recordHolder, hon } from '../sim/honours.js';
@@ -13,7 +13,6 @@ import { BLACKLIST } from '../sim/shadow.js';
 const D = 24;
 const badge = (c, size = 26) => h('span.badge-wrap', { html: logoBadge(c.logo, c.color, size) });
 const bar = (f, cls = '') => h('span.vic-bar', { class: cls }, [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, f)) * 100)}%` } })]);
-const pctTxt = (f) => `${Math.round(Math.max(0, Math.min(1, f)) * 100)} %`;
 
 // ---------- Victoires ----------
 // Bouton vers le guide complet (toutes les victoires, hauts faits, trophées et méfaits, et leurs conditions).
@@ -34,7 +33,7 @@ export function raceTab(app, kind) {
   if (state.victoryClaimed) {
     box.append(h('p.vic-claimed', 'Une victoire a déjà été remportée dans cette partie : elle continue librement, sans nouvelle victoire.'));
   } else {
-    box.append(h('p.muted', [end, ` Chacun voit où en sont les autres ; tout le monde est prévenu quand une compagnie atteint ${pctTxt(VICTORY.alerts[0])} puis ${pctTxt(VICTORY.alerts[1])} d'une victoire.`]));
+    box.append(h('p.muted', [end, ` Chacun voit où en sont les autres ; tout le monde est prévenu quand une compagnie atteint ${pctOf(VICTORY.alerts[0])} puis ${pctOf(VICTORY.alerts[1])} d'une victoire.`]));
   }
   const card = h('div.vic-card', { class: on ? '' : 'off' }, [
     h('div.vic-head', [h('span.vic-icon', info.icon), h('div.grow', [h('b', info.name), h('div.small.muted', info.text)]), on ? null : h('span.tag', 'désactivée')]),
@@ -46,7 +45,7 @@ export function raceTab(app, kind) {
     card.append(h('div.vic-rows', rows.map(({ c, p }) => h('div.vic-row', { class: c.id === me ? 'mine' : '' }, [
       badge(c, 24),
       h('div.grow', [
-        h('div.vic-line', [h('b.nm', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctTxt(p.frac))]),
+        h('div.vic-line', [h('b.nm', { 'data-no-tr': '' }, c.name), h('span.vic-pct', pctOf(Math.max(0, Math.min(1, p.frac))))]),
         bar(p.frac, p.frac >= VICTORY.alerts[1] ? 'hot' : p.frac >= VICTORY.alerts[0] ? 'warm' : ''),
         h('div.vic-parts', p.parts.map((x) => h('span.vic-part', { class: x.frac >= 1 ? 'done' : '' }, [`${x.frac >= 1 ? '✓ ' : ''}${x.label} : `, h('b', x.text)]))),
       ]),

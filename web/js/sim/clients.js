@@ -12,10 +12,10 @@
 import { CLIENTS } from '../data/clients.js';
 import { HOURS_PER_DAY } from './util.js';
 import { onDenounce } from './honours.js';
-import { news, changeVirtue, standing, money as book } from './core.js';
+import { news, changeVirtue, standing, book } from './core.js';
+import { money } from './format.js';
 
 const D = HOURS_PER_DAY;
-const k$ = (v) => `${Math.round(v / 1000).toLocaleString('fr-FR')} k$`;
 export const LOYAL = 4; // fidélité à partir de laquelle on est « partenaire fidèle »
 export const MAX_LOYALTY = 10;
 export const GRUDGE_DAYS = 120;
@@ -181,6 +181,6 @@ export function clientsDaily(state, notes) {
     book(state, company, g.amount, 'fret');
     const r = relation(company, g.client);
     r.loyalty = Math.min(MAX_LOYALTY, r.loyalty + 1);
-    if (company.human) notes.push({ kind: 'paid', company: company.id, text: `${CLIENTS[g.client].name}, reconnaissant de votre discrétion, vous fait un geste commercial : ${k$(g.amount)}.`, amount: g.amount });
+    if (company.human) notes.push({ kind: 'paid', company: company.id, text: `${CLIENTS[g.client].name}, reconnaissant de votre discrétion, vous fait un geste commercial : ${money(g.amount)}.`, amount: g.amount });
   }
 }

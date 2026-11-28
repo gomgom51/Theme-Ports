@@ -9,6 +9,7 @@ import { SHIP_TYPES } from '../data/ships.js';
 import { HOURS_PER_DAY, START_YEAR, yearOf, formatDate, clamp } from './util.js';
 import { hasEquip } from './equipment.js';
 import { news, companyOf, portName, shipLog } from './core.js';
+import { money } from './format.js';
 
 export const ICE = {
   announce: 14,        // jours : la date exacte du gel ou du dégel est connue ce délai avant
@@ -186,7 +187,7 @@ export function iceDaily(state, notes) {
       ship.iced = here;
       shipLog(state, ship, `Pris par les glaces à ${portName(here)}`);
       if (companyOf(state, ship).human) {
-        notes.push({ kind: 'icecaught', shipId: ship.id, company: ship.owner, text: `Le ${ship.name} est pris par les glaces à ${portName(here)} (${forecastText(state, here, ship)}). Il peut attendre, désarmé pour l'hiver, ou partir avec un brise-glace (${Math.round(escortFee(ship) / 1000)} k$).` });
+        notes.push({ kind: 'icecaught', shipId: ship.id, company: ship.owner, text: `Le ${ship.name} est pris par les glaces à ${portName(here)} (${forecastText(state, here, ship)}). Il peut attendre, désarmé pour l'hiver, ou partir avec un brise-glace (${money(escortFee(ship))}).` });
       }
     }
   }

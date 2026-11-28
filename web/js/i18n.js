@@ -306,6 +306,7 @@ function englishFormats(s) {
     .replace(RE_SHORT, (_, d, m) => `${d} ${SHORT[m]}`)
     .replace(/(\d),(\d)/g, '$1.$2')
     .replace(new RegExp(`(\\d)${SP}(?=\\d{3}(?!\\d))`, 'g'), '$1,')
+    .replace(new RegExp(`([+−-]?)(\\d[\\d.,]*)${SP}?Md\\$`, 'g'), '$1$$$2B')
     .replace(new RegExp(`([+−-]?)(\\d[\\d.,]*)${SP}?([kM])\\$`, 'g'), '$1$$$2$3')
     .replace(new RegExp(`([+−-]?)(\\d[\\d.,]*)${SP}?\\$`, 'g'), '$1$$$2')
     .replace(new RegExp(`(\\d)${SP}%`, 'g'), '$1%')

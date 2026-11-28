@@ -8,7 +8,7 @@ import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName, trus
 import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
-import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
+import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks, pctOf } from './ui/dom.js';
 import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine, animationsOn, setAnimationsOn, applyMotionClass } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
@@ -703,7 +703,7 @@ function handleNotes(notes) {
         if (v === 'go') { app.open('ship', n.shipId, 'depart'); app.focusShip(n.shipId); return true; } // le temps reste arrêté pendant le choix
         return false;
       };
-      const buttons = [{ label: 'Désarmer pour l\'hiver', value: 'layup', kind: 'ghost' }, { label: `Brise-glace (${Math.round(escortFee(ship) / 1000)} k$)`, value: 'go', kind: 'primary' }];
+      const buttons = [{ label: 'Désarmer pour l\'hiver', value: 'layup', kind: 'ghost' }, { label: `Brise-glace (${money(escortFee(ship))})`, value: 'go', kind: 'primary' }];
       toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Voir', onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); app.open('ship', n.shipId); app.focusShip(n.shipId); } });
       if (scenes) playScene('icecaught', sceneOpts(n, { variant: shipKind(ship.type), buttons }), choose);
       else popup(async () => { if (cid !== app.ui.activeCompany) switchCompany(cid); return dialog({ title: 'Pris par les glaces', body: h('p', n.text), buttons }); }, choose);
@@ -1110,18 +1110,17 @@ app.continueEndless = () => {
 // ---------- Menu ----------
 // Son : volume général, puis musique, ambiance et bruitages (à zéro, la piste est coupée).
 const SOUND_ROWS = [['master', 'Général'], ['music', 'Musique'], ['ambience', 'Ambiance'], ['sfx', 'Bruitages']];
-const pct = (v) => `${Math.round(v * 100)} %`;
 function soundLabel() {
   const a = app.audio;
-  return a.level('master') && ['music', 'ambience', 'sfx'].some((k) => a.level(k)) ? pct(a.level('master')) : 'coupé';
+  return a.level('master') && ['music', 'ambience', 'sfx'].some((k) => a.level(k)) ? pctOf(a.level('master')) : 'coupé';
 }
 function soundDialog() {
   const a = app.audio;
   const rows = SOUND_ROWS.map(([kind, label]) => {
-    const out = h('span.vol-val', pct(a.level(kind)));
+    const out = h('span.vol-val', pctOf(a.level(kind)));
     const slider = h('input.range', {
       type: 'range', min: 0, max: 100, step: 5, value: Math.round(a.level(kind) * 100), 'aria-label': label,
-      oninput: () => { a.setLevel(kind, slider.value / 100); out.textContent = pct(a.level(kind)); },
+      oninput: () => { a.setLevel(kind, slider.value / 100); out.textContent = pctOf(a.level(kind)); },
       onchange: () => { if (kind === 'sfx' || kind === 'master') a.play('bell'); }, // aperçu au relâché
     });
     return [h('span', label), slider, out];

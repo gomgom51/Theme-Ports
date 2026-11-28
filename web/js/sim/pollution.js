@@ -6,11 +6,12 @@ import { ZONES } from '../data/zones.js';
 import { GOODS } from '../data/goods.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS, FLAGS } from '../data/ports.js';
-import { money, news, changeVirtue, costStat } from './core.js';
+import { book, news, changeVirtue, costStat } from './core.js';
 import { HOURS_PER_DAY, inPoly } from './util.js';
 import { coverage } from './insurance.js';
 import { equipMod } from './equipment.js';
 import { onSpill } from './honours.js';
+import { money, num } from './format.js';
 
 export const CLEANUP_RATE = 600;    // $ par tonne de « pollution équivalent brut »
 export const OPEN_SEA_FACTOR = 0.15; // déversement au large, loin des côtes
@@ -77,7 +78,7 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   const factor = zone ? zone.factor : nearCoast ? 0.6 : OPEN_SEA_FACTOR;
   const startCond = ship.voyage?.startCond ?? ship.condition;
   const c = spillCost(ship, pollutionT, factor, startCond, company);
-  money(state, company, -c.due, 'sinistres', ship);
+  book(state, company, -c.due, 'sinistres', ship);
   costStat(state, 'pollution', c.due);
   changeVirtue(company, -Math.min(20, 2 + c.liability / 10e6), 'marées noires');
   onSpill(state, company);
@@ -86,14 +87,13 @@ export function spill(state, ship, company, pos, share, { sinking = false, nearC
   (state.spills ??= []).push({ lon: pos.lon, lat: pos.lat, t: state.t, tonnes: Math.round(pollutionT), zone: zone?.id || null, company: company.id });
   if (state.spills.length > 40) state.spills.shift();
   const where = zone ? `sur les ${zone.name.charAt(0).toLowerCase() + zone.name.slice(1)}` : nearCoast ? 'près des côtes' : 'au large';
-  const M = (x) => (x < 1e6 ? `${Math.round(x / 1000).toLocaleString('fr-FR')} k$` : `${(x / 1e6).toFixed(2).replace('.', ',')} M$`);
   let ban = '';
   // Négligence (navire inapte) dans une zone sensible : le pays ferme ses ports au pollueur.
   if (!c.seaworthy && zone && zone.factor >= 2 && Object.values(PORTS).some((P) => P.flag === zone.flag)) {
     (company.bans ??= {})[zone.flag] = state.t + BAN_DAYS * HOURS_PER_DAY;
     ban = ` ${FLAGS[zone.flag].name} interdit ses ports à ${company.name} pendant un an.`;
   }
-  const text = `Marée noire ${where} : ${Math.round(pollutionT).toLocaleString('fr-FR')} t de polluants échappés du ${ship.name}. Nettoyage : ${M(c.liability)}, ${c.insured ? `l'assurance paie, franchise de ${M(c.due)}` : `entièrement à la charge de ${company.name} (${M(c.due)}), ${c.seaworthy ? 'son assurance ne couvrant pas la pollution' : 'le navire n\'étant pas en état de naviguer'}`}.${ban}`;
+  const text = `Marée noire ${where} : ${num(pollutionT)} t de polluants échappés du ${ship.name}. Nettoyage : ${money(c.liability)}, ${c.insured ? `l'assurance paie, franchise de ${money(c.due)}` : `entièrement à la charge de ${company.name} (${money(c.due)}), ${c.seaworthy ? 'son assurance ne couvrant pas la pollution' : 'le navire n\'étant pas en état de naviguer'}`}.${ban}`;
   news(state, text, { company: company.id, kind: 'disaster' });
   if (note) note(state, notes, 'pollution', ship, text);
   return { ...c, pollutionT, zone };
