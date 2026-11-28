@@ -18,6 +18,7 @@ import {
 import { ranking } from '../sim/game.js';
 import { yearOf } from '../sim/util.js';
 import { shipStatusText, shipRoute } from './panel-ship.js';
+import { waitsForOrders } from '../sim/orders.js';
 import { h, money, tonnes, num, num1, pct, date, bar, confirmBox, lineChart, dialog, searchBox } from './dom.js';
 import { shipMarkup, artForShip } from './shipart.js';
 import { SHIP_ART } from './shipshapes.js';
@@ -111,8 +112,8 @@ export function fleetPanel(app) {
     return { title: 'Ma flotte', body };
   }
   const groups = [
-    ['Attendent vos ordres', ships.filter((s) => s.status === 'port' && !s.busyWhat && !s.plan)],
-    ['Au port, occupés', ships.filter((s) => s.status === 'port' && (s.busyWhat || s.plan))],
+    ['Attendent vos ordres', ships.filter(waitsForOrders)],
+    ['Au port, occupés', ships.filter((s) => s.status === 'port' && !waitsForOrders(s))],
     ['En mer', ships.filter((s) => s.status === 'sea')],
     ['Désarmés', ships.filter((s) => s.status === 'laidup')],
   ];
@@ -123,7 +124,7 @@ export function fleetPanel(app) {
       const T = SHIP_TYPES[s.type];
       return h('button.row.selectable.with-thumb', { onclick: () => { app.open('ship', s.id); app.focusShip(s.id); } }, [
         h('span.thumb', { html: artForShip(state, s, { sky: false, slot: 'thumb' }) }),
-        h('span.grow', [h('b.nm', s.name), embargoStamp(state, s), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s)), shipRoute(state, ctx, s, true)]),
+        h('span.grow', [h('b.nm', s.name), embargoStamp(state, s), ordersBadge(s), h('span.muted.small', ` ${T.name}`), h('div.small.muted', shipStatusText(state, ctx, s)), shipRoute(state, ctx, s, true)]),
         h('span.mini', [h('span.muted.small', 'état'), bar(s.condition / 100, { good: 0.7, warn: 0.45 })]),
         h('span.mini', [h('span.muted.small', 'fuel'), bar(s.fuel / T.tank, { good: 0.4, warn: 0.15 })]),
       ]);
@@ -821,3 +822,11 @@ export const PANELS = {
   fleet: fleetPanel, port: portPanel, broker: brokerPanel, office: officePanel,
   markets: marketsPanel, news: newsPanel, help: helpPanel, alerts: alertsPanel, codex: codexPanel, victory: victoryPanel,
 };
+
+// Ordres permanents dans la liste de la flotte : ↻ ligne régulière, 🧭 capitaine libre (📣 s'il vous appelle).
+function ordersBadge(s) {
+  if (!s.orders) return null;
+  const line = s.orders.kind === 'line';
+  return h('span.tag.orders-tag', { title: s.orders.calling ? `Il vous appelle : ${s.orders.calling}.` : line ? 'Ligne régulière' : 'Capitaine libre' },
+    `${s.orders.calling ? '📣 ' : ''}${line ? '↻' : '🧭'}`);
+}

@@ -41,7 +41,8 @@ The other repository (`Rocket-to-planet`, "Fusée Planètes") is a separate kids
 2. For every ship: time accounting (`ship.hours`, `shipTrack().h` by `activityOf`), then
    `sailHour` (at sea) or `portHour` (in port).
 3. New-build orders due → `deliverOrder`.
-4. Every idle AI ship → `aiShipIdle` (see [16](16-ai.md)).
+4. Every idle AI ship → `aiShipIdle` (see [16](16-ai.md)); every human ship with standing orders → `ordersHour`
+   (`sim/orders.js`, see [08](08-voyages-routing-ice.md)).
 5. If `t % 24 == 0` → `daily`.
 
 `portHour`: idle fuel burn; when `busyUntil` passes, finishes the activity: delivery after
@@ -58,7 +59,7 @@ dailyMarketUpdate → dailyEvents → dailyStorms → refreshContracts → refre
 → dailyReceivables → clientsDaily → plotsDaily (also flushes queuedNotes) → takeoverDaily
 → shadowDaily (blacklist) → iceDaily → darkDaily (aftermath, disasters) → tradeDaily (tenders)
 → loansDaily → homeDaily (family rival, family contracts, shadow lender)
-→ per ship: insurance premium, crew + equipment upkeep, opex (laid up: crew ×0.2, opex ×0.3)
+→ per ship: insurance premium, crew + equipment upkeep, opex (laid up: crew ×0.2, opex ×0.3), captain's fee (`ordersDaily`)
 → per company: debt interest, overdraft interest (20 %/yr), checkBank, AI: aiDaily,
    aiPlots (day%30==15), aiTakeover (day%30==20)
 → weekly (day%7==0): refreshUsedMarket, recordHistory
@@ -134,6 +135,13 @@ takeoverRisk, victoryAlert, level, deed, record, recordLost, evil, blacklistWarn
 ice, iceSoon, icecaught, crew, prospect, banker, bank, bankrupt, standing, event, over, info`.
 When an `idle` or `prospect` note stops time, `openWaitingShip` opens that ship's sheet (and centres
 the map on it), unless the player is already giving orders to another waiting ship.
+Fewer interruptions (owner's call, with standing orders): ships on a regular line or under the captain's choice
+send no `idle` note (only a call: "Le X vous appelle : …"), and the time stopped by their receipt resumes once it is
+collected (the receipt itself stays manual). The `arrival` note ("arrivé et décharge") only plays its sound, its
+toast kept during a strike at that port. Rivals' `tenderCommit` / `tenderDelivered` toasts show only for a tender the
+viewer chases (a commitment, or that good on board one of its ships; `chasesTender` in main.js). Ships waiting for the
+player are counted with `waitsForOrders` (`sim/orders.js`). **Tab** opens the next waiting ship (Shift+Tab the
+previous; not while typing or with a window open), or says none is waiting.
 
 The **important notifications** panel (rule 1) is `ui/alerts.js`: it recomputes from state
 (uninsured ships, held/seized ships, low fuel, overdraft, loans due, threats, lender quota…).
@@ -155,6 +163,7 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `rivals.js`, `plots.js` | Rivals tab of the domination medal (takeover, attacks, parries), shady-deal UI (« La Mafia », EN "the underworld") |
 | `victory.js`, `codex.js`, `standing.js` | victory panel opened by the four medals under the side rail (`.vic-rail`, see [15](15-victories-honours.md)), trophies, victory guide, monthly trust/virtue summary |
 | `alerts.js` | important notifications panel |
+| `orders.js` | standing orders on the ship sheet: Orders row, regular-line tick on the Set sail card, captain's limits dialog, take-back confirmation ([08](08-voyages-routing-ice.md)) |
 | `screens.js`, `homebonus.js` | title, new game (home-port picker with perks), end screen |
 | `map.js`, `mapships.js`, `waters.js` | world map canvas, ship sprites, national waters. Layers: the base (sea, land, port dots) and the port names are cached and redrawn on a view change; every frame draws zones, routes and ships, then lays the port names over the ships, then the selected ship (ring and stencil name) and the dock badges on top. Port names are placed biggest ports first, on their `LABEL_PLACE` side or the first free side, and a small port with no room waits for a closer zoom; docked ships take the cheapest water spot near their port (`dockSlotsFor`: four rings around the port, land read from a quarter-resolution mask of the land as drawn, a spot on a name or far from the open-sea side costs more, overlapping another port's docked ship costs three rings, so in crowded areas they huddle instead of drifting far; never on land). Sizes (`mapSize()` in `mapships.js`): ships ×`MAP_SHIPS`, port names `CITY_PX` px at 1920 × 1080, both × `uiScale()`, like the other map text. Fine pixels redraw the sprite with more pixels; chunky blocks go from 2 to 3 screen pixels, never more |
 | `scenes*.js` (ships from `sceneship.js`, office from `officescene.js`), `pixel.js`, `shipart.js`, `trophyart.js`, `logos.js`, `flags.js` | art (`logos.js` = company emblems, shipowner-flag style) |

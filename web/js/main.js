@@ -4,7 +4,7 @@ import { standingSummary } from './ui/standing.js';
 import { makeContext } from './sim/context.js';
 import { newGame, tick, ranking } from './sim/game.js';
 import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
-import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName, trustCap, virtueCap, cargoLoans } from './sim/core.js';
+import { shipsOf, shipById, netWorth, standing, repLimit, portName, trustCap, virtueCap, cargoLoans } from './sim/core.js';
 import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
@@ -39,6 +39,7 @@ import { sceneShipOf } from './ui/sceneship.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
 import { EVENT_SCENES } from './ui/scenes-world.js';
 import { escortFee } from './sim/ice.js';
+import { onOrders, waitsForOrders } from './sim/orders.js';
 import { darkOfferDialog, seizedDialog } from './ui/dark.js';
 import { bidDialog } from './ui/rivals.js';
 import { recordsHeld, RECORDS, EVIL } from './sim/honours.js';
@@ -79,7 +80,7 @@ const ctx = makeContext();
 const app = {
   state: null, ctx, speed: 0, mode: 'title',
   ui: { activeCompany: 0, selectedShip: null, panel: null },
-  form: { dest: {}, speed: {}, autoRefuel: {} },
+  form: { dest: {}, speed: {}, autoRefuel: {}, line: {} },
   canImport: !isAndroid(),
   audio: new AudioManager(),
 };
@@ -858,7 +859,8 @@ function handleNotes(notes) {
     // Un concurrent s'engage sur un appel d'offres ou le livre : seulement si vous en avez vu la carte.
     if (n.kind === 'tenderCommit' || n.kind === 'tenderDelivered') {
       const viewer = app.state.companies[app.ui.activeCompany];
-      if (n.by !== app.ui.activeCompany && viewer?.human && viewer.seenOpps?.[`tender:${n.tenderId}`] != null) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
+      // Seulement pour un appel d'offres que vous suivez (carte vue) ou visez (engagement, marchandise à bord) : moins de messages.
+      if (n.by !== app.ui.activeCompany && viewer?.human && (viewer.seenOpps?.[`tender:${n.tenderId}`] != null || chasesTender(app.state, viewer.id, n.tenderId))) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
       continue;
     }
     if (n.kind === 'held') {
@@ -882,14 +884,17 @@ function handleNotes(notes) {
         onAction: () => { if (cid !== app.ui.activeCompany) switchCompany(cid); openPayment(app, n.paymentId); },
       });
       // L'encaissement s'ouvre de lui-même, au nom de la compagnie (partie à plusieurs : c'est
-      // son tour). Ensuite, avec la pause auto, le temps reste arrêté : le navire attend ses ordres.
+      // son tour). Ensuite, avec la pause auto, le temps reste arrêté : le navire attend ses ordres
+      // (sauf un navire sous ordres permanents, qui repart seul : l'encaissement reste au joueur).
       popup(async () => {
         if (cid !== app.ui.activeCompany) switchCompany(cid);
         await openPayment(app, n.paymentId);
-      }, () => app.state.settings.autoPause);
+      }, () => { const sh = shipById(app.state, n.shipId); return app.state.settings.autoPause && !(sh && onOrders(sh)); });
       continue;
     }
     if (n.kind === 'arrival' || (n.kind === 'idle' && / est arrivé /.test(n.text))) app.audio.play('arrive', n.shipId != null ? shipById(app.state, n.shipId) : null);
+    // « Arrivé et décharge » : le son suffit, l'encaissement le dira (le message reste en cas de grève au port).
+    if (n.kind === 'arrival') { const sh = shipById(app.state, n.shipId); if (!sh || !(app.state.strikes[sh.port] > app.state.t)) continue; }
     if (n.noFuelCash) app.audio.play('nofuel'); // départ programmé impossible : pas de quoi payer le plein
     if (n.kind === 'sunk') app.audio.play('sunk');
     // Scène illustrée : naufrage, marée noire, détention ou saisie, banquier, et tempête quand
@@ -955,10 +960,10 @@ function handleNotes(notes) {
 // en attente : on ne vous l'arrache pas des mains (le message « Voir » mène au nouveau).
 function openWaitingShip(list) {
   const cid = app.ui.activeCompany;
-  const n = list.find((x) => x.company === cid && shipById(app.state, x.shipId) && isIdle(shipById(app.state, x.shipId)));
+  const n = list.find((x) => x.company === cid && shipById(app.state, x.shipId) && waitsForOrders(shipById(app.state, x.shipId)));
   if (!n) return;
   const p = app.ui.panel, cur = p?.type === 'ship' && p.id !== n.shipId ? shipById(app.state, p.id) : null;
-  if (cur && cur.owner === cid && (isIdle(cur) || app.tradeHold === cur.id)) return;
+  if (cur && cur.owner === cid && (waitsForOrders(cur) || app.tradeHold === cur.id)) return;
   if (p?.type === 'ship' && p.id === n.shipId) p.tab = null; // fiche déjà ouverte (onglet Voyage…) : l'onglet utile à l'escale
   app.open('ship', n.shipId, n.kind === 'prospect' ? 'contrats' : null);
   app.focusShip(n.shipId, { quiet: true });
@@ -982,7 +987,7 @@ function timeSounds() {
 function autoResume() {
   if (app.mode !== 'game' || !app.state || app.state.over) { app.idleSeen = null; return; }
   const s = app.state;
-  let idle = s.companies.filter((c) => c.human && !c.bankrupt).reduce((n, c) => n + shipsOf(s, c.id).filter(isIdle).length, 0);
+  let idle = s.companies.filter((c) => c.human && !c.bankrupt).reduce((n, c) => n + shipsOf(s, c.id).filter(waitsForOrders).length, 0);
   // Cargaison achetée pour une destination, départ pas encore donné : le navire (en chargement)
   // attend toujours ses ordres tant que son écran d'appareillage reste ouvert.
   if (app.tradeHold != null) {
@@ -1046,7 +1051,7 @@ function enterGame(state) {
   app.mode = 'game';
   app.speed = 0;
   app.idleSeen = null;
-  app.form = { dest: {}, speed: {}, autoRefuel: {} };
+  app.form = { dest: {}, speed: {}, autoRefuel: {}, line: {} };
   app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
   app.map.setGame(state, ctx, app.ui);
   app.unlockDay = null; // juke-box : ce que la partie a déjà mérité (anciennes sauvegardes comprises)
@@ -1216,7 +1221,25 @@ document.addEventListener('keydown', (e) => {
   else if (e.key >= '1' && e.key <= '3') app.setSpeed(+e.key);
   else if (e.key === 'Escape') { if (document.querySelector('.dialog-wrap')) return; app.close(); }
   else if (e.key === 'Backspace' && app.ui.panel && !document.querySelector('.dialog-wrap')) { e.preventDefault(); app.back(); }
+  else if (e.key === 'Tab' && !document.querySelector('.dialog-wrap') && !app.sceneQueue.length) { e.preventDefault(); nextWaitingShip(e.shiftKey ? -1 : 1); }
 });
+
+// Tab : le navire suivant qui attend vos ordres (Maj+Tab : le précédent), dans l'ordre de la flotte.
+function nextWaitingShip(dir) {
+  const list = shipsOf(app.state, app.ui.activeCompany).filter(waitsForOrders);
+  if (!list.length) { toast('Aucun navire n\'attend vos ordres.', { timeout: 2500 }); return; }
+  const p = app.ui.panel, at = p?.type === 'ship' ? list.findIndex((s) => s.id === p.id) : -1;
+  const next = list[at < 0 ? (dir > 0 ? 0 : list.length - 1) : (at + dir + list.length) % list.length];
+  app.open('ship', next.id);
+  app.focusShip(next.id, { quiet: true });
+}
+
+// Un appel d'offres que la compagnie vise : un engagement, ou la marchandise déjà à bord d'un de ses navires.
+function chasesTender(state, cid, tenderId) {
+  const t = (state.tenders || []).find((x) => x.id === tenderId);
+  if (!t) return false;
+  return t.commits.some((c) => c.company === cid) || shipsOf(state, cid).some((sh) => sh.cargo && !sh.cargo.contractId && sh.cargo.good === t.good);
+}
 
 window.handleBack = () => {
   const d = document.querySelector('.dialog-wrap');

@@ -34,7 +34,7 @@ function noisy(rng, value, skill) {
 }
 
 // Coût d'un trajet (sans la cargaison) pour comparer les options.
-function tripCost(state, ctx, ship, to, extraHours = 0) {
+export function tripCost(state, ctx, ship, to, extraHours = 0) {
   const p = act.planVoyage(state, ctx, ship, to, SHIP_TYPES[ship.type].speed);
   if (p.error) return null;
   if (p.iceRisk > 0) return null; // l'IA ne joue pas avec les glaces
@@ -83,21 +83,7 @@ export function aiShipIdle(state, ctx, rng, ship) {
 
   // 1. Marchandise à bord : vendre ici ou aller la vendre ailleurs.
   if (ship.cargo && !ship.cargo.contractId) {
-    const sale = act.quoteSale(state, ship);
-    let best = { port: here, value: sale && sale.possible ? sale.net : -Infinity };
-    for (const p of PORT_IDS) {
-      if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
-      // Même prudence qu'à l'achat : pas de détour par un pays sous embargo si l'on s'en abstient,
-      // et sinon l'amende possible est comptée (sans quoi l'IA y vend dès que le cours y est meilleur).
-      const emb = eco.isEmbargoedPort(p);
-      if (emb && avoidsEmbargo(state, company)) continue;
-      if (grudgeAt(state, company, p)) continue; // un gang nous y attend
-      const trip = tripCost(state, ctx, ship, p);
-      if (!trip) continue;
-      const gross = quoteSellAt(state, p, ship.cargo.good, ship.cargo.qty, trip.days, ship.id).total;
-      const net = gross * 0.97 - trip.cost - (emb ? embargoCost(state, company, ship, gross) : 0);
-      if (net > best.value * 1.05) best = { port: p, value: net };
-    }
+    const best = bestOutlet(state, ctx, ship, { avoidEmbargo: avoidsEmbargo(state, company) });
     if (best.port !== here && act.depart(state, ctx, ship.id, best.port, T.speed, true).ok) return;
     if (!act.sellCargo(state, ctx, ship.id).ok) ship.aiWait = state.t + 24;
     return;
@@ -128,81 +114,16 @@ export function aiShipIdle(state, ctx, rng, ship) {
   }
 
   // 3. Évaluer les contrats et les occasions de négoce.
-  const options = [];
-  for (const c of state.contracts) {
-    if (c.from !== here || c.takenBy !== null) continue;
-    if (c.embargo && avoidsEmbargo(state, company)) continue; // pavillon qui applique les sanctions, ou déjà sanctionnée : on s'abstient
-    if (act.checkContract(state, ctx, ship, c)) continue;
-    if (hostilePort(state, company.id, c.to)) continue; // autorités achetées contre nous : on évite
-    if (grudgeAt(state, company, c.to)) continue; // un gang nous y attend
-    if (hullRisk(ship, c.to)) continue; // simple coque : l'IA évite les ports exigeants plutôt que de risquer l'amende
-    const loadH = eco.handlingHours(here, c.hold, c.qty, ship.type) + eco.handlingHours(c.to, c.hold, c.qty, ship.type);
-    const trip = tripCost(state, ctx, ship, c.to, loadH);
-    if (!trip || trip.plan.error) continue;
-    if (trip.plan.route && piracyAlong(trip.plan.route).some((x) => pirateBoost(state, ship, x.zone.id))) continue; // pirates payés contre nous
-    if (state.t + (trip.days + 1) * D > c.deadline) continue;
-    // (Le risque d'impayé n'est pas déduit : la prime de risque des chargeurs peu fiables le
-    // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)
-    // Aide d'urgence : à perte ; seule l'IA vertueuse (qui vise la victoire de la réputation) y gagne de la vertu utile.
-    const virtuous = company.ai?.leaning === 'vertueux';
-    const repValue = c.charity && virtuous ? c.charity.rep * (virtuous ? 300000 : 150000) : 0;
-    const pay = c.pay * payCut(state, company.id, c.from) * imageFactor(company, c.client); // guerre des prix contre elle ; chargeur soucieux de son image
-    // L'IA vertueuse (victoire de la réputation) fuit le pétrole, qui lui coûte de la vertu : elle n'en
-    // transporte que faute de mieux.
-    const oilShame = virtuous && OIL_GOODS.includes(c.good) ? pay * VIRTUOUS_OIL_PENALTY : 0;
-    const profit = pay - noisy(rng, trip.cost, skill * 2) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue - oilShame;
-    options.push({ kind: 'contract', c, profit, perDay: profit / Math.max(1, trip.days) });
-  }
   // On garde de quoi faire le plein et payer quelques semaines de frais fixes.
   const reserve = T.tank * eco.fuelPrice(state, here) + eco.fixedDayCost(T, company.flag, 'active') * 30 + 300000;
-  const tradeBudget = (company.cash - reserve) * 0.8;
-  if (tradeBudget > 300000 && !company.ai?.noTrade && !(eco.isEmbargoedPort(here) && avoidsEmbargo(state, company))) {
-    for (const g of Object.keys(PORTS[here].exp)) {
-      const hold = eco.holdFor(ship.type, g);
-      if (!hold || !eco.portHandles(here, hold)) continue;
-      const stock = eco.availableStock(state, here, g);
-      const unit = eco.buyPrice(state, here, g);
-      // Financement par les négociants du port : une cale plus pleine, contre des intérêts.
-      const terms = lenderTerms(company, here);
-      const plans = [[tradeBudget, null]];
-      if (!terms.why) {
-        // Dans la limite de l'encours autorisé : apport + ce qu'il reste à emprunter.
-        const room = loanRoom(state, company).room;
-        const cap = Math.min(tradeBudget / (1 - terms.ltv), tradeBudget + room);
-        if (cap > tradeBudget * 1.2) plans.push([cap, { ...terms, ltv: Math.min(terms.ltv, room / cap) }]);
-      }
-      for (const [budget, fin] of plans) {
-      const qty = Math.floor(Math.min(T.dwt, stock, budget / (unit * 1.05)) / 100) * 100;
-      if (qty < T.dwt * 0.4) continue;
-      const buy = act.quoteBuy(state, ship, g, qty);
-      const loan = fin ? buy.total * fin.ltv : 0;
-      for (const p of PORT_IDS) {
-        if (eco.isEmbargoedPort(p) && avoidsEmbargo(state, company)) continue;
-        if (grudgeAt(state, company, p)) continue; // un gang nous y attend
-        if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
-        const loadH = eco.handlingHours(here, hold, qty, ship.type) + eco.handlingHours(p, hold, qty, ship.type);
-        const trip = tripCost(state, ctx, ship, p, loadH);
-        if (!trip || trip.plan.error) continue;
-        // Cours attendu à l'arrivée (les prix momentanément hauts retombent pendant le voyage),
-        // appel d'offres compris (sa part encore libre, si l'on arrive avant la date limite).
-        const sell = quoteSellAt(state, p, g, qty, trip.days, ship.id).total - qty * eco.HANDLING_COST[hold];
-        const interest = fin ? (loan * fin.rate * Math.max(1, trip.days)) / 365 : 0;
-        // Coût d'opportunité de l'argent immobilisé dans la cargaison (il aurait pu acheter des
-        // navires) : sans lui, l'IA négocie trop, sa flotte grandit moins et elle devient fragile.
-        const locked = ((buy.total - loan) * AI_CAPITAL_COST * Math.max(1, trip.days)) / 365;
-        // Prudence : on retire une marge de risque proportionnelle à la durée et à la volatilité.
-        const risk = buy.total * GOODS[g].vol * Math.sqrt(trip.days) * 1.2;
-        // Le bruit porte sur le cours de revente (quelques %), pas sur toute la valeur :
-        // sinon l'IA choisit systématiquement les erreurs d'estimation les plus optimistes.
-        const tainted = (eco.isEmbargoedPort(here) ? buy.total : 0) + (eco.isEmbargoedPort(p) ? sell : 0);
-        const oilShame = company.ai?.leaning === 'vertueux' && OIL_GOODS.includes(g) ? sell * VIRTUOUS_OIL_PENALTY : 0; // l'IA vertueuse fuit le pétrole
-        const profit = sell * (1 + rng.normal() * 0.012 / skill) - buy.total - trip.cost - risk - interest - locked - (tainted ? embargoCost(state, company, ship, tainted) : 0) - oilShame;
-        options.push({ kind: 'trade', good: g, qty, to: p, finance: fin ? { source: 'origin' } : null, profit, perDay: profit / Math.max(1, trip.days) });
-      }
-      }
-    }
-  }
-  options.sort((a, b) => b.perDay - a.perDay);
+  const options = jobOptions(state, ctx, ship, {
+    costNoise: (v) => noisy(rng, v, skill * 2),
+    saleNoise: () => 1 + rng.normal() * 0.012 / skill,
+    avoidEmbargo: avoidsEmbargo(state, company),
+    virtuous: company.ai?.leaning === 'vertueux',
+    tradeBudget: company.ai?.noTrade ? 0 : (company.cash - reserve) * 0.8,
+    finance: true,
+  });
   const best = options[0];
   if (best && best.profit > 0) {
     ship.aiIdleSince = null;
@@ -271,6 +192,119 @@ export function aiShipIdle(state, ctx, rng, ship) {
     if (act.layUp(state, ship.id).ok) { ship.aiIdleSince = null; return; }
   }
   ship.aiWait = state.t + rng.int(18, 48);
+}
+
+// ---------- Évaluation partagée avec le capitaine libre des joueurs (sim/orders.js) ----------
+// Les mêmes calculs servent à l'IA et au « capitaine libre » : l'IA se trompe un peu (costNoise,
+// saleNoise : son erreur d'estimation), le capitaine voit juste et reste dans les limites du joueur (skip).
+
+// Meilleur débouché pour la marchandise à bord (sans contrat) : ici, ou un autre port après le voyage.
+// o : { avoidEmbargo, skip(port, trip) }.
+export function bestOutlet(state, ctx, ship, o = {}) {
+  const company = state.companies[ship.owner];
+  const here = ship.port;
+  const sale = act.quoteSale(state, ship);
+  let best = { port: here, value: sale && sale.possible ? sale.net : -Infinity };
+  for (const p of PORT_IDS) {
+    if (p === here || !eco.portHandles(p, ship.cargo.hold) || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
+    // Même prudence qu'à l'achat : pas de détour par un pays sous embargo si l'on s'en abstient,
+    // et sinon l'amende possible est comptée (sans quoi l'IA y vend dès que le cours y est meilleur).
+    const emb = eco.isEmbargoedPort(p);
+    if (emb && o.avoidEmbargo) continue;
+    if (grudgeAt(state, company, p)) continue; // un gang nous y attend
+    const trip = tripCost(state, ctx, ship, p);
+    if (!trip) continue;
+    if (o.skip?.(p, trip)) continue;
+    const gross = quoteSellAt(state, p, ship.cargo.good, ship.cargo.qty, trip.days, ship.id).total;
+    const net = gross * 0.97 - trip.cost - (emb ? embargoCost(state, company, ship, gross) : 0);
+    if (net > best.value * 1.05) best = { port: p, value: net };
+  }
+  return best;
+}
+
+// Les chargements possibles au port (contrats, puis négoce), triés par bénéfice par jour.
+// o : { costNoise(v), saleNoise(), avoidEmbargo, virtuous, tradeBudget, finance (prêts des négociants),
+//       skip(kind, good, to, trip) : filtre en plus (les limites du capitaine libre) }.
+export function jobOptions(state, ctx, ship, o) {
+  const company = state.companies[ship.owner];
+  const T = SHIP_TYPES[ship.type];
+  const here = ship.port;
+  const options = [];
+  for (const c of state.contracts) {
+    if (c.from !== here || c.takenBy !== null) continue;
+    if (c.embargo && o.avoidEmbargo) continue; // pavillon qui applique les sanctions, ou déjà sanctionnée : on s'abstient
+    if (act.checkContract(state, ctx, ship, c)) continue;
+    if (hostilePort(state, company.id, c.to)) continue; // autorités achetées contre nous : on évite
+    if (grudgeAt(state, company, c.to)) continue; // un gang nous y attend
+    if (hullRisk(ship, c.to)) continue; // simple coque : on évite les ports exigeants plutôt que de risquer l'amende
+    const loadH = eco.handlingHours(here, c.hold, c.qty, ship.type) + eco.handlingHours(c.to, c.hold, c.qty, ship.type);
+    const trip = tripCost(state, ctx, ship, c.to, loadH);
+    if (!trip || trip.plan.error) continue;
+    if (trip.plan.route && piracyAlong(trip.plan.route).some((x) => pirateBoost(state, ship, x.zone.id))) continue; // pirates payés contre nous
+    if (state.t + (trip.days + 1) * D > c.deadline) continue;
+    if (o.skip?.('contract', c.good, c.to, trip)) continue;
+    // (Le risque d'impayé n'est pas déduit : la prime de risque des chargeurs peu fiables le
+    // compense, et le déduire faisait pencher toutes les stratégies vers les citernes.)
+    // Aide d'urgence : à perte ; seule l'IA vertueuse (qui vise la victoire de la réputation) y gagne de la vertu utile.
+    const virtuous = !!o.virtuous;
+    const repValue = c.charity && virtuous ? c.charity.rep * (virtuous ? 300000 : 150000) : 0;
+    const pay = c.pay * payCut(state, company.id, c.from) * imageFactor(company, c.client); // guerre des prix contre elle ; chargeur soucieux de son image
+    // L'IA vertueuse (victoire de la réputation) fuit le pétrole, qui lui coûte de la vertu : elle n'en
+    // transporte que faute de mieux.
+    const oilShame = virtuous && OIL_GOODS.includes(c.good) ? pay * VIRTUOUS_OIL_PENALTY : 0;
+    const profit = pay - o.costNoise(trip.cost) - (c.embargo ? embargoCost(state, company, ship, c.pay) : 0) + repValue - oilShame;
+    options.push({ kind: 'contract', c, to: c.to, profit, perDay: profit / Math.max(1, trip.days), days: trip.days });
+  }
+  const tradeBudget = o.tradeBudget || 0;
+  if (tradeBudget > 300000 && !(eco.isEmbargoedPort(here) && o.avoidEmbargo)) {
+    for (const g of Object.keys(PORTS[here].exp)) {
+      const hold = eco.holdFor(ship.type, g);
+      if (!hold || !eco.portHandles(here, hold)) continue;
+      const stock = eco.availableStock(state, here, g);
+      const unit = eco.buyPrice(state, here, g);
+      // Financement par les négociants du port : une cale plus pleine, contre des intérêts.
+      const terms = lenderTerms(company, here);
+      const plans = [[tradeBudget, null]];
+      if (o.finance && !terms.why) {
+        // Dans la limite de l'encours autorisé : apport + ce qu'il reste à emprunter.
+        const room = loanRoom(state, company).room;
+        const cap = Math.min(tradeBudget / (1 - terms.ltv), tradeBudget + room);
+        if (cap > tradeBudget * 1.2) plans.push([cap, { ...terms, ltv: Math.min(terms.ltv, room / cap) }]);
+      }
+      for (const [budget, fin] of plans) {
+        const qty = Math.floor(Math.min(T.dwt, stock, budget / (unit * 1.05)) / 100) * 100;
+        if (qty < T.dwt * 0.4) continue;
+        const buy = act.quoteBuy(state, ship, g, qty);
+        const loan = fin ? buy.total * fin.ltv : 0;
+        for (const p of PORT_IDS) {
+          if (eco.isEmbargoedPort(p) && o.avoidEmbargo) continue;
+          if (grudgeAt(state, company, p)) continue; // un gang nous y attend
+          if (p === here || !(PORTS[p].imp[g] > 0) || !eco.portHandles(p, hold) || !eco.fitsPort(p, ship.type) || hullRisk(ship, p)) continue;
+          const loadH = eco.handlingHours(here, hold, qty, ship.type) + eco.handlingHours(p, hold, qty, ship.type);
+          const trip = tripCost(state, ctx, ship, p, loadH);
+          if (!trip || trip.plan.error) continue;
+          if (o.skip?.('trade', g, p, trip)) continue;
+          // Cours attendu à l'arrivée (les prix momentanément hauts retombent pendant le voyage),
+          // appel d'offres compris (sa part encore libre, si l'on arrive avant la date limite).
+          const sell = quoteSellAt(state, p, g, qty, trip.days, ship.id).total - qty * eco.HANDLING_COST[hold];
+          const interest = fin ? (loan * fin.rate * Math.max(1, trip.days)) / 365 : 0;
+          // Coût d'opportunité de l'argent immobilisé dans la cargaison (il aurait pu acheter des
+          // navires) : sans lui, l'IA négocie trop, sa flotte grandit moins et elle devient fragile.
+          const locked = ((buy.total - loan) * AI_CAPITAL_COST * Math.max(1, trip.days)) / 365;
+          // Prudence : on retire une marge de risque proportionnelle à la durée et à la volatilité.
+          const risk = buy.total * GOODS[g].vol * Math.sqrt(trip.days) * 1.2;
+          // Le bruit porte sur le cours de revente (quelques %), pas sur toute la valeur :
+          // sinon l'IA choisit systématiquement les erreurs d'estimation les plus optimistes.
+          const tainted = (eco.isEmbargoedPort(here) ? buy.total : 0) + (eco.isEmbargoedPort(p) ? sell : 0);
+          const oilShame = o.virtuous && OIL_GOODS.includes(g) ? sell * VIRTUOUS_OIL_PENALTY : 0; // l'IA vertueuse fuit le pétrole
+          const profit = sell * o.saleNoise() - buy.total - trip.cost - risk - interest - locked - (tainted ? embargoCost(state, company, ship, tainted) : 0) - oilShame;
+          options.push({ kind: 'trade', good: g, qty, to: p, finance: fin ? { source: 'origin' } : null, profit, perDay: profit / Math.max(1, trip.days), days: trip.days });
+        }
+      }
+    }
+  }
+  options.sort((a, b) => b.perDay - a.perDay);
+  return options;
 }
 
 // Pas de commerce avec les pays sous embargo : pavillon qui applique les sanctions,

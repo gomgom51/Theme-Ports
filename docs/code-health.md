@@ -25,6 +25,8 @@ It runs in about a second, and `npm test` and CI run it on every PR. The tool pr
 | Ship proportions for every drawing | `SHIP_ART` | `ui/shipshapes.js` |
 | A ship in an event scene (real model, to scale, chunky) | `sceneShip`, `sceneShipOf` | `ui/sceneship.js` |
 | The office in a scene | `officeShot`, `drawOfficeShot` | `ui/officescene.js` |
+| Contracts and trades a ship could take now (sorted by profit per day), best port to sell its cargo | `jobOptions`, `bestOutlet` (AI and captain's choice) | `sim/ai.js` |
+| A ship waiting for the player's orders (counts, alerts, auto-resume, Tab) | `waitsForOrders`, not `isIdle` (which also counts ships on standing orders); `onOrders` | `sim/orders.js` |
 | Risk shown before a decision (rule 1) | `riskLines`, `shadyLines`, `darkLines`, `piracyLine`, `patrolLine`, `iceLines` | `ui/risk.js`, `ui/shady.js`, `ui/dark.js`, `ui/piracy.js`, `ui/panel-ship.js` |
 
 If a helper you need is missing, add it to the file in the table and import it. Don't write a local copy "just
