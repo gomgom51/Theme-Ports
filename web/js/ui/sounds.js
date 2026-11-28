@@ -483,6 +483,20 @@ export function standingCue(ctx, out, t, { kind = 'trust', up = true, gain = 0.1
 }
 
 
+// Ping de sonar pour repérer un navire ou une ville sur la carte : une note claire qui s'éteint, puis son
+// écho plus faible. Plus court que le sonar du Nautilus (œuf de Pâques), pour un clic.
+export function ping(ctx, out, t, { freq = 1180, gain = 0.15, reverb = null } = {}) {
+  for (const [dt, g, d] of [[0, 1, 1.1], [0.45, 0.3, 0.9]]) {
+    const o = ctx.createOscillator(), e = envelope(ctx, t + dt, { attack: 0.004, decay: d, peak: gain * g });
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, t + dt);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.95, t + dt + d);
+    o.connect(e).connect(out);
+    if (reverb) e.connect(reverb);
+    o.start(t + dt); o.stop(t + dt + d + 0.1);
+  }
+}
+
 // ---------- Œufs de Pâques (sons de secours, sans fichier) ----------
 // Sonar : un « ping » clair qui s'éteint dans l'eau, puis son écho.
 export function sonar(ctx, out, t, { gain = 0.22, reverb = null } = {}) {

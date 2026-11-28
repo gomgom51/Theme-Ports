@@ -30,7 +30,7 @@ import { openCase } from './ui/shady.js';
 import { showBattle, openRansom, showPatrol } from './ui/piracy.js';
 import { officeTier, OFFICE_TIERS, musicStep, reachedTier, shownTier, MUSIC_LOW, officeSVG, honourSlot } from './ui/officeart.js';
 import { initI18n, setLang, getLang, registerGameNames } from './i18n.js';
-import { registerStateShips, watchShipNames } from './ui/shipnames.js';
+import { registerStateShips, watchShipNames, onCityClick } from './ui/shipnames.js';
 import { initPanelSize, gripAfter } from './ui/panelsize.js';
 import { showScene, scenesOn, setScenesOn, shipKind } from './ui/scenes.js';
 import { shipStyle, setShipStyle } from './ui/pixelship.js';
@@ -175,13 +175,21 @@ app.act = (fn, opts = {}) => {
   if (opts.close && r?.ok) app.close(); else if (opts.refresh !== false) app.refresh();
   return r;
 };
-app.focusShip = (id) => {
+app.focusShip = (id, { quiet = false } = {}) => {
   const ship = shipById(app.state, id);
   if (!ship) return;
   const pos = ship.status === 'sea' ? ctx.shipPosition(ship) : PORTS[ship.port];
   if (pos) app.map.centerOn(pos.lon, pos.lat, Math.max(app.map.view.scale, 5));
   app.map.flashShip(id); // il clignote : on le repère d'un coup d'œil
+  if (!quiet) app.audio.play('ping', 'ship'); // et un ping de sonar
 };
+// Nom de ville cliqué (partout dans l'interface, shipnames.js) : elle clignote en vert sur la carte, ping plus grave.
+app.focusPort = (id) => {
+  if (app.mode !== 'game' || !PORTS[id]) return;
+  app.map.flashCity(id);
+  app.audio.play('ping', 'city');
+};
+onCityClick((id) => app.focusPort(id));
 
 function renderPanel() {
   const p = app.ui.panel;

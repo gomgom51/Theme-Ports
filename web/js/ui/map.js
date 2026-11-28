@@ -790,6 +790,12 @@ export class MapView {
       if (el > f.ms) this.flash = null;
       else if (p) this.drawFlash(g, p.x, p.y, el, f.ms);
     }
+    // Ville dont on a cliqué le nom (dans un panneau, un message…) : elle clignote en vert.
+    if (this.cityFlash) {
+      const f = this.cityFlash, el = performance.now() - f.t0, port = PORTS[f.id];
+      if (el > f.ms || !port) this.cityFlash = null;
+      else { const [x, y] = this.toScreen(port.lon, port.lat); this.drawFlash(g, x, y, el, f.ms, CITY_FLASH); }
+    }
     // Ports en grève.
     for (const [p, until] of Object.entries(state.strikes)) {
       if (until <= state.t) continue;
@@ -800,12 +806,43 @@ export class MapView {
 
   // Fait clignoter un navire : halo doré et ondes qui s'élargissent, pendant `ms` millisecondes.
   flashShip(id, ms = 2800) { this.flash = { id, t0: performance.now(), ms }; }
-  drawFlash(g, x, y, el, ms) {
+  // Montre un port : la carte glisse jusqu'à lui s'il est hors de la partie visible (sans changer le zoom,
+  // pour garder le monde autour), puis il clignote comme un navire, en vert.
+  flashCity(id, ms = 2800) {
+    const port = PORTS[id];
+    if (!port) return;
+    const [x, y] = this.toScreen(port.lon, port.lat);
+    const y0 = 140, y1 = this.h - 90;
+    const hidden = x < 40 || x > this.w - 40 || y < y0 || y > y1
+      || [[0, 0], [-26, 0], [26, 0], [0, -20], [0, 20]].some(([dx, dy]) => this.covered(x + dx, y + dy));
+    if (hidden) {
+      const ty = (y0 + y1) / 2, tx = this.freeMidX(ty), scale = this.view.scale;
+      if (tx != null) this.glideTo(port.lon + (this.w / 2 - tx) / scale, -port.lat + (this.h / 2 - ty) / scale, scale);
+    }
+    this.cityFlash = { id, t0: performance.now(), ms };
+  }
+  // Un point de la carte est-il caché par l'interface (panneau, opportunités, classement, barre du haut) ?
+  covered(x, y) {
+    const r = this.root.getBoundingClientRect();
+    const el = document.elementFromPoint(r.left + x, r.top + y);
+    return !!el && !this.root.contains(el);
+  }
+  // Milieu de la plus large bande de carte libre à la hauteur y (null si tout est couvert).
+  freeMidX(y) {
+    let best = null, start = null;
+    for (let x = 16; x <= this.w; x += 32) {
+      const free = x <= this.w - 16 && !this.covered(x, y);
+      if (free && start == null) start = x;
+      if (!free && start != null) { if (!best || x - start > best[1] - best[0]) best = [start, x]; start = null; }
+    }
+    return best ? (best[0] + best[1]) / 2 : null;
+  }
+  drawFlash(g, x, y, el, ms, pal = SHIP_FLASH) {
     const fade = Math.min(1, (ms - el) / 500); // s'éteint doucement à la fin
     const pulse = 0.75 + 0.25 * Math.sin(el / 120); // le halo bat comme un phare
     const glow = g.createRadialGradient(x, y, 2, x, y, 32);
-    glow.addColorStop(0, `rgba(255, 196, 64, ${0.9 * fade * pulse})`);
-    glow.addColorStop(1, 'rgba(255, 196, 64, 0)');
+    glow.addColorStop(0, `rgba(${pal.glow}, ${0.9 * fade * pulse})`);
+    glow.addColorStop(1, `rgba(${pal.glow}, 0)`);
     g.fillStyle = glow;
     g.beginPath(); g.arc(x, y, 32, 0, Math.PI * 2); g.fill();
     for (let i = 0; i < 4; i++) {
@@ -814,7 +851,7 @@ export class MapView {
       const r = 10 + ph * 46, a = (1 - ph) * fade;
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
       g.lineWidth = 6; g.strokeStyle = `rgba(251, 248, 241, ${0.85 * a})`; g.stroke();
-      g.lineWidth = 3.2; g.strokeStyle = `rgba(232, 146, 20, ${a})`; g.stroke();
+      g.lineWidth = 3.2; g.strokeStyle = `rgba(${pal.ring}, ${a})`; g.stroke();
     }
   }
 
@@ -1078,6 +1115,10 @@ export class MapView {
     this.drawOverlay(frac);
   }
 }
+
+// Couleurs du clignotement : navire recherché (or), ville dont on a cliqué le nom (vert).
+const SHIP_FLASH = { glow: '255, 196, 64', ring: '232, 146, 20' };
+const CITY_FLASH = { glow: '96, 214, 128', ring: '30, 140, 80' };
 
 // Ce que fait un navire à quai, pour sa pastille sur la carte.
 export const PORT_STATUS = {

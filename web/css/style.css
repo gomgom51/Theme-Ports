@@ -126,6 +126,9 @@ p { margin: 6px 0; }
 b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-sub.nm { font-size: 16px; color: var(--ink-2); }
 .row b.nm { font-size: 16px; }
+/* Noms de villes (shipnames.js) : rien au repos ; au survol, soulignés en vert et main du pointeur. Un clic la fait clignoter sur la carte. */
+.city { cursor: var(--cursor-click); border-radius: 3px; }
+.city:hover { text-decoration: underline 2px #2e9e5b; text-underline-offset: 3px; background: rgba(46, 158, 91, 0.1); }
 .hud-cash { font-weight: 800; font-variant-numeric: tabular-nums; }
 .hud-cash.neg { color: var(--bad); }
 /* Variation de confiance ou de vertu : un chiffre qui s'envole au-dessus de la note. */

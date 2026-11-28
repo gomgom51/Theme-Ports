@@ -260,7 +260,7 @@ function usedTab(app) {
         const v = await inspectShip({ ...look, compare: compareSets(app, l.type, true), subtitle: `À vendre à ${portName(l.port)} pour ${money(l.price)}. Il vous attend dans ce port.`, buy: affordable ? { label: `Acheter · ${money(l.price)}` } : null });
         if (v !== 'buy') return;
         const r = app.act(() => app.withRng((rng) => act.buyUsedShip(state, ctx, rng, company.id, l.id)), { sound: 'pay' });
-        if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id); app.boughtShip?.(r.ship); }
+        if (r?.ok) { app.open('ship', r.ship.id); app.focusShip(r.ship.id, { quiet: true }); app.boughtShip?.(r.ship); }
       };
       return h('div.card.with-art', { class: affordable ? '' : 'disabled' }, [
         h('button.card-art', { title: 'Inspecter le navire', 'aria-label': `Inspecter le ${l.name}`, onclick: buy, html: shipSVG(l.type, { ...look, slot: 'card' }) }),
