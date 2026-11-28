@@ -54,3 +54,23 @@ also avoids oil (`VIRTUOUS_OIL_PENALTY`).
 
 See [11](11-grey-black-trade.md): days after a parcel or dark cargo is delivered, news may report
 what it caused in that city.
+
+## Consistency rules (keep the world believable)
+
+Lessons from the five-persona playtest (2026-11-28). Check them when adding an event, a disaster, a text,
+a warning or an opportunity card:
+
+1. **The screen reads the simulation.** A risk, price or rule shown to the player comes from the same function
+   the simulation uses (e.g. `refusalRisk` in `dark.js` for dark-job refusals), never from a copy of its constants
+   and conditions. A home-port perk added to the simulation but not to the window made the game threaten a
+   seizure that could not happen (rule 1).
+2. **Events remember.** A new world event declares its opposites in `EVENT_MEMORY.against`. A text promises
+   only what the simulation keeps ("for a long time" is fine for overcapacity: the cycle's half-life is ~9 months).
+3. **Places fit.** A disaster belongs to its place (`DISASTER_PORTS` lists each port's own); tropical storms
+   weaken outside the tropics. Still open: smuggling aftermath at tiny industrial sites such as Sabetta.
+4. **Actors stay in character.** Who may do what is filtered where the actor is picked: image-minded shippers
+   never touch sanctioned ports (`makeContract`).
+5. **Every story ends.** Anything that holds a ship, a port or a market (hijack, seizure, strike, canal closure,
+   crisis) announces its end in the news.
+6. **Alerts only when you can act.** A sound or toast for an opportunity only when one of your ships can use it
+   (`goldenNear`, `tenderServable`); the rest goes to the news or quietly to the opportunities column.

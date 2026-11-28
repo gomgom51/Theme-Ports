@@ -1,10 +1,10 @@
 // Interface des affaires noires (proposition, saisies) et lignes de risque associées.
 // Tous les risques sont dits avant la décision : douane, confiscation, infamie, refus.
-import { homeOf, shadowHome } from '../sim/home.js';
+import { homeOf } from '../sim/home.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { portName, shipById, repCap } from '../sim/core.js';
 import * as eco from '../sim/economy.js';
-import { DARK, DARK_KINDS, acceptDark, refuseDark, resolveSeized, darkDetect, grudgeAt } from '../sim/dark.js';
+import { DARK, DARK_KINDS, acceptDark, refuseDark, refusalRisk, resolveSeized, darkDetect, grudgeAt } from '../sim/dark.js';
 import { h, money, date, dialog, confirmBox, toast } from './dom.js';
 import { riskWords } from './shady.js';
 import { crossesLine, BLACKLIST } from '../sim/shadow.js';
@@ -46,15 +46,15 @@ export async function darkOfferDialog(app, note) {
   const p = darkDetect(ship, o.to, company.homePort);
   const cap = repCap({ infamy: (company.infamy || 0) + K.infamy });
   const [rShip, rCrew] = ransomOf(state, ship);
-  // Port de l'ombre de la compagnie : on peut y dire non sans rancune ni saisie (sim/dark.js refuseDark).
-  const atHome = shadowHome(company, o.from);
+  // Ce que coûterait un refus, lu dans la simulation (rien au port de l'ombre de la compagnie).
+  const risk = refusalRisk(company, o.from);
   const body = h('div', [
     h('p', [h('b', `${K.icon} ${K.name}`), ` — de ${portName(o.from)} à ${portName(o.to)} (${o.nm.toLocaleString('fr-FR')} milles), avant le ${date(o.deadline, true)}.`]),
     h('p', ['Payé ', h('b.pos', money(o.pay)), ' en liquide à la livraison. La marchandise occupe toute la cale : pas d\'autre chargement pendant ce voyage.']),
     h('p.warn-text', `☠ Point de non-retour : infamie +${K.infamy}. Votre confiance et votre vertu ne pourront plus jamais dépasser ${cap}/100 (confiance aujourd'hui : ${Math.round(company.confidence ?? company.reputation)}). Moins de confiance : moins de bons contrats, des prêts plus chers.`),
     h('p', `Douane à l'arrivée : risque ${riskWords(p, ship.crew || 0)} à ${portName(o.to)}, et à chaque escale en route. Si elle trouve : navire confisqué (caution de ${money(bailOf(state, ship))} pour le récupérer, ou il est perdu), amende de ${money(o.pay * 0.5)}, équipage arrêté, scandale public (infamie +${DARK.caughtInfamy}, vertu −25).`),
     concealEl(ship),
-    atHome ? h('p', 'En refusant : rien à craindre, vous êtes chez vous. Ni rancune ni saisie.') : h('p', `En refusant : ${pc(DARK.refuseSeize)} de risque qu'ils s'emparent du navire (rançon ${money(rShip)}) ou de l'équipage (rançon ${money(rCrew)}), puis ce gang vous en voudra ${DARK.grudgeDays} jours (${pc(DARK.grudgeSeize)} de risque de saisie à chaque escale de vos navires à ${portName(o.from)}).`),
+    !risk ? h('p', 'En refusant : rien à craindre, vous êtes chez vous. Ni rancune ni saisie.') : h('p', `En refusant : ${pc(risk.seize)} de risque qu'ils s'emparent du navire (rançon ${money(rShip)}) ou de l'équipage (rançon ${money(rCrew)}), puis ce gang vous en voudra ${risk.grudgeDays} jours (${pc(risk.grudgeSeize)} de risque de saisie à chaque escale de vos navires à ${portName(o.from)}).`),
     crossesLine(company, K.infamy)
       ? h('p.warn-text', `⛔ Liste noire : cette affaire porterait votre infamie à ${Math.round((company.infamy || 0) + K.infamy)}. À ${BLACKLIST.infamy}, votre compagnie entre sur la liste noire internationale, pour toujours : ports d'Europe, d'Amérique du Nord, du Japon, de Corée et d'Océanie fermés (navires saisis), banques régulières fermées (la banque de l'ombre prête deux fois moins, 15 points plus cher), chargeurs honnêtes perdus. C'est aussi le chemin de la victoire « La flotte fantôme ».`)
       : crossesLine(company, K.infamy + DARK.caughtInfamy) ? h('p.warn-text', `⛔ Si la douane trouve la cargaison, l'infamie gagnerait encore ${DARK.caughtInfamy} points et ferait entrer votre compagnie sur la liste noire internationale (à ${BLACKLIST.infamy}).`) : null,
@@ -73,7 +73,7 @@ export async function darkOfferDialog(app, note) {
 function refuse(app, ship, o) {
   const r = app.act(() => app.withRng((rng) => refuseDark(app.state, rng, ship.id, o)));
   if (r?.ok && !r.seized) {
-    if (shadowHome(app.state.companies[ship.owner], o.from)) toast('Vous refusez. Ici, on vous connaît : personne ne vous en voudra.', { timeout: 6000 });
+    if (!refusalRisk(app.state.companies[ship.owner], o.from)) toast('Vous refusez. Ici, on vous connaît : personne ne vous en voudra.', { timeout: 6000 });
     else toast(`Vous refusez. On vous regarde partir sans un mot : ${portName(o.from)} ne vous oubliera pas.`, { kind: 'warn', timeout: 7000 });
   }
   if (r?.seized) app.handleNotes([{ kind: 'seized', shipId: ship.id, company: ship.owner, seized: r.seized, text: r.seized.kind === 'ship' ? `Le refus ne passe pas : des hommes armés s'emparent du ${ship.name} et de son équipage. Ils réclament ${money(r.seized.ransom)}.` : `Le refus ne passe pas : des hommes armés enlèvent l'équipage du ${ship.name}. Ils réclament ${money(r.seized.ransom)}.` }]);

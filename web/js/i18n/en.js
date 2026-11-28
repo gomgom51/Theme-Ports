@@ -1599,6 +1599,8 @@ export default {
   "Vous refusez. On vous regarde partir sans un mot : {0} ne vous oubliera pas.": "You refuse. They watch you leave without a word: {0} will not forget you.",
   "En refusant : rien à craindre, vous êtes chez vous. Ni rancune ni saisie.": "If you refuse: nothing to fear, you are at home. No grudge, no seizure.",
   "Vous refusez. Ici, on vous connaît : personne ne vous en voudra.": "You refuse. They know you here: nobody will hold it against you.",
+  "Les opportunités : affaires en or ★, appels d'offres des villes 📣, aide d'urgence ❤ et pistes de démarchage 📋. Affaires en or et appels d'offres n'apparaissent que si l'un de vos navires peut en profiter. Survolez une carte pour le détail ; × la ferme.": "Opportunities: golden deals ★, city tenders 📣, emergency aid ❤ and prospecting leads 📋. Golden deals and tenders only show up when one of your ships can use them. Hover a card for the details; × closes it.",
+  "Les opportunités": "Opportunities",
   "Le refus ne passe pas : des hommes armés s'emparent du {0} et de son équipage. Ils réclament {1}.": "The refusal doesn't go down well: armed men seize the {0} and its crew. They demand {1}.",
   "Le refus ne passe pas : des hommes armés enlèvent l'équipage du {0}. Ils réclament {1}.": "The refusal doesn't go down well: armed men kidnap the {0}'s crew. They demand {1}.",
   "La justice de {0} a confisqué le {1}. Payer la caution de {2} pour le récupérer (10 à 20 jours de procédure), ou l'abandonner : il est perdu.": "The courts of {0} have impounded the {1}. Pay the bail of {2} to get it back (10 to 20 days of proceedings), or abandon it: it is lost.",

@@ -117,14 +117,21 @@ export function acceptDark(state, shipId, o) {
   shipLog(state, ship, `Cargaison noire embarquée pour ${portName(o.to)}`);
   return { ok: true, infamy: company.infamy, cap: repCap(company) };
 }
+// Ce que coûte un refus dans ce port : null si rien (port de l'ombre de la compagnie : chez vous, on peut
+// dire non sans rancune ni saisie). Seule source de vérité, lue par la simulation ET par la fenêtre de
+// l'offre (ui/dark.js) : l'écran ne peut plus annoncer un risque qui n'existe pas (règle 1).
+export function refusalRisk(company, port) {
+  if (shadowHome(company, port)) return null;
+  return { seize: DARK.refuseSeize, grudgeDays: DARK.grudgeDays, grudgeSeize: DARK.grudgeSeize };
+}
 export function refuseDark(state, rng, shipId, o, notes = null, note = null) {
   const ship = shipById(state, shipId);
   if (!ship) return fail('Navire introuvable.');
   const company = companyOf(state, ship);
-  // Port de l'ombre : chez vous, on peut dire non sans rancune ni saisie.
-  if (shadowHome(company, o.from)) { shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)} (chez vous, sans rancune)`); return { ok: true, seized: null }; }
-  (company.grudge ??= {})[o.from] = state.t + DARK.grudgeDays * D;
-  if (rng.chance(DARK.refuseSeize)) return { ok: true, seized: seize(state, rng, ship, 'gang', notes, note) };
+  const risk = refusalRisk(company, o.from);
+  if (!risk) { shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)} (chez vous, sans rancune)`); return { ok: true, seized: null }; }
+  (company.grudge ??= {})[o.from] = state.t + risk.grudgeDays * D;
+  if (rng.chance(risk.seize)) return { ok: true, seized: seize(state, rng, ship, 'gang', notes, note) };
   shipLog(state, ship, `Affaire noire refusée à ${portName(o.from)}`);
   return { ok: true, seized: null };
 }

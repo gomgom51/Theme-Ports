@@ -172,6 +172,16 @@ const STEPS = [
     },
   },
   {
+    // La colonne des opportunités (en bas à gauche), dès qu'une première carte s'y montre.
+    id: 'opportunites', title: 'Les opportunités', after: ['temps'], ok: true,
+    when: () => !dialogOpen() && !!shown($('[data-guide="opps"]')),
+    done: () => false,
+    show: () => {
+      const el = shown($('[data-guide="opps"]'));
+      return el ? { el, text: 'Les opportunités : affaires en or ★, appels d\'offres des villes 📣, aide d\'urgence ❤ et pistes de démarchage 📋. Affaires en or et appels d\'offres n\'apparaissent que si l\'un de vos navires peut en profiter. Survolez une carte pour le détail ; × la ferme.' } : 'skip';
+    },
+  },
+  {
     id: 'escale', title: 'Plein et réparations', after: ['ordres'], ok: true,
     when: (app) => mine(app).some((s) => s.status === 'port' && !s.seized),
     done: () => false,
