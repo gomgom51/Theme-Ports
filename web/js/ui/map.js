@@ -13,10 +13,10 @@ import { ZONES } from '../data/zones.js';
 import { zoneRings } from '../sim/pollution.js';
 import { PIRACY_ZONES } from '../sim/piracy.js';
 import { mapShipSprite, drawMapShip, mapSize } from './mapships.js';
+import { reducedMotion } from './motion.js';
 
 // Étiquettes des ports voisins qui se chevaucheraient : côté du point et décalage vertical (px).
 // Animations d'ambiance (pavillons pirates) : figées si le joueur a demandé moins de mouvement.
-const REDUCE_MOTION = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
 const LABEL_PLACE = {
   ras_tanura: ['left', -6], ras_laffan: ['left', 7], dubai: ['right', 4], bandar_abbas: ['right', -8], karachi: ['right', -10],
@@ -670,7 +670,7 @@ export class MapView {
       }
     }
     // Zones de piraterie : leur vrai contour (celui que lit la simulation), lissé, teinte rouge unie et bord continu.
-    const flagT = REDUCE_MOTION?.matches ? 0 : performance.now() / 1000;
+    const flagT = reducedMotion() ? 0 : performance.now() / 1000;
     for (const [zi, z] of PIRACY_ZONES.entries()) {
       g.beginPath();
       if (!this.zonePath(g, z.poly)) continue;

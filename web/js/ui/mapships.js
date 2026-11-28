@@ -9,6 +9,7 @@
 import { SHIP_ART } from './shipart.js';
 import { shipStyle, ramp, mix, rng } from './pixelship.js';
 import { uiScale } from './scale.js';
+import { reducedMotion } from './motion.js';
 
 const INK = '#1c2a33', PAPER = 'rgba(251,248,241,0.95)';
 const WHITE = '#f3efe4', GLASS = '#26343c', STEEL = '#9aa3a8', RED = '#c4362c', SOOT = '#1a1f23';
@@ -226,7 +227,6 @@ function build(typeId, color, laden, own, docked, laidup, fine, size = 1) {
   };
 }
 
-const reduce = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
 /**
  * Dessine un navire sur la carte, centré sur (x, y) (pixels CSS), en pixels d'écran entiers.
@@ -236,7 +236,7 @@ const reduce = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-m
  */
 export function drawMapShip(g, dpr, x, y, spr, { left = false, moving = false, speed = 0, t = 0, seed = 0, smoke = false, zoom = 1 } = {}) {
   const k = Math.max(1, Math.round(dpr * spr.px * zoom)); // pixels d'écran par pixel du dessin
-  const still = !!reduce?.matches;
+  const still = reducedMotion();
   const tt = still ? seed : t;
   const bob = moving && !still ? Math.round(Math.sin(tt * 2.4 + seed) * 0.6) : 0;
   const W = spr.w * k, H = spr.h * k;

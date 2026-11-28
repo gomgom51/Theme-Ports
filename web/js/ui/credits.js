@@ -7,6 +7,7 @@ import { W, H } from './pixel.js';
 import { logoBadge } from './logos.js';
 import { brandTitle, sealSVG } from './brand.js';
 import { unlockTracks } from './profile.js';
+import { reducedMotion } from './motion.js';
 
 // L'auteur du jeu (nom choisi par lui pour le générique).
 export const AUTHOR = 'Clement Gomes';
@@ -63,7 +64,7 @@ function clipsFor(company) {
 export function creditsScreen(app, { company = null, header = null, onDone = () => {} } = {}) {
   const root = document.getElementById('screen');
   const color = company?.color || '#c4362c';
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = reducedMotion();
   app.audio.setScene('credits');
   unlockTracks(['credits']); // juke-box : débloqué même sans le son
 
