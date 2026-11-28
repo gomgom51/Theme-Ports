@@ -9,7 +9,7 @@ import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
 import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
-import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine } from './ui/motion.js';
+import { drawerIn, drawerOutCopy, panelSwapBegin, wipeTab, slideTabLine, animationsOn, setAnimationsOn, applyMotionClass } from './ui/motion.js';
 import { shipPanel } from './ui/panel-ship.js';
 import { PANELS } from './ui/panels.js';
 import { titleScreen, setupScreen, hideScreen, endScreen } from './ui/screens.js';
@@ -1125,6 +1125,7 @@ async function gameMenu() {
       { label: app.state.settings.autoPause ? 'Pause auto : oui' : 'Pause auto : non', value: 'pause' },
       { label: `Son : ${soundLabel()}`, value: 'sound' },
       { label: scenesOn() ? 'Illustrations : oui' : 'Illustrations : non', value: 'scenes' },
+      { label: animationsOn() ? 'Animations : oui' : 'Animations : non', value: 'anim' },
       { label: shipStyle() === 'chunky' ? 'Navires : gros pixels' : 'Navires : pixels fins', value: 'ships' },
       { label: `Interface : ${uiSize().label}`, value: 'uisize' },
       { label: app.state.settings.noParcelOffers ? 'Colis proposés : non' : 'Colis proposés : oui', value: 'parcels' },
@@ -1148,6 +1149,7 @@ async function gameMenu() {
   else if (v === 'sound') { await soundDialog(); app.speed = wasSpeed; }
   else if (v === 'lang') { setLang(getLang() === 'fr' ? 'en' : 'fr'); app.speed = wasSpeed; }
   else if (v === 'scenes') { setScenesOn(!scenesOn()); app.speed = wasSpeed; }
+  else if (v === 'anim') { setAnimationsOn(!animationsOn()); app.speed = wasSpeed; } // ne suit plus le réglage de Windows
   else if (v === 'ships') { setShipStyle(shipStyle() === 'chunky' ? 'fine' : 'chunky'); app.speed = wasSpeed; }
   else if (v === 'uisize') {
     // Taille de l'interface : « Normale » suit la taille de l'écran (pensé pour 1920 × 1080), les autres l'ajustent.
@@ -1203,6 +1205,7 @@ initTooltips();
 initBossKey(app); // touche A : cacher le jeu derrière une simple carte, et le retrouver tel quel
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
+applyMotionClass(); // animations coupées par le joueur : CSS aussi (html.no-motion)
 // Largeur du panneau, réglable à sa poignée ; le décor du Bureau suit (une fois par image).
 let refitting = 0;
 const refitRoom = () => { if (!refitting) refitting = requestAnimationFrame(() => { refitting = 0; panelEl._mount?.(); }); };

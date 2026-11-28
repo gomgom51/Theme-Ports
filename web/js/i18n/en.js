@@ -1251,6 +1251,8 @@ export default {
   "La banque saisit un navire": "The bank seizes a ship",
   "Illustrations : oui": "Event scenes: on",
   "Illustrations : non": "Event scenes: off",
+  "Animations : oui": "Animations: on",
+  "Animations : non": "Animations: off",
   "Navires : pixels fins": "Ships: fine pixels",
   "Interface : {0}": "Interface: {0}",
   "Taille de l'interface": "Interface size",

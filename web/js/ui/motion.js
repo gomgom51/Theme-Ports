@@ -2,8 +2,10 @@
 // - Panneaux : un tiroir qui sort de sous le rail et s'arrête net (un léger rebond de 6 px).
 // - Onglets : une barre de laiton balaie la nouvelle page, dans l'ordre des onglets ; le soulignement glisse.
 // - Boîtes de dialogue : un tampon pressé sur la carte, avec un petit choc (et son bruit, joué par l'appelant).
-// Rien ne bouge si le système demande moins d'animations. Les rafraîchissements du panneau (toutes les
-// 1,2 s) ne rejouent rien : seuls l'ouverture, la fermeture, le changement de panneau et d'onglet animent.
+// Rien ne bouge si le joueur coupe les animations (☰ → Animations). Le réglage du jeu ne suit plus celui du
+// système (« effets d'animation » de Windows) : choix du propriétaire, qui ne voyait aucun mouvement sans le
+// savoir. Les rafraîchissements du panneau (toutes les 1,2 s) ne rejouent rien : seuls l'ouverture, la
+// fermeture, le changement de panneau et d'onglet animent.
 
 export const MOTION = {
   drawerIn: 240,   // ms : sortie du tiroir, rebond compris
@@ -15,7 +17,21 @@ export const MOTION = {
   thud: 3,         // px : le choc du tampon sur la carte
 };
 
-export const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Réglage des animations, pour tout le jeu (carte, navires, panneaux, intro, générique, CSS via html.no-motion).
+const ANIM_KEY = 'pda-animations';
+let animOn = null;
+export function animationsOn() {
+  if (animOn == null) { try { animOn = localStorage.getItem(ANIM_KEY) !== '0'; } catch { animOn = true; } }
+  return animOn;
+}
+export function setAnimationsOn(on) {
+  animOn = !!on;
+  try { localStorage.setItem(ANIM_KEY, on ? '1' : '0'); } catch { /* stockage indisponible */ }
+  applyMotionClass();
+}
+// Classe html.no-motion : les animations CSS s'arrêtent aussi (à appeler au démarrage).
+export function applyMotionClass() { if (typeof document !== 'undefined') document.documentElement.classList.toggle('no-motion', !animationsOn()); }
+export const reducedMotion = () => !animationsOn();
 const SHADOW = 60; // px laissés à gauche du panneau pour son ombre
 
 // Position du tiroir : décalé de x vers la droite, et coupé au bord où il se range (sous le rail).

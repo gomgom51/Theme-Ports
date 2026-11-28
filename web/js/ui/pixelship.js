@@ -13,6 +13,7 @@
 import { SHIP_ART } from './shipart.js';
 import { logoMarkup, emblemInk } from './logos.js';
 import { pixelRatio } from './scale.js';
+import { reducedMotion as reduceMotion } from './motion.js';
 
 // ---------- Réglage du joueur ----------
 const STYLE_KEY = 'pda-ship-style';
@@ -1184,7 +1185,6 @@ const cache = new Map(); // rendus fixes déjà calculés (les panneaux se redes
 const CACHE_MAX = 160;
 const mounted = new Set();
 const animated = new Set();
-const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const esc = (t) => String(t).replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /** Balise à insérer dans le HTML ; le dessin est posé à l'affichage. */

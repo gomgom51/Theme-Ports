@@ -6,6 +6,7 @@
 // permis (application Android, site autorisé), le bateau part tout de suite.
 import { h } from './dom.js';
 import { brandTitle } from './brand.js';
+import { reducedMotion } from './motion.js';
 
 // Ciel du zénith à l'horizon, mer de l'horizon vers le rivage.
 const SKY = ['#1b1035', '#2b1544', '#461b55', '#6c2459', '#982f53', '#c44a44', '#e7783c', '#f6aa4c', '#fbd06a'];
@@ -115,7 +116,7 @@ function drawSprite(g, rows, k, left, top, dim) {
 
 export function playIntro(app) {
   const a = app.audio;
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reduce = reducedMotion();
   const soundOn = a.settings.ambience || a.settings.sfx || a.settings.music;
   const needClick = soundOn && !a.unlocked;
   if (reduce && !needClick) return; // rien à attendre, et pas d'animation voulue
