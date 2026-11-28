@@ -4,7 +4,8 @@ import { standingSummary } from './ui/standing.js';
 import { makeContext } from './sim/context.js';
 import { newGame, tick, ranking } from './sim/game.js';
 import { Rng, formatDate, HOURS_PER_DAY } from './sim/util.js';
-import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName } from './sim/core.js';
+import { shipsOf, isIdle, shipById, netWorth, standing, repLimit, portName, trustCap, virtueCap, cargoLoans } from './sim/core.js';
+import { repQuote } from './ui/reputation.js';
 import { PORTS } from './data/ports.js';
 import { MapView } from './ui/map.js';
 import { h, $, money, toast, dialog, confirmBox, num1, dialogHooks } from './ui/dom.js';
@@ -417,6 +418,28 @@ function standingFloats(c, trEl, viEl) {
     float(el, d, icon);
   }
 }
+// Jauge de la barre du haut : dix cases (une par dizaine), un trait doré au plafond, la note et la
+// variation du mois (bilan de company.standingMonth, dérive lente comprise).
+const monthDelta = (c, key) => Object.values(c.standingMonth?.[key] || {}).reduce((a, b) => a + b, 0);
+function hudGauge(el, icon, v, cap, delta, low, title) {
+  el.classList.toggle('low', low);
+  const d = Math.round(delta), top = Math.floor(cap);
+  const key = `${v}|${top}|${d}`;
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  const cells = [];
+  for (let i = 0; i < 10; i++) {
+    const f = Math.max(0, Math.min(1, (v - i * 10) / 10));
+    cells.push(f >= 1 ? h('i.on') : f > 0 ? h('i.part', { style: `--p:${Math.round(f * 100)}%` }) : h('i'));
+  }
+  el.replaceChildren(
+    h('span.hud-ico', { 'aria-hidden': 'true' }, icon),
+    h('span.hud-seg', { style: `--cap:${top}` }, [...cells, h('em')]),
+    h('b', `${v}`),
+    h('small.hud-delta', { class: d > 0 ? 'up' : d < 0 ? 'down' : '' }, d > 0 ? `▲${d}` : d < 0 ? `▼${-d}` : ''),
+  );
+  el.title = title(top, d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '0');
+}
 function updateHud() {
   if (app.mode !== 'game') return;
   const s = app.state, c = app.company();
@@ -428,15 +451,28 @@ function updateHud() {
   const cash = $('#hud-cash');
   cash.textContent = money(c.cash);
   cash.classList.toggle('neg', c.cash < 0);
+  // Dessous : ce qui est emprunté (banque + prêts sur cargaison), caché sans dette.
+  const loans = cargoLoans(s, c.id), owed = c.debt + loans, debtEl = $('#hud-debt');
+  debtEl.hidden = owed < 1000;
+  const debtKey = `${money(owed)}|${money(c.debt)}`;
+  if (!debtEl.hidden && debtEl.dataset.key !== debtKey) {
+    debtEl.dataset.key = debtKey;
+    debtEl.replaceChildren('emprunté ', h('b', money(owed)));
+    debtEl.title = `Banque : ${money(c.debt)} · prêts sur cargaison : ${money(loans)}`;
+  }
   // Réputation : la plus basse des deux notes, celle qui la retient en rouge.
   standing(c);
   const R = Math.floor(c.reputation), T = Math.floor(c.confidence), V = Math.floor(c.virtue), lim = repLimit(c);
   $('#hud-rep-val').textContent = R;
   const tr = $('#hud-trust'), vi = $('#hud-virtue');
-  tr.innerHTML = `<span class="hud-ico" aria-hidden="true">🤝</span>${T}`; vi.innerHTML = `<span class="hud-ico" aria-hidden="true">💚</span>${V}`;
-  tr.classList.toggle('low', lim === 'trust'); vi.classList.toggle('low', lim === 'virtue');
-  tr.title = 'Confiance : on peut compter sur vous (chargeurs, banques, acheteurs)'; vi.title = 'Vertu : votre image dans la presse';
+  hudGauge(tr, '🤝', T, trustCap(c), monthDelta(c, 'confidence'), lim === 'trust',
+    (cap, d) => `Confiance : on peut compter sur vous (chargeurs, banques, acheteurs) · plafond ${cap} · ce mois ${d}`);
+  hudGauge(vi, '💚', V, virtueCap(c), monthDelta(c, 'virtue'), lim === 'virtue',
+    (cap, d) => `Vertu : votre image dans la presse · plafond ${cap} · ce mois ${d}`);
   standingFloats(c, tr, vi);
+  // La phrase du milieu (celle du Bureau → Compagnie) ; la clé évite de réécrire le texte une fois traduit.
+  const quote = $('#hud-quote'), qt = repQuote(c).main;
+  if (quote.dataset.key !== qt) { quote.dataset.key = qt; quote.textContent = qt; }
   $('#hud-rep').title = lim === 'virtue' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre vertu la retient.`
     : lim === 'trust' ? `Réputation ${R} : la plus basse de la confiance (${T}) et de la vertu (${V}). Votre confiance la retient.`
     : `Réputation ${R} : confiance et vertu à égalité.`;
@@ -532,8 +568,10 @@ $('#hud-company').addEventListener('click', () => {
 });
 // La réputation ouvre l'onglet Compagnie du bureau (détail de la confiance et de la vertu).
 const openStanding = (e) => { e.stopPropagation(); app.open('office', null, 'compagnie'); };
-$('#hud-rep').addEventListener('click', openStanding);
-$('#hud-rep').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStanding(e); } });
+for (const sel of ['#hud-rep', '#hud-quote']) {
+  $(sel).addEventListener('click', openStanding);
+  $(sel).addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStanding(e); } });
+}
 $('#hud-menu').addEventListener('click', () => gameMenu());
 document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => {
   const type = b.dataset.panel;

@@ -128,6 +128,9 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .row b.nm { font-size: 16px; }
 .hud-cash { font-weight: 800; font-variant-numeric: tabular-nums; }
 .hud-cash.neg { color: var(--bad); }
+/* Sous la trésorerie : ce qui est emprunté (banque et prêts sur cargaison, le détail au survol). */
+.hud-debt { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hud-debt b { color: var(--ink-2); font-weight: 700; }
 /* Variation de confiance ou de vertu : un chiffre qui s'envole au-dessus de la note. */
 .float-delta { position: fixed; z-index: 60; transform: translate(-50%, 0); font-weight: 800; font-size: 13px; pointer-events: none; white-space: nowrap;
   background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; box-shadow: 0 2px 6px rgba(28, 42, 51, 0.18);
@@ -135,15 +138,34 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .float-delta.pos { color: var(--good); }
 .float-delta.neg { color: var(--bad); }
 @keyframes float-delta { 0% { opacity: 0; transform: translate(-50%, -6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 16px); } }
-/* Réputation (la plus basse de la confiance 🤝 et de la vertu 💚), à côté de la trésorerie. */
-.hud-rep { display: flex; flex-direction: column; flex: none; line-height: 1.15; padding-left: 9px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
-.hud-rep-main { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hud-rep-main > span { color: var(--star); }
+/* Réputation (la plus basse de la confiance 🤝 et de la vertu 💚), à côté de la trésorerie : ★ en grand,
+   puis une jauge de dix cases par note, un trait doré à son plafond et la variation du mois. */
+.hud-rep { display: flex; align-items: center; gap: 9px; flex: none; line-height: 1.15; padding-left: 10px; border-left: 1px solid var(--line); text-align: left; cursor: pointer; }
+.hud-rep-main { display: flex; align-items: baseline; gap: 3px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hud-rep-main > span { color: var(--star); font-size: 20px; }
 .star { color: var(--star); }
-.hud-rep-sub { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.hud-rep-sub .low { color: var(--bad); font-weight: 700; }
-.hud-rep-sub > span { display: inline-flex; align-items: center; gap: 1px; }
+.hud-rep-sub { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hud-rep-sub > span { display: flex; align-items: center; gap: 5px; line-height: 1; }
+.hud-rep-sub b { min-width: 20px; text-align: right; color: var(--ink); }
+.hud-rep-sub .low b { color: var(--bad); }
 .hud-ico { font-size: 14px; line-height: 1; }
+.hud-trust { --seg: #2f6c90; }
+.hud-virtue { --seg: #3c955a; }
+.hud-seg { position: relative; display: flex; gap: 2px; }
+.hud-seg i { width: 9px; height: 9px; border-radius: 2px; background: var(--paper-3); box-shadow: inset 0 0 0 1px rgba(28, 42, 51, 0.12); }
+.hud-trust .hud-seg i.on { background: linear-gradient(#3d7fa3, #24597a); }
+.hud-virtue .hud-seg i.on { background: linear-gradient(#4fae6a, #2f8048); }
+.hud-seg i.part { background: linear-gradient(90deg, var(--seg) var(--p), var(--paper-3) var(--p)); }
+/* Plafond : 11 px par dizaine (case de 9 px + 2 px d'écart). */
+.hud-seg em { position: absolute; top: -3px; bottom: -3px; left: calc(var(--cap) * 1.1px - 1px); width: 2px; border-radius: 1px; background: var(--star); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7); }
+.hud-delta { min-width: 22px; font-size: 10.5px; font-weight: 700; }
+.hud-delta.up { color: var(--good); }
+.hud-delta.down { color: var(--bad); }
+/* La phrase du milieu sur votre réputation (Bureau → Compagnie), deux lignes au plus ; elle laisse sa place au navire sélectionné. */
+.hud-quote { flex: 0 1 430px; min-width: 0; margin: 0; padding-left: 12px; border-left: 1px solid var(--line);
+  font-family: var(--serif); font-style: italic; font-size: 12.5px; line-height: 1.3; color: var(--ink-2); cursor: pointer;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hud-quote:empty, .hud-context:not(:empty) + .hud-quote { display: none; }
 .hud-switch { display: none; color: var(--teal); font-weight: 800; }
 .hud-company.switchable .hud-switch { display: inline; }
 /* Informations du navire sélectionné. */
@@ -715,6 +737,7 @@ select.input { width: auto; max-width: 100%; }
 @media (max-width: 900px) {
   /* Tablette : le nom de la compagnie s'abrège pour laisser la place au navire sélectionné. */
   .hud-company-name { max-width: 92px; }
+  .hud-quote { display: none; }
 }
 @media (max-width: 520px) {
   /* Téléphone : la barre doit tout faire tenir, menu ☰ compris. */
