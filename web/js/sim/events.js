@@ -4,7 +4,9 @@ import { HOURS_PER_DAY, monthOf, clamp, formatDate } from './util.js';
 import { OIL_GOODS } from '../data/goods.js';
 import { news, portName } from './core.js';
 import { haversineNm } from './routing.js';
-import { HOLD_TYPES, FREIGHT_MIN, FREIGHT_MAX } from './economy.js';
+import { HOLD_TYPES, FREIGHT_MIN, FREIGHT_MAX, YARD } from './economy.js';
+import { EMBARGOED } from '../data/sanctions.js';
+import { pct } from './format.js';
 
 const D = HOURS_PER_DAY;
 
@@ -175,6 +177,22 @@ export const EVENTS = [
     },
   },
 ];
+
+// Chantier en mal de commandes : la remise s'annonce dans les nouvelles ; la carte d'opportunité n'apparaît
+// qu'aux compagnies qui ont un navire usé capable d'y entrer (ui/opps.js). Un seul chantier à la fois.
+export function yardDaily(state, rng) {
+  if (state.yardSale && state.yardSale.until <= state.t) {
+    news(state, `Le chantier de ${portName(state.yardSale.port)} a de nouveau des commandes : fin des réparations à prix cassés.`, { kind: 'event' });
+    state.yardSale = null;
+  }
+  if (state.yardSale || !rng.chance(YARD.chance)) return;
+  const ports = PORT_IDS.filter((p) => PORTS[p].repair >= 2 && !EMBARGOED[PORTS[p].flag] && !PORTS[p].ice);
+  const port = rng.pick(ports);
+  const cut = Math.round(rng.range(YARD.cut[0], YARD.cut[1]) * 100) / 100;
+  const until = Math.round(state.t + rng.int(YARD.days[0], YARD.days[1]) * D);
+  state.yardSale = { id: state.nextId++, port, cut, until };
+  news(state, `Chantier en mal de commandes : ${portName(port)} répare les navires ${pct(cut * 100)} moins cher jusqu'au ${formatDate(until, true)}.`, { kind: 'event' });
+}
 
 export function dailyEvents(state, rng) {
   // Fin des événements durables.

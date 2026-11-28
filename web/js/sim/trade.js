@@ -18,14 +18,15 @@ import { HOURS_PER_DAY, clamp, formatDate } from './util.js';
 import * as eco from './economy.js';
 import { news, portName, companyOf, shipLog, book, loanOwedAt, cargoLoans, netWorth, earnTrust, earnVirtue, VIRTUE_SOURCES, standing } from './core.js';
 import { isSeasonal } from './ice.js';
+import { SHIP_TYPES } from '../data/ships.js';
 import { money, num } from './format.js';
 
 const D = HOURS_PER_DAY;
 
 // ---------- Appels d'offres ----------
 export const TENDER = {
-  chance: 0.14,          // par jour : chance qu'une ville lance un appel d'offres (≈ un par semaine)
-  max: 4,                // appels d'offres ouverts en même temps, au plus
+  chance: 0.09,          // par jour : chance qu'une ville lance un appel d'offres (≈ un tous les 11 jours)
+  max: 3,                // appels d'offres ouverts en même temps, au plus
   // Prime offerte au-dessus du prix de vente du port, proportionnelle à l'écart de prix naturel de la
   // marchandise (GOODS.spread) : une prime uniforme rendait les biens chers (machines, manufacturés)
   // bien trop lucratifs pour les petits cargos, au détriment du vrac.
@@ -73,6 +74,83 @@ function newTender(state, ctx, rng) {
   return null;
 }
 
+// ---------- Lots soldés ----------
+// L'inverse d'un appel d'offres, à moindre enjeu : un port exportateur écoule un lot à prix fixe sous le
+// cours (silo plein, fin de saison). Premier arrivé, premier servi ; les navires en route pour l'acheter
+// s'engagent et sont annoncés. Plus facile qu'un appel d'offres (pas de source à trouver, tous les
+// importateurs comme débouchés), donc moins payé : la remise suit l'écart naturel de la marchandise (même
+// leçon que pour les appels d'offres : un pourcentage uniforme ferait la fortune des petits cargos sur les
+// biens chers), et la revente reste au cours du marché (le négoce garde son risque).
+export const LOT = {
+  chance: 0.08,          // par jour : chance qu'un port mette un lot en vente
+  max: 3,                // lots ouverts en même temps, au plus
+  discount: [0.3, 0.6], discountMin: 0.88, discountMax: 0.97, // prix = cours × (1 − écart × U), entre −12 % et −3 %
+  days: [10, 18],        // durée (un lot soldé n'attend pas)
+  lots: [0.4, 1.0],      // quantité, en lots typiques de la marchandise…
+  minQty: 1000, maxQty: 80000, // … entre ces bornes
+};
+export const lotAt = (state, port, good) => (state.lots || []).find((l) => l.port === port && l.good === good && l.left > 0 && l.until > state.t);
+export const lotById = (state, id) => (state.lots || []).find((l) => l.id === id) || null;
+// Part encore libre pour un navire : ce qui reste, moins les engagements des autres navires.
+export function lotRoom(lot, shipId = null) {
+  const others = lot.commits.filter((c) => c.shipId !== shipId).reduce((s, c) => s + c.qty, 0);
+  return Math.max(0, lot.left - others);
+}
+function newLot(state, rng) {
+  const open = (state.lots || []).filter((l) => l.left > 0 && l.until > state.t);
+  if (open.length >= LOT.max) return null;
+  for (let tries = 0; tries < 12; tries++) {
+    const port = rng.pick(PORT_IDS);
+    const P = PORTS[port];
+    if (EMBARGOED[P.flag] || isSeasonal(port)) continue;
+    const goods = Object.entries(P.exp).filter(([g, w]) => w > 0 && !open.some((l) => l.port === port && l.good === g) && !(OIL_GOODS.includes(g) && eco.oilCrisis(state)));
+    if (!goods.length) continue;
+    const good = rng.weighted(goods);
+    const G = GOODS[good];
+    const unit = Math.round(eco.buyPrice(state, port, good) * clamp(1 - G.spread * rng.range(LOT.discount[0], LOT.discount[1]), LOT.discountMin, LOT.discountMax));
+    const qty = clamp(Math.round((G.lot * rng.range(LOT.lots[0], LOT.lots[1])) / 1000) * 1000, LOT.minQty, LOT.maxQty);
+    const days = rng.int(LOT.days[0], LOT.days[1]);
+    return { id: state.nextId++, port, good, unit, qty, left: qty, t0: state.t, until: Math.round(state.t + days * D), commits: [] };
+  }
+  return null;
+}
+// Un navire part vers un port pour y acheter le lot soldé (ship.lotBuy, choisi au départ) : il s'engage.
+// Ailleurs, ou cales occupées, l'intention tombe.
+export function commitLot(state, ship, to, eta) {
+  const lot = ship.lotBuy != null ? lotById(state, ship.lotBuy) : null;
+  const had = lot?.commits.some((c) => c.shipId === ship.id); // départ programmé, puis départ : une seule annonce
+  if (lot) lot.commits = lot.commits.filter((c) => c.shipId !== ship.id);
+  if (!lot || lot.port !== to || lot.left <= 0 || eta > lot.until || ship.cargo || ship.dark || !eco.holdFor(ship.type, lot.good)) { ship.lotBuy = null; return; }
+  const qty = Math.min(SHIP_TYPES[ship.type].dwt, lotRoom(lot, ship.id));
+  if (qty <= 0) return;
+  lot.commits.push({ company: ship.owner, shipId: ship.id, qty, eta: Math.round(eta) });
+  if (had) return;
+  const co = companyOf(state, ship);
+  const left = Math.max(0, lot.left - lot.commits.reduce((s, c) => s + c.qty, 0));
+  const text = `${co.name} viendra acheter ${num(qty)} t de ${GOODS[lot.good].name.toLowerCase()} soldé à ${portName(lot.port)} vers le ${formatDate(eta, true)} : il en resterait ${num(left)} t.`;
+  (state.queuedNotes ??= []).push({ kind: 'lotCommit', lotId: lot.id, by: ship.owner, text });
+}
+// Ce qu'un navire peut acheter ici : le stock du marché, plus le lot soldé (un surplus hors marché).
+export const buyableStock = (state, port, good) => eco.availableStock(state, port, good) + (lotAt(state, port, good)?.left || 0);
+// À l'achat : la part prise dans le lot (au prix soldé, premier arrivé premier servi).
+export function lotShare(state, port, good, qty) {
+  const lot = lotAt(state, port, good);
+  const part = lot ? Math.min(qty, lot.left) : 0;
+  return part > 0 ? { lot, qty: part } : null;
+}
+export function takeLot(state, ship, share) {
+  const lot = share.lot;
+  lot.left -= share.qty;
+  lot.commits = lot.commits.filter((c) => c.shipId !== ship.id);
+  if (lot.left <= 0) { lot.left = 0; lot.closedAt = state.t; }
+  if (ship.lotBuy === lot.id) ship.lotBuy = null;
+  const co = companyOf(state, ship);
+  const text = lot.left > 0
+    ? `${co.name} a acheté ${num(share.qty)} t du lot soldé de ${portName(lot.port)} : il en reste ${num(lot.left)} t.`
+    : `${co.name} a acheté ${num(share.qty)} t du lot soldé de ${portName(lot.port)} : le lot est épuisé.`;
+  (state.queuedNotes ??= []).push({ kind: 'lotSold', lotId: lot.id, by: ship.owner, text });
+}
+
 // Une fois par jour : nouveaux appels d'offres, engagements à jour, fin des appels échus.
 export function tradeDaily(state, ctx, rng, notes) {
   state.tenders ??= [];
@@ -95,6 +173,27 @@ export function tradeDaily(state, ctx, rng, notes) {
       for (const co of state.companies) if (co.human && !co.bankrupt) notes.push({ kind: 'tender', company: co.id, tenderId: t.id, text });
     }
   }
+  lotsDaily(state, rng, notes);
+}
+
+// Lots soldés : engagements à jour (le navire doit toujours s'y rendre, cales vides), fin des lots, nouveaux lots.
+function lotsDaily(state, rng, notes) {
+  state.lots ??= [];
+  for (const l of state.lots) {
+    l.commits = l.commits.filter((c) => {
+      const s = state.ships.find((x) => x.id === c.shipId);
+      return s && s.lotBuy === l.id && !s.cargo && ((s.status === 'sea' && s.voyage.to === l.port) || (s.status === 'port' && (s.port === l.port || s.plan?.to === l.port)));
+    });
+  }
+  state.lots = state.lots.filter((l) => state.t - l.until < 3 * D && (l.left > 0 || state.t - (l.closedAt ?? state.t) < 3 * D));
+  if (!rng.chance(LOT.chance)) return;
+  const l = newLot(state, rng);
+  if (!l) return;
+  state.lots.push(l);
+  const G = GOODS[l.good];
+  const text = `Lot soldé : ${portName(l.port)} vend ${num(l.qty)} t de ${G.name.toLowerCase()} à ${num(l.unit)} $/t, jusqu'au ${formatDate(l.until, true)}.`;
+  news(state, text, { kind: 'event' });
+  for (const co of state.companies) if (co.human && !co.bankrupt) notes.push({ kind: 'lot', company: co.id, lotId: l.id, text });
 }
 
 // Un navire part avec une marchandise vers un port qui en demande : il s'engage (annoncé aux autres).

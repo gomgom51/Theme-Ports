@@ -996,6 +996,10 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .opp { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; background: var(--paper); border: 1px solid var(--line); border-left: 5px solid #e0b84a; border-radius: 10px; padding: 6px 7px 6px 10px; font-size: 13px; line-height: 1.32; box-shadow: var(--shadow); }
 .opp.aid { border-left-color: #d0607a; }
 .opp.tender { border-left-color: var(--teal); }
+.opp.lot { border-left-color: #5f9a4e; }
+.opp.yard { border-left-color: #7f8ea3; }
+.opp.lot .opp-icon { color: #4d8a3c; }
+.opp.yard .opp-icon { color: #5c6d84; }
 .opp.gone { opacity: 0.75; border-left-color: var(--muted); }
 .opp-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .opp-head { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1018,6 +1022,11 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .opp-more-body { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); }
 .opp-more-body > b:first-child { color: var(--ink); }
 .opp-ship-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Masquer un genre (dans le détail) ; « +N autres » et « Tout réafficher » sous les cartes. */
+.opp-mute { align-self: flex-start; border: 0; background: transparent; padding: 2px 0 0; font-size: 12px; color: var(--muted); text-decoration: underline; cursor: var(--cursor-click); }
+.opp-mute:hover { color: var(--ink-2); }
+.opps-more { flex: none; align-self: flex-start; border: 1px solid var(--line); background: rgba(251, 248, 241, 0.97); border-radius: 999px; padding: 2px 11px; font-size: 12px; font-weight: 700; color: var(--ink-2); box-shadow: var(--shadow); cursor: var(--cursor-click); }
+.opps-more.muted { font-weight: 600; color: var(--muted); }
 /* Animations coupées (☰ → Animations, motion.js) */ html.no-motion .opp-more { transition: none; }
 
 /* ---------- Achat d'une cargaison : financement ---------- */

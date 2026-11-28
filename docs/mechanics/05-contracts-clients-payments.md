@@ -30,7 +30,7 @@ column when one of their ships can take it in time (`goldenReach`), and a toast 
 
 ```
 pay = est.total × ballast × margin × riskPremium × urgent(1.18) × embargo(1.25)
-      × reserved(1 + RESERVE_BONUS 0.04) × golden(1.6–2.2)
+      × reserved(1 + RESERVE_BONUS 0.04) × golden(1.6–2.2) × express(1.15)
 ballast     = BALLAST (1.8) + (BALLAST_HOLD[hold] − 1) × 1.5        (one-way trades pay more)
 margin      = freight[hold]/FREIGHT_NORMAL × U(0.9, 1.12) × (dwt/12500)^0.05
 riskPremium = 1 + (70 − clientRel)/300                              (unreliable shippers pay more)
@@ -38,7 +38,11 @@ ice contract (end of season, ice class only) × ICE.iceContract (1.3)
 ```
 
 7. Deadline = `est.days × (urgent 1.12 | 1.35) + 3` days; expiry 4–12 days (golden 2–4).
-8. `minSpeed`: containers and reefer need ≥ 90 % of the reference ship's speed.
+   **Express golden deal** (a third of golden deals, `GOLDEN_EXPRESS`): deadline `est.days + 3` (no slack: taken
+   late, the ship must sail above service speed), pay × 1.15, and the shipper wants a fast ship (below). Shown on
+   the card (⏰ express, speed and deadline in the detail).
+8. `minSpeed`: containers and reefer need ≥ 90 % of the reference ship's speed; express golden deals ≥ 104 %
+   (every type's top speed is 105–113 % of its service speed, so the fastest of each type qualify).
 9. `minRep` (trust required) = `clamp((margin − 0.96) × 117 + (pay > 1.5 M$ ? 15) + (urgent ? 5), 0, 75)`.
 10. `clientRep` = shipper's own demand: reliability ≥ 85 → 50, ≥ 75 → 40, else 0 (loyal partners exempt).
 11. Refinery crisis: oil contracts return null unless embargoed (see [10](10-world-events.md)).

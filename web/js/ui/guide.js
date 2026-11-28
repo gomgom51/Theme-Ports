@@ -178,7 +178,7 @@ const STEPS = [
     done: () => false,
     show: () => {
       const el = shown($('[data-guide="opps"]'));
-      return el ? { el, text: 'Les opportunités : affaires en or ★, appels d\'offres des villes 📣, aide d\'urgence ❤ et pistes de démarchage 📋. Affaires en or et appels d\'offres n\'apparaissent que si l\'un de vos navires peut en profiter. Survolez une carte pour le détail ; × la ferme.' } : 'skip';
+      return el ? { el, text: 'Les opportunités : affaires en or ★, appels d\'offres des villes 📣, lots soldés 💰, chantiers à prix cassés 🔧, aide d\'urgence ❤ et pistes de démarchage 📋. Elles n\'apparaissent que si l\'un de vos navires peut en profiter, les plus pressées en tête. Survolez une carte pour le détail ; × la ferme, et un genre qui ne vous intéresse pas se masque.' } : 'skip';
     },
   },
   {

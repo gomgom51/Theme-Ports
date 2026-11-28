@@ -1,7 +1,7 @@
 # 06 · Trading, city tenders, cargo loans
 
 Files: `actions.quoteBuy/buyCargo/quoteSale/sellCargo`, `sim/trade.js`, `sim/intel.js`,
-price model in [04](04-economy-market.md). UI: trade tab of `ui/panel-ship.js`, tender cards in `ui/opps.js`.
+price model in [04](04-economy-market.md). UI: trade tab of `ui/panel-ship.js`, tender and bargain-lot cards in `ui/opps.js`.
 Quantity: one slider per good (`tradeSlider`), 100 t to a full hold (or the stock); the track shows how far cash,
 a cargo loan (best of this port's merchants and the best destination's buyers) and the bank go, grey beyond
 (Buy disabled with the reason). Profit at the best destination follows the slider; shortcuts Max in cash, Max
@@ -14,8 +14,10 @@ counts as awaiting orders, so auto-pause time does not restart (`app.tradeHold` 
 
 Conditions: ship ready in port; the port **exports** the good; no dark cargo; a hold fits and the
 port handles it; holds empty or same good (top-up, not on a financed cargo). Qty capped by free
-dwt and `availableStock`. Price = `quoteTrade(buy)` (market impact included) × (1 − family discount
-5 % at a family home) + handling cost. Effects: `applyTrade` (price up, stock down), cash out
+dwt and `buyableStock` (market stock plus an open bargain lot). Price (`quoteBuy`): the bargain-lot part
+first, at the lot's fixed price and outside the market (no price impact, no stock taken), then the rest at
+`quoteTrade(buy)` (market impact included) × (1 − family discount 5 % at a family home); plus handling cost.
+Effects: `applyTrade` on the market part (price up, stock down), `takeLot` on the lot part, cash out
 (`achats`), cargo `{good, qty, hold, cost, boughtAt, loan}`, embargo taint (port, and lender port if
 embargoed), loading time.
 
@@ -32,8 +34,9 @@ Taint on embargo trade happens on buy, on sell, and on contract load/delivery.
 
 ## City tenders (`TENDER`, `tradeDaily`)
 
-- 14 %/day chance of a new one (≤ 4 open). Random port, not embargoed, not seasonal; good = one it
-  imports that some non-embargoed port exports; no oil during the refinery crisis.
+- 9 %/day chance of a new one (≤ 3 open; it was 14 % and 4 before bargain lots, owner's call: fewer buying
+  opportunities). Random port, not embargoed, not seasonal; good = one it imports that some non-embargoed port
+  exports; no oil during the refinery crisis.
 - Unit price = sell price × `clamp(1 + spread × U(0.6, 1.2), 1.04, 1.3)` (premium follows each good's
   natural spread — the CLAUDE.md lesson about machines/manufactures).
 - Qty = lot × U(0.8, 2.0), clamp 3 000–150 000 t; duration 24–42 days. Always in the news; the card, its bell
@@ -45,7 +48,29 @@ Taint on embargo trade happens on buy, on sell, and on contract load/delivery.
   left − every *other* ship's commitment (own fleet included), so two ships don't chase the same lot.
   Commitments are dropped daily if the ship no longer heads there with the good.
 - Closed tenders stay visible 5 days.
+- Card detail "where to buy": the nearest able ship with the Vieux briscards skill at rank 2 or more names its best
+  source (`bestSources`, prices on arrival from rank 3), as on its ship sheet; without one, "see the Markets".
 
+## Bargain lots (`LOT`, `lotsDaily`)
+
+The reverse of a tender, at lower stakes (owner's design): an exporting port sells off a lot below market.
+Easier than a tender (no source to find, every importer is an outlet), so it pays less.
+- 8 %/day chance of a new one (≤ 3 open). Random port, not embargoed, not seasonal; good = one it exports
+  (weighted by export intensity); no oil during the refinery crisis.
+- Unit price = buy price × `clamp(1 − spread × U(0.3, 0.6), 0.88, 0.97)`: half a tender's premium, following
+  each good's natural spread like tenders. Resale is at market price: trading keeps its risk.
+- Qty = lot × U(0.4, 1.0), clamp 1 000–80 000 t; duration 10–18 days. Always in the news; card, bell and rivals'
+  toasts only for a company with a ship that can load it there (`lotServable`, `ui/opps.js`).
+- **First come, first served**: purchases reduce `left` (`takeLot`). A ship whose player ticked "Acheter le lot
+  soldé à l'arrivée" on the Set sail tab (`ship.lotBuy`, `setLotBuy`) **commits** at departure (`commitLot` in
+  `depart` and `launch`), announced once with its ETA; `lotRoom(lot, shipId)` = left − other ships' commitments.
+  Commitments drop daily if the ship no longer heads there with empty holds. Closed lots stay visible 3 days.
+- On arrival (or when released from a detention, seizure…), the ship buys `min(dwt, left)` in cash
+  (`buyLotOnArrival`, `lotOnArrival` in `game.js`): note `lotBought`, or an `idle` note saying why not (sold out,
+  not enough cash, market fallen below the lot price). The tick shows quantity, price and total before departure.
+- AI: an idle ship with a trade budget may reposition to a lot it can reach in time (weight like two contracts),
+  committing on departure; at the port its trade options price the lot through `quoteBuy`.
+- Knobs: `LOT` in `trade.js`.
 ## Cargo loans (`FINANCE`)
 
 The cargo is the collateral. Lender = origin port traders (`source: 'origin'`) or destination buyers
@@ -73,7 +98,7 @@ owed(t) = amount × (1 + rate × max(1, days)/365)                 (simple inter
 
 ## Intel estimates (`sim/intel.js`)
 
-One estimator shared by the Vieux briscards advice, the Set sail list (veteran crew) and, later, opportunity cards,
+One estimator shared by the Vieux briscards advice, the Set sail list (veteran crew) and the opportunity cards,
 so the numbers agree. Costs as a voyage estimate (fuel, port and canal fees, fixed costs over sea and handling time),
 distances from the tables (`legEstimate`). A ship is free where it is, or at its arrival port (`freeAt`).
 - `contractOffers(state, ctx, ship)`: every contract it can reach and take (`checkContract` at the loading port),
@@ -81,8 +106,13 @@ distances from the tables (`legEstimate`). A ship is free where it is, or at its
 - `bestSources(state, ctx, cid, good, port, n, { ship, arrival })` → `{ port, ship, unit, sell, toSource, days, qty,
   marginPerT, profit, perDay }`, closest first: where to buy a good to deliver to `port` (its tender price if any).
   Without `ship`, the company's closest empty ship for each source.
-- `bestOutlets(state, ctx, ship, good, qty, n, { arrival })` → `{ port, unit, days, net, perDay, tender }`.
+- `bestOutlets(state, ctx, ship, good, qty, n, { arrival, at })` → `{ port, unit, days, net, perDay, tender }`;
+  `at: { port, wait }` buys elsewhere than where the ship is free (a bargain lot).
+- `lotPlan(state, ctx, cid, lot, n, opts)` → `{ ship, toLot, qty, outlets }`: the company's closest empty ship that
+  reaches the lot in time, and its best outlets with the empty run to the lot counted.
 - `tenderLeads`, `bestOpportunity` (contract, tender, trade from here; by profit per day).
+Purchase prices (`buyUnit`) price an open bargain lot like `quoteBuy` does (its part at the lot price, if still
+open on arrival), and source stocks count it (`buyableStock`).
 `arrival: false` reads today's prices and a tender's full remaining quantity; `arrival: true` (rank 3) reads prices
 expected on arrival (`quoteTradeAt`) and the room left after other ships' commitments (`tenderRoom`).
 

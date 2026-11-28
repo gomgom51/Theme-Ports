@@ -25,7 +25,7 @@ import { pirateBoost, hostilePort, payCut } from './plots.js';
 import { grudgeAt } from './dark.js';
 import { isPolluting } from './pollution.js';
 import { imageFactor } from './clients.js';
-import { quoteSellAt } from './trade.js';
+import { quoteSellAt, buyableStock } from './trade.js';
 import { jobOptions, bestOutlet, tripCost } from './ai.js';
 
 const D = HOURS_PER_DAY;
@@ -231,7 +231,7 @@ function lineStep(state, ctx, ship, o, call) {
     const g = o.trade.good, hold = eco.holdFor(ship.type, g);
     const unit = eco.buyPrice(state, here, g);
     const budget = company.cash - T.tank * eco.fuelPrice(state, here) - 100000; // comptant, en gardant de quoi faire le plein
-    const qty = Math.floor(Math.min(o.trade.qty, T.dwt, eco.availableStock(state, here, g), Math.max(0, budget) / (unit * 1.05)) / 100) * 100;
+    const qty = Math.floor(Math.min(o.trade.qty, T.dwt, buyableStock(state, here, g), Math.max(0, budget) / (unit * 1.05)) / 100) * 100;
     if (hold && qty >= o.trade.qty * 0.4) {
       const loadH = eco.handlingHours(here, hold, qty, ship.type) + eco.handlingHours(other, hold, qty, ship.type);
       const trip = tripCost(state, ctx, ship, other, loadH);

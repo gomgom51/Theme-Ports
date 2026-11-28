@@ -17,7 +17,7 @@ import { playIntro } from './ui/intro.js';
 import { saveGame, loadGame, listSaves, savedStates, SLOT_LABEL, exportFile, importFile, isAndroid } from './ui/save.js';
 import { unlockEarned, unlockFromSaves, BLACKLIST_SONG_YEARS } from './ui/jukebox.js';
 import { AudioManager } from './ui/audio.js';
-import { renderOpps, pruneDismissed, goldenNear, tenderServable } from './ui/opps.js';
+import { renderOpps, pruneDismissed, goldenNear, tenderServable, lotServable } from './ui/opps.js';
 import { guideTick, startGuide, guideMenuLabel, toggleGuide } from './ui/guide.js';
 import { logoBadge } from './ui/logos.js';
 import { flagSVG } from './ui/flags.js';
@@ -80,7 +80,7 @@ const ctx = makeContext();
 const app = {
   state: null, ctx, speed: 0, mode: 'title',
   ui: { activeCompany: 0, selectedShip: null, panel: null },
-  form: { dest: {}, speed: {}, autoRefuel: {}, line: {} },
+  form: { dest: {}, speed: {}, autoRefuel: {}, line: {}, lotBuy: {} },
   canImport: !isAndroid(),
   audio: new AudioManager(),
 };
@@ -863,6 +863,22 @@ function handleNotes(notes) {
       if (n.by !== app.ui.activeCompany && viewer?.human && (viewer.seenOpps?.[`tender:${n.tenderId}`] != null || chasesTender(app.state, viewer.id, n.tenderId))) toast(n.text, { kind: n.kind === 'tenderCommit' ? 'warn' : 'info', timeout: 8000 });
       continue;
     }
+    // Lots soldés : l'annonce (seulement si l'un de vos navires peut le charger), puis les engagements et
+    // achats des concurrents (seulement pour un lot dont vous avez vu la carte, ou que vous visez).
+    if (n.kind === 'lot') {
+      const l = (app.state.lots || []).find((x) => x.id === n.lotId);
+      if (l && lotServable(app.state, n.company, l)) { app.audio.play('bell'); toast(prefixOf(n) + n.text, { timeout: 9000 }); }
+      continue;
+    }
+    if (n.kind === 'lotCommit' || n.kind === 'lotSold') {
+      const viewer = app.state.companies[app.ui.activeCompany];
+      const l = (app.state.lots || []).find((x) => x.id === n.lotId);
+      const mine = l && l.commits.some((c) => c.company === viewer?.id);
+      if (n.by !== app.ui.activeCompany && viewer?.human && (viewer.seenOpps?.[`lot:${n.lotId}`] != null || mine)) toast(n.text, { kind: n.kind === 'lotCommit' ? 'warn' : 'info', timeout: 8000 });
+      continue;
+    }
+    // Votre navire charge le lot soldé choisi au départ : le son de l'arrivée et le message, sans pause.
+    if (n.kind === 'lotBought') { app.audio.play('arrive', shipById(app.state, n.shipId)); toast(prefixOf(n) + n.text, { kind: 'money', timeout: 9000 }); continue; }
     if (n.kind === 'held') {
       // Retenue abusive : attendre ou payer l'avocat (la fenêtre s'ouvre d'elle-même).
       toast(prefixOf(n) + n.text, { kind: 'bad', timeout: 15000, action: 'Décider', onAction: () => heldDialog(app, n.shipId) });
@@ -1051,7 +1067,7 @@ function enterGame(state) {
   app.mode = 'game';
   app.speed = 0;
   app.idleSeen = null;
-  app.form = { dest: {}, speed: {}, autoRefuel: {}, line: {} };
+  app.form = { dest: {}, speed: {}, autoRefuel: {}, line: {}, lotBuy: {} };
   app.ui = { activeCompany: state.companies.find((c) => c.human && !c.bankrupt)?.id ?? 0, selectedShip: null, panel: null };
   app.map.setGame(state, ctx, app.ui);
   app.unlockDay = null; // juke-box : ce que la partie a déjà mérité (anciennes sauvegardes comprises)

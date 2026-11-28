@@ -55,9 +55,9 @@ applied, pending detention / bogus hold started, prospect resolved, queued `plan
 ### Order of one day (`daily`)
 
 ```
-dailyMarketUpdate → dailyEvents → dailyStorms → refreshContracts → refreshOffers (parcels)
+dailyMarketUpdate → dailyEvents → dailyStorms → yardDaily (yard discount) → refreshContracts → refreshOffers (parcels)
 → dailyReceivables → clientsDaily → plotsDaily (also flushes queuedNotes) → takeoverDaily
-→ shadowDaily (blacklist) → iceDaily → darkDaily (aftermath, disasters) → tradeDaily (tenders)
+→ shadowDaily (blacklist) → iceDaily → darkDaily (aftermath, disasters) → tradeDaily (tenders, bargain lots)
 → loansDaily → homeDaily (family rival, family contracts, shadow lender)
 → per ship: insurance premium, crew + equipment upkeep, opex (laid up: crew ×0.2, opex ×0.3), captain's fee (`ordersDaily`)
 → per company: debt interest, overdraft interest (20 %/yr), checkBank, AI: aiDaily,
@@ -88,7 +88,7 @@ state = { version, seed, t (hours since 1 Jan 2027), rng (Rng state), nextId,
   ports: { port: { good: { ou, imp, stock } } },
   companies[], ships[], contracts[], used[] (broker), orders[] (new builds),
   storms[], canals{suez|panama}, strikes{port:until}, news[], payments[], receivables[],
-  offers[] (parcels), cases[] (customs bribe choices), plots[], bids[], tenders[],
+  offers[] (parcels), cases[] (customs bribe choices), plots[], bids[], tenders[], lots[], yardSale,
   aftermath[], goodwill[], clients{id:{rel,downUntil,named}}, disasters{}, ice{}, iceSeason,
   oilCrisis, records{}, evil{}, familyRival{}, spills[], wrecks[], stats{}, marketHistory[],
   queuedNotes[], victoryClaimed, over }
@@ -130,7 +130,7 @@ generation) push to `state.queuedNotes`, flushed into the next day's notes by `p
 `main.js → handleNotes` maps `kind` to popups/scenes/sounds and auto-pause. Kinds include
 `idle, depart, arrival, payment, incident, breakdown, storm, sunk, fuel, detention, held, customs,
 sanction, patrol, pirates, hijack, seized, darkoffer, paid, aftermath, golden, goldenTaken, aid,
-tender, tenderCommit, tenderDelivered, threat, scandal, sabotage, bid, takeover, absorbed,
+tender, tenderCommit, tenderDelivered, lot, lotCommit, lotSold, lotBought, threat, scandal, sabotage, bid, takeover, absorbed,
 takeoverRisk, victoryAlert, level, deed, record, recordLost, evil, blacklistWarn, blacklisted,
 ice, iceSoon, icecaught, crew, prospect, banker, bank, bankrupt, standing, event, over, info`.
 When an `idle` or `prospect` note stops time, `openWaitingShip` opens that ship's sheet (and centres
@@ -148,7 +148,10 @@ The **important notifications** panel (rule 1) is `ui/alerts.js`: it recomputes 
 Each alert carries its full sentence (`text`, shown on hover) and a one-line `short` = [who, what with the key figure]
 that the panel lists, one row per alert sorted by urgency (owner's call: bare minimum). A new alert needs both.
 Opportunity cards (`ui/opps.js`) follow the same idea: three or four lines (deal, nearest able ship with its type and
-days to get there, deadline), buttons on the right, details unfolding on hover.
+days to get there, deadline), buttons on the right, details unfolding on hover. At most 5 cards, open ones first and
+the soonest deadline on top, "+N autres" for the rest; every kind but prospecting leads can be hidden from its detail
+("Ne plus montrer…", saved in `company.mutedOpps`), "Tout réafficher" under the cards brings them back. Rivals'
+`lotCommit` / `lotSold` toasts show only for a lot whose card the viewer saw or that it is heading for.
 
 ## UI map (`web/js/ui`)
 
@@ -159,7 +162,7 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `panel-ship.js` | ship sheet: contracts list, trade (buy/sell, financing, tenders), departure with risk lines, voyage, crew, equipment, log |
 | `risk.js`, `piracy.js`, `shady.js`, `dark.js` | risk lines shown before decisions (rule 1) and decision dialogs |
 | `payment.js` | collection window (accept / contest, denounce / stay discreet) |
-| `opps.js` | persistent opportunity cards (golden deals, aid, tenders) |
+| `opps.js` | persistent opportunity cards (golden deals incl. express, tenders, bargain lots, yard discounts, aid, prospecting leads) |
 | `rivals.js`, `plots.js` | Rivals tab of the domination medal (takeover, attacks, parries), shady-deal UI (« La Mafia », EN "the underworld") |
 | `victory.js`, `codex.js`, `standing.js` | victory panel opened by the four medals under the side rail (`.vic-rail`, see [15](15-victories-honours.md)), trophies, victory guide, monthly trust/virtue summary |
 | `alerts.js` | important notifications panel |
