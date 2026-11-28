@@ -173,8 +173,10 @@ function syncReputation(company) {
   company.reputation = Math.min(company.confidence, company.virtue);
 }
 // Bilan du mois : chaque variation (après plafonds) est notée par cause, pour le résumé mensuel.
-// Lente dérive quotidienne (conduite propre, oubli) : pas de son ni de chiffre à chaque pas.
-export const STANDING_DRIFT = new Set(['conduite propre', 'on oublie']);
+// Lente dérive (conduite propre, oubli, retour de la confiance vers sa cible) : pas de son ni de chiffre à
+// chaque pas. Une livraison à l'heure qui ramène la confiance vers une cible plus basse ne sonne pas comme une faute.
+const ON_TIME = 'livraisons à l\'heure', BACK_TO_TARGET = 'retour vers votre cible';
+export const STANDING_DRIFT = new Set(['conduite propre', 'on oublie', BACK_TO_TARGET]);
 function logStanding(company, key, src, applied) {
   if (!src || Math.abs(applied) < 1e-6) return;
   const L = (company.standingMonth ??= { confidence: {}, virtue: {} });
@@ -192,6 +194,69 @@ export function changeTrust(company, delta, src) {
   company.confidence += delta;
   syncReputation(company);
   logStanding(company, 'confidence', src, company.confidence - b);
+  // Toute perte de confiance due à votre service compte comme un faux pas, pesé par sa gravité (un retard ≈ 1).
+  if (company.rel && !NOT_SLIPS.has(src) && company.confidence - b < -0.01) company.rel.s += Math.min(TRUST.maxSlip, (b - company.confidence) / TRUST.slip);
+}
+
+// Confiance face aux concurrents (choix du propriétaire, 2026-11-28) : les chargeurs comparent votre fiabilité à
+// celle du marché. Chaque livraison à l'heure rapproche la confiance d'une cible (step × l'écart) :
+//   cible = base + rivals × (votre fiabilité − celle du marché) + bonus (flotte récente, contrats d'avenir…),
+// bornée entre floor et le plafond. Fiabilité = 1 − faux pas / livraisons ; faux pas = pertes de confiance / slip,
+// maxSlip au plus pour un même coup dur (un naufrage ne vaut pas six retards) ; les deux s'effacent de (1 − memory)
+// chaque mois (les chargeurs se souviennent d'environ dix mois). Petit historique, jugement prudent : l'écart au
+// marché est pesé par d / (d + prior), comme si vous aviez aussi prior livraisons dans la moyenne. Sans cela, un
+// seul retard faisait chuter de 15 points la cible d'une compagnie de deux navires (règle 3 : les petites flottes
+// doivent rester viables). Avant cette règle, chaque livraison à l'heure ajoutait +1,5 : les gains grandissaient
+// avec la flotte et toute compagnie honnête touchait 95 en un an et demi.
+export const TRUST = { base: 82, rivals: 300, step: 0.025, slip: 2.5, maxSlip: 3, memory: 0.9, prior: 20, floor: 20 };
+// Pertes qui ne disent rien de votre service : le retour vers la cible, un rachat, un changement de pavillon.
+const NOT_SLIPS = new Set([ON_TIME, BACK_TO_TARGET, 'rachat', 'changement de pavillon']);
+const reliability = (company) => (company.rel?.d >= 1 ? Math.max(0, 1 - company.rel.s / company.rel.d) : null);
+// Fiabilité du marché : moyenne de toutes les compagnies en activité, pesée par leurs livraisons.
+function marketReliability(state) {
+  let d = 0, w = 0;
+  for (const c of state.companies) {
+    const r = c.bankrupt ? null : reliability(c);
+    if (r != null) { d += c.rel.d; w += c.rel.d * r; }
+  }
+  return d ? w / d : null;
+}
+// Votre fiabilité face au marché, en points de cible (null : pas encore de livraison à comparer).
+function rivalsGap(state, company, m = marketReliability(state)) {
+  const r = reliability(company);
+  return r != null && m != null ? TRUST.rivals * (r - m) * company.rel.d / (company.rel.d + TRUST.prior) : null;
+}
+// Point d'accroche pour la refonte des navires neufs (fil « Rework ship buying and selling ») : chaque ligne
+// { src, value } relève la cible et s'affiche telle quelle dans le rapport trimestriel (ex. « flotte récente »).
+function trustTargetBonuses(_state, _company) {
+  return [];
+}
+// La cible et ses parts, pour la simulation et pour l'écran (mêmes chiffres).
+export function trustTarget(state, company) {
+  const gap = rivalsGap(state, company), rivals = gap ?? 0;
+  const bonuses = trustTargetBonuses(state, company);
+  const raw = TRUST.base + rivals + bonuses.reduce((s, b) => s + b.value, 0);
+  return { base: TRUST.base, rivals, known: gap != null, bonuses, value: Math.max(TRUST.floor, Math.min(trustCap(company), raw)) };
+}
+// Rapport de confiance du trimestre (idée du propriétaire) : pour chaque compagnie, la confiance et sa variation,
+// la fiabilité face au marché et le chargeur qui lui a confié le plus de livraisons à l'heure.
+export function closeTrustQuarter(state) {
+  const m = marketReliability(state);
+  const rows = state.companies.filter((c) => !c.bankrupt).map((c) => {
+    const q = c.trustQ, T = trustTarget(state, c);
+    const best = Object.entries(q.byClient).sort((a, b) => b[1] - a[1])[0] || null;
+    return { id: c.id, trust: c.confidence, delta: c.confidence - q.start, vsMarket: rivalsGap(state, c, m),
+      target: { base: T.base, rivals: T.rivals, bonuses: T.bonuses, value: T.value }, // la cible et ses parts, figées à la clôture
+      onTime: q.onTime, late: q.late, best: best ? best[0] : null, bestN: best ? best[1] : 0 };
+  });
+  for (const c of state.companies) c.trustQ = { start: c.confidence, onTime: 0, late: 0, byClient: {} };
+  state.trustReport = { t: state.t, rows };
+  return state.trustReport;
+}
+// Livraison à l'heure : un pas vers la cible (vers le bas aussi, si les concurrents font mieux que vous).
+export function onTimeTrust(state, company) {
+  const d = TRUST.step * (trustTarget(state, company).value - standing(company).confidence);
+  changeTrust(company, d, d >= 0 ? ON_TIME : BACK_TO_TARGET); // au-dessus de la cible (appel d'offres, concurrents meilleurs), elle redescend
 }
 // Gains dégressifs : de moins en moins près du haut.
 export const earnTrust = (company, base, src) => changeTrust(company, base * (1 - standing(company).confidence / 110), src);

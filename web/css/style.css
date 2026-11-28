@@ -1134,6 +1134,15 @@ button.alert-row.lv1:hover { border-left-color: var(--warn); }
 .co-move { margin: 4px 0 8px; }
 .co-move > summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--teal); font-weight: 800; padding: 8px 0; }
 .co-move .home-bonus { margin-top: 8px; }
+/* Bureau → Compagnie : rapport de confiance du trimestre (qui a gagné la confiance des chargeurs). */
+.trust-report { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
+.trust-report-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.trust-report-head .muted { margin-left: auto; }
+.trust-target { margin: 2px 0 8px; color: var(--ink-2); }
+.trust-target b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.trust-report-table td, .trust-report-table th { padding: 4px 6px; }
+.trust-report-table tr.me td { background: var(--paper); }
+.trust-report-table .grade { vertical-align: -2px; }
 @media (max-width: 460px) { .co-cols, .rep-cols { grid-template-columns: 1fr; } }
 /* Guide → Réputation : le bilan des points, cause par cause. */
 .rep-bilans { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }

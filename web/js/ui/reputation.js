@@ -5,7 +5,9 @@
 // Chaque chiffre du joueur est un nœud de texte à part (traduit seul par i18n.js).
 import { h, num, num1, pct, bar } from './dom.js';
 import { standingCauses } from './standing.js';
-import { standing, interestRate, trustCap, virtueCap, repCap, REP_BASE_CAP, STANDING } from '../sim/core.js';
+import { standing, interestRate, trustCap, virtueCap, repCap, REP_BASE_CAP, STANDING, trustTarget } from '../sim/core.js';
+import { dateOf } from '../sim/util.js';
+import { gradeEl } from './grade.js';
 import { TAKEOVER } from '../sim/takeover.js';
 import { CLIENTS } from '../data/clients.js';
 import { FLAGS, PORT_IDS } from '../data/ports.js';
@@ -33,10 +35,28 @@ export function standingEffects(company) {
 }
 const rate1 = (r) => `${num1(r * 100)} %`;
 
+// Fiabilité face au marché (écart de cible, en points) : cinq crans, de « bien moins fiable » à « bien plus fiable ».
+const VS_MARKET = [[-6, 1, 'bien moins fiable'], [-2, 2, 'moins fiable'], [2, 3, 'dans la moyenne'], [6, 4, 'plus fiable'], [Infinity, 5, 'bien plus fiable']];
+function vsMarket(v) {
+  if (v == null) return { g: 3, label: 'trop tôt pour juger' };
+  const [, g, label] = VS_MARKET.find(([max]) => v < max);
+  return { g, label };
+}
+const signed = (v) => `${v >= 0 ? '+' : '−'}${num1(Math.abs(v))}`;
+// La cible de confiance et ses parts (base, fiabilité face aux concurrents, bonus) : les chiffres de la simulation.
+// T : trustTarget(…) aujourd'hui, ou la cible figée à la clôture du trimestre (rapport).
+function trustTargetEl(T, label = 'Votre cible :') {
+  const parts = [['base', num(T.base)], ['fiabilité face aux concurrents', signed(T.rivals)], ...T.bonuses.map((b) => [b.src, signed(b.value)])];
+  return h('p.small.trust-target', [h('span', label), ' ', h('b', num(Math.floor(T.value))), ' (',
+    ...parts.flatMap(([l, v], i) => [i ? ' · ' : null, h('span', l), ' ', h('span', v)]), ')']);
+}
+
 // Bureau → Compagnie : ce que la note fait pour vous aujourd'hui, en lignes libellé / valeur.
-export function trustEffects(company) {
+export function trustEffects(company, state) {
   const e = standingEffects(company);
+  const T = trustTarget(state, company);
   return [
+    ['Cible', num(Math.floor(T.value)), vsMarket(T.known ? T.rivals : null).label],
     ['Taux du crédit', `${rate1(e.rate)}`, `${rate1(e.rate100)} à 100`],
     ['Contrats accessibles', `jusqu'à ${e.premium}`, 'de confiance exigée'],
     e.takeoverK ? ['Prix de rachat', `× ${num1(e.takeoverK)}`, 'votre valeur nette'] : null,
@@ -130,8 +150,9 @@ export function reputationGuide(app) {
           li('Prêts sur cargaison et démarchage des chargeurs : meilleures conditions, meilleures chances.'),
           e.takeoverK ? li(`Rachat : votre compagnie vaut sa valeur nette × (1 + confiance / ${TAKEOVER.repK}). Haute, elle vous protège d'un rachat ; basse, vous devenez une proie.`, `Pour vous : × ${num1(e.takeoverK)}.`) : null,
         ].filter(Boolean),
-        'Les livraisons à l\'heure (un peu moins près du haut), les appels d\'offres et les affaires en or servis, le premier passage dans un port.',
-        'Les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus, les navires détournés.'),
+        'Chaque livraison à l\'heure la rapproche de sa cible. Les chargeurs placent cette cible selon votre fiabilité face à celle de vos concurrents : moins de faux pas qu\'eux, elle monte ; plus, elle baisse. Les appels d\'offres servis et le premier passage dans un port la poussent un temps au-dessus.',
+        'Les retards, les cargaisons avariées, les détentions, les pannes sèches, les contrats abandonnés, les naufrages, les litiges perdus, les navires détournés. Chacun abaisse aussi votre fiabilité, donc votre cible, pendant une dizaine de mois.',
+        trustTargetEl(trustTarget(app.state, c))),
       scoreCard('💚', 'Vertu', 'Que dit la presse de vous ?', e.V, virtueCap(c),
         'Votre image : on ne gagne pas en étant seulement efficace. Le reste de l\'économie ne la regarde pas : un armateur sans scrupules peut s\'enrichir, il ne sera simplement jamais « le plus respecté ».',
         [
@@ -153,5 +174,33 @@ export function reputationGuide(app) {
         h('p.small', c.infamy ? `Votre infamie : ${num(c.infamy)}. Plafond de vos deux notes : ${num(repCap(c))}.` : 'Votre infamie : aucune.')),
     ]),
     h('p.hint', 'Ne pas confondre avec la confiance des gangs, port par port, qui ne compte que dans l\'ombre.'),
+  ]);
+}
+
+// Rapport de confiance du trimestre (idée du propriétaire) : qui a gagné la confiance des chargeurs, avec quel
+// chargeur, et d'où vient votre cible. Bureau → Compagnie ; la notification du trimestre y mène.
+function quarterLabel(t) {
+  const d = dateOf(t - 24); // le rapport tombe le premier jour du trimestre suivant
+  return `T${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
+}
+export function trustReportBox(app) {
+  const { state } = app, me = app.company(), R = state.trustReport;
+  const rows = R ? [...R.rows].sort((a, b) => b.trust - a.trust) : [];
+  const mine = rows.find((r) => r.id === me.id);
+  return h('div.trust-report', [
+    h('div.trust-report-head', [h('span', '🤝'), ' ', h('b', 'Rapport de confiance'), R ? h('span.muted.small', quarterLabel(R.t)) : null]),
+    mine?.target ? trustTargetEl(mine.target, 'Votre cible à la clôture :') : null, // figée avec le reste du rapport
+    R ? h('table.table.trust-report-table', [
+      h('thead', h('tr', [h('th', 'Compagnie'), h('th.num', 'Confiance'), h('th', 'Fiabilité face au marché'), h('th', 'Meilleur partenaire')])),
+      h('tbody', rows.map((r) => {
+        const co = state.companies[r.id], vs = vsMarket(r.vsMarket);
+        return h('tr', { class: r.id === me.id ? 'me' : null }, [
+          h('td', h('b', co.name)),
+          h('td.num', [h('span', num(Math.floor(r.trust))), ' ', h('span.small', { class: r.delta >= 0 ? 'pos' : 'neg' }, `${r.delta >= 0 ? '▲' : '▼'} ${num1(Math.abs(r.delta))}`)]),
+          h('td', [gradeEl(vs.g, { title: vs.label }), ' ', h('span.small', vs.label)]),
+          h('td', r.best && CLIENTS[r.best] ? [h('span', CLIENTS[r.best].name), ' ', h('span.muted.small', `(${r.bestN})`)] : h('span.muted', '—')),
+        ]);
+      })),
+    ]) : h('p.small.muted', 'Premier rapport au début du prochain trimestre.'),
   ]);
 }

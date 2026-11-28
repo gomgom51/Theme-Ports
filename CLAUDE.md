@@ -84,7 +84,7 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   odds per port size / reputation / loyalty / office / negotiation skill, lead share and range, pay) in
   `web/js/sim/prospect.js`; victories (`VICTORY`: alert steps, reputation level and deed count, legend record count,
   shadow years and fleet) in `web/js/sim/victory.js`, deed and record thresholds (`HONOURS`) in `web/js/sim/honours.js`,
-  ordinary reputation cap `REP_BASE_CAP`, clean-conduct virtue gain `STANDING` and virtue sources `VIRTUE_SOURCES` in `core.js`, takeovers (`TAKEOVER`: price = net worth × (1 + reputation / 50),
+  ordinary reputation cap `REP_BASE_CAP`, clean-conduct virtue gain `STANDING`, virtue sources `VIRTUE_SOURCES` and trust vs rivals `TRUST` (base, weight of the reliability gap, step, slip size and cap, memory, small-record prior) in `core.js`, takeovers (`TAKEOVER`: price = net worth × (1 + reputation / 50),
   30-day offer, six-month reprieve odds, AI ratios and margins) in `web/js/sim/takeover.js`, rivalry moves (`ATTACKS`:
   cost, certain reputation loss, scandal odds, effects, parry prices; `AI_ATTACK_CHANCE`) in `web/js/sim/plots.js`,
   blacklist (`BLACKLIST`: infamy line, warning, shadow bank) in `web/js/sim/shadow.js`, AI leanings (`AI_LEANINGS`,
@@ -141,7 +141,11 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
 - Reputation (owner's design): two scores, to make the reputation victory harder. Trust 🤝 (`confidence`): you can be
   counted on — the whole economy reads it (premium contracts, shippers' requirements, disputes, credit, cargo loans,
   prospecting, takeover price): on-time deliveries, golden deals and city tenders served, new ports; late or damaged
-  cargo, detentions, running dry, abandoned contracts, wrecks, lost disputes, hijacks. Virtue 💚 (`virtue`): the
+  cargo, detentions, running dry, abandoned contracts, wrecks, lost disputes, hijacks. Trust vs rivals (owner's choice): an on-time delivery
+  no longer adds a fixed amount (gains grew with the fleet, every honest company hit 95 in 18 months); it pulls trust
+  toward a target = 82 + 300 × (own reliability − market reliability) + bonuses, reliability = 1 − slips / deliveries
+  over about ten months. A quarterly trust report (Office → Compagnie) shows who gained shippers' trust. Alone it
+  keeps everyone under ~90: new-ship and "future" contract bonuses plug into `trustTargetBonuses` (ship rework). Virtue 💚 (`virtue`): the
   greater good, or at least the press image ("you cannot win just by being efficient") — emergency aid, reporting
   dishonest shippers, useful goods (cereals, coffee and cacao, fruit and meat, wood), golden deals and tenders on cargo
   neither fossil nor polluting, slow steaming (bonus shown under the speed slider), a slow monthly gain for clean

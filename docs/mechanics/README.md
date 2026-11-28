@@ -82,7 +82,7 @@ Key cross-links (each is explained in the target file):
 | Freight pay level | `BALLAST`, `BALLAST_HOLD`, `FREIGHT_*`, `CYCLE` in `sim/economy.js` |
 | Trade margins | `SPREAD`, `goodSpread`, `GOODS[].spread` |
 | Bank: credit limit, overdraft, seizure | `creditLimit`/`interestRate` in `sim/core.js`, `checkBank` in `sim/game.js` |
-| Reputation sources | `VIRTUE_SOURCES`, `STANDING`, caps in `sim/core.js`; per-event deltas at the call sites listed in [13](13-reputation.md) |
+| Reputation sources | `VIRTUE_SOURCES`, `STANDING`, `TRUST` (trust vs rivals), caps in `sim/core.js`; per-event deltas at the call sites listed in [13](13-reputation.md) |
 | Incident / inspection / sinking rates | `RISK`, `INCIDENT_BASE`, `STRICT_FLAGS`, `IMAGE_PORT_FLAGS` in `sim/incidents.js` |
 | Victory thresholds | `VICTORY` in `sim/victory.js`, `HONOURS` in `sim/honours.js` |
 | Standing orders (gates, captain's fee, repair thresholds, call delays) | `ORDERS`, `canLine`, `canCaptain` in `sim/orders.js` |
