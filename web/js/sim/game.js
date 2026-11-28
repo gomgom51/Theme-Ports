@@ -36,9 +36,9 @@ import { takeoverDaily, aiTakeover } from './takeover.js';
 import { shadowDaily } from './shadow.js';
 import { AI_LEANINGS } from './ai.js';
 import { money } from './format.js';
+import { SAVE_VERSION } from './migrations.js';
 
 const D = HOURS_PER_DAY;
-export const SAVE_VERSION = 3;
 export const COMPANY_COLORS = ['#e5484d', '#3e8ef7', '#30a46c', '#f5a623'];
 export const COMPANY_LOGOS = ['ancre', 'phare', 'barre', 'rose'];
 export const DIFFICULTIES = {
@@ -112,30 +112,6 @@ export function newGame(opts, ctx) {
   news(state, 'Le marché du fret ouvre. Achetez un premier navire chez le courtier !', { kind: 'event' });
   recordHistory(state);
   state.rng = rng.s;
-  return state;
-}
-
-// Met à niveau une partie sauvegardée par une version précédente : nouvelles
-// marchandises, nouveaux ports et nouveaux types de fret.
-export function migrateState(state) {
-  const rng = new Rng((state.seed ^ 0x9e3779b9) >>> 0);
-  for (const c of state.companies) standing(c); // confiance et vertu (anciennes sauvegardes)
-  state.market.cycle ??= 0;
-  state.spills ??= [];
-  state.offers ??= [];
-  state.cases ??= [];
-  for (const c of state.companies) { c.bans ??= {}; c.insurance ??= 'complete'; if (c.ai && !c.ai.leaning) c.ai.leaning = AI_LEANINGS[c.id % AI_LEANINGS.length]; }
-  for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
-  for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
-  for (const p of PORT_IDS) {
-    state.ports[p] ??= {};
-    for (const g of Object.keys(GOODS)) {
-      state.ports[p][g] ??= { ou: 0, imp: 0, stock: eco.stockCap(p, g) * rng.range(0.4, 0.9) };
-    }
-  }
-  // Avant le passage du Nord-Est (version 3) : les navires en mer gardent leur route.
-  if ((state.version || 1) < 3) for (const s of state.ships) if (s.voyage && !s.voyage.closed.includes('nsr')) s.voyage.closed.push('nsr');
-  state.version = SAVE_VERSION;
   return state;
 }
 

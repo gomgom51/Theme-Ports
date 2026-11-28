@@ -1,5 +1,5 @@
 // Sauvegardes dans le stockage local du navigateur (ou de la WebView Android).
-import { SAVE_VERSION, migrateState } from '../sim/game.js';
+import { migrate } from '../sim/migrations.js';
 import { formatDate } from '../sim/util.js';
 import { KEYS, read, readJSON, writeJSON } from './storage.js';
 
@@ -41,23 +41,11 @@ export function hasSave(slot) {
 export function loadGame(slot) {
   try {
     const raw = read(KEYS.save(slot));
-    return raw ? check(JSON.parse(raw)) : null;
+    return raw ? migrate(JSON.parse(raw)) : null;
   } catch (e) {
     console.warn('Chargement impossible', e);
     return null;
   }
-}
-
-function check(state) {
-  if (!state || !state.companies || !state.market) throw new Error('Fichier de sauvegarde invalide.');
-  if (state.version > SAVE_VERSION) throw new Error('Sauvegarde créée par une version plus récente du jeu.');
-  state.wrecks = state.wrecks || [];
-  state.payments = state.payments || [];
-  state.receivables = state.receivables || [];
-  const logos = ['ancre', 'phare', 'barre', 'rose'];
-  state.companies.forEach((c, i) => { c.logo = c.logo || logos[i % logos.length]; });
-  state.marketHistory = state.marketHistory || [];
-  return migrateState(state);
 }
 
 // Export / import d'un fichier (version PC).
@@ -77,7 +65,7 @@ export function importFile() {
     input.type = 'file';
     input.accept = '.json,application/json';
     input.onchange = async () => {
-      try { resolve(check(JSON.parse(await input.files[0].text()))); } catch (e) { reject(e); }
+      try { resolve(migrate(JSON.parse(await input.files[0].text()))); } catch (e) { reject(e); }
     };
     input.click();
   });
