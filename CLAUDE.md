@@ -113,7 +113,9 @@ Feature order agreed with the owner: 50 ports → pollution → grey/black trade
   blacklist with a fleet and a dark job in every embargoed country). Everyone sees everyone's progress (one medal
   per victory under the side rail, opening that path's page) and is warned at 75 % and 90 % (rule 1). Deeds are badges, records are trophies on the office shelf
   (award scene), misdeeds are grim proofs on a dark side table; a blacklisted company's office turns ostentatious
-  (night outside, velvet, chandelier, gold bust, full safe: `officeSVG` option `shadow`). Office levels are sticky (company maturity) and gate
+  (night outside, velvet, chandelier, gold bust, full safe: `paintOffice` option `shadow` in `ui/officepx.js`). The office is
+  the Office panel's background on every tab, in the ships' fine pixel style (owner's pick): level on a brass plate, clickable jukebox, the
+  figures on a paper sheet that slides over the room (`ui/officeroom.js`). Office levels are sticky (company maturity) and gate
   takeovers (buy only a company of your level or below), the reputation victory, and bank pressure.
 - Takeovers: paid from net cash (cash − debt − cargo loans), never borrowed. A human target gets a 30-day offer, can
   ask for six months (odds from reputation) and is warned whenever a rival can afford it. A blacklisted company can only

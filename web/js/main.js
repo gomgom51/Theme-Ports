@@ -217,10 +217,9 @@ function renderPanel() {
 
   const body = h('div.panel-body');
   if (def.top) body.append(def.top);
-  if (tabs) {
-    const current = tabs.find((t) => t[0] === tabId);
-    body.append(current[2]());
-  } else if (def.body) body.append(def.body);
+  const content = tabs ? tabs.find((t) => t[0] === tabId)[2]() : def.body;
+  // Panneau à décor (le Bureau) : le contenu est une feuille posée devant la pièce.
+  if (content) body.append(def.room ? h('div.panel-sheet', [content]) : content);
 
   panelEl.replaceChildren(...[
     h('div.panel-head', { style: def.color ? { borderTopColor: def.color } : {} }, [
@@ -239,7 +238,10 @@ function renderPanel() {
   panelEl.dataset.ident = ident;
   panelEl.dataset.tab = curTab;
   panelEl.hidden = false;
+  panelEl.classList.toggle('panel-room', !!def.room);
   document.body.classList.add('panel-open');
+  panelEl._mount = def.mount ? () => def.mount(body) : null;
+  panelEl._mount?.(); // la pièce se mesure une fois le panneau affiché
   if (motion === 'in' || (motion === 'swap' && outMs >= 0)) gripAfter(drawerIn(panelEl, Math.max(0, outMs))?.finished);
   else if (motion === 'tab' && tabs) {
     const ix = (id) => tabs.findIndex((t) => t[0] === id);
@@ -1138,7 +1140,12 @@ $('#standings').addEventListener('click', () => app.open('victory', 'domination'
 initTooltips();
 initI18n(); // langue : français, ou anglais (choix enregistré, sinon langue de l'appareil)
 watchShipNames(); // noms de navires au pochoir, jusque dans les phrases (après la traduction)
-initPanelSize(); // largeur du panneau, réglable à sa poignée
+// Largeur du panneau, réglable à sa poignée ; le décor du Bureau suit (une fois par image).
+let refitting = 0;
+const refitRoom = () => { if (!refitting) refitting = requestAnimationFrame(() => { refitting = 0; panelEl._mount?.(); }); };
+initPanelSize(refitRoom);
+window.addEventListener('uiscale', refitRoom);
+window.addEventListener('resize', refitRoom);
 window.addEventListener('langchange', () => { app.map.dirty = true; });
 startDemo();
 app.map.setGame(app.demo, ctx, { activeCompany: -1 });

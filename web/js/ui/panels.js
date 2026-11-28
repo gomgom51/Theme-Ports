@@ -24,7 +24,9 @@ import { shipStats, radarSVG, AXES } from './radar.js';
 import { rolesEl } from './shiproles.js';
 import { LOGO_IDS, logoBadge } from './logos.js';
 import { flagEl } from './flags.js';
-import { officeSVG, OFFICE_TIERS, shownTier, MUSIC_LOW } from './officeart.js';
+import { OFFICE_TIERS, shownTier, MUSIC_LOW } from './officeart.js';
+import { officeRoom } from './officeroom.js';
+import { onOfficeArt } from './officepx.js';
 import { pendingList, clientLine, loyaltyDots } from './payment.js';
 import { CLIENTS } from '../data/clients.js';
 import { clientRel, clientDown, relationOf, clientDemand, clientState, LOYAL, RESERVE_LOYALTY, imageFactor } from '../sim/clients.js';
@@ -339,34 +341,29 @@ function sellTab(app) {
 }
 
 // ---------- Bureau ----------
-// Le bureau s'embellit avec la valeur nette ; la maquette est celle du plus beau navire.
-function officeHero(app) {
+// Le bureau s'embellit avec la valeur nette ; il est le fond du panneau, derrière tous les onglets
+// (officeroom.js). La maquette est celle du plus beau navire.
+function officeBackdrop(app) {
   const { state } = app;
   const c = app.company();
   const worth = netWorth(state, c.id);
-  const tier = shownTier(c, worth), low = worth < MUSIC_LOW;
+  const tier = shownTier(c, worth), low = worth < MUSIC_LOW, N = OFFICE_TIERS.length;
   const best = shipsOf(state, c.id).sort((a, b) => eco.shipValue(state, b) - eco.shipValue(state, a))[0];
   const model = best ? { typeId: best.type, color: c.color, logo: c.logo, name: best.name } : null;
   const next = OFFICE_TIERS[tier + 1];
-  return h('div', [
-    // Le juke-box dessiné dans le bureau se clique ; les notes gardent leur rythme d'un rafraîchissement à l'autre.
-    h('div.office-hero', {
-      class: app.audio.juke ? 'juke-on' : '', style: { '--juke-phase': `-${((performance.now() / 1000) % 2.4).toFixed(2)}s` },
-      html: officeSVG(tier, { color: c.color, logo: c.logo, model, uid: 'off' + c.id, honours: { record: recordsHeld(state, c.id), evil: recordsHeld(state, c.id, 'evil') }, shadow: !!c.blacklisted }),
-      onclick: (e) => { if (e.target.closest?.('.office-juke')) jukeboxDialog(app); },
-      onkeydown: (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('.office-juke')) { e.preventDefault(); jukeboxDialog(app); } },
-    }),
-    h('div.office-caption', [
-      h('b', OFFICE_TIERS[tier].name),
-      h('span.office-next', [
-        h('span.muted', low ? `Niveau 0/${OFFICE_TIERS.length} · la compagnie perd de l'argent : retour au cagibi jusqu'à ${money(MUSIC_LOW)} de valeur nette, vous en êtes à ${money(worth)}`
-          : next ? `Niveau ${tier + 1}/${OFFICE_TIERS.length} · prochain bureau à ${money(next.min)} de valeur nette, vous en êtes à ${money(worth)}` : `Niveau ${OFFICE_TIERS.length}/${OFFICE_TIERS.length} : le sommet !`),
-        low ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, worth / MUSIC_LOW)) * 100)}%` } })])
-        : next ? h('span.level-bar', [h('span', { style: { width: `${Math.round(Math.max(0, Math.min(1, (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min))) * 100)}%` } })]) : null,
-      ]),
-      h('button.chip.juke-chip', { class: app.audio.juke ? 'on' : '', onclick: () => jukeboxDialog(app) }, app.audio.juke ? '🎵 Juke-box ♪' : '🎵 Juke-box'),
-    ]),
-  ]);
+  const plate = {
+    name: OFFICE_TIERS[tier].name,
+    level: `Niveau ${low ? 0 : tier + 1}/${N}`,
+    fill: low ? worth / MUSIC_LOW : next ? (worth - OFFICE_TIERS[tier].min) / (next.min - OFFICE_TIERS[tier].min) : null,
+    title: low ? `Niveau 0/${N} · la compagnie perd de l'argent : retour au cagibi jusqu'à ${money(MUSIC_LOW)} de valeur nette, vous en êtes à ${money(worth)}`
+      : next ? `Niveau ${tier + 1}/${N} · prochain bureau à ${money(next.min)} de valeur nette, vous en êtes à ${money(worth)}` : `Niveau ${N}/${N} : le sommet !`,
+  };
+  onOfficeArt(() => { if (app.ui.panel?.type === 'office') app.refresh(); }); // emblème et trophées chargés : on repeint
+  return officeRoom(
+    { tier, shadow: !!c.blacklisted, color: c.color, logo: c.logo, model, held: { record: recordsHeld(state, c.id), evil: recordsHeld(state, c.id, 'evil') } },
+    plate,
+    { on: !!app.audio.juke, open: () => jukeboxDialog(app) },
+  );
 }
 
 // Formule d'assurance de la compagnie : une vraie décision, prime contre protection (Bureau → Finances).
@@ -394,9 +391,10 @@ function insuranceSection(app) {
 
 export function officePanel(app, _id, tab) {
   const c = app.company();
+  const room = officeBackdrop(app);
   return {
     title: 'Bureau', subtitle: c.name, nameSub: true, color: c.color, badge: [c.logo, c.color],
-    top: officeHero(app),
+    top: room.top, mount: room.mount, room: true,
     tabs: [
       ['finances', 'Finances', () => financeTab(app)],
       ['resultats', 'Résultats', () => resultsTab(app)],
