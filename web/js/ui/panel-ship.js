@@ -20,7 +20,7 @@ import { watersLabel } from './waters.js';
 import { clientLine, riskLine } from './payment.js';
 import { fuelGaugeEl, animateNeedle } from './gauge.js';
 import { riskLines, crewInfo, isStrict, hullLine } from './risk.js';
-import { shadyLines, offersSection, maybeProposeParcel } from './shady.js';
+import { shadyLines, offersSection, maybeProposeParcel, embargoStamp } from './shady.js';
 import { piracyLine, patrolLine } from './piracy.js';
 import { attackTags, hostileTag, hostileLine, heldDialog, portServicesLink } from './plots.js';
 import { isEmbargoed, taintActive, TAINT_DAYS, sanctionPreview } from '../sim/shady.js';
@@ -190,6 +190,7 @@ export function shipPanel(app, id, tab) {
 
   return {
     title: ship.name,
+    titleStamp: embargoStamp(state, ship), // navire marqué par un embargo : tampon à côté du nom
     subtitle: `${T.name} — ${company.name}`,
     color: company.color,
     badge: [company.logo, company.color],

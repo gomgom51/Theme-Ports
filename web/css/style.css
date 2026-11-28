@@ -302,6 +302,17 @@ b.nm, .panel-sub.nm { font-weight: 700; }
 .panel-titles { flex: 1; min-width: 0; }
 .panel-back { flex: none; font-size: 19px; font-weight: 800; }
 .panel-titles h2 { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.panel-title-row h2 { min-width: 0; }
+/* Tampon « Embargo » : encre rouge de douane, double cadre, posé de travers à côté du nom d'un navire marqué. */
+.embargo-stamp {
+  display: inline-block; flex: none; font-family: var(--stencil); font-weight: 700; font-size: 12px; line-height: 1;
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--bad); padding: 3px 6px 2px;
+  border: 2px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--paper), inset 0 0 0 2px currentColor;
+  transform: rotate(-6deg); opacity: 0.88; white-space: nowrap; cursor: help; vertical-align: 1px;
+}
+.panel-title-row .embargo-stamp { font-size: 14px; padding: 4px 8px 3px; }
+.row .embargo-stamp { margin: 0 6px 0 8px; font-size: 10.5px; padding: 2px 5px 1px; }
 .panel-sub { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-actions { display: flex; gap: 6px; }
 /* Les onglets passent à la ligne quand ils ne tiennent pas : un onglet caché hors de l'écran,
