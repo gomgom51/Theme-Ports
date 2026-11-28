@@ -140,6 +140,8 @@ const SLOTS = [
   { record: [...row(4, 270, 11, -47, 15), ...row(4, 270, 11, -21, 15)], evil: [...row(3, 62, 11, -27, 14), ...row(3, 62, 11, -9, 14)] },
   { record: [...row(4, 268, 12, -45, 16), ...row(4, 268, 12, -18, 16)], evil: [...row(3, 82, 11, -27, 14), ...row(3, 82, 11, -9, 14)] },
 ];
+// Place d'un trophée (kind 'record') ou d'un méfait ('evil') au niveau tier : { x, b, h } (coordonnées du décor).
+export const honourSpot = (tier, kind, id) => SLOTS[tier]?.[kind === 'evil' ? 'evil' : 'record'][(kind === 'evil' ? EVIL_IDS : RECORD_IDS).indexOf(id)] || null;
 
 // ---------- Ambiances de fenêtre ----------
 const MOODS = {

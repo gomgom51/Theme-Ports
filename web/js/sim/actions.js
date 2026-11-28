@@ -467,7 +467,7 @@ export function notifyRivals(state, company, ship, text, newbuild) {
   if (company.human || !state.companies.some((c) => c.human && !c.bankrupt)) return;
   if (!newbuild && state.t - (state.rivalSeen ?? 0) < 30 * HOURS_PER_DAY) return; // pas avant le 2e mois (achats de départ)
   state.rivalSeen = state.t;
-  (state.queuedNotes ??= []).push({ kind: 'rivalship', rival: company.id, color: company.color, shipType: ship.type, newbuild, text });
+  (state.queuedNotes ??= []).push({ kind: 'rivalship', rival: company.id, color: company.color, shipId: ship.id, shipType: ship.type, newbuild, text });
 }
 
 export function newBuildPrice(state, company, typeId, yard) {

@@ -100,55 +100,6 @@ export function crate(g, x, y, open = 0) {
     R(g, x + 2, y - 1, 4, 2, '#f4f1e6'); R(g, x + 3, y - 1, 1, 2, '#c9a24a'); // le colis, scotché
   } else R(g, x, y - 1, 8, 1, '#a8733c');
 }
-// Navires vus de profil, cap à droite, aux couleurs de la compagnie (52 × 20, flottaison à la
-// ligne 17) : porte-conteneurs ('box'), pétrolier ('tank'), vraquier ('bulk'), navire de guerre ('navy').
-export function shipSprite(color, kind = 'box', low = '#7a1f22') {
-  const key = `ship${color}${kind}${low}`;
-  if (cache.has(key)) return cache.get(key);
-  const c = document.createElement('canvas');
-  c.width = 52; c.height = 20;
-  const g = c.getContext('2d');
-  for (let r = 0; r < 6; r++) {
-    const x0 = Math.round(1 + r * 0.6), x1 = Math.round(51 - (r < 2 ? r * 0.5 : 1 + (r - 1) * 1.6));
-    R(g, x0, 12 + r, x1 - x0, 1, r === 2 && kind !== 'navy' ? '#f2efe6' : r >= 3 ? low : color);
-  }
-  if (kind === 'navy') {
-    R(g, 16, 6, 14, 6, '#9aa4ad'); R(g, 18, 3, 9, 3, '#9aa4ad'); R(g, 19, 7, 10, 1, '#2c3640'); // superstructure
-    R(g, 22, 0, 1, 3, '#5b6470'); R(g, 20, 1, 5, 1, '#5b6470'); // mât et radar
-    R(g, 36, 9, 4, 3, '#9aa4ad'); R(g, 40, 9, 6, 1, '#5b6470'); // tourelle
-    R(g, 3, 11, 12, 1, '#7d8790'); // plateforme hélico
-    cache.set(key, c);
-    return c;
-  }
-  R(g, 4, 4, 11, 8, '#f2efe6');
-  for (let x = 5; x < 14; x += 2) R(g, x, 6, 1, 1, '#24323c');
-  R(g, 3, 4, 13, 1, '#d8d3c6');
-  R(g, 7, 0, 4, 4, color); R(g, 7, 0, 4, 1, '#1b1b1b');
-  if (kind === 'tank') {
-    R(g, 15, 11, 34, 1, '#5b6470'); // pont
-    R(g, 16, 9, 31, 1, '#9aa3ab'); for (let x = 17; x < 47; x += 4) R(g, x, 10, 1, 1, '#9aa3ab'); // passerelle et tuyaux
-    R(g, 30, 7, 1, 2, '#9aa3ab'); R(g, 33, 7, 1, 2, '#9aa3ab'); R(g, 29, 7, 6, 1, '#9aa3ab'); // collecteur
-  } else if (kind === 'bulk') {
-    for (let i = 0; i < 5; i++) R(g, 17 + i * 6, 9, 5, 3, i % 2 ? '#7d8389' : '#8d939a'); // panneaux de cale
-    for (let i = 0; i < 3; i++) { const x = 22 + i * 10; R(g, x, 3, 1, 6, '#e3b33b'); for (let k = 0; k < 6; k++) R(g, x + 1 + k, 3 + Math.floor(k * 0.6), 1, 1, '#e3b33b'); } // grues
-  } else {
-    const cols = ['#c0392b', '#2e86c1', '#d4ac0d', '#27ae60', '#8e44ad', '#e67e22'];
-    for (let i = 0; i < 7; i++) { R(g, 17 + i * 4, 8 + (i % 2), 4, 4 - (i % 2), cols[(i * 3) % cols.length]); R(g, 17 + i * 4, 8 + (i % 2), 1, 4 - (i % 2), 'rgba(0,0,0,0.25)'); }
-  }
-  R(g, 47, 5, 1, 7, '#6d747c');
-  cache.set(key, c);
-  return c;
-}
-export function drawShip(g, color, x, y, angle = 0, scale = 1, kind = 'box', low) {
-  const s = shipSprite(color, kind, low);
-  g.save();
-  g.translate(Math.round(x), Math.round(y));
-  if (angle) g.rotate(angle);
-  if (Array.isArray(scale)) g.scale(scale[0], scale[1]); // [-s, s] : cap à gauche
-  else if (scale !== 1) g.scale(scale, scale);
-  g.drawImage(s, -26, -17);
-  g.restore();
-}
 // Skiff de pirates (16 × 5), avec deux ou trois hommes.
 export function skiff(g, x, y, dir = 1, crew = 3, t = 0) {
   x = Math.round(x); y = Math.round(y);

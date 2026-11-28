@@ -2,7 +2,7 @@
 
 Files: `data/offices.js` (`OFFICE_TIERS`), `sim/victory.js` (`VICTORY`, `victoryProgress`,
 `levelsDaily`, `victoryDaily`), `sim/honours.js` (`HONOURS`, `DEEDS`, `RECORDS`, `EVIL`, hooks),
-UI: `ui/victory.js`, `ui/codex.js`, office art `ui/officepx.js` (pixel room behind the Office panel, `ui/officeroom.js`; `ui/officeart.js` keeps the vector office for the award and level-up scenes), trophies `ui/trophyart.js`,
+UI: `ui/victory.js`, `ui/codex.js`, office art `ui/officepx.js` (pixel room behind the Office panel, `ui/officeroom.js`; `ui/officescene.js` paints the same room in the award and level-up scenes), trophies `ui/trophyart.js`,
 scenes `ui/scenes-honours.js`.
 
 ## Office levels (company maturity)

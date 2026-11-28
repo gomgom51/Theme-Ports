@@ -23,6 +23,8 @@ It runs in about a second, and `npm test` and CI run it on every PR. The tool pr
 | Rivals of a company, office level of a company | `rivalsOf`, `levelOf` | `sim/core.js` |
 | Office level rules (tiers, music steps) | `OFFICE_TIERS`, `officeTier`, `musicStep`, `reachedTier`, `shownTier` | `data/offices.js` |
 | Ship proportions for every drawing | `SHIP_ART` | `ui/shipshapes.js` |
+| A ship in an event scene (real model, to scale, chunky) | `sceneShip`, `sceneShipOf` | `ui/sceneship.js` |
+| The office in a scene | `officeShot`, `drawOfficeShot` | `ui/officescene.js` |
 | Risk shown before a decision (rule 1) | `riskLines`, `shadyLines`, `darkLines`, `piracyLine`, `patrolLine`, `iceLines` | `ui/risk.js`, `ui/shady.js`, `ui/dark.js`, `ui/piracy.js`, `ui/panel-ship.js` |
 
 If a helper you need is missing, add it to the file in the table and import it. Don't write a local copy "just
@@ -82,11 +84,10 @@ for this file". If the helper is not in the table yet, add a row.
    - Sentences are whole templates (`…${x}…`), never glued with `+`.
    - `node tools/i18n-check.mjs 0` checks the code texts in a few seconds. Without the `0`, it also plays a game.
 10. **Art.**
-    - New art uses the pixel styles: ships with `ui/pixelship.js` / `ui/mapships.js`, and the office with
-        `ui/officepx.js`.
+    - New art uses the pixel styles: ships with `ui/pixelship.js` / `ui/mapships.js` (and `ui/sceneship.js` in
+        event scenes), and the office with `ui/officepx.js`.
     - Both ship styles (fine and chunky) must keep working.
-    - The old vector office (`officeart.js` `officeSVG`) is still used by the level-up and record scenes until
-      they are redrawn. Don't extend it.
+    - The vector ship and office drawings are gone: every ship and office on screen is pixel art.
     - Ask the owner before starting a new family of drawings (CLAUDE.md).
 11. **Panels are rebuilt, not patched.**
     - `renderPanel` (`main.js`) replaces the whole panel on every refresh: about every 1.2 s while the game runs,
@@ -117,5 +118,4 @@ for this file". If the helper is not in the table yet, add a row.
 - `en.js` still holds entries no code uses any more. Composed texts make automatic pruning unreliable, so remove
   entries by hand when you remove their text.
 - `abandonContract` (`sim/actions.js`) has no button yet. It is kept in `KEEP_EXPORTS` until the owner decides.
-- Level-up and record scenes paint the vector office (rule 10).
 - The body text uses the operating system's font. Waiting for the owner's choice.

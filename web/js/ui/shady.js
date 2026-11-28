@@ -8,6 +8,7 @@ import { detectionChance, seizureFine, sanctionRisk, sanctionPreview, taintActiv
 import { h, money, date, dialog, toast, dec } from './dom.js';
 import { flagEl } from './flags.js';
 import { showScene, scenesOn } from './scenes.js';
+import { sceneShipOf } from './sceneship.js';
 import { concealEl } from './shiproles.js';
 import { hasEquip, equipOff } from '../sim/equipment.js';
 import { crewHint } from './risk.js';
@@ -126,7 +127,7 @@ export async function maybeProposeParcel(app, ship, to) {
       { label: `Accepter (${money(offer.pay)})`, value: 'oui', kind: 'primary' },
     ];
     // Avec les illustrations : la scène de l'homme au manteau sur le quai.
-    if (scenesOn()) return showScene(app, 'offer', { title, content: body, buttons, clickClose: false, variant: insisting ? 'insist' : null, color: state.companies[ship.owner]?.color });
+    if (scenesOn()) return showScene(app, 'offer', { title, content: body, buttons, clickClose: false, variant: insisting ? 'insist' : null, color: state.companies[ship.owner]?.color, ship: sceneShipOf(state, ship) });
     return dialog({ title, body, buttons });
   };
   let choice = await ask(o, false);

@@ -1,7 +1,8 @@
 // Scènes des événements mondiaux (pétrole, raffineries, récoltes, acier, conteneurs, récession,
 // canaux, grèves) : même principe que les scènes d'incident, sans aucun texte dans l'image.
 // Les mouvements qui se répètent ont une période qui divise la boucle, pour qu'elle soit sans à-coup.
-import { W, H, hash, clamp01, ease, R, bands, sea, stars, vignette, person, drawShip, wake, gulls, DAY, line, smoke, flame, disc, rain, cloud, box, gantry, luffCrane, board } from './pixel.js';
+import { W, H, hash, clamp01, ease, R, bands, sea, stars, vignette, person, wake, gulls, DAY, line, smoke, flame, disc, rain, cloud, box, gantry, luffCrane, board } from './pixel.js';
+import { sceneShip } from './sceneship.js';
 
 const PI = Math.PI;
 const tex = new Map();
@@ -92,7 +93,7 @@ const BOX = ['#c0392b', '#2e86c1', '#d4ac0d', '#27ae60', '#8e44ad', '#e67e22'];
 function steelMill(g, t, hot) {
   const C = hot ? '#2a1c2a' : '#5d636b', C2 = hot ? '#36243a' : '#6c727a';
   sea(g, t, hot ? { cols: ['#2b2340', '#251f39', '#201b32', '#1b172b'], crest: '#a0603f' } : { cols: ['#5f6d77', '#56646e', '#4d5b65', '#44525c'], crest: '#94a3ad' }, 86);
-  drawShip(g, hot ? '#2c4a6b' : '#4a5866', 170, 104, 0, 1, 'bulk');
+  sceneShip({}, 'bulk', { color: hot ? '#2c4a6b' : '#4a5866', laden: hot, far: 0.8 }).draw(g, 195, 101); // le minéralier, derrière le quai
   R(g, 0, 86, 132, 26, hot ? '#1a1218' : '#4a4f56'); R(g, 0, 90, 132, 1, hot ? '#2c2026' : '#5c6168');
   // Minerai et convoyeur.
   for (let r = 0; r < 16; r++) { const w = 2 + r * 2.4; R(g, 18 - w / 2, 70 + r, w, 1, hot ? '#6e3a2c' : '#7d5f50'); }
@@ -154,7 +155,7 @@ export const WORLD_SCENES = {
       g.drawImage(bands('sky-clear', ['#7fb6d8', '#9cc8e2', '#bcdbec', '#d9ebf2'], 58), 0, 0);
       cloud(g, 18, 20, 26); cloud(g, 104, 30, 20);
       sea(g, t, DAY, 58, 58, 86);
-      ['#2c3e50', '#3d2c2c', '#24323c', '#463a2a'].forEach((c, i) => drawShip(g, c, 70 + i * 34, 68 + (i % 2) * 6 + Math.round(Math.sin(t * PI + i) * 0.6), 0, 0.5, 'tank'));
+      ['#2c3e50', '#3d2c2c', '#24323c', '#463a2a'].forEach((c, i) => sceneShip({}, 'tank', { color: c, laden: true, far: 0.3 }).draw(g, 84 + i * 34, 67 + (i % 2) * 6 + Math.round(Math.sin(t * PI + i) * 0.6)));
       R(g, 0, 86, W, 26, '#5b6068'); R(g, 0, 86, W, 1, '#8a9099');
       for (const [x, w, hh] of [[4, 22, 32], [28, 18, 26]]) {
         R(g, x, 86 - hh, w, hh, '#d9dcd6'); R(g, x, 86 - hh, w, 2, '#eef0ea'); R(g, x + w - 3, 86 - hh, 3, hh, '#b5b9b2');
@@ -303,7 +304,8 @@ export const WORLD_SCENES = {
       R(g, 61 + sw, 56, 20, 2, '#8f979e'); R(g, 61 + sw, 56, 20, 1, '#b8c0c8');
       R(g, 0, 86, W, 26, '#9a9890'); R(g, 0, 86, W, 1, '#b8b6ae');
       R(g, 34, 87, 132, 20, '#6e6c66'); R(g, 34, 105, 132, 2, '#57554f');
-      drawShip(g, o.color, 100, 100, 0, 2);
+      const sh = sceneShip(o, 'box', { laden: false });
+      sh.draw(g, 150, 100 - sh.depth, { keel: true }); // sur ses tins, l'étrave contre l'échafaudage
       for (let x = 52; x < 150; x += 12) R(g, x, 101, 6, 4, '#8a6a3a');
       // Échafaudage contre l'étrave.
       for (const x of [154, 162]) R(g, x, 70, 1, 35, '#6d747c');
@@ -322,7 +324,7 @@ export const WORLD_SCENES = {
       g.drawImage(bands('sky-sunny', ['#6fb0dd', '#8cc2e6', '#acd4ee', '#cde5f3'], 62), 0, 0);
       disc(g, 112, 16, 7, '#fff3c0');
       sea(g, t, DAY, 62);
-      drawShip(g, o.color, 136, 96, 0, 2);
+      sceneShip(o, 'box', { laden: true }).draw(g, 190, 92);
       R(g, 0, 70, 74, 42, '#8d9097'); R(g, 0, 70, 74, 1, '#b5b8be'); R(g, 72, 70, 2, 42, '#5b6068');
       for (let i = 0; i < 4; i++) for (let k = 0; k < [3, 2, 3, 1][i]; k++) box(g, 2 + i * 11, 65 - k * 5, BOX[(i * 2 + k) % 6]);
       const n = Math.floor(t / 3.2), k = (t / 3.2) % 1;
@@ -349,7 +351,7 @@ export const WORLD_SCENES = {
       sea(g, t, { cols: ['#56656e', '#4d5c65', '#44535c', '#3b4a53'], crest: '#8a9aa3' }, 58, 58, 88);
       [[44, 70, 'tank'], [104, 76, 'bulk'], [160, 72, 'box']].forEach(([x, y, kind], i) => {
         const b = Math.round(Math.sin(t * PI + i) * 0.5);
-        drawShip(g, '#6b5a4e', x, y + b, 0, 0.5, kind, '#5a3a2a');
+        sceneShip({}, kind, { color: '#6b5a4e', wear: 0.85, laden: false, far: 0.3 }).draw(g, x + 14, y - 1 + b); // rouillé, sur lest
         line(g, x + 12, y - 3 + b, x + 16, y + 2, '#2b2f33'); // chaîne d'ancre
       });
       R(g, 0, 88, W, 24, '#5b6068'); R(g, 0, 88, W, 1, '#8a9099');
@@ -369,7 +371,7 @@ export const WORLD_SCENES = {
       sea(g, t, DAY, 60);
       for (let i = 0; i < 14; i++) {
         const x = 76 + (i * 37) % 124 + (hash(i, 3) % 8), y = 63 + (i % 3) * 3;
-        drawShip(g, ['#2c3e50', '#7a1f22', '#24323c', '#3d6b4a'][i % 4], x, y, 0, 0.3, ['box', 'tank', 'bulk'][i % 3]);
+        sceneShip({}, ['box', 'tank', 'bulk'][i % 3], { color: ['#2c3e50', '#7a1f22', '#24323c', '#3d6b4a'][i % 4], laden: true, far: 0.16 }).draw(g, x + 8, y - 1);
       }
       // Le chantier et sa cale de lancement.
       g.fillStyle = '#8d9097'; g.beginPath(); g.moveTo(0, 56); g.lineTo(34, 56); g.lineTo(74, 80); g.lineTo(74, H); g.lineTo(0, H); g.fill();
@@ -378,9 +380,13 @@ export const WORLD_SCENES = {
       // Le prochain navire, déjà en construction (membrures).
       if (t > 2.6) { for (let x = 6; x < 40; x += 3) R(g, x, 52 + (x - 6) * 0.2, 1, 9 - Math.abs(x - 23) * 0.15, '#a0522d'); R(g, 6, 61 + 0, 34, 1, '#a0522d'); }
       const p = clamp01((t - 0.6) / 2.2), s = p * p * (3 - 2 * p);
-      const x = 26 + s * 100, onSlip = x < 70;
-      const y = onSlip ? 63 + (x - 4) * 0.2 : 76 + Math.min(2, (x - 70) * 0.1) + Math.sin(t * PI) * 0.6 * clamp01((x - 90) / 20);
-      drawShip(g, '#2f6f8f', x, y, onSlip ? 0.2 : 0.2 * (1 - clamp01((x - 70) / 22)), 1, 'bulk');
+      const sh = sceneShip({}, 'bulk', { color: '#2f6f8f', laden: false, far: 0.5 }), half = sh.len / 2;
+      const x = 26 + s * 100, onSlip = x < 70; // x : milieu du navire
+      if (onSlip) sh.draw(g, x + half, 64 + (x + half - 4) * 0.2 - sh.depth - 1, { slope: 0.2, keel: true }); // la quille sur les rails
+      else {
+        const a = 0.2 * (1 - clamp01((x - 70) / 22)), wy = 75 + Math.min(2, (x - 70) * 0.1) + Math.sin(t * PI) * 0.6 * clamp01((x - 90) / 20);
+        sh.draw(g, x + half, wy + Math.tan(a) * half, { slope: a });
+      }
       const sp = clamp01((t - 1.7) / 1.4);
       if (sp > 0 && sp < 1) for (let i = 0; i < 16; i++) { const a = PI * (0.15 + 0.7 * (hash(i, 1) % 100) / 100), v = 6 + hash(i, 2) % 10; R(g, 96 + Math.cos(a) * v * sp * 2, 78 - Math.sin(a) * v * sp * 3 + sp * sp * 14, 1, 1, '#eaf6fb'); }
       board(g, 146, 4, -1, t, 'bad', 'ship');
@@ -395,7 +401,7 @@ export const WORLD_SCENES = {
       sea(g, t, { cols: ['#4f7f96', '#447389', '#3a667b', '#30586c'], crest: '#f3d9a0' }, 64);
       for (let i = 0; i < 4; i++) {
         const x = 250 - ((t * 15 + i * 60) % 240), y = 72 + (i % 2) * 4;
-        drawShip(g, ['#2c3e50', '#7a1f22', '#2f6f8f', '#3d6b4a'][i], x, y, 0, [-0.6, 0.6], ['box', 'tank', 'bulk', 'box'][i]);
+        sceneShip({}, ['box', 'tank', 'bulk', 'box'][i], { color: ['#2c3e50', '#7a1f22', '#2f6f8f', '#3d6b4a'][i], laden: true, far: 0.3 }).draw(g, x - 15, y - 1, { flip: true });
         wake(g, x + 16, y, -1, t, 7);
       }
       // Cap et phare, à gauche (les navires y disparaissent derrière).
@@ -459,11 +465,11 @@ export const WORLD_SCENES = {
       R(g, 0, 62, W, 50, '#8a7556');
       // Lac Gatún, à gauche : la vase découverte.
       R(g, 0, 66, 50, 1, '#c9bf9a'); R(g, 0, 67, 50, 7 + drop, '#9a8a68');
-      drawShip(g, '#2c3e50', 18, 76 + drop + 1, 0, 1, 'tank');
+      sceneShip({}, 'tank', { color: '#2c3e50', laden: true, far: 0.5 }).draw(g, 43, 75 + drop);
       R(g, 0, 74 + drop, 50, 38, '#3a7d8c');
       // L'écluse : mur du fond, trace de l'ancien niveau, eau qui baisse.
       R(g, 54, 60, 100, 52, '#c9c4b6'); R(g, 54, 66, 100, 1, '#e8e4d8'); R(g, 54, 67, 100, Math.max(0, wl - 67), '#a39c86');
-      drawShip(g, o.color, 104, wl + 2);
+      sceneShip(o, 'box', { far: 0.9 }).draw(g, 146, wl);
       R(g, 54, wl, 100, H - wl, '#3f8c99'); for (let i = 0; i < 8; i++) R(g, 56 + (hash(i, 3) % 92 + t * 10) % 92, wl + 2 + (hash(i, 4) % 20), 3, 1, '#7fc0c8');
       R(g, 50, 60, 4, 52, '#b3ad9f'); R(g, 154, 60, 4, 52, '#b3ad9f'); R(g, 54, 60, 2, 52, '#4a4f56'); R(g, 152, 60, 2, 52, '#4a4f56');
       R(g, 158, 66, 42, 1, '#c9bf9a'); R(g, 158, 67, 42, 13 + drop, '#9a8a68'); R(g, 158, 80 + drop, 42, 32, '#3a7d8c');
@@ -482,7 +488,7 @@ export const WORLD_SCENES = {
       g.drawImage(bands('sky-strike', ['#9fb8c9', '#b2c7d4', '#c6d6df', '#d8e3e9'], 56), 0, 0);
       cloud(g, 30, 16, 30, '#eef2f4'); cloud(g, 120, 26, 22, '#eef2f4');
       sea(g, t, DAY, 56, 56, 80);
-      drawShip(g, o.color, 158, 78);
+      sceneShip(o, 'box', { laden: true }).draw(g, 190, 79);
       R(g, 0, 80, W, 32, '#5b6068'); R(g, 0, 80, W, 1, '#8a9099');
       for (let x = 0; x < W; x += 24) R(g, x, 81, 1, 31, '#50555c');
       for (let i = 0; i < 3; i++) for (let k = 0; k < [2, 3, 1][i]; k++) box(g, 2 + i * 11, 75 - k * 5, BOX[(i + k * 2) % 6]);

@@ -3,13 +3,25 @@
 // détention, marée noire, et les événements mondiaux de scenes-world.js).
 // Un son facultatif par scène : sons/scene-<nom>.mp3.
 import { h } from './dom.js';
-import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, drawShip, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, cloud, disc, smoke, flame } from './pixel.js';
+import { W, H, hash, clamp01, ease, rgb, R, bands, sea, stars, vignette, cone, person, crate, skiff, wake, patrolBoat, heli, seal, padlock, quay, gulls, DAY, NIGHT, STORM, line, rain, board, cloud, disc, smoke, flame } from './pixel.js';
 import { WORLD_SCENES } from './scenes-world.js';
 import { HONOUR_SCENES } from './scenes-honours.js';
 const sea_ = (...a) => sea(...a); // (la variable « sea » sert aussi de drapeau dans les scènes des glaces)
 import { SHIP_TYPES } from '../data/ships.js';
 import { getLang } from '../i18n.js';
 import { KEYS, readFlag, writeFlag } from './storage.js';
+import { sceneShip } from './sceneship.js';
+import { drawOfficeShot, officeLeft } from './officescene.js';
+
+// Le navire de la scène (sceneship.js) : son modèle, à l'échelle, posé par l'étrave.
+// Étrave qui centre le navire en cx, sans dépasser maxBow : un grand navire déborde à gauche.
+const bowAt = (sh, cx, maxBow = 196) => Math.min(maxBow, Math.round(cx + sh.len / 2));
+// Un personnage (3 × 7) debout sur la rangée floor.
+const stand = (floor) => Math.round(floor) - 7;
+// Pont sous l'abscisse x, pour un navire posé en (bx, wy).
+const deckUnder = (sh, bx, wy, x) => Math.round(wy + sh.deck(clamp01(sh.fr(x - bx))));
+// Passerelle en marches, du pont (x, y0) jusqu'au quai (y1), vers la droite.
+function gangway(g, x, y0, y1, c = '#8a6a3a') { for (let i = 0; i * 2 < y1 - y0; i++) R(g, x + i * 2, y0 + i * 2, 3, 1, c); }
 
 // Lettres de pixels (5 × 7) pour les gros titres des journaux.
 const GLYPHS = {
@@ -55,10 +67,6 @@ function companyFlag(g, x, y, color, t, raise = 1, pole = 14) {
     const dy = Math.round(Math.sin(t * 7 - c * 0.9) * (c / 6) * 1.2);
     R(g, x + 1 + c, fy + dy, 1, 4, color); R(g, x + 1 + c, fy + dy + 1, 1, 1, '#f4f4f4');
   }
-}
-// Traînées de rouille d'un vieux navire (mêmes coordonnées que drawShip, échelle 1).
-function rustStreaks(g, x, y) {
-  for (let i = 0; i < 9; i++) { const rx = x - 22 + (hash(i, 31) % 44), ry = y - 6 + (hash(i, 32) % 2); R(g, rx, ry, 1, 2 + (hash(i, 33) % 3), i % 3 ? '#7a4a2a' : '#94603a'); }
 }
 
 const PI = Math.PI;
@@ -125,7 +133,6 @@ function burst(g, x, y, k, n, cols, spread = 18, up = 16, seed = 0) {
     R(g, x + vx * k, y - vy * k + 20 * k * k, 1 + (i % 3 === 0), 1, cols[i % cols.length]);
   }
 }
-const SHIP_DECK = 72; // pont d'un navire dessiné au double (flottaison 82)
 
 export const SCENES = {
   // Naufrage : tempête de nuit, le navire s'incline et sombre, l'hélicoptère hélitreuille l'équipage.
@@ -136,11 +143,14 @@ export const SCENES = {
       g.drawImage(bands('sky-storm', flash ? ['#4a5d86', '#5b6f99', '#6c80aa'] : ['#05080f', '#0b1222', '#121c33', '#1a2945'], 58), 0, 0);
       if (flash) { g.strokeStyle = '#fffbe6'; g.lineWidth = 1; g.beginPath(); g.moveTo(150, 0); g.lineTo(144, 18); g.lineTo(152, 22); g.lineTo(146, 44); g.stroke(); }
       sea(g, t, STORM, 58, 58, H, 2);
-      const p = clamp01((t - 0.5) / 5);
-      const sinkY = 24 * Math.pow(p, 1.7), ang = -0.42 * ease(p * 1.6); // s'incline vite, sombre lentement
-      drawShip(g, o.color, 104, 76 + sinkY, ang);
+      // Le navire sombre par la poupe, l'étrave se dresse (moins haut pour un grand navire).
+      const p = clamp01((t - 1) / 4.8), sh = sceneShip(o);
+      const bx = bowAt(sh, 112), wy = 76 + 22 * Math.pow(p, 1.7);
+      const slope = -Math.atan(Math.min(0.45, 30 / sh.len) * ease(p * 1.6));
+      sh.draw(g, bx, wy, { slope });
       sea(g, t, STORM, 58, 77, H, 2); // l'eau recouvre ce qui a sombré
-      if (p > 0.55) for (let i = 0; i < 6; i++) { const k = (t * 0.9 + i * 0.37) % 1; R(g, 98 + (hash(i, 9) % 14), 77 - k * 10, 1, 1, 'rgba(180,210,240,0.8)'); }
+      const mx = Math.max(56, bx - sh.len * 0.55);
+      if (p > 0.55) for (let i = 0; i < 6; i++) { const k = (t * 0.9 + i * 0.37) % 1; R(g, mx - 7 + (hash(i, 9) % 14), 77 - k * 10, 1, 1, 'rgba(180,210,240,0.8)'); }
       // Radeau de survie et hélicoptère.
       R(g, 34, 79, 12, 3, '#f07c1f'); R(g, 35, 78, 10, 1, '#f5a04f'); person(g, 36, 72, '#f07c1f'); person(g, 41, 72, '#f07c1f');
       const hx = 30 + Math.sin(t * 1.3) * 2, hy = 20;
@@ -158,22 +168,29 @@ export const SCENES = {
     draw(g, t, o) {
       g.drawImage(bands('sky-haze', ['#f0d9a4', '#e6c58f', '#cdb894', '#a4b8b9', '#8aaeb8'], 58), 0, 0);
       sea(g, t, DAY, 58);
-      const bob = Math.round(Math.sin(t * 2) * 0.8);
-      drawShip(g, o.color, 126, 77 + bob);
-      const p = ease(t / 2), sx = -24 + p * 106;
+      const bob = Math.round(Math.sin(t * 2) * 0.8), sh = sceneShip(o);
+      const bx = bowAt(sh, 112, 194), wy = 77 + bob;
+      sh.draw(g, bx, wy);
+      // L'échelle se dresse contre la coque, au tiers arrière ; les skiffs s'arrêtent dessous.
+      const ladderX = Math.round(bx + sh.x(0.3)), deckY = Math.round(wy + sh.rim(0.3));
+      const p = ease(t / 2), sx = -24 + p * (ladderX - 20 + 24);
       skiff(g, sx, 80, 1, 3, t); skiff(g, sx - 14, 86, 1, 2, t);
       if (p < 1) { wake(g, sx, 82, 1, t); wake(g, sx - 14, 88, 1, t); }
-      const deckY = 64 + bob, ladderX = 103;
       const lp = clamp01((t - 2) / 0.6);
       if (lp > 0) { const top = 79 - lp * (79 - deckY); R(g, ladderX, top, 1, 79 - top, '#8a6a3a'); R(g, ladderX + 3, top, 1, 79 - top, '#8a6a3a'); for (let y = top; y < 79; y += 3) R(g, ladderX, y, 4, 1, '#8a6a3a'); }
       for (let i = 0; i < 3; i++) {
         const c = clamp01((t - 2.5 - i * 0.45) / 0.9);
         if (c <= 0) continue;
-        const y = 74 - c * (74 - (deckY - 7)), x = ladderX + (c >= 1 ? 4 + i * 6 + Math.min(10, (t - 3.4 - i * 0.45) * 8) : 0);
+        const x = ladderX + (c >= 1 ? 4 + i * 6 + Math.min(10, (t - 3.4 - i * 0.45) * 8) : 0);
+        const y = c < 1 ? 74 - c * (74 - (deckY - 7)) : stand(deckUnder(sh, bx, wy, x + 1));
         person(g, x, y, i % 2 ? '#3a3a3a' : '#5a4a3a', { hat: i === 1 ? '#7a1f22' : null, step: Math.floor(t * 6) % 2 });
       }
+      // Leur drapeau monte au mât de l'avant.
       const fp = clamp01((t - 3.9) / 0.7);
-      if (fp > 0) { const fy = Math.round(70 + bob - fp * 10); R(g, 147, fy - 6 + bob, 1, 8, '#6d747c'); R(g, 148, fy - 6, 6, 4, '#111'); R(g, 150, fy - 5, 2, 2, '#eee'); if (Math.floor(t * 4) % 2) R(g, 154, fy - 5, 1, 2, '#111'); }
+      if (fp > 0) {
+        const fx = Math.round(bx + sh.x(0.9)), base = deckUnder(sh, bx, wy, fx), fy = base - 4 - Math.round(fp * 8);
+        R(g, fx, base - 13, 1, 13, '#6d747c'); R(g, fx + 1, fy, 6, 4, '#111'); R(g, fx + 3, fy + 1, 2, 2, '#eee'); if (Math.floor(t * 4) % 2) R(g, fx + 7, fy + 1, 1, 2, '#111');
+      }
       vignette(g, 'rgba(150,20,20,A)', 0.25 + 0.15 * clamp01((t - 3.5) / 1) * (0.7 + 0.3 * Math.sin(t * 4)));
     },
   },
@@ -183,27 +200,30 @@ export const SCENES = {
     draw(g, t, o) {
       g.drawImage(bands('sky-day', ['#9fd0e8', '#b3dbee', '#cbe6f2', '#e2f0f5'], 58), 0, 0);
       sea(g, t, DAY, 58);
-      const bob = Math.round(Math.sin(t * 2) * 0.8);
-      drawShip(g, o.color, 126, 77 + bob);
-      for (let x = 102; x < 150; x += 2) R(g, x, 61 + bob + (x % 4 ? 0 : -1), 1, 1, '#9aa1a8'); // barbelés
-      const flee = clamp01((t - 3.3) / 2);
-      const p = ease(t / 2), sx = flee > 0 ? 82 - ease(flee) * 130 : -24 + p * 106;
+      const bob = Math.round(Math.sin(t * 2) * 0.8), sh = sceneShip(o);
+      const bx = bowAt(sh, 112, 194), wy = 77 + bob;
+      sh.draw(g, bx, wy);
+      for (let x = Math.round(bx + sh.x(0.15)); x < bx + sh.x(0.95); x += 2) R(g, x, Math.round(wy + sh.rim(sh.fr(x - bx))) - 2 + (x % 4 ? 0 : -1), 1, 1, '#9aa1a8'); // barbelés
+      const ladderX = Math.round(bx + sh.x(0.3)), deckY = Math.round(wy + sh.rim(0.3));
+      const flee = clamp01((t - 3.3) / 2), stop = ladderX - 20;
+      const p = ease(t / 2), sx = flee > 0 ? stop - ease(flee) * (stop + 50) : -24 + p * (stop + 24);
       const dir = flee > 0 ? -1 : 1;
       skiff(g, sx, 80, dir, 3, t); skiff(g, sx - 14 * dir, 86, dir, 2, t);
       if (p < 1 || flee > 0) { wake(g, sx + (dir < 0 ? 16 : 0), 82, dir, t, flee > 0 ? 20 : 14); }
       const lp = clamp01((t - 2) / 0.4), fall = clamp01((t - 2.9) / 0.4);
-      if (lp > 0 && fall < 1) {
-        g.save(); g.translate(104, 79); g.rotate(-fall * 1.2);
-        const len = lp * 15; R(g, 0, -len, 1, len, '#8a6a3a'); R(g, 3, -len, 1, len, '#8a6a3a');
+      if (lp > 0 && fall < 1) { // l'échelle, repoussée, bascule en arrière
+        g.save(); g.translate(ladderX + 1, 79); g.rotate(-fall * 1.2);
+        const len = lp * (79 - deckY); R(g, 0, -len, 1, len, '#8a6a3a'); R(g, 3, -len, 1, len, '#8a6a3a');
         for (let y = -len; y < 0; y += 3) R(g, 0, y, 4, 1, '#8a6a3a');
         g.restore();
       }
-      if (t > 2.2 && t < 3.6) {
-        for (let i = 0; i < 26; i++) { // jets des lances à incendie
-          const k = ((t * 2.2 + i / 26) % 1), x = 118 - k * 16, y = 62 + bob - Math.sin(k * Math.PI) * 9 + k * 16;
+      if (t > 2.2 && t < 3.6) { // l'équipage braque les lances à incendie sur l'échelle
+        const hx = Math.round(bx + sh.x(0.5)), hy = stand(deckUnder(sh, bx, wy, hx + 1));
+        for (let i = 0; i < 26; i++) {
+          const k = ((t * 2.2 + i / 26) % 1), x = hx - k * (hx - ladderX - 2), y = hy + 3 - Math.sin(k * Math.PI) * 9 + k * (79 - hy - 6);
           R(g, x, y, 1 + (i % 2), 1, i % 3 ? '#e8f6ff' : '#9fd3f2');
         }
-        person(g, 118, 56 + bob, '#ff8c1a', { hat: '#ffffff' });
+        person(g, hx, hy, '#ff8c1a', { hat: '#ffffff' });
       }
       if (t > 3.6) gulls(g, t - 3.6, 3, [150, 30], 1);
     },
@@ -215,44 +235,48 @@ export const SCENES = {
     draw(g, t, o) {
       g.drawImage(bands('sky-haze', ['#f0d9a4', '#e6c58f', '#cdb894', '#a4b8b9', '#8aaeb8'], 58), 0, 0);
       sea(g, t, DAY, 58);
-      drawShip(g, o.color, 126, 77);
+      const sh = sceneShip(o), bx = bowAt(sh, 112, 194), wy = 77;
+      sh.draw(g, bx, wy);
       const step = Math.floor(t * 6) % 2;
+      const floor = (x) => stand(deckUnder(sh, bx, wy, x + 1));
+      const br = sh.bridge, hideX = Math.round(bx + (br ? (br.x1 + br.x2) / 2 : sh.x(0.1))); // la citadelle, sous la passerelle
       // Un marin court se réfugier dans la passerelle ; le cadenas s'allume.
-      const run = clamp01((t - 0.4) / 1.1);
-      if (run < 1) person(g, 138 - run * 26, 61, '#ff8c1a', { hat: '#ffffff', step });
-      if (t > 1.5) { if (Math.floor(t * 2) % 2) padlock(g, 104, 45); R(g, 105, 54, 4, 1, '#ffd34d'); }
-      // Le skiff arrive le long de la coque.
-      const p = ease(t / 2.2), sx = -24 + p * 132;
+      const run = clamp01((t - 0.4) / 1.1), from = Math.round(bx + sh.x(0.8));
+      if (run < 1) { const x = from - run * (from - hideX); person(g, x, floor(x), '#ff8c1a', { hat: '#ffffff', step }); }
+      if (t > 1.5) { const py = Math.round(wy + (br ? br.top : sh.top)) - 11; if (Math.floor(t * 2) % 2) padlock(g, hideX - 3, py); R(g, hideX - 2, py + 9, 4, 1, '#ffd34d'); }
+      // Le skiff arrive le long de la coque, sous l'échelle.
+      const ladderX = Math.round(bx + sh.x(0.45)), rim = Math.round(wy + sh.rim(0.45)), stop = ladderX - 14;
+      const p = ease(t / 2.2), sx = -24 + p * (stop + 24);
       const onBoard = (i) => clamp01((t - 2.6 - i * 0.6) / 0.9); // 0 : dans le skiff, 1 : sur le pont
       const left = 3 - (onBoard(0) > 0 ? 1 : 0) - (onBoard(1) > 0 ? 1 : 0);
       skiff(g, sx, 80, 1, left, t);
       if (p < 1) wake(g, sx, 82, 1, t);
-      // L'échelle se dresse contre la coque.
-      const ladderX = 122, top = 79 - clamp01((t - 2.2) / 0.5) * 13;
+      const top = 79 - clamp01((t - 2.2) / 0.5) * (79 - rim);
       if (t > 2.2) { R(g, ladderX, top, 1, 79 - top, '#8a6a3a'); R(g, ladderX + 3, top, 1, 79 - top, '#8a6a3a'); for (let y = top; y < 79; y += 3) R(g, ladderX, y, 4, 1, '#8a6a3a'); }
-      // Deux pirates grimpent, puis gagnent les conteneurs (le chef à la proue, le porteur à 136).
-      const T0 = 4.6;
+      // Deux pirates grimpent, puis gagnent la cargaison (le chef à la proue, le porteur plus loin).
+      const T0 = 4.6, cargoX = Math.round(bx + sh.x(0.72)), bossX = Math.round(bx + sh.x(0.9));
       for (let i = 0; i < 2 && t < T0; i++) {
         const c = onBoard(i);
         if (c <= 0) continue;
-        const walk = clamp01((t - 3.5 - i * 0.6) / (0.8 - i * 0.3));
-        const x = c < 1 ? ladderX : ladderX + walk * (20 - i * 6), y = c < 1 ? 73 - c * 12 : 61;
+        const walk = clamp01((t - 3.5 - i * 0.6) / (0.8 - i * 0.3)), to = i ? cargoX : bossX;
+        const x = c < 1 ? ladderX : ladderX + walk * (to - ladderX), y = c < 1 ? 73 - c * (80 - floor(ladderX)) : floor(x);
         person(g, x, y, i ? '#3a3a3a' : '#5a4a3a', { hat: i ? null : '#7a1f22', step });
       }
       // Pillage : une caisse toutes les 1,6 s, descendue à la corde dans le skiff.
       if (t >= T0) {
-        const n = Math.floor((t - T0) / 1.6), k = ((t - T0) % 1.6) / 1.6;
-        if (n > 0 || k > 0.75) crate(g, 114, 74); // déjà dans le skiff
+        const n = Math.floor((t - T0) / 1.6), k = ((t - T0) % 1.6) / 1.6, sk = stop + 6;
+        if (n > 0 || k > 0.75) crate(g, sk, 74); // déjà dans le skiff
+        const edge = ladderX - 2, fy = floor(edge);
         if (k < 0.4) { // le pirate apporte la caisse jusqu'au bord
-          const x = 136 - (k / 0.4) * 14;
-          crate(g, x - 2, 55); person(g, x, 61, '#3a3a3a', { step });
+          const x = cargoX - (k / 0.4) * (cargoX - edge);
+          crate(g, x - 2, floor(x) - 6); person(g, x, floor(x), '#3a3a3a', { step });
         } else {
-          const d = (k - 0.4) / 0.35, y = 55 + clamp01(d) * 13, x = 120 - clamp01(d) * 6;
-          if (d <= 1) { R(g, x + 3, 56, 1, Math.max(1, y - 56), '#d8cfb8'); crate(g, x, y); } // la corde
-          else if (k < 0.9) crate(g, 114, 68); // posée sur la pile
-          person(g, 122, 61, '#3a3a3a');
+          const d = (k - 0.4) / 0.35, y = fy + clamp01(d) * (68 - fy), x = edge - 2 - clamp01(d) * (edge - 2 - sk);
+          if (d <= 1) { R(g, x + 3, fy + 1, 1, Math.max(1, y - fy - 1), '#d8cfb8'); crate(g, x, y); } // la corde
+          else if (k < 0.9) crate(g, sk, 68); // posée sur la pile
+          person(g, edge, fy, '#3a3a3a');
         }
-        person(g, 142, 61, '#5a4a3a', { hat: '#7a1f22' }); // le chef fait le guet à la proue
+        person(g, bossX, floor(bossX), '#5a4a3a', { hat: '#7a1f22' }); // le chef fait le guet à la proue
       }
       vignette(g, 'rgba(120,60,10,A)', 0.25);
     },
@@ -266,7 +290,7 @@ export const SCENES = {
       for (let i = 0; i < 9; i++) R(g, 92 + i * 12, 38 - (i % 3) * 5, 11, 12 + (i % 3) * 5, ['#3a2f45', '#2f3b4a', '#4a3434'][i % 3]);
       R(g, 176, 14, 2, 36, '#2b3442'); R(g, 160, 14, 30, 2, '#2b3442');
       sea(g, t, NIGHT, 50, 50, 84);
-      drawShip(g, o.color, 22, 81);
+      sceneShip(o).draw(g, 52, 81); // à quai, l'étrave vers la scène (un grand navire déborde à gauche)
       quay(g, 84);
       R(g, 156, 52, 1, 32, '#3c434c'); R(g, 153, 50, 7, 3, '#ffe9a6');
       cone(g, 156, 52, 136, 84, 178, 84, '#ffe9a6', 0.16);
@@ -290,12 +314,14 @@ export const SCENES = {
     draw(g, t, o) {
       g.drawImage(bands('sky-dusk', ['#241a36', '#43284a', '#73384f', '#a9504a', '#d3834f'], 58), 0, 0);
       sea(g, t, { cols: ['#3a3552', '#2f2c47', '#26243c', '#1d1c31'], crest: '#8a7aa3' }, 58);
-      drawShip(g, o.color, 88, 77);
+      const sh = sceneShip(o), bx = Math.min(118, Math.round(26 + sh.len)), wy = 77;
+      sh.draw(g, bx, wy);
+      const ox = Math.round(bx + sh.x(0.78)), oy = stand(deckUnder(sh, bx, wy, ox + 1)); // le douanier, sur le pont avant
       const p = ease(t / 1.8), px = 210 - p * 72;
-      if (t > 1.2) cone(g, px + 9, 74, 64, 60, 72, 76, '#fffbe0', 0.22);
+      if (t > 1.2) cone(g, px + 9, 74, ox - 6, oy + 3, ox + 2, oy + 19, '#fffbe0', 0.22);
       patrolBoat(g, px, 80, t);
       if (p < 1) wake(g, px + 30, 82, -1, t);
-      if (t > 2) { person(g, 70, 57, '#24324a', { hat: '#1a2436' }); crate(g, 76, 58, clamp01((t - 2.4) / 0.4)); }
+      if (t > 2) { person(g, ox, oy, '#24324a', { hat: '#1a2436' }); crate(g, ox + 6, oy + 1, clamp01((t - 2.4) / 0.4)); }
       seal(g, 100, 32, clamp01((t - 3) / 0.8));
     },
   },
@@ -309,9 +335,10 @@ export const SCENES = {
       g.fillStyle = '#f6efc8'; g.beginPath(); g.arc(166, 16, 7, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#16233f'; g.beginPath(); g.arc(169, 14, 6, 0, Math.PI * 2); g.fill();
       sea(g, t, NIGHT, 50, 50, 84);
-      drawShip(g, o.color, 22, 81);
+      const sh = sceneShip(o);
+      sh.draw(g, 52, 81);
       quay(g, 84);
-      for (let i = 0; i < 7; i++) R(g, 40 + i * 2, 72 + i * 2, 3, 1, '#8a6a3a'); // passerelle
+      gangway(g, Math.round(52 + sh.x(0.84)), Math.round(81 + sh.rim(0.84)), 84);
       R(g, 100, 58, 1, 26, '#3c434c'); R(g, 98, 55, 5, 4, '#ffcf6b');
       cone(g, 100, 58, 74, 100, 128, 100, '#ffcf6b', 0.2 + 0.04 * Math.sin(t * 9));
       // Personnages en gros plan : 2 pixels pour 1.
@@ -355,10 +382,11 @@ export const SCENES = {
       g.drawImage(dark ? bands('sky-night-dark', ['#05070d', '#0b0f1c', '#121a2c', '#1a2438'], 50) : bands('sky-dusk2', ['#1d2340', '#3a2f55', '#6b3f5e', '#a35a5a', '#cf8a5a'], 50), 0, 0);
       stars(g, t, dark ? 8 : 14, 22);
       sea(g, t, dark ? { cols: ['#141b2a', '#111726', '#0e1421', '#0b101b'], crest: '#3c4a66' } : { cols: ['#3a3552', '#2f2c47', '#26243c', '#1d1c31'], crest: '#8a7aa3' }, 50, 50, 84);
-      drawShip(g, o.color, 22, 81);
+      const sh = sceneShip(o);
+      sh.draw(g, 52, 81);
       quay(g, 84);
       if (dark) R(g, 0, 84, W, H - 84, 'rgba(0,0,0,0.45)');
-      for (let i = 0; i < 7; i++) R(g, 40 + i * 2, 72 + i * 2, 3, 1, '#8a6a3a'); // passerelle
+      gangway(g, Math.round(52 + sh.x(0.84)), Math.round(81 + sh.rim(0.84)), 84);
       const lamp = dark ? '#bfd8ff' : '#ffcf6b';
       R(g, 118, 58, 1, 26, '#3c434c'); R(g, 116, 55, 5, 4, lamp);
       cone(g, 118, 58, 92, 100, 144, 100, lamp, (dark ? 0.1 : 0.17) + 0.04 * Math.sin(t * 9));
@@ -395,10 +423,11 @@ export const SCENES = {
       g.drawImage(bands('sky-grey', ['#b9c6ce', '#c6d1d8', '#d3dce1', '#dde4e8'], 50), 0, 0);
       for (let i = 0; i < 3; i++) { const x = ((t * 4 + i * 80) % (W + 60)) - 40; R(g, x, 10 + i * 9, 34, 5, '#eef2f4'); R(g, x + 6, 7 + i * 9, 20, 3, '#eef2f4'); }
       sea(g, t, DAY, 50, 50, 84);
-      drawShip(g, o.color, 70, 81);
+      const bx = 78;
+      sceneShip(o).draw(g, bx, 81);
       quay(g, 84);
       R(g, 102, 84, 5, 4, '#3c434c'); // bitte d'amarrage
-      for (let i = 0; i < 6; i++) R(g, 96 - i * 4, 82 - i, 3, 2, i % 2 ? '#8d939a' : '#b9bfc5'); // chaîne
+      for (let i = 0; i < 6; i++) R(g, 99 - i * ((99 - bx) / 6), 83 - i, 3, 2, i % 2 ? '#8d939a' : '#b9bfc5'); // chaîne, de la bitte à l'étrave
       padlock(g, 100, 75);
       R(g, 168, 66, 1, 18, '#6d747c');
       g.fillStyle = '#d0312d'; g.beginPath(); g.arc(168.5, 64, 5, 0, Math.PI * 2); g.fill(); R(g, 165, 63, 7, 2, '#fff');
@@ -413,7 +442,8 @@ export const SCENES = {
     draw(g, t, o) {
       g.drawImage(bands('sky-pale', ['#cfe0e8', '#bcd3de', '#aac7d5'], 44), 0, 0);
       sea(g, t, DAY, 44);
-      drawShip(g, o.color, 168, 62, 0.18, 0.6);
+      const sh = sceneShip(o, 'tank', { far: 0.6 });
+      sh.draw(g, 188, 63, { slope: Math.atan(Math.min(0.1, 5 / sh.len)) }); // au loin, l'étrave sur les cailloux
       const p = ease(t / 4.5);
       g.save(); g.globalAlpha = 0.9; g.fillStyle = '#111316';
       for (let i = 0; i < 9; i++) {
@@ -452,26 +482,34 @@ export const SCENES = {
         }
       };
       water(0, W, 0);
-      const sx = 100, sy = surf(sx), a = Math.atan((surf(sx + 3) - surf(sx - 3)) / 6);
+      // Le navire se pose sur la houle (droite des moindres carrés sous sa coque) : un petit navire en épouse
+      // la pente, un long navire enjambe les creux et y montre sa carène.
+      const sh = sceneShip(o), half = sh.len / 2, sx = 100;
+      let n = 0, su = 0, sv = 0, suu = 0, suv = 0;
+      for (let u = -half; u <= half; u += 2) { const v = surf(sx + u); n++; su += u; sv += v; suu += u * u; suv += u * v; }
+      const a = Math.atan((suv - (su * sv) / n) / Math.max(1e-6, suu - (su * su) / n)), sy = sv / n + (Math.tan(a) * su) / n;
+      let gap = 0; // sous un long navire, un creux plus profond que sa carène : il s'y enfonce un peu
+      for (let u = -half; u <= half; u += 2) gap = Math.max(gap, surf(sx + u) - (sy + 3 + Math.tan(a) * u + sh.depth));
+      const bx = Math.round(sx + half), wy = sy + 3 + Math.min(6, gap) + Math.tan(a) * half;
       // Conteneurs arrachés (au début seulement, la boucle reste calme).
       if (o.variant === 'boxes' && t < 2) for (let i = 0; i < 3; i++) {
         const k = clamp01((t - 0.6 - i * 0.2) / 1.1);
         if (k <= 0 || k >= 1) continue;
-        const x = sx - 6 + i * 7 - k * (14 + i * 6), y = sy - 10 - Math.sin(k * PI) * 8 + k * k * 22;
+        const x = sx - 6 + i * 7 - k * (14 + i * 6), y = sy + sh.deck(0.5) - Math.sin(k * PI) * 8 + k * k * 22;
         g.save(); g.translate(x, y); g.rotate(k * (2 + i)); R(g, -2, -2, 5, 4, ['#c0392b', '#d4ac0d', '#2e86c1'][i]); g.restore();
       }
-      drawShip(g, o.color, sx, sy + 3, a);
-      water(66, 136, 4); // la vague devant recouvre le bas de la coque
+      sh.draw(g, bx, wy, { slope: a, keel: true });
+      water(Math.max(0, Math.round(bx - sh.len) - 4), Math.min(W, bx + 4), 4); // la vague devant recouvre le bas de la coque
       // Cargaison avariée : un paquet de mer déferle sur le pont (au début seulement).
       if (o.variant === 'cargo' && t > 0.7 && t < 2) {
         const k = (t - 0.7) / 1.3;
-        for (let i = 0; i < 40; i++) { const u = (hash(i, 41) % 100) / 100, v = (hash(i, 42) % 100) / 100; R(g, sx - 22 + u * 44, sy - 6 - Math.sin(k * PI) * (6 + v * 10) + k * 4, 1 + (i % 2), 1, i % 3 ? '#e8f0f8' : '#a9c4e0'); }
+        for (let i = 0; i < 40; i++) { const u = (hash(i, 41) % 100) / 100, v = (hash(i, 42) % 100) / 100; R(g, sx - half * 0.8 + u * half * 1.6, sy + sh.deck(0.5) + 3 - Math.sin(k * PI) * (6 + v * 10) + k * 4, 1 + (i % 2), 1, i % 3 ? '#e8f0f8' : '#a9c4e0'); }
       }
       // Paquets de mer sur l'étrave quand elle plonge.
       const dip = clamp01(a * 5);
       if (dip > 0) {
-        const bx = sx + 24 * Math.cos(a), by = sy + 24 * Math.sin(a) - 4;
-        for (let i = 0; i < 16; i++) { const k = (t * 2 + i / 16) % 1, v = 0.5 + (hash(i, 7) % 50) / 100; R(g, bx + (hash(i, 8) % 2 ? 1 : -1) * k * 10 * v, by - Math.sin(k * PI) * 14 * dip * v, 1, 1, '#e8f0f8'); }
+        const ex = bx - 2, ey = wy - 4;
+        for (let i = 0; i < 16; i++) { const k = (t * 2 + i / 16) % 1, v = 0.5 + (hash(i, 7) % 50) / 100; R(g, ex + (hash(i, 8) % 2 ? 1 : -1) * k * 10 * v, ey - Math.sin(k * PI) * 14 * dip * v, 1, 1, '#e8f0f8'); }
       }
       rain(g, t, Math.round(50 + 60 * f), 'rgba(160,190,230,0.5)', 150 + 20 * f, 40 + 30 * f);
       vignette(g, 'rgba(0,0,0,A)', 0.5);
@@ -569,48 +607,46 @@ export const SCENES = {
   buyship: {
     title: 'Un navire de plus dans la flotte', mood: 'good', loop: [5, 7],
     draw(g, t, o) {
-      const kind = o.variant || 'box';
       g.drawImage(bands('sky-buy', ['#78b3d6', '#8fc1de', '#a8d0e6', '#c4e1ef'], 50), 0, 0);
       for (let i = 0; i < 3; i++) cloud(g, ((t * 3 + i * 74) % (W + 50)) - 40, 8 + (i % 2) * 8, 22 + i * 4);
       sea(g, t, DAY, 44, 44, 84);
       gulls(g, t % 4, 2, [196, 30]);
-      const sx = 64, wy = 82, paint = clamp01((t - 2.4) / 2.2);
-      drawShip(g, '#8a8f96', sx, wy, 0, 2, kind, '#5d4a3a'); // l'ancienne livrée, grise et rouillée
-      g.save(); g.translate(sx, wy); g.scale(2, 2); rustStreaks(g, 0, 0); g.restore();
-      if (paint > 0) { // repeint aux couleurs de la compagnie, de la poupe à la proue
-        g.save(); g.beginPath(); g.rect(sx - 52, 0, Math.round(104 * paint), H); g.clip();
-        drawShip(g, o.color, sx, wy, 0, 2, kind);
-        g.restore();
-      }
-      if (paint >= 1) for (let i = 0; i < 3; i++) { const k = ((t - 4.6) * 0.5 + i / 3) % 1; R(g, sx - 48 + k * 96, 72, 3, 1, 'rgba(255,255,255,0.8)'); } // peinture fraîche qui brille
+      // Avant : cheminée de l'ancien armateur (grise) et rouille de plus ; le peintre passe de la
+      // poupe à l'étrave, et le navire tel qu'il est désormais apparaît derrière lui.
+      const sh = sceneShip(o), old = sceneShip(o, 'box', { color: '#8a8f96', wear: Math.min(1, (o.ship?.wear || 0) + 0.35) });
+      const bx = 116, wy = 82, x0 = Math.max(0, Math.round(bx - sh.len) - 1), paint = clamp01((t - 2.4) / 2.2);
+      const px = Math.round(x0 + (bx + 2 - x0) * paint);
+      old.draw(g, bx, wy);
+      if (paint > 0) { g.save(); g.beginPath(); g.rect(0, 0, px, H); g.clip(); sh.draw(g, bx, wy); g.restore(); }
+      if (paint >= 1) for (let i = 0; i < 3; i++) { const k = ((t - 4.6) * 0.5 + i / 3) % 1, x = x0 + k * (bx - x0); R(g, x, Math.round(wy + sh.rim(sh.fr(x - bx))) + 2, 3, 1, 'rgba(255,255,255,0.8)'); } // peinture fraîche qui brille
       quay(g, 84);
       R(g, 166, 84, 6, 4, '#3c434c'); // bitte d'amarrage
-      g.save(); g.scale(2, 2);
-      const hx = sx / 2, hy = wy / 2;
-      // À la poupe, l'ancien pavillon descend, puis le vôtre est hissé.
-      if (t < 4.2) companyFlag(g, hx - 26, hy - 24, '#8a8f96', t, 1 - clamp01((t - 3.4) / 0.8), 16);
-      else companyFlag(g, hx - 26, hy - 24, o.color, t, clamp01((t - 4.4) / 0.8), 16);
-      for (let i = 0; i < 6; i++) R(g, hx + 18 + i, hy - 5 + i, 2, 1, '#8a6a3a'); // passerelle
-      if (paint > 0 && paint < 1) { // le peintre sur sa nacelle
-        const px = Math.round(hx - 26 + 52 * paint);
-        R(g, px, hy - 12, 1, 4, '#d8d8d8'); R(g, px - 3, hy, 7, 1, '#8a6a3a');
-        person(g, px - 1, hy - 7, '#f2c230', { hat: '#ffffff' });
-        R(g, px + 2, hy - 5 + Math.round(Math.sin(t * 14)), 1, 2, o.color); // rouleau
+      if (paint > 0 && paint < 1) { // le peintre sur sa nacelle, le long de la coque
+        const ry = Math.round(wy + sh.rim(sh.fr(px - bx)));
+        R(g, px, ry - 3, 1, 4, '#d8d8d8'); R(g, px - 3, ry + 5, 7, 1, '#8a6a3a');
+        person(g, px - 1, ry - 2, '#f2c230', { hat: '#ffffff' });
+        R(g, px + 2, ry + Math.round(Math.sin(t * 14)), 1, 2, o.color); // rouleau
       }
+      // À la proue, l'ancien pavillon descend, puis le vôtre est hissé.
+      const fx = Math.round(bx + sh.x(0.97)), fb = Math.round(wy + sh.deck(0.97));
+      if (t < 4.2) companyFlag(g, fx, fb - 14, '#8a8f96', t, 1 - clamp01((t - 3.4) / 0.8), 14);
+      else companyFlag(g, fx, fb - 14, o.color, t, clamp01((t - 4.4) / 0.8), 14);
+      gangway(g, Math.round(bx + sh.x(0.86)), Math.round(wy + sh.rim(0.86)), 84);
+      g.save(); g.scale(2, 2);
       const papers = (x, y) => { R(g, x, y, 3, 4, '#f4f1e6'); R(g, x, y + 1, 3, 1, '#b9b3a2'); R(g, x + 1, y + 3, 1, 1, '#c0392b'); };
       const cash = (x, y) => { R(g, x, y, 4, 2, '#3f8f4f'); R(g, x + 1, y, 1, 2, '#e8f5d0'); };
-      const cx0 = 58;
+      const cx0 = 64;
       person(g, cx0, 43, '#1d2f55', { hat: '#f4f4f4' }); // votre capitaine, au pied de la passerelle
-      const inB = ease(t / 1.6), bx = 100 - inB * 36; // le courtier arrive avec les papiers
-      person(g, bx, 43, '#5a5f66', { hat: '#2b2b30', step: inB < 1 ? Math.floor(t * 5) % 2 : 0 });
-      R(g, bx + 3, 46, 2, 2, '#6b4320'); // sa serviette
+      const inB = ease(t / 1.6), bxB = 100 - inB * 30; // le courtier arrive avec les papiers
+      person(g, bxB, 43, '#5a5f66', { hat: '#2b2b30', step: inB < 1 ? Math.floor(t * 5) % 2 : 0 });
+      R(g, bxB + 3, 46, 2, 2, '#6b4320'); // sa serviette
       const x = clamp01((t - 1.7) / 0.7); // échange : le chèque passe à droite, les papiers à gauche
-      if (t < 1.7) { papers(bx - 2, 45); cash(cx0 + 2, 45); }
-      else if (x < 1) { papers(bx - 2 - x * 6, 45 - Math.sin(x * PI) * 2); cash(cx0 + 2 + x * 3, 45 - Math.sin(x * PI) * 2); }
+      if (t < 1.7) { papers(bxB - 2, 45); cash(cx0 + 2, 45); }
+      else if (x < 1) { papers(bxB - 2 - x * 6, 45 - Math.sin(x * PI) * 2); cash(cx0 + 2 + x * 3, 45 - Math.sin(x * PI) * 2); }
       else {
         papers(cx0 - 1, 44 - (t > 4.4 ? Math.round(Math.abs(Math.sin(t * 5))) : 0)); // brandis quand le pavillon monte
         if (t < 3.2) R(g, cx0 + 3, 46 + Math.round(Math.sin(t * 16)) * 0.5, 3, 1, '#e8b98f'); // poignée de main
-        cash(bx + 3, 44);
+        cash(bxB + 3, 44);
       }
       g.restore();
     },
@@ -620,7 +656,7 @@ export const SCENES = {
   newbuild: {
     title: 'Baptême d\'un navire neuf', mood: 'good', loop: [4.4, 6.4],
     draw(g, t, o) {
-      const kind = o.variant || 'box';
+      const sh = sceneShip(o, 'box', { laden: false }); // neuf : à vide
       const pal = { cols: ['#3d3a5c', '#33324f', '#2a2a44', '#222239'], crest: '#9a86b5' };
       g.drawImage(bands('sky-launch', ['#1f2a52', '#3a3b6c', '#684a78', '#ad6277', '#e09a6c'], 58), 0, 0);
       stars(g, t, 12, 20);
@@ -632,36 +668,39 @@ export const SCENES = {
       R(g, 112, 18, 2, 56, gc); R(g, 186, 18, 2, 54, gc); R(g, 104, 15, 92, 4, gc);
       for (let x = 106; x < 194; x += 6) line(g, x, 15, x + 3, 18, '#5a4f74');
       R(g, 146, 19, 6, 3, gc); R(g, 148, 22, 1, 12, '#5a4f74'); // chariot et câble
-      // Cale de lancement et terre-plein.
+      // Cale de lancement et terre-plein (prolongée à gauche : un grand navire en déborde).
       const rampY = (x) => 96 - (x - 40) * 0.185;
-      g.fillStyle = '#6d6a72'; g.beginPath(); g.moveTo(40, 96); g.lineTo(170, rampY(170)); g.lineTo(W, 72); g.lineTo(W, H); g.lineTo(40, H); g.closePath(); g.fill();
-      line(g, 40, 96, 170, rampY(170), '#9b97a0'); R(g, 170, 72, 30, 1, '#9b97a0');
-      for (let x = 46; x < 168; x += 9) R(g, x, Math.round(rampY(x)) + 1, 4, 1, '#55525a'); // traverses
-      // Le navire : immobile, puis il glisse et prend la mer.
-      const th = -0.183, cs = Math.cos(th);
-      let cx = 132, cy = rampY(132) - 3, ang = th;
+      g.fillStyle = '#6d6a72'; g.beginPath(); g.moveTo(0, rampY(0)); g.lineTo(170, rampY(170)); g.lineTo(W, 72); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
+      line(g, 0, rampY(0), 170, rampY(170), '#9b97a0'); R(g, 170, 72, 30, 1, '#9b97a0');
+      for (let x = 6; x < 168; x += 9) R(g, x, Math.round(rampY(x)) + 1, 4, 1, '#55525a'); // traverses
+      // Le navire, posé par l'étrave (la bouteille s'y brise), la quille sur la cale : immobile,
+      // puis il glisse, quitte la cale, s'enfonce à sa flottaison, se redresse et se balance.
+      const th = -0.183, onWays = (x) => rampY(x) - sh.depth - 1;
+      const B0 = 158, B1 = 112, BEND = 92, SEA = 86;
+      let bx = B0, wy = onWays(B0), ang = th;
       if (t > 1.8) {
-        const p = Math.min(1, (t - 1.8) / 1.2), d = 40 * p * p;
-        cx = 132 - d * cs; cy = rampY(cx) - 3;
-        if (t > 3) { // à flot : il file sur son erre, se redresse et se balance
+        const p = Math.min(1, (t - 1.8) / 1.2);
+        bx = B0 - (B0 - B1) * p * p; wy = onWays(bx);
+        if (t > 3) { // à flot : il file sur son erre
           const tau = t - 3;
-          cx = 92.7 - 40 * (1 - Math.exp(-1.6 * tau));
-          cy = 83.2 + 2.8 * (1 - Math.exp(-3 * tau)) + Math.sin(t * 3) * 0.4;
+          bx = B1 - (B1 - BEND) * (1 - Math.exp(-1.6 * tau));
+          wy = onWays(B1) + (SEA - onWays(B1)) * (1 - Math.exp(-3 * tau)) + Math.sin(t * 3) * 0.4;
           ang = th * Math.exp(-3 * tau) * Math.cos(5 * tau) + Math.sin(t * 2.4) * 0.02;
         }
       }
-      if (t < 1.8) for (let i = 0; i < 4; i++) { const bx = 112 + i * 12; R(g, bx, rampY(bx) - 3, 3, 3, '#8a6a3a'); } // ber de lancement
-      drawShip(g, o.color, cx, cy, ang, 1, kind);
-      g.save(); g.globalAlpha = 0.8; g.beginPath(); g.rect(0, 86, 104, H); g.clip(); sea(g, t, pal, 58, 86, H); g.restore(); // l'eau recouvre la carène
-      // Gerbe d'eau quand la poupe touche l'eau.
+      if (t < 1.8) for (let i = 0; i < 4; i++) { const x = B0 - (i + 1) * Math.min(26, sh.len / 5); R(g, x, rampY(x) - 3, 3, 3, '#8a6a3a'); } // ber de lancement
+      sh.draw(g, bx, wy, { slope: ang, keel: true });
+      g.save(); g.globalAlpha = 0.9; g.beginPath(); g.rect(0, SEA, 104, H); g.clip(); sea(g, t, pal, 58, SEA, H); g.restore(); // l'eau recouvre la carène
+      // Gerbe d'eau quand la poupe touche l'eau (au bord de l'image si elle en sort).
+      const stx = Math.max(6, Math.min(96, bx - sh.len));
       if (t > 2.5 && t < 4.2) for (let i = 0; i < 18; i++) {
         const k = (t - 2.5 - (hash(i, 44) % 10) / 40) / 1.2; if (k < 0 || k > 1) continue;
         const vx = ((hash(i, 45) % 20) - 14) * 1.3, vy = 14 + hash(i, 46) % 16;
-        R(g, 82 + vx * k, 85 - vy * k + 22 * k * k, 1, 1 + (i % 2), i % 3 ? '#e8f1f8' : '#b7d3e6');
+        R(g, stx + vx * k, 85 - vy * k + 22 * k * k, 1, 1 + (i % 2), i % 3 ? '#e8f1f8' : '#b7d3e6');
       }
       // Sirène : bouffées de vapeur à la cheminée.
-      if (t > 3.1) {
-        const fx = cx + Math.cos(ang) * -17 - Math.sin(ang) * -17, fy = cy + Math.sin(ang) * -17 + Math.cos(ang) * -17;
+      if (t > 3.1 && sh.funnel) {
+        const [fx, fy] = sh.at(bx, wy, sh.funnel[0], sh.funnel[1], { slope: ang });
         for (let i = 0; i < 6; i++) { const k = ((t - 3.1) * 0.8 + i / 6) % 1; disc(g, fx + k * 6, fy - k * 10, 1 + k * 2.5, `rgba(240,240,245,${(0.7 * (1 - k)).toFixed(2)})`); }
       }
       // Estrade, guirlande de fanions et foule.
@@ -682,10 +721,10 @@ export const SCENES = {
         phi = phi0 + (phiHit - phi0) * q * q;
         if (q >= 1) { broken = true; const tau = t - 1.35; phi = phiHit * Math.exp(-tau * 1.4) * Math.cos(tau * 4.5); }
       }
-      const len = broken ? 10 : L, bx = pv[0] + Math.sin(phi) * len, by = pv[1] + Math.cos(phi) * len;
-      line(g, pv[0], pv[1], bx, by, '#e8e0c8');
-      if (broken) R(g, bx - 1, by, 2, 2, '#2f7d4a');
-      else { R(g, bx - 1, by, 3, 5, '#2f7d4a'); R(g, bx, by - 1, 1, 2, '#e3b33b'); R(g, bx - 1, by + 2, 3, 1, '#f4f1e6'); }
+      const len = broken ? 10 : L, qx = pv[0] + Math.sin(phi) * len, by = pv[1] + Math.cos(phi) * len;
+      line(g, pv[0], pv[1], qx, by, '#e8e0c8');
+      if (broken) R(g, qx - 1, by, 2, 2, '#2f7d4a');
+      else { R(g, qx - 1, by, 3, 5, '#2f7d4a'); R(g, qx, by - 1, 1, 2, '#e3b33b'); R(g, qx - 1, by + 2, 3, 1, '#f4f1e6'); }
       person(g, 191, 58, '#f4f4f4', { hat: o.color }); // la marraine
       if (t < 0.9) R(g, 192, 60, 1, 1, '#e8b98f'); // elle tient la bouteille
       if (t > 1.35 && t < 2.6) for (let i = 0; i < 16; i++) { // mousse et éclats de verre
@@ -725,25 +764,28 @@ export const SCENES = {
       R(g, 0, 53, W, 3, '#7d9aa6'); // côte au loin
       sea(g, t, DAY, 56);
       const ox = Math.round(Math.sin(t * 1.7) * 1.5), oy = Math.round(Math.cos(t * 1.3)); // les mains qui tiennent les jumelles
-      const sx = 100 + 120 * (1 - ease(t / 2.4)), sy = 76 + Math.round(Math.sin(t * 2) * 0.6);
-      // Sillage derrière la poupe (le navire file vers la gauche) et moustache d'étrave.
-      for (let i = 0; i < 14; i++) { const k = ((t * 1.5 + i / 14) % 1); R(g, sx + 50 + k * 50, sy + 1 + Math.round(Math.sin(i * 2.1) * 2 * k), 3 + k * 4, 1, 'rgba(235,245,250,' + (0.8 * (1 - k)).toFixed(2) + ')'); }
-      R(g, sx - 56, sy - 1, 5, 2, '#e8f1f8');
-      drawShip(g, o.color, sx, sy, 0, [-2, 2], kind, isNew ? undefined : '#5d4a3a');
-      if (!isNew) for (let i = 0; i < 8; i++) R(g, sx - 44 + (hash(i, 51) % 84), sy - 10, 1, 3 + hash(i, 53) % 4, '#7a4a2a'); // rouille
-      companyFlag(g, sx + 51, sy - 30, o.color, t, 1, 22); // son pavillon, à la poupe
-      smoke(g, sx + 35, sy - 35, t, { n: 8, color: isNew ? '#d8dde2' : '#4a4a4a', alpha: 0.6, rise: 6, drift: 6, size: 3 });
+      // Son navire (le vrai modèle, à ses couleurs) entre par la droite, cap à gauche : l'étrave
+      // est à gauche, la poupe et le sillage à droite. Neuf : coque propre ; d'occasion : rouillé.
+      const sh = sceneShip(o, kind, { wear: isNew ? 0 : 0.5, laden: false, name: '' }); // cap à gauche : pas de nom à l'envers
+      const sx = Math.round(100 - sh.len / 2 + 120 * (1 - ease(t / 2.4))), sy = 76 + Math.round(Math.sin(t * 2) * 0.6);
+      const stern = sx + sh.len;
+      for (let i = 0; i < 14; i++) { const k = ((t * 1.5 + i / 14) % 1); R(g, stern + 2 + k * 50, sy + 1 + Math.round(Math.sin(i * 2.1) * 2 * k), 3 + k * 4, 1, 'rgba(235,245,250,' + (0.8 * (1 - k)).toFixed(2) + ')'); }
+      R(g, sx - 4, sy - 1, 5, 2, '#e8f1f8'); // moustache d'étrave
+      sh.draw(g, sx, sy, { flip: true });
+      const [jx, jy] = sh.at(sx, sy, sh.x(0.97), sh.deck(0.97), { flip: true });
+      companyFlag(g, Math.round(jx), Math.round(jy) - 14, o.color, t, 1, 14); // son pavillon, à la proue
+      if (sh.funnel) { const [fx, fy] = sh.at(sx, sy, sh.funnel[0], sh.funnel[1], { flip: true }); smoke(g, fx, fy, t, { n: 8, color: isNew ? '#d8dde2' : '#4a4a4a', alpha: 0.6, rise: 6, drift: 6, size: 3 }); }
       if (isNew) {
-        for (let i = 0; i < 3; i++) { const k = ((t * 0.7 + i / 3) % 1); R(g, sx - 44 + k * 88, sy - 10, 3, 1, 'rgba(255,255,255,0.9)'); } // coque neuve qui brille
+        for (let i = 0; i < 3; i++) { const k = ((t * 0.7 + i / 3) % 1), x = sx + k * sh.len; R(g, x, Math.round(sy + sh.rim(1 - k)) + 2, 3, 1, 'rgba(255,255,255,0.9)'); } // coque neuve qui brille
         // Remorqueur d'escorte et ses jets d'eau en arc.
-        const tx = sx - 10, ty = sy + 14;
+        const tx = Math.min(stern - 12, sx + 40), ty = sy + 14;
         R(g, tx - 11, ty - 3, 24, 4, '#b8332c'); R(g, tx - 9, ty + 1, 20, 1, '#1d1d1d'); R(g, tx - 3, ty - 8, 8, 5, '#f4f4f4'); R(g, tx - 1, ty - 7, 4, 1, '#24323c'); R(g, tx, ty - 12, 2, 4, '#e3b33b');
         for (let j = 0; j < 2; j++) for (let i = 0; i < 16; i++) {
           const k = ((t * 1.2 + i / 16) % 1), dir = j ? 1 : -1;
           R(g, tx + 1 + dir * k * 30, ty - 12 - Math.sin(k * PI) * 22, 2, 2, 'rgba(235,246,252,' + (1 - 0.4 * k).toFixed(2) + ')');
         }
       }
-      gulls(g, (t % 3) * 0.8, 2, [sx + 20, 34], -1);
+      gulls(g, (t % 3) * 0.8, 2, [sx + sh.len / 2 + 20, 34], -1);
       // Les deux oculaires : tout ce qui sort des cercles est noir, bague de laiton, reflets.
       const r = 44, cA = 73 + ox, cB = 127 + ox, cy = 56 + oy;
       for (let y = 0; y < H; y++) {
@@ -760,13 +802,13 @@ export const SCENES = {
   },
 
   // Nouveau niveau : l'échafaudage passe de gauche à droite et le bureau se transforme ; les
-  // étoiles du niveau s'allument, confettis. variant : { from, to (images du bureau), level }.
+  // étoiles du niveau s'allument, confettis. variant : { from, to (bureaux en pixel art, officeShot), level }.
   office: {
-    title: 'Un nouveau bureau !', mood: 'good', loop: [3.8, 5.8],
+    title: 'Un nouveau bureau !', mood: 'good', loop: [3.8, 5.8], res: 3, crisp: true,
     draw(g, t, o) {
       const v = o.variant || {};
       R(g, 0, 0, W, H, '#1b1f27');
-      const paint = (img) => { if (img?.complete && img.naturalWidth) { g.imageSmoothingEnabled = true; g.drawImage(img, -34, 0, 268, 112); g.imageSmoothingEnabled = false; } };
+      const paint = (shot) => { const s = typeof shot === 'function' ? shot() : null; if (s) drawOfficeShot(g, s, officeLeft(s)); };
       const wx = Math.round(-12 + (W + 24) * clamp01((t - 1) / 2));
       paint(v.from);
       if (wx > 0) { g.save(); g.beginPath(); g.rect(0, 0, wx, H); g.clip(); paint(v.to); g.restore(); }
@@ -900,7 +942,7 @@ export const SCENES = {
       if (sea) {
         const k = clamp01((t - 1.2) / 4), bx = -30 + k * 150;
         for (let i = 0; i < 12; i++) R(g, bx - 30 - i * 6, 84 + Math.sin(i * 1.7 + t * 4) * 2, 4, 1, '#e8f3f8'); // chenal ouvert
-        drawShip(g, o.color, bx - 52, 87, 0, 1, 'box');
+        sceneShip(o, 'box', { far: 0.6 }).draw(g, bx - 24, 87); // un navire suit dans le chenal
         icebreaker(g, bx, 86);
       } else {
         snowyQuay(g, t, 0);
@@ -916,26 +958,28 @@ export const SCENES = {
     title: 'Pris par les glaces', mood: 'bad', loop: [4.4, 6.4],
     draw(g, t, o) {
       const p = ease((t - 0.5) / 3.2), lock = t > 3.6 && t < 3.9;
+      const sh = sceneShip(o), bx = bowAt(sh, 104, 186), sx0 = bx - sh.len, wy = 81;
       g.drawImage(bands('sky-winter', ['#6d7d8e', '#8796a5', '#a3afbb', '#bcc5cd'], 56), 0, 0);
       sea_(g, t, { cols: ['#3e5566', '#35495a', '#2d3f4f', '#253545'], crest: '#7f97a8' }, 56, 56, 84);
       for (let y = 56; y < 84; y++) { // la glace se referme des deux côtés vers le navire
         const d = (y - 56) / 28, gap = (1 - p) * 70 * (0.5 + d);
-        iceRow(g, y, 0, 70 - gap + Math.sin(y) * 2, 1); iceRow(g, y, 150 + gap - Math.sin(y * 1.3) * 2, W, 2);
+        iceRow(g, y, 0, sx0 + 18 - gap + Math.sin(y) * 2, 1); iceRow(g, y, bx - 6 + gap - Math.sin(y * 1.3) * 2, W, 2);
       }
       const shake = lock ? Math.round(Math.sin(t * 60)) : 0;
-      drawShip(g, o.color, 104 + shake, 81, 0, 2, o.variant || 'box');
-      for (let x = 52; x < 156; x += 3) { // neige sur le pont, stalactites sous le bastingage
+      sh.draw(g, bx + shake, wy);
+      for (let x = Math.max(0, Math.round(sx0)); x < bx - 2; x += 3) { // neige sur le pont, stalactites sous le liston
+        const fr = sh.fr(x - bx), top = Math.round(wy + sh.deck(fr)), rim = Math.round(wy + sh.rim(fr));
         const hgt = Math.round(p * (1 + (hash(x, 79) % 3)));
-        if (hgt) R(g, x + shake, 71 - hgt, 3, hgt, ICE_C.snow);
-        if (p > 0.4 && hash(x, 80) % 3 === 0) R(g, x + 1 + shake, 74, 1, 1 + Math.round(p * (hash(x, 81) % 4)), '#cfe6f1');
+        if (hgt) R(g, x + shake, top - hgt + 1, 3, hgt, ICE_C.snow);
+        if (p > 0.4 && hash(x, 80) % 3 === 0) R(g, x + 1 + shake, rim + 2, 1, 1 + Math.round(p * (hash(x, 81) % 4)), '#cfe6f1');
       }
-      if (p > 0.95) for (let y = 79; y < 84; y++) iceRow(g, y, 40, 168, 4); // le navire est soudé à la banquise
+      if (p > 0.95) for (let y = 79; y < 84; y++) iceRow(g, y, Math.max(0, sx0 - 12), Math.min(W, bx + 12), 4); // le navire est soudé à la banquise
       quay(g, 84); R(g, 0, 84, W, 2, ICE_C.snow);
       // Un matelot déneige le pont à la pelle.
-      const sx = 86, dig = Math.floor(t * 2.5) % 2;
-      g.save(); g.scale(2, 2); person(g, sx / 2, 28, '#c0392b', { hat: '#2b2b30' }); g.restore();
-      R(g, sx + 6, 62 + dig * 2, 1, 6, '#6b4320'); R(g, sx + 5, 68 + dig * 2, 3, 2, '#9aa3ab');
-      if (dig) for (let i = 0; i < 4; i++) R(g, sx + 10 + i * 2, 58 - i, 1, 1, ICE_C.snow);
+      const mx = Math.round(bx + sh.x(0.55)), my = stand(deckUnder(sh, bx, wy, mx + 1)), dig = Math.floor(t * 2.5) % 2;
+      person(g, mx + shake, my, '#c0392b', { hat: '#2b2b30' });
+      R(g, mx + 3 + shake, my + 2 + dig, 1, 4, '#6b4320'); R(g, mx + 3 + shake, my + 6 + dig, 2, 1, '#9aa3ab');
+      if (dig) for (let i = 0; i < 4; i++) R(g, mx + 6 + i * 2 + shake, my - 1 - i, 1, 1, ICE_C.snow);
       snow(g, t, 70, 16, 12);
       // Givre qui gagne les bords et les coins de l'image.
       const f = clamp01((t - 1.8) / 2.2);
@@ -958,26 +1002,26 @@ export const SCENES = {
       g.drawImage(bands('sky-fire', ['#140f20', '#22162a', '#3a1d30', '#5c2834'], 52), 0, 0);
       stars(g, t, 10, 24);
       sea_(g, t, NIGHT, 52);
-      const fx = 112;
+      const sh = sceneShip(o), bx = bowAt(sh, 104), wy = 82;
+      const fx = Math.round(bx + sh.x(0.6)), deck = deckUnder(sh, bx, wy, fx); // le feu, sur le pont avant
       for (let y = 84; y < 108; y += 2) { // reflet du feu sur l'eau
         g.globalAlpha = I * 0.45 * (1 - (y - 84) / 26);
         R(g, fx - 10 + Math.sin(t * 6 + y) * 3, y, 22 - (y - 84) * 0.5, 1, '#ff9a3c');
       }
       g.globalAlpha = 1;
-      for (const [r, a] of [[26, 0.05], [18, 0.07], [11, 0.1]]) disc(g, fx, 68, r * (0.6 + I * 0.5), `rgba(255,140,50,${(I * a).toFixed(3)})`); // lueur
-      drawShip(g, o.color, 100, 82, 0, 2, o.variant || 'box');
-      smoke(g, fx, 58 - I * 4, t, { n: 16, color: I > 0.35 ? '#262626' : '#9aa0a6', alpha: 0.75, rise: 9, drift: 4, size: 4 + I * 3, life: 3 });
-      for (let k = 0; k < 5; k++) flame(g, fx - 10 + k * 5, SHIP_DECK, t, (2 + I * 6) * (0.6 + (k % 2) * 0.4), k);
-      // Les pompiers du bord : lances à incendie braquées sur le feu.
-      g.save(); g.scale(2, 2);
-      person(g, 41, SHIP_DECK / 2 - 7, '#e8a33a', { hat: '#c0392b' });
-      person(g, 70, SHIP_DECK / 2 - 7, '#e8a33a', { hat: '#c0392b' });
-      g.restore();
-      if (t > 2.4) for (const [x0, dir] of [[86, 1], [144, -1]]) for (let i = 0; i < 12; i++) {
-        const k = (t * 1.6 + i / 12) % 1, x = x0 + dir * k * (Math.abs(fx - x0) - 2);
-        R(g, x, 62 - Math.sin(k * PI) * 12, 1, 2, 'rgba(200,230,250,0.9)');
+      for (const [r, a] of [[26, 0.05], [18, 0.07], [11, 0.1]]) disc(g, fx, deck - 4, r * (0.6 + I * 0.5), `rgba(255,140,50,${(I * a).toFixed(3)})`); // lueur
+      sh.draw(g, bx, wy);
+      const spread = Math.max(2, Math.min(5, Math.round(sh.len / 20)));
+      smoke(g, fx, deck - 14 - I * 4, t, { n: 16, color: I > 0.35 ? '#262626' : '#9aa0a6', alpha: 0.75, rise: 9, drift: 4, size: 4 + I * 3, life: 3 });
+      for (let k = 0; k < spread; k++) flame(g, fx - (spread - 1) * 2.5 + k * 5, deck, t, (2 + I * 6) * (0.6 + (k % 2) * 0.4), k);
+      // Les pompiers du bord : lances à incendie braquées sur le feu, de part et d'autre.
+      const crew = [[Math.round(bx + sh.x(0.32)), 1], [Math.round(bx + sh.x(0.88)), -1]];
+      for (const [x] of crew) person(g, x, stand(deckUnder(sh, bx, wy, x + 1)), '#e8a33a', { hat: '#c0392b' });
+      if (t > 2.4) for (const [x0, dir] of crew) {
+        const y0 = stand(deckUnder(sh, bx, wy, x0 + 1)) + 3, dx = Math.abs(fx - x0) - 2;
+        for (let i = 0; i < 12; i++) { const k = (t * 1.6 + i / 12) % 1; R(g, x0 + 1 + dir * k * dx, y0 - Math.sin(k * PI) * 10 + k * (deck - 3 - y0), 1, 2, 'rgba(200,230,250,0.9)'); }
       }
-      if (t > 3.2) smoke(g, fx, 64, t, { n: 8, color: '#e8edf0', alpha: 0.45, rise: 7, drift: -3, size: 3, seed: 5 }); // vapeur
+      if (t > 3.2) smoke(g, fx, deck - 8, t, { n: 8, color: '#e8edf0', alpha: 0.45, rise: 7, drift: -3, size: 3, seed: 5 }); // vapeur
       vignette(g, 'rgba(120,30,10,A)', 0.25 + I * 0.2);
     },
   },
@@ -990,12 +1034,15 @@ export const SCENES = {
       sea_(g, t, { cols: ['#55707c', '#4b6672', '#425c68', '#3a525e'], crest: '#9db4bd' }, 52);
       const k = Math.min(t, 2) / 2, back = ease((t - 2) / 1.2) * (t > 2 ? 5 : 0);
       const shake = t > 2 && t < 2.5 ? Math.round(Math.sin(t * 70)) : 0;
-      const ax = 20 + k * 38 - back + shake, bx = 200 - k * 38 + back - shake;
-      drawShip(g, '#5d6f85', bx, 83, 0, [-2, 2], 'bulk'); // l'autre navire, cap à gauche
-      drawShip(g, o.color, ax, 82, 0, 2, o.variant || 'box');
+      // Étrave contre étrave en x = 110 : le vôtre arrive de gauche, l'autre (un vraquier) de droite.
+      const mine = sceneShip(o), other = sceneShip(o, 'bulk', { ship: null, type: 'vraquier_handy', color: '#5d6f85', wear: 0.3 });
+      const ax = Math.round(108 - (1 - k) * 38 - back + shake), bx = Math.round(112 + (1 - k) * 38 + back - shake);
+      other.draw(g, bx, 83, { flip: true });
+      mine.draw(g, ax, 82);
       if (t > 2) { // tôles enfoncées aux deux étraves
-        R(g, ax + 46, 74, 3, 3, '#1d1d1d'); R(g, ax + 44, 76, 2, 2, '#3a3a3a');
-        R(g, bx - 49, 75, 3, 3, '#1d1d1d');
+        const ya = Math.round(82 + mine.rim(0.97)) + 2, yb = Math.round(83 + other.rim(0.97)) + 2;
+        R(g, ax - 4, ya, 3, 3, '#1d1d1d'); R(g, ax - 6, ya + 2, 2, 2, '#3a3a3a');
+        R(g, bx + 2, yb, 3, 3, '#1d1d1d');
       }
       if (t > 1.95 && t < 2.15) disc(g, 110, 74, 10, 'rgba(255,250,230,0.85)'); // le choc
       burst(g, 110, 74, (t - 2) / 0.9, 44, ['#ffd34d', '#ff8a3c', '#fff6c0'], 34, 30, 3); // étincelles
@@ -1025,18 +1072,20 @@ export const SCENES = {
       R(g, 181, 18, 8, 4, '#3c434c'); R(g, 183, 19, 4, 2, '#ffe48a');
       const beam = (t * 0.9) % 2 < 1;
       if (beam) cone(g, 185, 20, 120, 10, 120, 30, '#fff3b0', 0.18);
-      const hit = 1.8, sail = Math.min(t, hit) / hit;
+      // Le navire file vers les rochers (étrave en 136), se cabre au choc, puis les remorqueurs tirent.
+      const sh = sceneShip(o), hit = 1.8, sail = Math.min(t, hit) / hit;
       const tug = clamp01((t - 2.8) / 1.6), pull = t > 4.4 ? Math.sin((t - 4.4) * 3) * 0.6 : 0;
-      const cx = -10 + ease(sail) * 96 - tug * 3 + pull, ang = t > hit ? -0.07 * ease((t - hit) / 0.3) * (1 - tug * 0.3) : 0;
+      const bx = Math.round(40 + ease(sail) * 96 - tug * 3 + pull), ang = t > hit ? -0.07 * ease((t - hit) / 0.3) * (1 - tug * 0.3) * Math.min(1, 100 / sh.len) : 0;
       const shake = t > hit && t < hit + 0.4 ? Math.round(Math.sin(t * 70)) : 0;
-      drawShip(g, o.color, cx + shake, 82, ang, 2, o.variant || 'box');
+      sh.draw(g, bx + shake, 82, { slope: ang });
       for (const [x, w, hh] of [[132, 8, 5], [140, 10, 7], [150, 9, 5], [126, 6, 3]]) { R(g, x, 86 - hh, w, hh, '#4a4f55'); R(g, x + 1, 86 - hh, w - 3, 1, '#6d747c'); } // rochers
       burst(g, 136, 80, (t - hit) / 1, 22, ['#e8f3f8', '#b7d3e6', '#ffffff'], 16, 24, 7); // embruns
-      if (tug > 0) { // remorqueurs qui tirent vers le large
-        for (const [dx, dy] of [[-62, 86], [-46, 92]]) {
-          const tx = cx + dx - (1 - tug) * 50;
+      if (tug > 0) { // remorqueurs qui tirent la poupe vers le large
+        const [px, py] = sh.at(bx, 82, -sh.len + 2, -4, { slope: ang });
+        for (const [dx, dy] of [[-12, 86], [4, 92]]) {
+          const tx = Math.max(12 + dx, px + dx) - (1 - tug) * 50;
           tugSide(g, tx, dy, -1);
-          line(g, tx + 8, dy - 4, cx - 50, 78, '#3c3c3c');
+          line(g, tx + 8, dy - 4, px, py, '#3c3c3c');
           for (let i = 0; i < 5; i++) R(g, tx - 12 - i * 4 - ((t * 20) % 4), dy + 1 + (i % 2), 3, 1, '#e8f3f8'); // l'hélice brasse
         }
       }
@@ -1049,22 +1098,25 @@ export const SCENES = {
     title: 'Voie d\'eau', mood: 'bad', loop: [4, 6],
     draw(g, t, o) {
       g.drawImage(bands('sky-leak', ['#8796a3', '#9aa7b2', '#adb8c1', '#bfc8cf'], 52), 0, 0);
-      sea_(g, t, { cols: ['#4f6b78', '#46626f', '#3e5866', '#364f5c'], crest: '#93acb7' }, 52);
+      const SEAL = { cols: ['#4f6b78', '#46626f', '#3e5866', '#364f5c'], crest: '#93acb7' };
+      sea_(g, t, SEAL, 52);
       const level = t < 2.5 ? ease(t / 2.5) * 0.7 : 0.7 - ease((t - 2.5) / 2) * 0.35; // eau dans la cale
       const sinkY = Math.round(level * 4), y = 82 + sinkY;
-      drawShip(g, o.color, 100, y, 0, 2, o.variant || 'box');
-      sea_(g, t, { cols: ['#4f6b78', '#46626f', '#3e5866', '#364f5c'], crest: '#93acb7' }, 52, 84, H); // l'eau monte sur la coque
-      // Vue en coupe de la cale : l'eau entre par la fissure.
-      const wx0 = 104, wy0 = y - 16, ww = 32, wh = 13;
+      const sh = sceneShip(o), bx = bowAt(sh, 104);
+      sh.draw(g, bx, y);
+      sea_(g, t, SEAL, 52, 84, H); // l'eau monte sur la coque
+      // Vue en coupe de la cale, sur le flanc : l'eau entre par la fissure.
+      const ww = Math.round(Math.max(18, Math.min(32, sh.len * 0.4))), wh = 13;
+      const wx0 = Math.round(bx + sh.x(0.55) - ww / 2), wy0 = y - wh - 2;
       R(g, wx0 - 1, wy0 - 1, ww + 2, wh + 2, '#f4f4f4'); R(g, wx0, wy0, ww, wh, '#2b2f38');
-      for (let i = 0; i < 4; i++) R(g, wx0 + 3 + i * 8, wy0 + 2, 5, 5, '#6b4f2e'); // marchandise
+      for (let i = 0; i * 8 + 8 <= ww; i++) R(g, wx0 + 3 + i * 8, wy0 + 2, 5, 5, '#6b4f2e'); // marchandise
       const wl = Math.round(wh * level);
       R(g, wx0, wy0 + wh - wl, ww, wl, 'rgba(70,140,190,0.85)'); R(g, wx0, wy0 + wh - wl, ww, 1, '#a9d3ea');
       line(g, wx0 + 2, wy0 + wh, wx0 + 4, wy0 + wh - 3, '#111'); line(g, wx0 + 4, wy0 + wh - 3, wx0 + 3, wy0 + wh - 5, '#111'); // fissure
       if (t < 3) for (let i = 0; i < 6; i++) { const k = (t * 2 + i / 6) % 1; R(g, wx0 + 3 + k * 8, wy0 + wh - 3 - Math.sin(k * PI) * 3, 1, 1, '#cfe8f5'); }
-      if (t > 2.5) for (let j = 0; j < 2; j++) for (let i = 0; i < 12; i++) { // les pompes rejettent l'eau
-        const k = (t * 1.4 + i / 12 + j * 0.5) % 1, sx = 70 + j * 18;
-        R(g, sx - k * 16, y - 9 + k * k * 12 - Math.sin(k * PI) * 4, 1, 2, 'rgba(210,235,248,0.9)');
+      if (t > 2.5) for (let j = 0; j < 2; j++) { // les pompes rejettent l'eau par-dessus bord
+        const fr = 0.22 + j * 0.12, sx = Math.round(bx + sh.x(fr)), sy = Math.round(y + sh.rim(fr));
+        for (let i = 0; i < 12; i++) { const k = (t * 1.4 + i / 12 + j * 0.5) % 1; R(g, sx - k * 16, sy + 1 + k * k * (y - sy + 2) - Math.sin(k * PI) * 4, 1, 2, 'rgba(210,235,248,0.9)'); }
       }
       vignette(g, 'rgba(20,40,60,A)', 0.2);
     },
@@ -1078,20 +1130,25 @@ export const SCENES = {
       cloud(g, 40 - t * 2, 16, 30); cloud(g, 150 - t * 2, 24, 24);
       sea_(g, t, DAY, 52);
       const stop = ease(t / 2.2), bob = Math.round(Math.sin(t * 2) * 0.6);
-      for (let i = 0; i < 10; i++) { const k = (t * 1.5 + i / 10) % 1; g.globalAlpha = (1 - stop) * (1 - k); R(g, 46 - k * 40, 83 + (i % 2), 5, 1, '#e8f3f8'); } // le sillage s'éteint
+      const sh = sceneShip(o), bx = bowAt(sh, 104), wy = 82 + bob, stern = bx - sh.len;
+      for (let i = 0; i < 10; i++) { const k = (t * 1.5 + i / 10) % 1; g.globalAlpha = (1 - stop) * (1 - k); R(g, stern - 4 - k * 40, 83 + (i % 2), 5, 1, '#e8f3f8'); } // le sillage s'éteint
       g.globalAlpha = 1;
-      drawShip(g, o.color, 100, 82 + bob, 0, 2, o.variant || 'box');
-      const fx = 66, fy = 49 + bob; // cheminée (navire au double)
-      if (t < 1.8) { // la machine tousse
+      sh.draw(g, bx, wy);
+      if (t < 1.8 && sh.funnel) { // la machine tousse
+        const fx = bx + sh.funnel[0], fy = wy + sh.funnel[1];
         for (let i = 0; i < 4; i++) { const k = ((t * 1.3 + i / 4) % 1); if (Math.floor(t * 3 + i) % 3) disc(g, fx + k * 8, fy - k * 14, 2 + k * 4, `rgba(30,30,30,${(0.8 * (1 - k)).toFixed(2)})`); }
       }
-      if (t > 1.8) { const k = clamp01((t - 1.8) / 0.6); disc(g, 146, 52 + bob - k * 4, 2, '#111'); disc(g, 146, 58 + bob - k * 4, 2, '#111'); } // deux boules noires au mât
+      if (t > 1.8) { // deux boules noires au mât de l'avant (« non maître de sa manœuvre »)
+        const k = clamp01((t - 1.8) / 0.6), mx = Math.round(bx + sh.x(0.9)), base = deckUnder(sh, bx, wy, mx);
+        R(g, mx, base - 18, 1, 18, '#6d747c');
+        disc(g, mx, base - 12 - k * 4, 2, '#111'); disc(g, mx, base - 6 - k * 4, 2, '#111');
+      }
       // Le mécanicien, au panneau de la salle des machines, tape au marteau.
-      g.save(); g.scale(2, 2); person(g, 44, (SHIP_DECK + bob) / 2 - 7, '#2e4a7a', { hat: '#f4f4f4' }); g.restore();
-      const hammer = Math.floor(t * 4) % 2;
-      R(g, 93, 62 + bob - hammer * 2, 1, 4, '#6b4320'); R(g, 92, 61 + bob - hammer * 2, 3, 2, '#9aa3ab');
-      if (!hammer) burst(g, 95, 66 + bob, (t * 4) % 1, 6, ['#ffd34d', '#fff6c0'], 6, 6, 11);
-      R(g, 96, 68 + bob, 8, 4, '#3c434c'); R(g, 97, 69 + bob, 6, 1, '#1d1d1d'); // panneau ouvert
+      const ex = Math.round(bx + sh.x(0.45)), ey = stand(deckUnder(sh, bx, wy, ex + 1)), hammer = Math.floor(t * 4) % 2;
+      person(g, ex, ey, '#2e4a7a', { hat: '#f4f4f4' });
+      R(g, ex + 4, ey + 1 - hammer * 2, 1, 4, '#6b4320'); R(g, ex + 3, ey - hammer * 2, 3, 2, '#9aa3ab');
+      if (!hammer) burst(g, ex + 6, ey + 5, (t * 4) % 1, 6, ['#ffd34d', '#fff6c0'], 6, 6, 11);
+      R(g, ex + 7, ey + 4, 6, 3, '#3c434c'); R(g, ex + 8, ey + 5, 4, 1, '#1d1d1d'); // panneau ouvert
     },
   },
   // Panne des groupes frigorifiques : les voyants passent au rouge, le thermomètre grimpe,
@@ -1102,17 +1159,21 @@ export const SCENES = {
       g.drawImage(bands('sky-reefer', ['#5aa0d0', '#78b4dc', '#9cc8e6', '#c2def0'], 52), 0, 0);
       disc(g, 30, 18, 8, '#ffe48a'); disc(g, 30, 18, 12, 'rgba(255,228,138,0.25)'); // soleil des tropiques
       sea_(g, t, DAY, 52);
-      drawShip(g, o.color, 92, 82, 0, 2, o.variant || 'box');
+      const sh = sceneShip(o), bx = bowAt(sh, 92, 158), wy = 82;
+      sh.draw(g, bx, wy);
       const heat = ease(t / 3);
-      for (let i = 0; i < 5; i++) { // conteneurs frigorifiques et leur voyant
-        const x = 92 + i * 9, y0 = 60;
+      const n = Math.max(2, Math.min(5, Math.floor((sh.len * 0.4) / 9))), x0 = Math.round(bx + sh.x(0.5));
+      let topY = 99;
+      for (let i = 0; i < n; i++) { // conteneurs frigorifiques sur le pont et leur voyant
+        const x = x0 + i * 9 - (n > 3 ? 9 : 0), y0 = deckUnder(sh, bx, wy, x + 4) - 6;
+        topY = Math.min(topY, y0);
         R(g, x, y0, 8, 6, '#f2f2ee'); R(g, x, y0, 8, 1, '#ffffff'); R(g, x + 1, y0 + 2, 6, 1, '#d4d4cc');
         const red = t > 0.8 + i * 0.15;
         R(g, x + 6, y0 + 4, 1, 1, red ? (Math.floor(t * 4 + i) % 2 ? '#ff3b30' : '#7a1f22') : '#4cd964');
       }
       for (let i = 0; i < 6; i++) { // la chaleur ondule
-        const x = 92 + i * 7, k = (t * 0.8 + i / 6) % 1;
-        g.globalAlpha = heat * 0.5 * (1 - k); R(g, x + Math.sin(t * 5 + i) * 2, 56 - k * 12, 3, 1, '#fff2c0');
+        const x = x0 - 6 + i * Math.max(4, n * 1.5), k = (t * 0.8 + i / 6) % 1;
+        g.globalAlpha = heat * 0.5 * (1 - k); R(g, x + Math.sin(t * 5 + i) * 2, topY - 4 - k * 12, 3, 1, '#fff2c0');
       }
       g.globalAlpha = 1;
       // Thermomètre qui grimpe, du bleu au rouge.
@@ -1124,9 +1185,10 @@ export const SCENES = {
       for (let y = top + 6; y < bot; y += 8) R(g, tx + 4, y, 2, 1, '#8a9aa6');
       if (heat < 0.5) { g.globalAlpha = 1 - heat * 2; R(g, tx - 9, bot - 2, 5, 1, '#3b8fd9'); R(g, tx - 7, bot - 4, 1, 5, '#3b8fd9'); g.globalAlpha = 1; } // flocon qui s'efface
       // Le technicien au tableau électrique, entre deux étincelles.
-      R(g, 76, 60, 7, 8, '#5b6470'); R(g, 77, 61, 5, 2, '#1d1d1d');
-      g.save(); g.scale(2, 2); person(g, 42, SHIP_DECK / 2 - 7, '#2e4a7a', { hat: '#f2c230' }); g.restore();
-      if (Math.floor(t * 3) % 3 === 0) burst(g, 80, 62, (t * 3) % 1, 7, ['#ffd34d', '#fff6c0', '#5fd3e8'], 7, 8, 13);
+      const ex = Math.round(bx + sh.x(0.3)), ey = stand(deckUnder(sh, bx, wy, ex + 1));
+      R(g, ex - 8, ey, 6, 7, '#5b6470'); R(g, ex - 7, ey + 1, 4, 2, '#1d1d1d');
+      person(g, ex, ey, '#2e4a7a', { hat: '#f2c230' });
+      if (Math.floor(t * 3) % 3 === 0) burst(g, ex - 5, ey + 2, (t * 3) % 1, 7, ['#ffd34d', '#fff6c0', '#5fd3e8'], 7, 8, 13);
     },
   },
 
@@ -1138,24 +1200,30 @@ export const SCENES = {
       g.drawImage(bands('sky-night-dark', ['#05070d', '#0b0f1c', '#121a2c', '#1a2438'], 50), 0, 0);
       stars(g, t, 8, 22);
       sea_(g, t, { cols: ['#141b2a', '#111726', '#0e1421', '#0b101b'], crest: '#3c4a66' }, 50, 50, 84);
-      drawShip(g, o.color, 70, 81, 0, 2, 'box');
+      const sh = sceneShip(o), bx = 112, wy = 81;
+      sh.draw(g, bx, wy);
       const off = Math.floor(clamp01((t - 2.2) / 1.6) * 5); // les hublots s'éteignent
-      for (let i = 0; i < 5; i++) R(g, 34 + i * 4, 62, 2, 2, i < off ? '#1a1f2a' : '#ffe48a');
+      for (let i = 0; i < 5; i++) { const x = Math.round(bx + sh.x(0.2 + i * 0.07)); R(g, x, Math.round(wy + sh.rim(0.2 + i * 0.07)) + 2, 2, 2, i < off ? '#1a1f2a' : '#ffe48a'); }
       quay(g, 84); R(g, 0, 84, W, H - 84, 'rgba(0,0,0,0.5)');
       for (const [x, c] of [[140, '#0d0d10'], [170, '#111114']]) { // voitures noires, phares
         const k = ease(t / 1.4), cx = x + (1 - k) * 70;
         R(g, cx, 88, 26, 8, c); R(g, cx + 4, 83, 15, 6, '#16161a'); R(g, cx + 2, 96, 4, 3, '#000'); R(g, cx + 19, 96, 4, 3, '#000');
         R(g, cx - 1, 90, 2, 2, '#fff6c0'); cone(g, cx - 1, 91, cx - 40, 82, cx - 40, 100, '#fff6c0', 0.1);
       }
+      const gx = Math.round(bx + sh.x(0.86)), gy = Math.round(wy + sh.rim(0.86)), foot = gx + (84 - gy);
+      gangway(g, gx, gy, 84, '#5a4a32');
+      // Pieds d'un homme en x : sur le quai, sur la passerelle, puis sur le pont.
+      const feet = (x) => x >= foot ? 86 : x >= gx ? Math.min(86, 84 - (foot - x)) : deckUnder(sh, bx, wy, x);
       for (let i = 0; i < 4; i++) { // hommes armés qui montent à bord par la passerelle
-        const k = clamp01((t - 1 - i * 0.35) / 1.4), x = 150 - k * 52 - i * 2, y = 86 - Math.max(0, k - 0.6) * 30;
-        if (k <= 0) continue;
+        const k = ease(clamp01((t - 1 - i * 0.35) / 1.8)); if (k <= 0) continue;
+        const x = Math.round(150 + (gx - 4 - i * 5 - 150) * k), y = stand(feet(x + 1));
         person(g, x, y, '#1b1b1f', { hat: '#111111', head: '#c99a74', step: k < 1 ? Math.floor(t * 6 + i) % 2 : 0 });
         line(g, x - 1, y + 3, x - 5, y + 5, '#6b6b6b'); // fusil
       }
-      for (let i = 0; i < 7; i++) R(g, 108 + i * 2, 72 + i * 2, 3, 1, '#5a4a32'); // passerelle
-      if (t > 3.2) for (let i = 0; i < 3; i++) person(g, 56 + i * 6, 64, '#e8e0d0', { hat: '#f4f4f4' }); // l'équipage, mains en l'air
-      if (t > 3.2) for (let i = 0; i < 3; i++) { R(g, 56 + i * 6, 63, 1, 1, '#e8b98f'); R(g, 58 + i * 6, 63, 1, 1, '#e8b98f'); }
+      if (t > 3.2) for (let i = 0; i < 3; i++) { // l'équipage, mains en l'air
+        const x = Math.round(bx + sh.x(0.45 + i * 0.06)), y = stand(deckUnder(sh, bx, wy, x + 1));
+        person(g, x, y, '#e8e0d0', { hat: '#f4f4f4' }); R(g, x, y - 1, 1, 1, '#e8b98f'); R(g, x + 2, y - 1, 1, 1, '#e8b98f');
+      }
       vignette(g, 'rgba(0,0,0,A)', 0.4);
     },
   },
@@ -1167,14 +1235,16 @@ export const SCENES = {
       g.drawImage(bands('sky-dawn', ['#f2b28a', '#f6c9a0', '#f4dcbc', '#e9e6d4'], 50), 0, 0);
       disc(g, 160, 44, 9, '#fff0b8');
       sea_(g, t, DAY, 50, 50, 84);
-      drawShip(g, o.color, 60, 81, 0, 2, 'box');
+      const sh = sceneShip(o), bx = 108, wy = 81;
+      sh.draw(g, bx, wy);
       quay(g, 84);
       // Les caisses passent de main en main, de la passerelle au tas sur le quai.
       const aidBox = (x, y) => { R(g, x, y, 7, 6, '#f4f1e6'); R(g, x, y, 7, 1, '#d8d3c6'); R(g, x + 2, y + 2, 1, 1, '#d6455a'); R(g, x + 4, y + 2, 1, 1, '#d6455a'); R(g, x + 2, y + 3, 3, 1, '#d6455a'); R(g, x + 3, y + 4, 1, 1, '#d6455a'); };
-      for (let i = 0; i < 7; i++) R(g, 108 + i * 2, 72 + i * 2, 3, 1, '#8a6a3a'); // passerelle
+      const gx = Math.round(bx + sh.x(0.86)), gy = Math.round(wy + sh.rim(0.86)), foot = gx + (84 - gy);
+      gangway(g, gx, gy, 84);
       const pile = Math.min(6, Math.floor(t * 1.5));
       for (let i = 0; i < pile; i++) aidBox(150 + (i % 3) * 8, 92 - Math.floor(i / 3) * 6);
-      const k = (t * 1.2) % 1; aidBox(118 + k * 28, 84 - Math.sin(k * PI) * 4); // la caisse qui passe
+      const k = (t * 1.2) % 1; aidBox(foot + k * (146 - foot), 84 - Math.sin(k * PI) * 4); // la caisse qui passe
       g.save(); g.scale(2, 2);
       for (const [x, c] of [[60, '#2e86c1'], [66, '#27ae60']]) person(g, x, 42, c, { hat: '#f4f4f4' }); // bénévoles
       [[84, '#c0392b'], [88, '#8e44ad'], [92, '#e67e22'], [96, '#2c3e50'], [99, '#16a085']].forEach(([x, c], i) => {
@@ -1192,16 +1262,18 @@ export const SCENES = {
 // Montre une scène dans une fenêtre, avec une croix de fermeture en haut à droite (clic sur
 // l'image ou Échap ferment aussi). Renvoie la valeur du bouton choisi, null pour une fermeture.
 // content : contenu riche à la place du texte ; clickClose : false pour une décision (un clic
-// distrait sur l'image ne doit pas valoir réponse).
-export function showScene(app, kind, { title, text = '', content = null, color = '#c0392b', variant = null, force = null, buttons = [], clickClose = true } = {}) {
+// distrait sur l'image ne doit pas valoir réponse) ; ship : le navire de la partie (sceneShipOf),
+// dessiné à son échelle à la place d'un modèle de remplacement.
+export function showScene(app, kind, { title, text = '', content = null, color = '#c0392b', variant = null, force = null, ship = null, buttons = [], clickClose = true } = {}) {
   const S = SCENES[kind];
   if (!S) return Promise.resolve(null);
   return new Promise((resolve) => {
-    // Certaines scènes (records, méfaits) sont dessinées en plus haute résolution et lissées.
-    const res = S.res || 1;
-    const canvas = h('canvas.scene-canvas', { class: res > 1 ? 'smooth' : '', width: W * res, height: H * res, 'aria-hidden': 'true' });
+    // Certaines scènes (records, méfaits) sont dessinées en plus haute résolution et lissées ; crisp : plus
+    // haute résolution sans lissage (le bureau en pixel art).
+    const res = S.res || 1, smooth = res > 1 && !S.crisp;
+    const canvas = h('canvas.scene-canvas', { class: smooth ? 'smooth' : '', width: W * res, height: H * res, 'aria-hidden': 'true' });
     const g = canvas.getContext('2d');
-    g.imageSmoothingEnabled = res > 1;
+    g.imageSmoothingEnabled = smooth;
     let done = false;
     const close = (v) => {
       if (done) return;
@@ -1230,7 +1302,7 @@ export function showScene(app, kind, { title, text = '', content = null, color =
       if (S.loop && t > S.loop[1]) t = S.loop[0] + ((t - S.loop[0]) % (S.loop[1] - S.loop[0]));
       g.setTransform(res, 0, 0, res, 0, 0);
       g.globalAlpha = 1;
-      S.draw(g, t, { color, variant, force });
+      S.draw(g, t, { color, variant, force, ship });
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
