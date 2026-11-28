@@ -41,6 +41,9 @@ for this file". If the helper is not in the table yet, add a row.
    `i18n.js` converts these formats to English (`12,45 M$` → `$12.45M`, `1,2 Md$` → `$1.2B`). That is why a
    template writes `${money(x)}` and never the unit. A template whose money part changes shape needs its `en.js`
    key updated too (for example `"Il faut {0}."`, not `"Il faut {0} M$."`).
+   - The old local helpers (`fr`, `pc`, `pctTxt`, `k$`, `M$`, `fmtM`, `Mt`, `nf0`–`nf2`) are gone. A branch written
+     before the clean-up that still calls one crashes on screen (v0.009: `oddsWords` called `fr()`, so a disputed
+     payment's cash-in window never opened). The check fails on any call to them.
 2. ✓ **Storage only through `ui/storage.js`.**
    - A new setting gets a key in `KEYS`.
    - Never rename an existing key: players would lose their settings or their games.
@@ -107,6 +110,8 @@ for this file". If the helper is not in the table yet, add a row.
 ## Before opening a PR
 
 - `node tools/code-check.mjs` (one second).
+- A branch that started before a clean-up: merge main first and re-run the check. A helper the other side
+  removed only fails on screen, when that line runs.
 - Added or changed a text: `node tools/i18n-check.mjs 0` (a few seconds).
 - Changed what a save holds: a test save from the released version, then `node tests/saves.test.mjs`.
 - The full `npm test` runs once, at release, in the bundle (owner's process).

@@ -54,6 +54,11 @@ draft at destination; end-of-season ice needs ice class; shipper grudge (denounc
 someone else; shipper requirement (`clientRep`, unless loyal or blacklisted in a shady port);
 **trust** < `minRep` (waived for blacklisted companies in shady ports); deadline passed.
 
+The same rules count the contracts "pour ce navire" on each port of the Appareiller list (`departTab` in
+`ui/panel-ship.js`, `checkContract` on the ship as if it were empty in that port), plus the contract must still be
+on offer when the ship gets there (`expires` ≥ arrival). Before v0.010 that count only checked capacity, draft,
+speed and terminals, so it promised contracts the ship would be refused (trust, shipper, ice class) or find gone.
+
 The "réservé pour vous" tag explains its origin (`reservedTip` in `ui/panel-ship.js`): a loyal shipper (freight
 +`RESERVE_BONUS`), a prospecting lead (`c.prospect`, freight × `PROSPECT.pay`) or a family-first contract (`c.family`,
 no trust requirement).

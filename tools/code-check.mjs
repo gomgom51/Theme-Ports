@@ -8,6 +8,8 @@
 //  3. La comptabilité s'appelle book(state, …) : money(state, …) (l'ancien nom) n'existe plus.
 //  4. La simulation (sim/) reste pure : rien de ui/, ni document, window ou localStorage.
 //  5. Pas d'export que personne n'utilise (code mort), pas d'import inutilisé.
+//  6. Les petits formats locaux retirés au ménage (fr, pc, k$, fmtM…) ne sont plus appelés : une branche
+//     écrite avant le ménage qui les appelle encore plante à l'écran (« fr is not defined »).
 // Rapport seulement (n'échoue pas) : dépendances circulaires entre modules de sim/.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, relative, resolve } from 'node:path';
@@ -97,6 +99,20 @@ scan('money(state, …) : la comptabilité s\'appelle book(state, …) ; money()
 // 4. Simulation pure
 scan('la simulation n\'importe rien de ui/', /from\s+'\.\.\/ui\//g, { only: /^sim\//, text: plain });
 scan('la simulation ne touche pas au navigateur (document, window)', /\b(document|window)\./g, { only: /^sim\// });
+
+// 6. Formats locaux retirés au ménage : un appel sans déclaration dans le fichier plante à l'exécution.
+// (Bug du v0.009 : oddsWords appelait fr() supprimé, la fenêtre d'encaissement d'un litige ne s'ouvrait plus.)
+const GONE = ['fr', 'pc', 'pctTxt', 'k$', 'M$', 'fmtM', 'Mt', 'nf0', 'nf1', 'nf2'];
+for (const f of files) {
+  const c = code.get(f), s = src.get(f);
+  for (const name of GONE) {
+    const n = name.replace(/\$/g, '\\$');
+    if (new RegExp(`(?:const|let|var|function)\\s+${n}(?![\\w$])|import\\s*\\{[^}]*(?<![\\w$])${n}(?![\\w$])`).test(c)) continue;
+    for (const m of c.matchAll(new RegExp(`(?<![\\w$.])${n}\\(`, 'g'))) {
+      problems.push(`${rel(f)}:${lineOf(c, m.index)}  ${name}() n'existe plus (retiré au ménage) : money, num, pctOf, dec… de sim/format.js  « ${s.split('\n')[lineOf(c, m.index) - 1].trim().slice(0, 110)} »`);
+    }
+  }
+}
 
 // 5. Exports et imports
 const IMPORT_RE = /import\s*\{([^}]*)\}\s*from\s*'([^']+)'/g;

@@ -917,9 +917,12 @@ function departTab(app, ship) {
     const famBlock = familyBlocked(state, state.companies[ship.owner], p); // port familial d'un concurrent qui nous vise : rien pour nous
     const here = famBlock ? [] : state.contracts.filter((c) => c.from === p && c.takenBy === null && eco.holdFor(ship.type, c.good));
     const contracts = here.length;
-    // Ceux que ce navire pourrait prendre (capacité, tirant d'eau, vitesse, terminaux) : les autres
-    // restent affichés, ils donnent envie d'un autre navire.
-    const fitList = here.filter((c) => c.qty <= T.dwt && eco.fitsPort(c.to, ship.type) && (!c.minSpeed || T.maxSpeed >= c.minSpeed) && eco.portHandles(c.to, c.hold));
+    // Ceux que ce navire pourrait vraiment prendre en arrivant : les mêmes règles que l'onglet Contrats
+    // (capacité, tirant d'eau, vitesse, terminaux, confiance exigée, chargeur fâché ou qui réserve,
+    // classe glace, ports fermés), et encore ouverts à son arrivée. Les autres restent comptés à part :
+    // ils donnent envie d'un autre navire.
+    const arrive = state.t + seaDays * 24;
+    const fitList = here.filter((c) => (c.expires ?? Infinity) >= arrive && !act.checkContract(state, ctx, { ...ship, port: p, cargo: null, dark: null }, c));
     const fit = fitList.length;
     const ice = !why && isSeasonal(p) ? iceRisk(state, p, state.t + seaDays * 24, ship) : 0;
     return { p, nm, seaDays, why, contracts, fit, fitList, exp, ice, nsr: info?.canals?.includes('nsr'), reachable: !!info, famBlock };
