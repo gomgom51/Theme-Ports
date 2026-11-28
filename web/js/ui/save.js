@@ -1,8 +1,8 @@
 // Sauvegardes dans le stockage local du navigateur (ou de la WebView Android).
 import { SAVE_VERSION, migrateState } from '../sim/game.js';
 import { formatDate } from '../sim/util.js';
+import { KEYS, read, readJSON, writeJSON } from './storage.js';
 
-const KEY = 'portdattache.save.';
 export const SLOTS = ['auto', '1', '2', '3'];
 export const SLOT_LABEL = { auto: 'Sauvegarde automatique', 1: 'Emplacement 1', 2: 'Emplacement 2', 3: 'Emplacement 3' };
 
@@ -11,24 +11,16 @@ function meta(state) {
   return { date: formatDate(state.t), companies: humans.join(', '), savedAt: Date.now(), version: state.version };
 }
 
+// Rend false si le stockage est plein ou bloqué : la partie n'est alors pas enregistrée (main.js prévient le joueur).
 export function saveGame(state, slot) {
-  try {
-    localStorage.setItem(KEY + slot, JSON.stringify(state));
-    localStorage.setItem(KEY + slot + '.meta', JSON.stringify(meta(state)));
-    return true;
-  } catch (e) {
-    console.warn('Sauvegarde impossible', e);
-    return false;
-  }
+  return writeJSON(KEYS.save(slot), state) && writeJSON(KEYS.saveMeta(slot), meta(state));
 }
 
 export function listSaves() {
   const out = [];
   for (const slot of SLOTS) {
-    try {
-      const m = localStorage.getItem(KEY + slot + '.meta');
-      if (m) out.push({ slot, meta: JSON.parse(m) });
-    } catch { /* stockage indisponible */ }
+    const m = readJSON(KEYS.saveMeta(slot));
+    if (m) out.push({ slot, meta: m });
   }
   return out;
 }
@@ -37,20 +29,18 @@ export function listSaves() {
 // (juke-box). Une sauvegarde illisible est ignorée.
 export function* savedStates() {
   for (const slot of SLOTS) {
-    try {
-      const raw = localStorage.getItem(KEY + slot);
-      if (raw) yield JSON.parse(raw);
-    } catch { /* stockage indisponible ou sauvegarde abîmée */ }
+    const s = readJSON(KEYS.save(slot)); // null si absente, illisible ou stockage indisponible
+    if (s) yield s;
   }
 }
 
 export function hasSave(slot) {
-  try { return !!localStorage.getItem(KEY + slot); } catch { return false; }
+  return !!read(KEYS.save(slot));
 }
 
 export function loadGame(slot) {
   try {
-    const raw = localStorage.getItem(KEY + slot);
+    const raw = read(KEYS.save(slot));
     return raw ? check(JSON.parse(raw)) : null;
   } catch (e) {
     console.warn('Chargement impossible', e);

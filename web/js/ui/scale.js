@@ -7,8 +7,8 @@
 // - La carte et le grand canevas de l'intro échappent au zoom (classe .unzoom) : ils dessinent au pixel près
 //   et lisent uiScale() pour la taille de leurs dessins. Un canevas resté dans l'interface zoomée doit
 //   compter pixelRatio() pixels par px CSS pour rester net.
+import { KEYS, read, write } from './storage.js';
 
-const KEY = 'pda-ui-size';
 const BASE_W = 1920, BASE_H = 1080;
 const MAX = 2.5;
 export const UI_SIZES = [
@@ -30,12 +30,11 @@ export function localRect(el) {
 }
 
 export function uiSize() {
-  let id = 'normal';
-  try { id = localStorage.getItem(KEY) || 'normal'; } catch { /* stockage indisponible */ }
+  const id = read(KEYS.uiSize) || 'normal';
   return UI_SIZES.find((s) => s.id === id) || UI_SIZES[1];
 }
 export function setUiSize(id) {
-  try { localStorage.setItem(KEY, id); } catch { /* stockage indisponible */ }
+  write(KEYS.uiSize, id);
   applyScale();
 }
 

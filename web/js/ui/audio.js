@@ -5,8 +5,8 @@ import { eggFor } from '../data/eggs.js';
 import * as S from './sounds.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { unlockTracks } from './profile.js';
+import { KEYS, readJSON, writeJSON } from './storage.js';
 
-const KEY = 'portdattache.audio';
 // Musiques facultatives (à déposer dans web/musique/, voir docs/musique-suno.md).
 // Pendant la partie, deux thèmes par standing de la compagnie (niveau1 puis niveau1b,
 // … niveau5b), du vieux chant de marins à la musique de multinationale, et niveau0 quand
@@ -91,8 +91,7 @@ const SCENE_SOUNDS = new Set([]);
 function loadSettings() {
   // volume : réserve fixe du mélange ; master, musicVol, ambVol, sfxVol : réglages du joueur (0 à 1, menu ☰).
   const defaults = { ambience: true, sfx: true, music: true, volume: 0.8, master: 1, musicVol: 1, ambVol: 1, sfxVol: 1 };
-  try { return { ...defaults, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
-  catch { return defaults; }
+  return { ...defaults, ...readJSON(KEYS.audio, {}) };
 }
 
 // Juke-box du bureau : un morceau entendu est débloqué pour toutes les parties (profil du joueur).
@@ -126,7 +125,7 @@ export class AudioManager {
     c.addEventListener('statechange', () => { if (c.state === 'running' && !this.unlocked) this.unlock(); });
   }
 
-  save() { try { localStorage.setItem(KEY, JSON.stringify(this.settings)); } catch { /* stockage indisponible */ } }
+  save() { writeJSON(KEYS.audio, this.settings); }
 
   // Premier geste (e) ou démarrage autorisé (sans e) : le son peut jouer.
   unlock(e) {

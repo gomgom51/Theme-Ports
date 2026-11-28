@@ -9,6 +9,7 @@ import { HONOUR_SCENES } from './scenes-honours.js';
 const sea_ = (...a) => sea(...a); // (la variable « sea » sert aussi de drapeau dans les scènes des glaces)
 import { SHIP_TYPES } from '../data/ships.js';
 import { getLang } from '../i18n.js';
+import { KEYS, readFlag, writeFlag } from './storage.js';
 
 // Lettres de pixels (5 × 7) pour les gros titres des journaux.
 const GLYPHS = {
@@ -1238,6 +1239,5 @@ export function showScene(app, kind, { title, text = '', content = null, color =
 }
 
 // Préférence : illustrations des événements (oui par défaut).
-const KEY = 'pda-scenes';
-export function scenesOn() { try { return localStorage.getItem(KEY) !== '0'; } catch { return true; } }
-export function setScenesOn(on) { try { localStorage.setItem(KEY, on ? '1' : '0'); } catch { /* stockage indisponible */ } }
+export const scenesOn = () => readFlag(KEYS.scenes, true);
+export const setScenesOn = (on) => writeFlag(KEYS.scenes, on);
