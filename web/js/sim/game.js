@@ -13,6 +13,7 @@ import {
 } from './core.js';
 import { dailyEvents, dailyStorms, moveStorms, weatherAt } from './events.js';
 import { aiShipIdle, aiDaily } from './ai.js';
+import { ordersHour, ordersDaily, onOrders } from './orders.js';
 import { pointAlong } from './routing.js';
 import { CANAL_NAMES } from './context.js';
 import { createPayment, resolution, collect, dailyReceivables } from './payments.js';
@@ -171,6 +172,7 @@ export function tick(state, ctx, hours = 1) {
 function note(state, notes, kind, ship, text) {
   const company = companyOf(state, ship);
   if (!company.human) return;
+  if (kind === 'idle' && onOrders(ship)) return; // ligne régulière ou capitaine libre : il repart sans vous (sinon il appelle)
   notes.push({ kind, shipId: ship.id, company: company.id, text });
 }
 
@@ -187,9 +189,11 @@ function stepHour(state, ctx, rng, notes) {
     else if (ship.status === 'port') portHour(state, ctx, rng, ship, notes);
   }
   for (const o of [...state.orders]) if (o.due <= state.t) deliverOrder(state, rng, o, notes);
+  const say = (kind, ship, text) => note(state, notes, kind, ship, text);
   for (const ship of state.ships) {
     const c = companyOf(state, ship);
     if (!c.human && !c.bankrupt && isIdle(ship)) aiShipIdle(state, ctx, rng, ship);
+    else if (c.human && !c.bankrupt && ship.orders) ordersHour(state, ctx, ship, say); // ordres permanents des joueurs (sim/orders.js)
   }
   if (state.t % D === 0) daily(state, ctx, rng, notes);
 }
@@ -645,6 +649,7 @@ function daily(state, ctx, rng, notes) {
     const opex = eco.opexDay(T, eco.ageYears(state, ship)) * (ship.status === 'laidup' ? 0.3 : 1);
     book(state, company, -crew, 'equipage', ship);
     book(state, company, -opex, 'exploitation', ship);
+    ordersDaily(state, ship, company); // honoraires du capitaine libre
   }
 
   for (const company of state.companies) {

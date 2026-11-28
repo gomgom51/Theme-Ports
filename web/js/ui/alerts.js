@@ -5,7 +5,8 @@ import { SHADOW_LENDER } from '../sim/core.js';
 import { SHIP_TYPES } from '../data/ships.js';
 import { PORTS } from '../data/ports.js';
 import { GOODS, OIL_GOODS } from '../data/goods.js';
-import { shipsOf, fleetValue, creditLimit, contractById, isIdle } from '../sim/core.js';
+import { shipsOf, fleetValue, creditLimit, contractById } from '../sim/core.js';
+import { waitsForOrders } from '../sim/orders.js';
 import { isStrict, inspectionThreshold, SEAWORTHY } from '../sim/incidents.js';
 import * as eco from '../sim/economy.js';
 import * as act from '../sim/actions.js';
@@ -42,7 +43,7 @@ export function seenOf(state, cid) {
 }
 // Ce que compte le bouton Flotte : navires qui attendent vos ordres, paiements à encaisser.
 export function fleetItems(state, cid) {
-  return [...shipsOf(state, cid).filter(isIdle).map((s) => `s${s.id}`), ...state.payments.filter((p) => p.company === cid).map((p) => `p${p.id}`)];
+  return [...shipsOf(state, cid).filter(waitsForOrders).map((s) => `s${s.id}`), ...state.payments.filter((p) => p.company === cid).map((p) => `p${p.id}`)];
 }
 export function unreadCounts(state, ctx, cid) {
   const seen = seenOf(state, cid);
@@ -177,8 +178,10 @@ export function computeAlerts(state, ctx, companyId) {
       ? `${buyers.map((o) => o.name).join(', ')} pourraient racheter votre compagnie (${money(Math.min(...buyers.map((o) => takeoverPrice(state, company, o))))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au leur vous protège.`
       : `${buyers[0].name} pourrait racheter votre compagnie (${money(takeoverPrice(state, company, buyers[0]))}). Une meilleure confiance multiplie votre prix ; un niveau supérieur au sien vous protège.`, { panel: 'victory', id: 'domination', tab: 'concurrents' }, [buyers.length > 1 ? `${buyers.length} rivaux` : buyers[0].name, buyers.length > 1 ? `peuvent vous racheter (${money(Math.min(...buyers.map((o) => takeoverPrice(state, company, o))))})` : `peut vous racheter (${money(takeoverPrice(state, company, buyers[0]))})`]);
   }
-  const idle = ships.filter(isIdle);
-  if (idle.length) add('info', '⚓', idle.length === 1 ? `Le ${idle[0].name} attend vos ordres.` : `${idle.length} navires attendent vos ordres.`, idle.length === 1 ? { ship: idle[0].id } : { panel: 'fleet' }, [idle.length === 1 ? idle[0].name : `${idle.length} navires`, idle.length === 1 ? 'attend vos ordres' : 'attendent vos ordres']);
+  // Navires qui attendent vos ordres (un navire sous ordres permanents repart seul, sauf s'il vous appelle).
+  const idle = ships.filter(waitsForOrders);
+  if (idle.length === 1 && idle[0].orders?.calling) add('info', '📣', `Le ${idle[0].name} vous appelle : ${idle[0].orders.calling}.`, { ship: idle[0].id }, [idle[0].name, 'vous appelle']);
+  else if (idle.length) add('info', '⚓', idle.length === 1 ? `Le ${idle[0].name} attend vos ordres.` : `${idle.length} navires attendent vos ordres.`, idle.length === 1 ? { ship: idle[0].id } : { panel: 'fleet' }, [idle.length === 1 ? idle[0].name : `${idle.length} navires`, idle.length === 1 ? 'attend vos ordres' : 'attendent vos ordres']);
   const pay = state.payments.filter((p) => p.company === companyId).length;
   if (pay) add('info', '💰', `${pay} paiement${pay > 1 ? 's' : ''} à encaisser.`, { panel: 'office' }, [pay > 1 ? `${pay} paiements` : '1 paiement', 'à encaisser']);
   return out.sort((a, b) => a.level - b.level);

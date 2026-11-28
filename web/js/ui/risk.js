@@ -8,7 +8,7 @@ import { riskProfile, voyageRisk, inspectionOdds, inspectionThreshold, isStrict,
 import { ageYears } from '../sim/economy.js';
 import { worstCase, isPolluting } from '../sim/pollution.js';
 import { planOf } from '../sim/insurance.js';
-import { h, money, chance, dec } from './dom.js';
+import { h, money, chance, dec, pct, pctOf } from './dom.js';
 
 // Fourchette arrondie autour d'une valeur (équipage confirmé).
 function range(p) {
@@ -24,8 +24,8 @@ export const crewHint = (level, text = ' Un équipage plus expérimenté saurait
 // Une chance (de gagner, de réussir) dite par l'équipage : un mot, un arrondi, ou le chiffre exact.
 export function oddsWords(p, level) {
   const info = CREW_LEVELS[level || 0]?.info ?? 0;
-  if (info >= 2) return `${fr(p * 100)} %`;
-  if (info === 1) return `≈ ${fr(Math.round(p * 10) * 10)} %`;
+  if (info >= 2) return pctOf(p);
+  if (info === 1) return `≈ ${pct(Math.round(p * 10) * 10)}`;
   return p >= 0.7 ? 'bonnes' : p >= 0.45 ? 'moyennes' : 'faibles';
 }
 

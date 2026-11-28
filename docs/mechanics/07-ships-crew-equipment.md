@@ -104,7 +104,10 @@ about your own company (books, values, records, loan room) are always exact.
 ## Crew experience and skills (`sim/crew.js`)
 
 XP = days at sea × learnRate; points at `XP_STEPS` 60, 150, 270, 420, 600, 810 days (6 points, enough to max
-two skills; max rank 3 per skill). `crewMaxed` = all 6 earned (an automation gate). Player assigns; AI
+two skills; max rank 3 per skill). `crewMaxed` = all 6 earned (an automation gate).
+Automation gates (owner's call, [08](08-voyages-routing-ice.md) standing orders): the regular line needs a crew
+confirmé or better with `crewMaxed`; the captain's choice needs crew level 3 (vieux briscards). A basic crew means
+every order by hand. Player assigns; AI
 auto-assigns by ship family (`aiPriority`) and never takes Vieux briscards.
 
 | Skill | Effect per rank |

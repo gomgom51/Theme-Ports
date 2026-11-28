@@ -45,6 +45,7 @@ function fillDefaults(state) {
     c.insurance ??= 'complete';
     if (c.ai && !c.ai.leaning) c.ai.leaning = AI_LEANINGS[c.id % AI_LEANINGS.length];
   });
+  for (const s of state.ships) { s.orders ??= null; s.captainLimits ??= null; } // ordres permanents (sim/orders.js)
   for (const h of eco.HOLD_TYPES) state.market.freight[h] ??= rng.range(1.18, 1.42);
   for (const g of Object.keys(GOODS)) state.market.world[g] ??= rng.range(0.94, 1.06);
   for (const p of PORT_IDS) {
