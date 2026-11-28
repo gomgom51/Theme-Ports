@@ -129,4 +129,11 @@ Fully trained crews feed the "École de la mer" deed and "Les loups de mer" reco
 (transponder) is switched on or off anywhere, even at sea (`toggleEquipment`, `ship.equipOff`): off, it has no
 effect at all. When a tainted ship heads for an enforcing port, or a parcel is on board, with the transponder off,
 the departure risks remind the player. Removal is free (not at sea).
+
+Refit queue (`installEquipment`, `ship.refit`): while a ship is busy with an installation, more items can be added
+("Ajouter à la file"): paid at once, fitted one after the other (each starts when the previous ends), and the ship
+stops for orders only once, when the last is done (`portHour` clears `ship.refit`). An item still waiting in the queue
+can be cancelled and refunded, the later ones move up; removing the item being fitted refunds nothing but cuts its
+remaining time. `installBlock` gives the reason when Install is unavailable (at sea, no yard, ship busy with something
+else, not enough cash), shown on the button and, for cash, under the card. The AI never queues (it installs only on an idle ship).
 AI installs barbeles (cash > 3 M$), citadelle (> 8 M$), cachettes (shadow AI).

@@ -228,7 +228,7 @@ function split(s, depth) {
 // Ce qui n'est pas dans le dictionnaire garde son texte, aux formats anglais.
 function part(v, depth) {
   const core = v.trim();
-  if (!core || TOKEN_ONLY.test(core)) return v;
+  if (!core || TOKEN_ONLY.test(core) || NAMES.has(core)) return v; // un nom connu (navire « Mistral ») reste tel quel
   // Un nom propre absent du dictionnaire (navire, compagnie) reste tel quel : « Île de Batz ».
   if (looksLikeName(core) && !EXACT.has(core) && !LOWER.has(core.toLowerCase())) return v.replace(core, englishFormats(core));
   const r = /[A-Za-zÀ-ÿ]/.test(core) ? best(core, depth) : null;
@@ -327,6 +327,7 @@ export function tr(s) {
   return out;
 }
 function translate(t) {
+  if (NAMES.has(t)) return t; // un nom seul (navire « Mistral », chargeur) ne se traduit pas, même s'il ressemble à un mot
   const whole = lookup(t, 0);
   if (whole != null && !looksFrench(whole)) return whole;
   // Les noms connus deviennent des jetons : « Le (E)(D) Ferdinand a terminé… » se découpe sans hésiter.
@@ -417,6 +418,32 @@ function warnFrench(fr, en) {
   console.warn('[i18n] texte non traduit — à ajouter dans js/i18n/en.js :', JSON.stringify(fr), en !== fr ? `→ ${JSON.stringify(en)}` : '');
 }
 
+// ---------- Français : contractions et élisions autour des noms ----------
+// Les textes sont composés avec des noms (« à ${port} », « du ${navire} ») : sans correction, on lit
+// « à Le Havre », « de Le Pirée », « du Écume », « Le Armen ». À l'affichage en français, les règles
+// s'appliquent devant un nom propre (majuscule) : à le → au, de le → du, à les → aux, de les → des,
+// du / au + voyelle → de l' / à l', de / le / la + voyelle → d' / l'. Le h reste aspiré (« de Hambourg »),
+// et un Y ne s'élide que devant une consonne (« d'Ys », mais « de Yokohama »).
+// En anglais, rien ne change : le dictionnaire reconnaît les textes tels que le code les compose.
+const FR_V = "(?=(?:[AEIOUÉÈÊËÂÎÏÔŒÛÙ]|Y(?![aeiouyéèê]))[\\p{L}'’-])";
+const FR_START = "(?<=^|[\\s(«“\"—–-])";
+const FR_RULES = [
+  [new RegExp(`${FR_START}à Le (?=\\p{Lu})`, 'gu'), 'au '],
+  [new RegExp(`${FR_START}à Les (?=\\p{Lu})`, 'gu'), 'aux '],
+  [new RegExp(`${FR_START}([dD])e Le (?=\\p{Lu})`, 'gu'), (_, d) => (d === 'D' ? 'Du ' : 'du ')],
+  [new RegExp(`${FR_START}([dD])e Les (?=\\p{Lu})`, 'gu'), (_, d) => (d === 'D' ? 'Des ' : 'des ')],
+  [new RegExp(`${FR_START}([dD])u ${FR_V}`, 'gu'), "$1e l'"],
+  [new RegExp(`${FR_START}au ${FR_V}`, 'gu'), "à l'"],
+  [new RegExp(`${FR_START}Au ${FR_V}`, 'gu'), "À l'"],
+  [new RegExp(`${FR_START}([dDlL])[ea] ${FR_V}`, 'gu'), "$1'"],
+];
+export function frenchGrammar(s) {
+  if (!s || typeof s !== 'string' || !/(?:^|\s)(?:[àdDlLaA][eua]?s?) \p{Lu}/u.test(s)) return s;
+  let out = s;
+  for (const [re, by] of FR_RULES) out = out.replace(re, by);
+  return out;
+}
+
 // ---------- Traduction de l'écran ----------
 const ATTRS = ['title', 'aria-label', 'placeholder'];
 const texts = new WeakMap(); // nœud de texte → { fr, en }
@@ -424,9 +451,16 @@ const attrs = new WeakMap(); // élément → { attribut: { fr, en } }
 const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA']);
 const skipped = (el) => el && (SKIP.has(el.nodeName) || el.closest?.('[data-no-tr]'));
 
+const frTexts = new WeakMap(); // nœud de texte → { fr: texte composé, fixed: texte corrigé } (français)
+const frAttrs = new WeakMap(); // élément → { attribut: { fr, fixed } }
 function doText(n) {
   const v = n.nodeValue;
   if (!v || !/[A-Za-zÀ-ÿ\d]/.test(v) || skipped(n.parentElement)) return;
+  if (lang === 'fr') {
+    const fixed = frenchGrammar(v);
+    if (fixed !== v) { frTexts.set(n, { fr: v, fixed }); n.nodeValue = fixed; }
+    return;
+  }
   const rec = texts.get(n);
   if (rec && rec.en === v) return; // déjà traduit
   const en = tr(v);
@@ -436,6 +470,11 @@ function doText(n) {
 function doAttr(el, a) {
   const v = el.getAttribute(a);
   if (!v || skipped(el)) return;
+  if (lang === 'fr') {
+    const fixed = frenchGrammar(v);
+    if (fixed !== v) { const all = frAttrs.get(el) || {}; all[a] = { fr: v, fixed }; frAttrs.set(el, all); el.setAttribute(a, fixed); }
+    return;
+  }
   const all = attrs.get(el) || {};
   if (all[a] && all[a].en === v) return;
   const en = tr(v);
@@ -461,6 +500,17 @@ function restore(root) {
     if (all) { for (const [a, r] of Object.entries(all)) if (n.getAttribute(a) === r.en) n.setAttribute(a, r.fr); attrs.delete(n); }
   }
 }
+// Avant de passer à l'anglais : les textes tels que le code les a composés (le dictionnaire les attend ainsi).
+// Une phrase déjà découpée par les noms cliquables (shipnames.js, <span data-no-tr>) reste telle quelle jusqu'au
+// prochain affichage, comme dans l'autre sens.
+function restoreFrench(root) {
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let n = root; n; n = w.nextNode()) {
+    if (n.nodeType === 3) { const r = frTexts.get(n); if (r && n.nodeValue === r.fixed) n.nodeValue = r.fr; frTexts.delete(n); continue; }
+    const all = frAttrs.get(n);
+    if (all) { for (const [a, r] of Object.entries(all)) if (n.getAttribute(a) === r.fixed) n.setAttribute(a, r.fr); frAttrs.delete(n); }
+  }
+}
 let observer = null;
 function watch() {
   if (observer || typeof MutationObserver === 'undefined') return;
@@ -477,7 +527,7 @@ function watch() {
 // À appeler au démarrage, avant le premier affichage.
 export function initI18n() {
   document.documentElement.lang = lang;
-  if (lang !== 'fr') { walk(document.body); watch(); }
+  walk(document.body); watch(); // en français aussi : contractions autour des noms
 }
 // Change de langue sans recharger : l'écran est traduit (ou remis en français) sur place.
 export function setLang(l) {
@@ -486,6 +536,7 @@ export function setLang(l) {
   try { localStorage.setItem(KEY, l); } catch { /* stockage indisponible */ }
   cache.clear();
   document.documentElement.lang = l;
-  if (l === 'fr') { observer?.disconnect(); observer = null; restore(document.body); } else { walk(document.body); watch(); }
+  if (l === 'fr') restore(document.body); else restoreFrench(document.body);
+  walk(document.body); watch();
   window.dispatchEvent(new CustomEvent('langchange', { detail: l }));
 }

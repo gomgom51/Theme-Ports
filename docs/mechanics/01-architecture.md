@@ -6,7 +6,8 @@
 web/                     static site (no build step), also wrapped by android/ (WebView)
   index.html, sw.js      page + service worker
   js/main.js             entry: app object, render loop, notification handling, saves
-  js/i18n.js, i18n/en.js French→English translation at display time
+  js/i18n.js, i18n/en.js French→English translation at display time; in French, `frenchGrammar` contracts
+                         generated text around names (« à Le Havre » → « au Havre », « du Écume » → « de l'Écume »)
   js/sim/                pure simulation (no DOM) — everything in these docs
   js/data/               static data: ports, flags, ships, goods, clients, equipment, offices,
                          sanctions, zones; generated: world.js, distances.js, countries.js
@@ -163,6 +164,7 @@ days to get there, deadline), buttons on the right, details unfolding on hover.
 | `profile.js` | player profile, shared by every save (today: jukebox unlocks). A track unlocks when heard, or as soon as a save reaches its milestone (`earnedTracks` in `jukebox.js`: office reached, net worth peak in `history`, brush with bankruptcy (net worth under 5 M$, banker warning, ship seized by the bank), blacklist, victory alerts, game over), checked on load, once per game day, and once over all save slots. The one place to change when the desktop build moves the profile to a file |
 | `shipnames.js` | every boat name in Stardos Stencil (owner's call), including inside sentences: after translation, known ship names (fleet, broker, cumulated over the session) are wrapped in `span.nm` inside a `span.nm-text[data-no-tr]`; skip an element with `data-no-name`. On the map (canvas, `map.js` `label`), only the selected ship shows its name, in 15 px stencil × `uiScale()` (owner's call). The same pass makes every city name clickable (owner's call): French and English port names (plus « Havre », « Pirée » after au/du) become `span.city[data-port]`, green underline on hover; a click (capture phase, so a list row does not open) calls `app.focusPort` → `map.flashCity` (the map glides, zoom kept, when the city is off-screen or hidden by a panel, then a green halo and rings like `flashShip`'s gold ones) and a sonar `ping` (`sounds.js`, one clear note and its echo; `focusShip` plays the same one, owner's call). Not in action buttons (`.btn`, `.chip`, `.icon-btn`, `.opp-port`), links, labels or the title screens (`#screen`); `data-no-city` opts an element out. Company and captain names are matched first and left alone (a captain Valdez is not a link) |
 | `guide.js` | guided tour (keep `data-guide` markers) |
+| `i18n.js` | English: every French text node, tooltip and map label is translated as it reaches the screen (`tr`, dictionary `i18n/en.js`). Known names (ships, companies, captains, shippers) are untranslatable tokens, also when a name alone fills a text node or a pattern slot (a ship « Mistral » stays « Mistral », not the wind). French: the same observer runs `frenchGrammar` on text nodes and tooltips, so templates stay plain (`à ${port}`, `du ${ship.name}`) and the screen reads « au Havre », « du Pirée », « de l'Albatros », « L'Armen »: à/de + Le/Les → au/du/aux/des, du/au/de/le/la + vowel → de l'/à l'/d'/l' (h stays aspirated, Y elides only before a consonant: « d'Ys », « de Yokohama »). The original text is kept so a switch to English translates what the code composed. Never pre-contract in a template |
 | `save.js` | localStorage slots, export/import, `migrateState` on load |
 
 ## Tests and tools

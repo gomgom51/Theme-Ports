@@ -28,14 +28,21 @@ import * as crew from '../sim/crew.js';
 import { isSeasonal, iceOpen, iceRisk, forecastText, escortFee, iceClass } from '../sim/ice.js';
 import { darkLines, seizedDialog } from './dark.js';
 import { routeChip } from './route.js';
-import { prospectOdds, canProspect, startProspect } from '../sim/prospect.js';
+import { prospectOdds, canProspect, startProspect, PROSPECT } from '../sim/prospect.js';
 import { grudgeAt } from '../sim/dark.js';
 import { repCap, slowShare, slowVirtue, VIRTUE_SOURCES } from '../sim/core.js';
-import { imageFactor, IMAGE_PAY } from '../sim/clients.js';
+import { imageFactor, IMAGE_PAY, RESERVE_BONUS } from '../sim/clients.js';
 import { CLIENTS } from '../data/clients.js';
 
 // Commercer avec un pays sous embargo marque le navire un an : on demande avant, si le
 // navire est encore « propre ». Renvoie true pour continuer.
+// « Réservé pour vous » : trois origines, trois explications (chargeur fidèle, piste du démarchage, contrat familial).
+function reservedTip(c) {
+  const until = date(c.reservedUntil, true);
+  if (c.family) return `Contrat familial : votre port d'attache vous le garde jusqu'au ${until}, sans exigence de confiance.`;
+  if (c.prospect) return `Piste de vos commerciaux : gardée pour ce navire jusqu'au ${until}, avec un fret ${Math.round((1 - PROSPECT.pay) * 100)} % moins payé (on est venu le chercher).`;
+  return `Votre chargeur fidèle vous le propose en priorité jusqu'au ${until}, avec un fret ${Math.round(RESERVE_BONUS * 100)} % plus élevé.`;
+}
 const EMBARGO_TAG = () => h('span.tag.warn', { title: 'Pays sous embargo : y commercer marque le navire un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo');
 async function embargoOk(app, ship, port, value = 0) {
   if (!isEmbargoed(port) || taintActive(app.state, ship)) return true;
@@ -47,7 +54,7 @@ async function embargoOk(app, ship, port, value = 0) {
   ]), 'Oui, commercer');
 }
 import { EQUIPMENT, EQUIPMENT_IDS } from '../data/equipment.js';
-import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence, equipOff, toggleEquipment } from '../sim/equipment.js';
+import { hasEquip, equipPrice, canEquip, installEquipment, removeEquipment, defence, equipOff, toggleEquipment, refitQueue, installBlock } from '../sim/equipment.js';
 import { rolesEl } from './shiproles.js';
 import { gradeEl } from './grade.js';
 import { CREW_LEVELS } from '../data/ships.js';
@@ -268,7 +275,7 @@ function contractsBase(app, ship) {
     const reserved = c.reservedFor === ship.owner && c.reservedUntil > state.t;
     return h('div.card.contract', { class: (why ? 'disabled ' : '') + (c.golden ? 'golden' : ''), onmouseenter: () => app.hoverRoute(routeOf()), onmouseleave: () => app.hoverRoute(null) }, [
       h('div.card-main', [
-        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', { title: `Le chargeur exige une confiance de ${c.minRep}.` }, 'contrat premium') : null, imageTag(company, c.client), OIL_GOODS.includes(c.good) ? h('span.tag.warn', { title: 'Pétrole : chaque départ chargé coûte un peu de vertu (l\'image d\'un transporteur de pétrole).' }, '💚 vertu −') : null, USEFUL_GOODS.includes(c.good) || (c.golden && isCleanGood(c.good)) ? h('span.tag.good', { title: c.golden && isCleanGood(c.good) ? 'Affaire en or sur une marchandise ni fossile ni polluante : livrée à l\'heure, elle rapporte aussi de la vertu.' : 'Marchandise utile (céréales, café et cacao, fruits et viandes, bois) : livrée à l\'heure, elle rapporte aussi un peu de vertu.' }, '💚 vertu') : null, reserved ? h('span.tag.good', { title: `Votre chargeur fidèle vous le propose en priorité jusqu'au ${date(c.reservedUntil, true)}, avec un fret 4 % plus élevé.` }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la vertu.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to), ...attackTags(state, ship.owner, c)]),
+        h('div.card-title', [h('span.good-icon', G.icon), `${G.name} — ${tonnes(c.qty)}`, c.golden ? h('span.tag.gold', { title: `Rare : un chargeur pressé paie bien plus que d'habitude. L'offre expire le ${date(c.expires, true)}.` }, '★ affaire en or') : null, c.urgent ? h('span.tag.warn', 'urgent') : null, c.regional ? h('span.tag', 'cabotage') : null, c.minSpeed ? h('span.tag', `≥ ${num1(c.minSpeed)} nœuds`) : null, G.perishable ? h('span.tag.warn', { title: 'Chaque jour de retard en gâte 4 %.' }, 'périssable') : null, c.embargo ? h('span.tag.warn', { title: 'Pays sous embargo : fret bien payé, mais le navire sera marqué un an (amendes possibles dans les pays qui appliquent les sanctions).' }, '⚖ embargo') : null, (G.pollution || 0) >= 0.2 ? h('span.tag.warn', { title: 'En cas de naufrage ou d\'échouement, risque de marée noire (coût de nettoyage, couvert par l\'assurance si le navire est en état).' }, '☣ polluant') : null, c.minRep >= 40 ? h('span.tag', { title: `Le chargeur exige une confiance de ${c.minRep}.` }, 'contrat premium') : null, imageTag(company, c.client), OIL_GOODS.includes(c.good) ? h('span.tag.warn', { title: 'Pétrole : chaque départ chargé coûte un peu de vertu (l\'image d\'un transporteur de pétrole).' }, '💚 vertu −') : null, USEFUL_GOODS.includes(c.good) || (c.golden && isCleanGood(c.good)) ? h('span.tag.good', { title: c.golden && isCleanGood(c.good) ? 'Affaire en or sur une marchandise ni fossile ni polluante : livrée à l\'heure, elle rapporte aussi de la vertu.' : 'Marchandise utile (céréales, café et cacao, fruits et viandes, bois) : livrée à l\'heure, elle rapporte aussi un peu de vertu.' }, '💚 vertu') : null, reserved ? h('span.tag.good', { title: reservedTip(c) }, 'réservé pour vous') : null, c.ice ? h('span.tag.warn', { title: 'Fin de saison : livrable seulement par un navire de classe glace (fret mieux payé).' }, '🧊 classe glace') : null, c.charity ? h('span.tag.good', { title: 'Aide d\'urgence : payée à prix coûtant partiel (vous perdrez de l\'argent), mais elle rend de la vertu.' }, '❤ aide d\'urgence') : null, hostileTag(state, ship.owner, c.to), ...attackTags(state, ship.owner, c)]),
         routeChip(c.to, { eta: est && !est.why ? state.t + est.totalDays * 24 : null, estimate: true, deadline: c.deadline, late: lateRisk }),
         h('div.card-sub.muted', `${num(c.nm)} milles · délai ${days(daysLeft)}`),
         ...(isSeasonal(c.to) || est?.canals?.includes('nsr') ? iceLines(state, ship, c.to, est && !est.why ? est : null) : []),
@@ -619,7 +626,7 @@ function portCallTab(app, ship) {
       return h('button.chip', { onclick: () => app.act(() => act.repair(state, ship.id, lv), { sound: 'pay' }) }, `${lv} % · ${money(rc.cost)} · ${duration(rc.hours)}`);
     })));
   }
-  box.append(h('p.hint', `Seuils à retenir : sous ${inspectionThreshold(eco.ageYears(state, ship))} %, les ports exigeants peuvent retenir le navire ; sous 40 %, l'assurance ne le couvre plus ; sous 50 %, il ralentit ; sous 25 %, une forte tempête peut le couler.`));
+  box.append(h('p.hint', `Seuils à retenir : sous ${inspectionThreshold(eco.ageYears(state, ship))} %, les ports exigeants peuvent retenir le navire ; sous 40 %, l'assurance ne le couvre plus ; sous 50 %, il ralentit ; sous 22 %, une tempête de force 10 ou plus peut le couler ; et à tout état, un incident grave peut l'envoyer par le fond, d'autant plus souvent que la coque est usée.`));
 
   // Équipage : plus cher, mais moins d'incidents et une meilleure lecture des dangers.
   box.append(h('h3', 'Équipage'));
@@ -640,23 +647,31 @@ function portCallTab(app, ship) {
   // Équipement : installé au chantier, il réduit certains risques ou défend le navire.
   box.append(h('h3', 'Équipement'));
   box.append(h('p.hint', `Défense contre un abordage : ${num1(defence(ship))} point${defence(ship) >= 2 ? 's' : ''}.${P.repair ? '' : ` Pas de chantier à ${P.name} : installation impossible ici.`}`));
+  // File du chantier : plusieurs installations à la suite, un seul arrêt à la fin.
+  const queue = refitQueue(state, ship);
+  if (queue.length) box.append(h('p.hint', `🔧 Chantier : ${queue.length > 1 ? `${queue.length} installations à la suite` : 'une installation'}, terminé le ${date(ship.busyUntil)}. Le navire attend vos ordres à la fin ; d'autres équipements peuvent s'ajouter à la file.`));
+  else if (P.repair && ship.busyWhat) box.append(h('p.hint', `Le navire est occupé (${ship.busyWhat}) : installation possible dès qu'il sera libre.`));
   box.append(h('div.list', EQUIPMENT_IDS.filter((id) => canEquip(ship, id)).map((id) => {
     const E = EQUIPMENT[id], on = hasEquip(ship, id), price = equipPrice(ship, id);
     const off = on && equipOff(ship, id);
+    const job = queue.find((r) => r.id === id), waiting = job && job.start > state.t;
+    const why = on ? null : installBlock(state, ship, id);
     // Équipement qu'on allume ou coupe (transpondeur « discret ») : sans effet, ni bon ni mauvais, une fois coupé.
     const toggle = on && E.switchable
       ? h('button.btn.small', { class: off ? '' : 'primary', onclick: () => app.act(() => toggleEquipment(state, ship.id, id)) }, off ? 'Allumer' : 'Couper')
       : null;
     return h('div.card', { class: on ? 'highlight' : '' }, [
       h('div.card-main', [
-        h('div.card-title', [`${E.icon} ${E.name}`, on ? h('span.tag', { class: off ? '' : 'good' }, off ? 'installé, coupé' : E.switchable ? 'en service' : 'installé') : null]),
+        h('div.card-title', [`${E.icon} ${E.name}`, job ? h('span.tag', waiting ? `en file · posé le ${date(job.until)}` : `pose en cours · prêt le ${date(job.until)}`)
+          : on ? h('span.tag', { class: off ? '' : 'good' }, off ? 'installé, coupé' : E.switchable ? 'en service' : 'installé') : null]),
         h('div.card-sub', E.blurb),
         E.switchable && on ? h('div.card-sub.muted', 'S\'allume ou se coupe à tout moment, même en mer. Coupé, il n\'a aucun effet.') : null,
         h('div.card-sub.muted', [E.defence ? `défense +${E.defence}` : null, E.upkeep ? `${money(E.upkeep)}/jour` : null, `${Math.max(1, Math.round(E.hours / 24))} j d'installation`].filter(Boolean).join(' · ')),
+        why && price > company.cash && P.repair ? h('div.card-sub.warn-text', why) : null, // le reste est dit une fois, au-dessus
       ]),
       h('div.card-side', on
-        ? [toggle, h('button.btn.small.ghost', { onclick: () => app.act(() => removeEquipment(state, ship.id, id)) }, 'Retirer')]
-        : [h('div.price', money(price)), h('button.btn.small', { disabled: !P.repair || !!ship.busyWhat || price > company.cash, onclick: () => app.act(() => installEquipment(state, ship.id, id), { sound: 'pay' }) }, 'Installer')]),
+        ? [job ? null : toggle, h('button.btn.small.ghost', { title: waiting ? 'Pas encore commencé : annulé et remboursé.' : null, onclick: () => app.act(() => removeEquipment(state, ship.id, id)) }, waiting ? 'Annuler' : 'Retirer')]
+        : [h('div.price', money(price)), h('button.btn.small', { disabled: !!why, title: why, onclick: () => app.act(() => installEquipment(state, ship.id, id), { sound: 'pay' }) }, queue.length ? 'Ajouter à la file' : 'Installer')]),
     ]);
   })));
 

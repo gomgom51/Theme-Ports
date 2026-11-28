@@ -59,7 +59,8 @@ export function checkSanctions(state, rng, ship, port, onNote) {
   changeVirtue(company, -8, 'douanes et amendes');
   ship.taint = null;
   const from = FLAGS[PORTS[risk.taint.port].flag].name;
-  const text = `${FLAGS[PORTS[port].flag].name} sanctionne le ${ship.name} pour commerce avec un pays sous embargo (${from}) : amende de ${(risk.fine / 1e6).toFixed(2).replace('.', ',')} M$.`;
+  // Le port plutôt que le pays : un nom de pays demande son article (« la Pologne », « les Pays-Bas »).
+  const text = `Sanctions à ${portName(port)} : le ${ship.name} a commercé avec un pays sous embargo (${from}), amende de ${(risk.fine / 1e6).toFixed(2).replace('.', ',')} M$.`;
   news(state, text, { company: company.id, kind: 'disaster' });
   onNote?.('sanction', text);
   return risk;

@@ -2,7 +2,9 @@
 
 Files: `sim/core.js` (`money`, books, `netWorth`, `creditLimit`, `interestRate`, `SHADOW_LENDER`),
 `game.daily/monthly/checkBank`, `actions.borrow/repay`, `sim/home.js` (shadow lender),
-`sim/trade.js` (cargo loans), UI Office → Finances (`ui/panels.js`), results `ui/shipresults.js`.
+`sim/trade.js` (cargo loans), UI Office → Finances (`ui/panels.js`), results `ui/shipresults.js`
+(Office → Results → By ship: goods bought and not yet sold count at their purchase price, `ship.cargo.cost`, not as a
+loss, so a ship carrying its own trade cargo doesn't show « −1 908 %/yr » until the sale).
 
 ## Books (`BOOK_LABELS`)
 

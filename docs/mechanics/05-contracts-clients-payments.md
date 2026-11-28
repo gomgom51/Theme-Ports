@@ -52,6 +52,10 @@ draft at destination; end-of-season ice needs ice class; shipper grudge (denounc
 someone else; shipper requirement (`clientRep`, unless loyal or blacklisted in a shady port);
 **trust** < `minRep` (waived for blacklisted companies in shady ports); deadline passed.
 
+The "réservé pour vous" tag explains its origin (`reservedTip` in `ui/panel-ship.js`): a loyal shipper (freight
++`RESERVE_BONUS`), a prospecting lead (`c.prospect`, freight × `PROSPECT.pay`) or a family-first contract (`c.family`,
+no trust requirement).
+
 On accept: price war cut (×0.8 if a rival's `pricewar` targets you in that port), image shipper
 factor (`imageFactor`, fixed at signing), golden-taken note, cargo loaded (taints if embargoed),
 loading time, departure queued.

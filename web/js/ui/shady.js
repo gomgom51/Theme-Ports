@@ -35,7 +35,13 @@ export function shadyLines(state, ship, to, { general = true } = {}) {
   if (ship.contraband && to) {
     const p = detectionChance(ship, to, homeOf(state, ship));
     const dest = ship.contraband.to === to;
-    out.push(h(`div.risk-line.${levelClass(p) || 'x'}`, `📦 Colis caché à bord${dest ? ' (livraison ici)' : ` (pour ${portName(ship.contraband.to)})`} : risque de fouille à ${portName(to)} ${riskWords(p, ship.crew || 0)}. Si la douane le trouve : amende de ${money(seizureFine(ship.contraband.pay))} et 10 à 25 jours d'immobilisation${corruption(PORTS[to].flag) > 0.15 ? ' (un arrangement sera peut-être possible)' : ''}.`));
+    // Morceaux dans des nœuds séparés : chacun se traduit seul (la destination et le niveau de risque varient).
+    out.push(h(`div.risk-line.${levelClass(p) || 'x'}`, [
+      h('span', dest ? '📦 Colis caché à bord, à livrer ici.' : `📦 Colis caché à bord, à livrer à ${portName(ship.contraband.to)}.`), ' ',
+      h('span', `Risque de fouille à ${portName(to)} :`), ' ', h('b', riskWords(p, ship.crew || 0)), '. ',
+      h('span', `Si la douane le trouve : amende de ${money(seizureFine(ship.contraband.pay))} et 10 à 25 jours d'immobilisation.`),
+      corruption(PORTS[to].flag) > 0.15 ? h('span', ' Un arrangement sera peut-être possible.') : null,
+    ]));
   }
   // Navire marqué par un embargo : dit en permanence sur sa fiche, avec la date de fin (règle n° 1).
   const taint = taintActive(state, ship);

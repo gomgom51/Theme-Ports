@@ -223,6 +223,7 @@ function portHour(state, ctx, rng, ship, notes) {
   if (ship.busyWhat && state.t >= ship.busyUntil) {
     const what = ship.busyWhat;
     ship.busyWhat = null;
+    if (what === 'installation') ship.refit = null; // file du chantier terminée
     if (['saisie', 'otages', 'confisqué', 'recrutement'].includes(what) && ship.pendingDelivery && ship.cargo) {
       act.startBusy(state, ship, 'déchargement', eco.handlingHours(ship.port, ship.cargo.hold, ship.cargo.qty, ship.type));
       return;
