@@ -97,7 +97,7 @@ for this file". If the helper is not in the table yet, add a row.
     - Panel functions run often, so cache heavy drawings.
     - Nothing animates on a refresh (`motion.js`).
 12. **Interface size.** Follow the `CLAUDE.md` conventions: `calc(N * var(--vw))`, `localRect()` / `viewport()`,
-    and `pixelRatio()` for canvases. The reference screen is 2560 × 1440.
+    and `pixelRatio()` for canvases. The reference screen is 2560 × 1440; also check 1920 × 1080, 16:10 and 21:9.
 13. **Desktop first.** The phone version is dropped. Existing phone code stays as it is, but don't add new
     phone-only or touch-only paths.
 14. **Docs in the same PR.** This is the owner's rule (PR template). A new shared helper gets a row in the table

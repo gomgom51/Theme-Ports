@@ -244,8 +244,11 @@ year 9–10, no victory path dominating; 10-year runs: all AIs survive.
   localhost or with `?dev`, the game warns in the console about every text still in
   French (`window.__i18nMissing`). Mark an element `data-no-tr` to leave it untouched.
 - Vanilla JS ES modules, no build step (`web/`), Android WebView wrapper in `android/`.
-- Interface size (`web/js/ui/scale.js`): the page is zoomed by `uiScale()` (1 at 1920 × 1080, 1.33 at 2560 × 1440, adjustable
-  in the ☰ menu). Write `calc(N * var(--vw))` / `var(--vh)` instead of `vw` / `vh`, convert screen coordinates with `localRect()` /
+- Interface size (`web/js/ui/scale.js`, owner's pick): one reference format, 16:9 at 2560 × 1440 (the owner's screen); check
+  every screen change there first, then 1920 × 1080, 2560 × 1600 (16:10) and 3440 × 1440 (21:9). The page is zoomed by
+  `uiScale()` = the largest 16:9 that fits the screen (the code counts in 1920 × 1080 px: 1 at 1080p, 1.33 at 1440p), never
+  below 0.75 on small screens (`MIN`), adjustable in the ☰ menu. On other shapes the interface keeps that 16:9 size, anchored
+  to the edges, and the map fills the rest (no black bars); dialogs and scenes stay centred cards of bounded width. Write `calc(N * var(--vw))` / `var(--vh)` instead of `vw` / `vh`, convert screen coordinates with `localRect()` /
   `viewport()` before positioning an element, and size a canvas with `pixelRatio()`; the map stays `.unzoom` and scales its own drawings.
 - Ship art (owner's pick): hand-pixel look, drawn procedurally from `SHIP_ART` (`ui/shipshapes.js`, proportions in metres, beam `B`). Detail
   views (inspect, ship sheet, broker cards, thumbnails) use `ui/pixelship.js` (a `<span class="px-ship">` that gets a
